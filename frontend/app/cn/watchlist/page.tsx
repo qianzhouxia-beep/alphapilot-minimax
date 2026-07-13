@@ -169,7 +169,7 @@ export default function WatchlistPage() {
             <p className="mt-2 text-[13px] text-text-secondary">
               在 Dashboard 点击 ☆ 按钮添加收藏，系统会自动追踪后续涨跌
             </p>
-            <Link href="/cn" className="mt-6 inline-block rounded-lg bg-status-info px-6 py-2.5 text-[13px] font-semibold text-[#00315b] hover:bg-status-info/70">
+            <Link href="/cn" className="mt-6 inline-block rounded-lg bg-status-info px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:bg-status-info/70">
               去选股
             </Link>
           </div>
@@ -224,7 +224,7 @@ export default function WatchlistPage() {
               disabled={priceLoading} />
             <div className="mt-4 flex gap-2">
               <button onClick={handleEditPrice} disabled={priceLoading}
-                className="flex-1 rounded-lg bg-status-info px-4 py-2.5 text-[14px] font-semibold text-[#00315b] hover:bg-status-info/70 disabled:opacity-50 transition-colors">
+                className="flex-1 rounded-lg bg-status-info px-4 py-2.5 text-[14px] font-semibold text-on-primary hover:bg-status-info/70 disabled:opacity-50 transition-colors">
                 {priceLoading ? "保存中..." : "确认修改"}
               </button>
               <button onClick={() => setPriceDialog(null)} disabled={priceLoading}
