@@ -82,7 +82,7 @@ export default function RootLayout({
           </>
         )}
       </head>
-      <body className="min-h-screen bg-[#0a1422] text-[#EAF2FF] antialiased">
+      <body className="min-h-screen bg-background text-text-primary antialiased">
         <LocaleProvider>
           <AuthProvider>{children}</AuthProvider>
         </LocaleProvider>
