@@ -97,7 +97,7 @@ export default function PaperTradingPage() {
 
       {/* 账户总览 */}
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <KPICard label="总资产" value={`¥${(acc.total_assets / 10000).toFixed(2)}万`} sub={`持仓市值 ${(acc.market_value / 10000).toFixed(2)}万`} color="#4DA3FF" />
+        <KPICard label="总资产" value={`¥${(acc.total_assets / 10000).toFixed(2)}万`} sub={`持仓市值 ${(acc.market_value / 10000).toFixed(2)}万`} color="#A78BFA" />
         <KPICard label="可用现金" value={`¥${(acc.cash / 10000).toFixed(2)}万`} sub={`剩余资金`} color="#3EE6A8" />
         <KPICard label="当日收益" value={`${acc.daily_pnl_pct >= 0 ? "+" : ""}${acc.daily_pnl_pct.toFixed(2)}%`} sub={`今日浮盈`} color={acc.daily_pnl_pct >= 0 ? "#FF5D5D" : "#3EE6A8"} />
         <KPICard label="累计收益" value={`${acc.total_pnl_pct >= 0 ? "+" : ""}${acc.total_pnl_pct.toFixed(2)}%`} sub={`总盈亏 ¥${acc.total_pnl_amount.toFixed(0)}`} color={acc.total_pnl_pct >= 0 ? "#FF5D5D" : "#3EE6A8"} />
