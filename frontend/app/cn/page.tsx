@@ -14,7 +14,7 @@ import {
 } from "@/lib/cn-api";
 
 const scoreColor = (s: number) =>
-  s >= 0.50 ? "text-[#3EE6A8]" : s >= 0.40 ? "text-[#4DA3FF]" : s >= 0.30 ? "text-[#F5C451]" : "text-[#9FB0C7]";
+  s >= 0.50 ? "text-[#3EE6A8]" : s >= 0.40 ? "text-[#A78BFA]" : s >= 0.30 ? "text-[#F5C451]" : "text-[#9FB0C7]";
 const displayScore = (s: number) => Math.min(99, Math.max(75, Math.round(s * 45 + 75)));
 const scoreLabel = (s: number) =>
   s >= 0.50 ? "A+" : s >= 0.35 ? "A" : s >= 0.25 ? "B+" : "B";
@@ -274,12 +274,12 @@ export default function CNDashboard() {
 
       {data && (
         <>
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-[#4DA3FF]/30 to-transparent mb-6"></div>
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-[#A78BFA]/30 to-transparent mb-6"></div>
         <section className="mb-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           <KPI label="今日最佳" value={top ? top.name : "—"} sub={top ? `${top.symbol.replace(/^(sh|sz)/,"")} · ${displayScore(top.score)}信心${isMarkupTop ? " · 拉升确认" : top.money_phase_label ? " · " + top.money_phase_label : ""}` : ""} accent="#3EE6A8" />
           <KPI label="实时资金" value={livePolling ? "拉取中" : (liveAgo != null ? "✓" : "—")} sub={`资金流 ${liveStatusText} · 60秒刷新`} accent="#F5C451" />
           <KPI label="今日推荐" value={`${returnedCount}`} sub={`${items.length} 只通过门控 · 排名前${Math.round(items.length / (data?.stats?.total_scanned || 1) * 100)}%`} accent="#3EE6A8" />
-          <KPI label="平均信心" value={`${displayScore(avgScore)}`} sub={`信心分${(avgScore * 100).toFixed(0)}% 原始`} accent="#4DA3FF" />
+          <KPI label="平均信心" value={`${displayScore(avgScore)}`} sub={`信心分${(avgScore * 100).toFixed(0)}% 原始`} accent="#A78BFA" />
           <KPI label="全量扫描" value={`${data.stats.valid_scored}`} sub={`${data.stats.total_scanned} 只 · ${(data.stats.elapsed_seconds / 60).toFixed(0)}m · 自我学习`} accent="#F5C451" />
         </section>
         </>
@@ -289,9 +289,9 @@ export default function CNDashboard() {
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-1 h-6 rounded-full bg-[#4DA3FF]"></div>
+              <div className="w-1 h-6 rounded-full bg-[#A78BFA]"></div>
               <h2 className="text-[18px] font-semibold text-[#EAF2FF]">A 股 Top 10 机会</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(77,163,255,0.12)] text-[#4DA3FF] border border-[rgba(77,163,255,0.25)]">V18</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(77,163,255,0.12)] text-[#A78BFA] border border-[rgba(77,163,255,0.25)]">V18</span>
               {items[0]?._reranked && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[rgba(62,230,168,0.12)] text-[#3EE6A8] border border-[rgba(62,230,168,0.3)]">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#3EE6A8] animate-pulse"></span>
@@ -317,7 +317,7 @@ export default function CNDashboard() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="rounded-lg border border-[#1D2A42] bg-[#0C1728] px-3 py-1.5 text-[12px] text-[#9FB0C7] hover:border-[#4DA3FF] hover:text-[#EAF2FF] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="rounded-lg border border-[#1D2A42] bg-[#0C1728] px-3 py-1.5 text-[12px] text-[#9FB0C7] hover:border-[#A78BFA] hover:text-[#EAF2FF] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
             >
               <svg className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" />
@@ -331,7 +331,7 @@ export default function CNDashboard() {
 
         {loading && (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#1D2A42] border-t-[#4DA3FF]"></div>
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#1D2A42] border-t-[#A78BFA]"></div>
             <p className="mt-4 text-[14px] text-[#9FB0C7]">加载中...</p>
           </div>
         )}
@@ -376,14 +376,14 @@ export default function CNDashboard() {
                       {String(i + 1).padStart(2, "0")}
                     </td>
                     <td className="px-3 py-3 text-left">
-                      <span className="font-mono text-[14px] font-semibold text-[#4DA3FF]">{sym}</span>
+                      <span className="font-mono text-[14px] font-semibold text-[#A78BFA]">{sym}</span>
                     </td>
                     <td className="px-3 py-3 text-left text-[13px] text-[#EAF2FF] hidden sm:table-cell">
-                      <Link href={`/cn/stock?symbol=${item.symbol}`} className="hover:text-[#4DA3FF] transition-colors">{item.name}</Link>
+                      <Link href={`/cn/stock?symbol=${item.symbol}`} className="hover:text-[#A78BFA] transition-colors">{item.name}</Link>
                     </td>
                     <td className="px-3 py-3 text-left hidden lg:table-cell">
                       {item.sector ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[11px] font-medium text-[#4DA3FF] border border-[rgba(77,163,255,0.25)] max-w-[180px] whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[11px] font-medium text-[#A78BFA] border border-[rgba(77,163,255,0.25)] max-w-[180px] whitespace-nowrap">
                           <span className="truncate">{item.sector}</span>
                           {item.sector_change_pct != null && (
                             <span className={`shrink-0 ${
@@ -482,7 +482,7 @@ export default function CNDashboard() {
                           }`}>
                           {isWlLoading ? "..." : isFav ? "★已收藏" : "☆收藏"}
                         </button>
-                        <Link href={`/cn/stock?symbol=${item.symbol}`} className="text-[12px] text-[#4DA3FF] hover:underline shrink-0">
+                        <Link href={`/cn/stock?symbol=${item.symbol}`} className="text-[12px] text-[#A78BFA] hover:underline shrink-0">
                           详情
                         </Link>
                       </div>
@@ -510,7 +510,7 @@ export default function CNDashboard() {
           </div>
           {catLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#1D2A42] border-t-[#4DA3FF]"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-3 border-[#1D2A42] border-t-[#A78BFA]"></div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -534,7 +534,7 @@ export default function CNDashboard() {
                 记录入场价 · 自动追踪 T+1/T+2/T+3 涨跌
               </p>
             </div>
-            <Link href="/cn/watchlist" className="text-[12px] text-[#4DA3FF] hover:underline">
+            <Link href="/cn/watchlist" className="text-[12px] text-[#A78BFA] hover:underline">
               查看全部 →
             </Link>
           </div>
@@ -558,7 +558,7 @@ export default function CNDashboard() {
                         <span className="font-semibold text-[#EAF2FF] truncate">{w.name}</span>
                         <span className="text-[#6E7C93] text-[11px] shrink-0">{w.symbol}</span>
                         {w.sector && (
-                          <span className="hidden sm:inline-flex items-center gap-1 text-[9px] px-1 py-0.5 rounded-full bg-[rgba(77,163,255,0.1)] text-[#4DA3FF] border border-[rgba(77,163,255,0.2)] leading-none shrink-0">
+                          <span className="hidden sm:inline-flex items-center gap-1 text-[9px] px-1 py-0.5 rounded-full bg-[rgba(77,163,255,0.1)] text-[#A78BFA] border border-[rgba(77,163,255,0.2)] leading-none shrink-0">
                             <span className="truncate max-w-[50px]">{w.sector}</span>
                             {(() => {
                               const sc = (w as any).sector_change_pct ?? sectorChanges[w.sector];
@@ -712,8 +712,8 @@ export default function CNDashboard() {
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(62,230,168,0.12)] text-[#3EE6A8] border border-[rgba(62,230,168,0.25)]">AI 驱动</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#4DA3FF]">
-            <svg className="w-6 h-6 mb-1 text-[#4DA3FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#A78BFA]">
+            <svg className="w-6 h-6 mb-1 text-[#A78BFA]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             <h3 className="text-[14px] font-semibold text-[#EAF2FF] mb-1">自动历史回撤</h3>
             <p className="text-[11px] text-[#6E7C93] leading-relaxed">
               每日 Top 5 推荐自动记录，T+1/T+3 涨跌幅自动追踪，生成完整回测数据库
@@ -758,18 +758,18 @@ export default function CNDashboard() {
               min="0.01"
               value={priceDialog.price}
               onChange={e => setPriceDialog(prev => prev ? { ...prev, price: e.target.value } : null)}
-              className="w-full rounded-lg border border-[#1D2A42] bg-[#0a1422] px-3 py-2.5 text-[16px] text-[#EAF2FF] font-mono outline-none focus:border-[#4DA3FF] transition-colors"
+              className="w-full rounded-lg border border-[#1D2A42] bg-[#0a1422] px-3 py-2.5 text-[16px] text-[#EAF2FF] font-mono outline-none focus:border-[#A78BFA] transition-colors"
               placeholder="输入买入价"
               autoFocus
               disabled={priceDialogLoading}
             />
             <div className="mt-4 flex gap-2">
               <button onClick={() => setPriceDialog(null)} disabled={priceDialogLoading}
-                className="flex-1 rounded-lg border border-[#1D2A42] bg-[#0a1422] py-2.5 text-[13px] text-[#9FB0C7] hover:border-[#4DA3FF] hover:text-[#EAF2FF] transition-colors disabled:opacity-50">
+                className="flex-1 rounded-lg border border-[#1D2A42] bg-[#0a1422] py-2.5 text-[13px] text-[#9FB0C7] hover:border-[#A78BFA] hover:text-[#EAF2FF] transition-colors disabled:opacity-50">
                 取消
               </button>
               <button onClick={confirmAddWatchlist} disabled={priceDialogLoading}
-                className="flex-1 rounded-lg bg-[#4DA3FF] py-2.5 text-[13px] font-semibold text-[#00315b] hover:bg-[#7ddeff] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                className="flex-1 rounded-lg bg-[#A78BFA] py-2.5 text-[13px] font-semibold text-[#00315b] hover:bg-[#C084FC] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {priceDialogLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#00315b] border-t-transparent" /> : null}
                 {priceDialogLoading ? "添加中..." : "确认添加"}
               </button>
@@ -898,15 +898,15 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                       <div key={s.symbol} className="grid grid-cols-[20px_1fr_42px_55px] sm:grid-cols-[22px_1fr_42px_1fr_85px_70px_26px] items-center rounded-lg bg-[#121c2a] p-1.5 hover:bg-[#16202f] transition-colors group gap-1">
                         <span className="text-[11px] text-[#6E7C93] font-display-numeric text-center">{i + 1}</span>
                         <Link href={`/cn/stock?symbol=${s.symbol}`} className="flex items-center gap-1 min-w-0 overflow-hidden">
-                          <span className="text-[13px] font-medium text-[#EAF2FF] group-hover:text-[#4DA3FF] truncate transition-colors">{s.name}</span>
+                          <span className="text-[13px] font-medium text-[#EAF2FF] group-hover:text-[#A78BFA] truncate transition-colors">{s.name}</span>
                           <span className="text-[10px] text-[#6E7C93] shrink-0">{sym}</span>
                         </Link>
-                        <span className="font-display-numeric text-[11px] font-bold text-center" style={{color: displayScore(s.score_raw || s.score) > 85 ? "#3EE6A8" : displayScore(s.score_raw || s.score) > 80 ? "#4DA3FF" : "#9FB0C7"}}>
+                        <span className="font-display-numeric text-[11px] font-bold text-center" style={{color: displayScore(s.score_raw || s.score) > 85 ? "#3EE6A8" : displayScore(s.score_raw || s.score) > 80 ? "#A78BFA" : "#9FB0C7"}}>
                           {displayScore(s.score_raw || s.score)}
                         </span>
                         <div className="hidden sm:flex items-center gap-1 min-w-0 overflow-hidden">
                           {s.sector ? (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(77,163,255,0.1)] text-[#4DA3FF] border border-[rgba(77,163,255,0.2)] leading-none shrink-0">
+                            <span className="inline-flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(77,163,255,0.1)] text-[#A78BFA] border border-[rgba(77,163,255,0.2)] leading-none shrink-0">
                               <span className="truncate max-w-[55px] sm:max-w-[65px]">{s.sector}</span>
                               {scChg != null && (
                                 <span className={`shrink-0 ${scChg >= 0 ? "text-[#FF5D5D]" : "text-[#3EE6A8]"}`}>
@@ -936,7 +936,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                     );
                   })}
                   {stocks.length > 5 && (
-                    <p className="text-[11px] text-[#4DA3FF] text-right pr-1">+{stocks.length - 5} 只更多</p>
+                    <p className="text-[11px] text-[#A78BFA] text-right pr-1">+{stocks.length - 5} 只更多</p>
                   )}
                 </div>
               )}
