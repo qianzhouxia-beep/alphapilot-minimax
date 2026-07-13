@@ -31,7 +31,7 @@ type StockDetail = {
 };
 
 const scoreColor = (s: number) =>
-  s >= 0.75 ? "text-[#3EE6A8]" : s >= 0.70 ? "text-[#A78BFA]" : s >= 0.65 ? "text-[#F5C451]" : "text-[#9FB0C7]";
+  s >= 0.75 ? "text-[#3EE6A8]" : s >= 0.70 ? "text-status-info" : s >= 0.65 ? "text-[#F5C451]" : "text-text-secondary";
 
 async function fetchStockDetail(symbol: string): Promise<StockDetail> {
   const clean = symbol.replace(/\.(SH|SZ|sh|sz)$/, "");
@@ -113,8 +113,8 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
       <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
         <HeaderBar market="cn" />
         <div className="flex flex-col items-center justify-center py-40">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#1D2A42] border-t-[#A78BFA]"></div>
-          <p className="mt-4 text-[14px] text-[#9FB0C7]">加载中...</p>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-[#A78BFA]"></div>
+          <p className="mt-4 text-[14px] text-text-secondary">加载中...</p>
         </div>
       </main>
     );
@@ -126,12 +126,12 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
         <HeaderBar market="cn" />
         <div className="glass rounded-2xl border border-[#FF5D5D] p-8 text-center mt-20">
           <p className="text-[#FF5D5D] font-semibold text-lg mb-2">无法加载个股数据</p>
-          <p className="text-[12px] text-[#9FB0C7] mb-4">{error}</p>
+          <p className="text-[12px] text-text-secondary mb-4">{error}</p>
           <div className="flex items-center justify-center gap-3">
-            <Link href="/cn" className="rounded-lg border border-[#1D2A42] bg-[#0C1728] px-4 py-2 text-[12px] text-[#9FB0C7] hover:text-[#EAF2FF]">
+            <Link href="/cn" className="rounded-lg border border-border-subtle bg-surface-card px-4 py-2 text-[12px] text-text-secondary hover:text-text-primary">
               ← 返回首页
             </Link>
-            <button onClick={handleRefresh} className="rounded-lg bg-[#A78BFA] px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#C084FC]">
+            <button onClick={handleRefresh} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-on-primary hover:bg-[#C084FC]">
               重试
             </button>
           </div>
@@ -155,18 +155,18 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
       {/* Header */}
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/cn" className="mb-2 inline-flex items-center gap-1 text-[12px] text-[#9FB0C7] hover:text-[#A78BFA]">
+          <Link href="/cn" className="mb-2 inline-flex items-center gap-1 text-[12px] text-text-secondary hover:text-status-info">
             ← 返回首页
           </Link>
           <div className="flex items-baseline gap-4">
-            <h1 className="font-mono text-[32px] font-semibold leading-none tracking-tight text-[#A78BFA]">
+            <h1 className="font-mono text-[32px] font-semibold leading-none tracking-tight text-status-info">
               {code}
             </h1>
-            <span className="text-[18px] text-[#EAF2FF]">{stock?.name ?? code}</span>
+            <span className="text-[18px] text-text-primary">{stock?.name ?? code}</span>
           </div>
           {/* 实时行情条 */}
           <div className="mt-2 flex items-center gap-3">
-            <span className="font-display-numeric text-[28px] font-bold text-[#EAF2FF]">
+            <span className="font-display-numeric text-[28px] font-bold text-text-primary">
               ¥{stock?.price != null ? stock.price.toFixed(2) : (buyPrice > 0 ? buyPrice.toFixed(2) : "—")}
             </span>
             {stock?.change_pct != null && (
@@ -174,13 +174,13 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
                 {stock.change_pct > 0 ? "+" : ""}{stock.change_pct.toFixed(2)}%
               </span>
             )}
-          <span className="text-[12px] text-[#6E7C93]">数据源: {stock?.source ?? "—"}</span>
+          <span className="text-[12px] text-text-disabled">数据源: {stock?.source ?? "—"}</span>
           </div>
         </div>
         <button onClick={handleToggleWl}
           className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
             isWatched ? "bg-[rgba(245,196,81,0.15)] text-[#F5C451] hover:bg-[rgba(245,196,81,0.25)]"
-            : "border border-[#1D2A42] text-[#6E7C93] hover:border-[#F5C451] hover:text-[#F5C451]"
+            : "border border-border-subtle text-text-disabled hover:border-[#F5C451] hover:text-[#F5C451]"
           }`}>
           {isWatched ? "★ 收藏中" : "☆ 添加收藏"}
         </button>
@@ -194,44 +194,44 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
         {/* LEFT: 决策卡 */}
         <section className="col-span-1 glass-strong rounded-2xl p-6">
           <div className="mb-4 flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider text-[#6E7C93]">V12 集成决策卡</span>
-            <span className="rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#A78BFA] border border-[rgba(77,163,255,0.3)]">
+            <span className="text-[11px] uppercase tracking-wider text-text-disabled">V12 集成决策卡</span>
+            <span className="rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-status-info border border-[rgba(77,163,255,0.3)]">
               5 模型投票
             </span>
           </div>
 
           <div className="mb-4 text-center">
-            <div className="mb-1 text-[11px] uppercase tracking-wider text-[#6E7C93]">综合评分</div>
+            <div className="mb-1 text-[11px] uppercase tracking-wider text-text-disabled">综合评分</div>
             <div className={`font-display-numeric text-[64px] leading-none ${scoreColor(score)}`}>
               {(score * 100).toFixed(0)}
             </div>
-            <div className="mt-2 text-[12px] text-[#9FB0C7]">
-              LGB 评分 <span className="text-[#EAF2FF]">{(lgbScore * 100).toFixed(0)}</span> · 板块热度{" "}
-              <span className="text-[#EAF2FF]">{(sectorHeat * 100).toFixed(0)}</span>
+            <div className="mt-2 text-[12px] text-text-secondary">
+              LGB 评分 <span className="text-text-primary">{(lgbScore * 100).toFixed(0)}</span> · 板块热度{" "}
+              <span className="text-text-primary">{(sectorHeat * 100).toFixed(0)}</span>
             </div>
           </div>
 
-          <div className="mb-4 rounded-xl border border-[#1D2A42] bg-[#0C1728] p-3">
-            <div className="mb-2 text-[10px] uppercase tracking-wider text-[#6E7C93]">ATR 价格目标</div>
+          <div className="mb-4 rounded-xl border border-border-subtle bg-surface-card p-3">
+            <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">ATR 价格目标</div>
             <div className="space-y-1 text-[13px]">
               <div className="flex items-center justify-between">
-                <span className="text-[#6E7C93]">买入价</span>
-                <span className="font-display-numeric text-[16px] text-[#EAF2FF]">¥{buyPrice > 0 ? buyPrice.toFixed(2) : "—"}</span>
+                <span className="text-text-disabled">买入价</span>
+                <span className="font-display-numeric text-[16px] text-text-primary">¥{buyPrice > 0 ? buyPrice.toFixed(2) : "—"}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#6E7C93]">目标价</span>
+                <span className="text-text-disabled">目标价</span>
                 <span className="font-display-numeric text-[16px] text-[#3EE6A8]">¥{targetPrice > 0 ? targetPrice.toFixed(2) : "—"}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#6E7C93]">止损价</span>
+                <span className="text-text-disabled">止损价</span>
                 <span className="font-display-numeric text-[16px] text-[#FF5D5D]">¥{stopPrice > 0 ? stopPrice.toFixed(2) : "—"}</span>
               </div>
             </div>
           </div>
 
           {targetPrice > 0 && buyPrice > 0 && (
-            <div className="mb-4 rounded-xl border border-[#1D2A42] bg-[#0C1728] p-3">
-              <div className="mb-2 text-[10px] uppercase tracking-wider text-[#6E7C93]">盈亏比</div>
+            <div className="mb-4 rounded-xl border border-border-subtle bg-surface-card p-3">
+              <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">盈亏比</div>
               <div className="text-[24px] font-semibold text-[#3EE6A8]">
                 {((targetPrice - buyPrice) / (buyPrice - stopPrice)).toFixed(2)} : 1
               </div>
@@ -239,10 +239,10 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
           )}
 
           <div className="flex gap-2">
-            <button className="flex-1 rounded-lg bg-[#A78BFA] py-2 text-[13px] font-semibold text-[#00315b] hover:bg-[#C084FC]">
+            <button className="flex-1 rounded-lg bg-status-info py-2 text-[13px] font-semibold text-on-primary hover:bg-[#C084FC]">
               加入观察
             </button>
-            <button onClick={handleRefresh} className="rounded-lg border border-[#1D2A42] px-4 py-2 text-[13px] text-[#9FB0C7] hover:border-[#A78BFA] hover:text-[#EAF2FF]">
+            <button onClick={handleRefresh} className="rounded-lg border border-border-subtle px-4 py-2 text-[13px] text-text-secondary hover:border-status-info hover:text-text-primary">
               刷新
             </button>
           </div>
@@ -252,14 +252,14 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
         <section className="col-span-1 glass rounded-2xl p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-[16px] font-semibold">评分分解</h2>
-            <span className="text-[11px] text-[#6E7C93]">V12 集成</span>
+            <span className="text-[11px] text-text-disabled">V12 集成</span>
           </div>
           <div className="space-y-4">
             <BarMeter label="XGBoost 概率" value={lgbScore} color="#A78BFA" />
             <BarMeter label="板块热度" value={sectorHeat} color="#3EE6A8" />
             <BarMeter label="综合评分" value={score} color={score >= 0.7 ? "#3EE6A8" : score >= 0.65 ? "#F5C451" : "#9FB0C7"} />
           </div>
-          <p className="mt-6 text-[11px] text-[#6E7C93]">
+          <p className="mt-6 text-[11px] text-text-disabled">
             综合评分 = 5 模型平均概率 × 0.8 + 板块热度 × 0.2。<br />
             V12 集成：AUC 0.681, 53 维特征, 2 天持有, 4%+ 目标涨幅。
           </p>
@@ -269,7 +269,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
         <section className="col-span-1 space-y-6">
           <div className="glass rounded-2xl p-5">
             <h3 className="mb-3 text-[14px] font-semibold">策略表现</h3>
-            <div className="space-y-2 text-[12px] text-[#9FB0C7]">
+            <div className="space-y-2 text-[12px] text-text-secondary">
               <div className="flex items-center justify-between">
                 <span>Sharpe</span>
                 <span className="text-[#3EE6A8] font-semibold">5.16</span>
@@ -284,10 +284,10 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
               </div>
               <div className="flex items-center justify-between">
                 <span>正收益期数</span>
-                <span className="text-[#EAF2FF] font-semibold">15/19 (79%)</span>
+                <span className="text-text-primary font-semibold">15/19 (79%)</span>
               </div>
             </div>
-            <Link href="/cn" className="mt-4 inline-flex items-center gap-1 text-[12px] text-[#A78BFA] hover:underline">
+            <Link href="/cn" className="mt-4 inline-flex items-center gap-1 text-[12px] text-status-info hover:underline">
               查看全部推荐 →
             </Link>
           </div>
@@ -295,7 +295,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
           {stock?.source && (
             <div className="glass rounded-2xl p-5">
               <h3 className="mb-3 text-[14px] font-semibold">数据信息</h3>
-              <div className="space-y-1 text-[12px] text-[#9FB0C7]">
+              <div className="space-y-1 text-[12px] text-text-secondary">
                 <p>数据源: {stock.source}</p>
                 <p>符号: {stock.symbol}</p>
               </div>
@@ -306,7 +306,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
 
       <section className="mt-6 glass rounded-2xl p-6">
         <h2 className="mb-4 text-[16px] font-semibold">关于 V12 评分</h2>
-        <p className="text-[12px] text-[#9FB0C7] leading-relaxed">
+        <p className="text-[12px] text-text-secondary leading-relaxed">
           V12 多模型集成方案使用 53 维特征（量价 + 趋势 + 板块指标）训练 5 个 XGBoost 模型，
           输出平均概率与板块热度评分加权，最终选出综合评分最高的前 20 只股票。
           持有期 2 天，目标涨幅 4%+，每日全 A 股并行扫描。
@@ -314,7 +314,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
         </p>
       </section>
 
-      <footer className="mt-10 text-center text-[11px] text-[#6E7C93]">
+      <footer className="mt-10 text-center text-[11px] text-text-disabled">
         AlphaPilot 提供 AI 辅助分析，仅供教育用途，非投资建议。
       </footer>
     </main>
@@ -326,10 +326,10 @@ function BarMeter({ label, value, color }: { label: string; value: number; color
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-[12px]">
-        <span className="text-[#9FB0C7]">{label}</span>
+        <span className="text-text-secondary">{label}</span>
         <span className="font-display-numeric font-semibold" style={{ color }}>{pct}</span>
       </div>
-      <div className="h-2 rounded-full bg-[#1D2A42] overflow-hidden">
+      <div className="h-2 rounded-full bg-border-subtle overflow-hidden">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
