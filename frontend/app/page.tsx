@@ -108,7 +108,7 @@ export default function LandingPage() {
             <Link href="/"><Image src="/logo.png" alt="AlphaPilot" className="h-8 w-auto" width={140} height={32} priority /></Link>
           </div>
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/cn" className="text-text-primary font-bold border-b-2 border-[#a2c9ff] pb-1 text-[13px]">智能决策终端</Link>
+            <Link href="/cn" className="text-text-primary font-bold border-b-2 border-[#b99cfc] pb-1 text-[13px]">智能决策终端</Link>
             <Link href="/cn" className="text-text-secondary hover:text-text-primary transition-colors text-[13px]">A 股选股</Link>
             <Link href="/cn/watchlist" className="text-text-secondary hover:text-text-primary transition-colors text-[13px]">收藏追踪</Link>
             <Link href="/cn/paper-trading" className="text-text-secondary hover:text-text-primary transition-colors text-[13px]">量化模拟盘</Link>
@@ -126,12 +126,12 @@ export default function LandingPage() {
           <div className="absolute inset-0 z-0 opacity-40"><canvas ref={shaderRef} className="w-full h-full" /></div>
           <div className="relative z-10 w-full max-w-[1440px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
             <div className="animate-fade-in-up" style={{ animationDelay:"0.2s" }}>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#a2c9ff]/10 border border-[#a2c9ff]/20 text-text-primary text-[12px] font-medium mb-4">
-                <span className="w-2 h-2 rounded-full bg-[#a2c9ff] mr-2 animate-pulse" />V18 Fusion 决策系统已就绪
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#b99cfc]/10 border border-[#b99cfc]/20 text-text-primary text-[12px] font-medium mb-4">
+                <span className="w-2 h-2 rounded-full bg-[#b99cfc] mr-2 animate-pulse" />V18 Fusion 决策系统已就绪
               </span>
               <h1 className="text-[32px] md:text-[56px] md:leading-[64px] font-bold text-text-primary tracking-tight mb-4">
                 AI 驱动量价穿透 <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a2c9ff] to-[#7ddeff]">洞察主力意图的决策终端</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b99cfc] to-[#C084FC]">洞察主力意图的决策终端</span>
               </h1>
               {/* Market Indices */}
               <div className="flex gap-4 mb-6 overflow-x-auto pb-2 no-scrollbar">
@@ -176,7 +176,7 @@ export default function LandingPage() {
         {/* Trust Stats */}
         <section className="py-6 border-y border-border-subtle bg-[#050e1c]/50 backdrop-blur-md">
           <div className="max-w-[1440px] mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-5 text-center">
-            {[{ label:"波段胜率", value:"84%", color:"#35e0a3" },{ label:"平均盈亏比", value:"3.2:1", color:"#a2c9ff" },{ label:"每日决策信号", value:"500+", color:"#EAF2FF" },{ label:"行情响应延迟", value:"5ms", color:"#7ddeff" }].map((s) => (
+            {[{ label:"波段胜率", value:"84%", color:"#35e0a3" },{ label:"平均盈亏比", value:"3.2:1", color:"#b99cfc" },{ label:"每日决策信号", value:"500+", color:"#EAF2FF" },{ label:"行情响应延迟", value:"5ms", color:"#C084FC" }].map((s) => (
               <div key={s.label} className="space-y-1">
                 <p className="text-text-secondary text-[12px] uppercase tracking-widest font-medium">{s.label}</p>
                 <p className="text-[36px] font-bold leading-[44px] tracking-tight" style={{ color: s.color }}>{s.value}</p>
@@ -193,7 +193,7 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Card 1: 主力行为雷达 */}
-            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-[#4DA3FF]/40 transition-all">
+            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-[#A78BFA]/40 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[rgba(77,163,255,0.12)] flex items-center justify-center">
@@ -327,7 +327,7 @@ export default function LandingPage() {
           </div>
 
           {/* Bottom CTA bar */}
-          <div className="mt-6 glass rounded-2xl p-4 flex items-center justify-between border-l-4 border-l-[#4DA3FF]">
+          <div className="mt-6 glass rounded-2xl p-4 flex items-center justify-between border-l-4 border-l-[#A78BFA]">
             <div className="flex items-center gap-3">
               <svg className="w-8 h-8 text-status-info shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -343,7 +343,7 @@ export default function LandingPage() {
 
         {/* CTA */}
         <section className="relative py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-[#a2c9ff]/5 -skew-y-3 scale-y-110" />
+          <div className="absolute inset-0 bg-[#b99cfc]/5 -skew-y-3 scale-y-110" />
           <div className="relative z-10 max-w-[1440px] mx-auto px-8 text-center">
             <h2 className="text-[32px] font-semibold mb-4">准备好开启智能交易时代了吗？</h2>
             <p className="text-text-secondary text-[16px] max-w-xl mx-auto mb-6">V18 Fusion 决策系统 · 30维融合特征 · 5模型集成</p>
