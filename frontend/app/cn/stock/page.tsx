@@ -165,7 +165,7 @@ export default function CNStockDetail() {
         <Link href="/cn" className="inline-flex items-center gap-1 text-[12px] text-text-secondary hover:text-status-info">
           ← 返回 Dashboard
         </Link>
-        <button onClick={handleRefresh} className="rounded-lg border border-border-subtle bg-surface-panel px-3 py-1.5 text-[12px] text-text-secondary hover:border-[#4DA3FF] hover:text-text-primary transition-colors">
+        <button onClick={handleRefresh} className="rounded-lg border border-border-subtle bg-surface-panel px-3 py-1.5 text-[12px] text-text-secondary hover:border-[#A78BFA] hover:text-text-primary transition-colors">
           刷新
         </button>
       </div>
@@ -262,7 +262,7 @@ export default function CNStockDetail() {
 
             {/* Score breakdown bars */}
             <div className="space-y-3 mb-4">
-              <BarMeter label="XGBoost 概率" value={stock?.lgb_score ?? score} color="#4DA3FF" />
+              <BarMeter label="XGBoost 概率" value={stock?.lgb_score ?? score} color="#A78BFA" />
               <BarMeter label="板块热度" value={stock?.sector_heat ?? 0.5} color="#3EE6A8" />
               <BarMeter label="综合评分" value={score} color={score >= 0.7 ? "#3EE6A8" : score >= 0.65 ? "#F5C451" : "#9FB0C7"} />
             </div>
@@ -316,7 +316,7 @@ export default function CNStockDetail() {
                   </div>
                   {peersLoading ? (
                     <div className="flex items-center gap-2 text-[12px] text-text-disabled">
-                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-subtle border-t-[#4DA3FF]" />
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-subtle border-t-[#A78BFA]" />
                       加载中...
                     </div>
                   ) : peers.length > 0 ? (
@@ -367,7 +367,7 @@ export default function CNStockDetail() {
             </h3>
             {newsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="h-6 w-6 animate-spin rounded-full border-3 border-border-subtle border-t-[#4DA3FF]" />
+                <div className="h-6 w-6 animate-spin rounded-full border-3 border-border-subtle border-t-[#A78BFA]" />
               </div>
             ) : news.length > 0 ? (
               <div className="space-y-2">
@@ -424,7 +424,7 @@ function LoadingSkeleton() {
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
       <HeaderBar market="cn" />
       <div className="flex flex-col items-center justify-center py-40">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-[#4DA3FF]" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-[#A78BFA]" />
         <p className="mt-4 text-[14px] text-text-secondary">加载中...</p>
       </div>
     </main>
@@ -442,7 +442,7 @@ function ErrorState({ error, symbol, onRefresh }: { error: string; symbol: strin
           <Link href="/cn" className="rounded-lg border border-border-subtle bg-surface-panel px-4 py-2 text-[12px] text-text-secondary hover:text-text-primary">
             ← 返回首页
           </Link>
-          <button onClick={onRefresh} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff]">
+          <button onClick={onRefresh} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#C084FC]">
             重试
           </button>
         </div>
