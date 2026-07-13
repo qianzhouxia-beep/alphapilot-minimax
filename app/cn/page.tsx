@@ -416,7 +416,7 @@ export default function CNDashboard() {
                       {item.active_buy_ratio != null ? (
                         <div className="flex flex-col gap-1">
                           <span className={`text-[12px] font-display-numeric ${item.active_buy_ratio >= 0.5 ? "text-[#3EE6A8]" : "text-[#FF5D5D]"}`}>
-                            {item.main_net > 0 ? "主力净流+" + (item.main_net/10000).toFixed(0) + "万" : "主力净流" + (item.main_net/10000).toFixed(0) + "万"}
+                            {(item.active_buy_ratio * 100).toFixed(0)}% 主动买入
                           </span>
                           {item.money_phase_label && (
                             <span className="text-[11px] text-[#F5C451]">{item.money_phase_label}</span>
