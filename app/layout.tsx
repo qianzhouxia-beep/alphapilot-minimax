@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://alphapilot.api-tokenmaster.com"),
   title: "AlphaPilot — AI 股票智能决策平台",
   description:
-    "AI 智能选股平台，A 股全市场扫描，V12 多模型集成 + 8 Agent 辩论系统。",
+    "AI 智能选股平台，A 股全市场扫描，V19 多模型集成 + 8 Agent 辩论系统。",
   keywords: ["股票分析", "A股", "AI 选股", "短线交易", "量化投资"],
   authors: [{ name: "AlphaPilot" }],
   icons: { icon: "/favicon.svg" },
@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     locale: "zh_CN",
     siteName: "AlphaPilot",
     title: "AlphaPilot — AI 股票智能决策平台",
-    description: "AI 智能选股，A 股全市场 V12 多模型集成",
+    description: "AI 智能选股，A 股全市场 V19 多模型集成",
     images: [{ url: "/og.svg", width: 1200, height: 630, alt: "AlphaPilot" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "AlphaPilot — AI 股票智能决策平台",
-    description: "AI 智能选股，A 股全市场 V12 多模型集成",
+    description: "AI 智能选股，A 股全市场 V19 多模型集成",
     images: ["/og.svg"],
   },
 };
@@ -39,7 +39,7 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "AlphaPilot",
-    "description": "AI 智能选股平台，A 股全市场 V12 多模型集成",
+    "description": "AI 智能选股平台，A 股全市场 V19 多模型集成",
     "url": "https://alphapilot.api-tokenmaster.com",
     "applicationCategory": "FinanceApplication",
     "operatingSystem": "Web",
