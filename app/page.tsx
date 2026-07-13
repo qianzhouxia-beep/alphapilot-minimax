@@ -105,7 +105,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-border-subtle/50 shadow-sm">
         <div className="flex justify-between items-center h-16 px-8 max-w-[1440px] mx-auto">
           <div className="flex items-center gap-4">
-            <Link href="/"><Image src="/logo.svg" alt="AlphaPilot" className="h-8 w-auto" width={140} height={32} priority /></Link>
+            <Link href="/"><Image src="/logo.png" alt="AlphaPilot" className="h-8 w-auto" width={140} height={32} priority /></Link>
           </div>
           <div className="hidden md:flex items-center gap-6">
             <Link href="/cn" className="text-text-primary font-bold border-b-2 border-[#b99cfc] pb-1 text-[13px]">智能决策终端</Link>
@@ -359,7 +359,7 @@ export default function LandingPage() {
       <footer className="bg-[#050e1c] border-t border-border-subtle w-full py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-8 max-w-[1440px] mx-auto items-center">
           <div className="space-y-2">
-            <Image src="/logo.svg" alt="AlphaPilot" className="h-6 w-auto opacity-80" width={120} height={24} />
+            <Image src="/logo.png" alt="AlphaPilot" className="h-6 w-auto opacity-80" width={120} height={24} />
             <p className="text-[12px] text-text-secondary max-w-xs">© 2026 AlphaPilot AI. 专为现代投资者打造的机构级智能决策终端。</p>
           </div>
           <div className="flex flex-wrap md:justify-end gap-x-6 gap-y-2">
