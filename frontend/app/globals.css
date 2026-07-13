@@ -66,11 +66,6 @@
 }
 
 body {
-  /* System font stack: native fonts first (no Google Fonts dependency)
-     macOS: SF Pro / PingFang SC
-     Windows: Segoe UI / Microsoft YaHei
-     Linux: system-ui / Noto Sans SC
-  */
   font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   background-color: var(--color-background);
   color: var(--color-text-primary);
@@ -80,17 +75,17 @@ body {
 
 /* Glassmorphism utility (per Stitch DESIGN.md) */
 @utility glass {
-  background: rgba(16, 28, 48, 0.6);
+  background: rgba(21, 16, 35, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(29, 42, 66, 0.5);
+  border: 1px solid rgba(42, 30, 62, 0.5);
 }
 
 @utility glass-strong {
-  background: rgba(16, 28, 48, 0.8);
+  background: rgba(21, 16, 35, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(29, 42, 66, 0.7);
+  border: 1px solid rgba(42, 30, 62, 0.7);
 }
 
 /* Numeric display (per Stitch: bold + tight letter-spacing) */
@@ -107,8 +102,8 @@ body {
 }
 .card-lift:hover {
   transform: translateY(-2px);
-  border-color: rgba(77, 163, 255, 0.4);
-  box-shadow: 0 0 0 1px rgba(77, 163, 255, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-color: rgba(167, 139, 250, 0.4);
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 /* Animations for loading and transitions */
@@ -138,22 +133,6 @@ body {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
-}
-
-/* ===== Cyberpunk Theme (from web/index.html) ===== */
-:root {
-  --bg-primary: #0a0e14;
-  --bg-secondary: #11161d;
-  --bg-tertiary: #1a212b;
-  --border: #1f2937;
-  --text-primary: #e6e6e6;
-  --text-muted: #6b7280;
-  --accent-up: #00d68f;
-  --accent-down: #ff3b5c;
-  --accent-warn: #ffb547;
-  --accent-info: #4d8eff;
-  --glow-green: 0 0 16px rgba(0, 214, 143, 0.4);
-  --glow-red: 0 0 16px rgba(255, 59, 92, 0.4);
 }
 
 /* Grain texture effect */
@@ -199,7 +178,7 @@ body {
   left: -100%;
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-info), transparent);
+  background: linear-gradient(90deg, transparent, #A78BFA, transparent);
   animation: scan 3s linear infinite;
 }
 
@@ -318,7 +297,7 @@ body {
   cursor: default;
 }
 .phase-stock-row:hover {
-  background: rgba(77, 163, 255, 0.06);
+  background: rgba(167, 139, 250, 0.06);
 }
 
 .phase-stock-row-left {
@@ -359,7 +338,7 @@ body {
   display: none;
   font-size: 11px;
   color: var(--color-text-secondary);
-  background: rgba(77, 163, 255, 0.08);
+  background: rgba(167, 139, 250, 0.08);
   padding: 1px 5px;
   border-radius: 4px;
   white-space: nowrap;
@@ -424,7 +403,7 @@ body {
 
 /* ===== KPI 数字渐变色（主题化） ===== */
 .kpi-value-gradient {
-  background: linear-gradient(135deg, #4DA3FF, #7ddeff);
+  background: linear-gradient(135deg, #A78BFA, #C084FC);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -491,14 +470,14 @@ body {
 }
 .data-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(29, 42, 66, 0.3);
+  border-bottom: 1px solid rgba(42, 30, 62, 0.5);
   vertical-align: middle;
 }
 .data-table tr:last-child td {
   border-bottom: none;
 }
 .data-table tr:hover td {
-  background: rgba(77, 163, 255, 0.03);
+  background: rgba(167, 139, 250, 0.03);
 }
 
 /* ===== 财务数字字体 ===== */
