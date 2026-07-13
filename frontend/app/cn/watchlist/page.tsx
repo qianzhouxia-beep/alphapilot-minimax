@@ -148,9 +148,9 @@ export default function WatchlistPage() {
         {/* Stats */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-8">
           <StatCard label="追踪中" value={activeItems.length} accent="#3EE6A8" />
-          <StatCard label="历史记录" value={totalCompleted} accent="#4DA3FF" />
+          <StatCard label="历史记录" value={totalCompleted} accent="#A78BFA" />
           <StatCard label="T+1" value={totalTracked > 0 ? `胜率 ${winRate.toFixed(0)}%` : "—"} sub={totalTracked > 0 ? `均收益 ${avgReturn > 0 ? "+" : ""}${avgReturn.toFixed(2)}%` : ""} accent="#F5C451" />
-          <StatCard label="T+2" value={totalTracked > 0 ? `胜率 ${winRate2.toFixed(0)}%` : "—"} sub={totalTracked > 0 ? `均收益 ${avgReturn2 > 0 ? "+" : ""}${avgReturn2.toFixed(2)}%` : ""} accent="#4DA3FF" />
+          <StatCard label="T+2" value={totalTracked > 0 ? `胜率 ${winRate2.toFixed(0)}%` : "—"} sub={totalTracked > 0 ? `均收益 ${avgReturn2 > 0 ? "+" : ""}${avgReturn2.toFixed(2)}%` : ""} accent="#A78BFA" />
           <StatCard label="T+3" value={totalTracked > 0 ? `胜率 ${winRate3.toFixed(0)}%` : "—"} sub={totalTracked > 0 ? `均收益 ${avgReturn3 > 0 ? "+" : ""}${avgReturn3.toFixed(2)}%` : ""} accent="#9FB0C7" />
           <StatCard label="总收录" value={items.length} accent="#9FB0C7" />
         </div>
