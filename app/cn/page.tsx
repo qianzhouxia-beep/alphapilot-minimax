@@ -459,7 +459,7 @@ export default function CNDashboard() {
                     <td className="px-3 py-3 text-right text-[14px] text-text-primary font-display-numeric">
                       {(() => {
                         const curPrice = item.buy_price > 0 && item.change_pct != null
-                          ? (item.buy_price * (1 + item.change_pct / 100)).toFixed(2)
+                          ? item.buy_price.toFixed(2)
                           : null;
                         return curPrice ? `${curPrice}` : (item.buy_price > 0 ? item.buy_price.toFixed(2) : "—");
                       })()}
@@ -634,7 +634,7 @@ export default function CNDashboard() {
               const net = s.main_net || 0;
               // 计算实时价格（从昨收和涨跌幅算，确保一致）
               const livePrice = s.buy_price > 0 && s.change_pct != null
-                ? (s.buy_price * (1 + s.change_pct / 100)).toFixed(2)
+                ? s.buy_price.toFixed(2)
                 : (s.price || s.buy_price || 0).toFixed(2);
 
               // 分析逻辑：为什么推荐这只
