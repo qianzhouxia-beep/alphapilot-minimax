@@ -197,13 +197,13 @@ export default function BacktestPage() {
               <button onClick={() => { setMode("topn"); setRan(false); }}
                 className={`flex-1 py-2 text-[12px] font-medium transition-colors ${
                   mode === "topn"
-                    ? "bg-status-info text-[#003866]"
+                    ? "bg-status-info text-on-primary"
                     : "bg-surface-panel text-text-disabled hover:text-text-primary"
                 }`}>📋 Top N</button>
               <button onClick={() => { setMode("stock"); setRan(false); }}
                 className={`flex-1 py-2 text-[12px] font-medium transition-colors ${
                   mode === "stock"
-                    ? "bg-status-info text-[#003866]"
+                    ? "bg-status-info text-on-primary"
                     : "bg-surface-panel text-text-disabled hover:text-text-primary"
                 }`}>🎯 指定股票</button>
             </div>
@@ -214,14 +214,14 @@ export default function BacktestPage() {
                 <div>
                   <label className="block text-[12px] text-text-secondary mb-1.5">持有天数</label>
                   <select value={cfg.holdingDays} onChange={e => setCfg({...cfg, holdingDays: Number(e.target.value)})}
-                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[#A78BFA]">
+                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-status-info">
                     {[1,2,3,5,7,10,14,21].map(d => <option key={d} value={d}>{d} 天</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[12px] text-text-secondary mb-1.5">选取前 N 只</label>
                   <select value={cfg.topN} onChange={e => setCfg({...cfg, topN: Number(e.target.value)})}
-                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[#A78BFA]">
+                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-status-info">
                     {[5,10,15,20,30,50].map(n => <option key={n} value={n}>Top {n}</option>)}
                   </select>
                 </div>
@@ -251,7 +251,7 @@ export default function BacktestPage() {
                   </label>
                   <input value={searchKw} onChange={e => handleSearch(e.target.value)}
                     placeholder="如 002979 / 茅台 / zgd"
-                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none placeholder:text-text-disabled focus:border-[#A78BFA]" />
+                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none placeholder:text-text-disabled focus:border-status-info" />
                   {showDropdown && searchResults.length > 0 && (
                     <div className="absolute z-50 mt-1 w-full rounded-xl border border-border-subtle bg-surface-panel shadow-2xl max-h-48 overflow-y-auto">
                       {searchResults.map(s => (
@@ -289,7 +289,7 @@ export default function BacktestPage() {
                   <label className="block text-[12px] text-text-secondary mb-1.5">持有天数</label>
                   <select value={stockCfg.holdingDays}
                     onChange={e => setStockCfg({...stockCfg, holdingDays: Number(e.target.value)})}
-                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[#A78BFA]">
+                    className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-status-info">
                     {[1,2,3,5,7,10,14,21].map(d => <option key={d} value={d}>{d} 天</option>)}
                   </select>
                 </div>
@@ -304,7 +304,7 @@ export default function BacktestPage() {
                   onChange={e => mode === "topn"
                     ? setCfg({...cfg, startDate: e.target.value})
                     : setStockCfg({...stockCfg, startDate: e.target.value})}
-                  className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[#A78BFA]" />
+                  className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-status-info" />
               </div>
               <div>
                 <label className="block text-[12px] text-text-secondary mb-1.5">结束</label>
@@ -312,7 +312,7 @@ export default function BacktestPage() {
                   onChange={e => mode === "topn"
                     ? setCfg({...cfg, endDate: e.target.value})
                     : setStockCfg({...stockCfg, endDate: e.target.value})}
-                  className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-[#A78BFA]" />
+                  className="w-full rounded-lg border border-border-subtle bg-surface-panel px-3 py-2 text-[13px] text-text-primary outline-none focus:border-status-info" />
               </div>
             </div>
 
