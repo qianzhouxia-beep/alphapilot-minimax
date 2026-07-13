@@ -291,7 +291,7 @@ export default function CNDashboard() {
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1 h-6 rounded-full bg-status-info"></div>
               <h2 className="text-[18px] font-semibold text-text-primary">A 股 Top 10 机会</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(77,163,255,0.12)] text-status-info border border-[rgba(77,163,255,0.25)]">V18</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(167,139,250,0.12)] text-status-info border border-[rgba(167,139,250,0.25)]">V18</span>
               {items[0]?._reranked && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[rgba(62,230,168,0.12)] text-[#3EE6A8] border border-[rgba(62,230,168,0.3)]">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#3EE6A8] animate-pulse"></span>
@@ -383,7 +383,7 @@ export default function CNDashboard() {
                     </td>
                     <td className="px-3 py-3 text-left hidden lg:table-cell">
                       {item.sector ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[11px] font-medium text-status-info border border-[rgba(77,163,255,0.25)] max-w-[180px] whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(167,139,250,0.12)] px-2 py-0.5 text-[11px] font-medium text-status-info border border-[rgba(167,139,250,0.25)] max-w-[180px] whitespace-nowrap">
                           <span className="truncate">{item.sector}</span>
                           {item.sector_change_pct != null && (
                             <span className={`shrink-0 ${
