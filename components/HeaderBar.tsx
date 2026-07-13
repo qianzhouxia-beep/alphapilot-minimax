@@ -77,7 +77,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
         {/* Auth state */}
         {session ? (
           <div className="flex items-center gap-2 rounded-lg border border-[#1D2A42] bg-[#0C1728] px-2 sm:px-3 py-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4DA3FF] to-[#7ddeff] text-[11px] font-semibold text-[#00315b]">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#A78BFA] to-[#C084FC] text-[11px] font-semibold text-[#00315b]">
               {session.user.full_name.charAt(0).toUpperCase()}
             </div>
             <div className="text-left hidden sm:block">
@@ -97,13 +97,13 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
           <>
             <Link
               href="/login"
-              className="rounded-lg border border-[#1D2A42] bg-[#0C1728] px-2 sm:px-3 py-2 text-[12px] text-[#9FB0C7] hover:border-[#4DA3FF] hover:text-[#EAF2FF] focus:outline-none focus:ring-2 focus:ring-[#4DA3FF]/50 transition-colors"
+              className="rounded-lg border border-[#1D2A42] bg-[#0C1728] px-2 sm:px-3 py-2 text-[12px] text-[#9FB0C7] hover:border-[#A78BFA] hover:text-[#EAF2FF] focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/50 transition-colors"
             >
               {t("auth.signin")}
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg bg-[#4DA3FF] px-2 sm:px-3 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff] focus:outline-none focus:ring-2 focus:ring-[#4DA3FF]/50 transition-colors"
+              className="rounded-lg bg-[#A78BFA] px-2 sm:px-3 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#C084FC] focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/50 transition-colors"
             >
               {t("auth.signup")}
             </Link>
