@@ -671,7 +671,7 @@ export default function CNDashboard() {
 
               return (
                 <div key={s.symbol} className="rounded-lg bg-surface-container-low p-2.5 hover:bg-[#16202f] transition-colors">
-                  <div className="grid grid-cols-[16px_1fr_65px_55px] sm:grid-cols-[20px_1fr_80px_80px] xl:grid-cols-[20px_1fr_110px_90px_70px] items-center gap-1">
+                  <div className="grid grid-cols-[16px_1fr_65px_55px] sm:grid-cols-[20px_1fr_80px_80px_70px] lg:grid-cols-[20px_1fr_110px_90px_70px] items-center gap-1">
                     <span className="text-[13px] font-bold text-status-info">{i + 1}</span>
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Link href={`/cn/stock?symbol=${s.symbol}`} className="text-[14px] font-medium text-text-primary hover:text-status-info truncate">{s.name}</Link>
@@ -895,7 +895,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                     const chgColor = chg != null ? (chg >= 0 ? "text-[#FF5D5D]" : "text-[#3EE6A8]") : "text-text-disabled";
                     const scChg = s.sector_change_pct ?? (s.sector ? sectorChanges[s.sector] : null);
                     return (
-                      <div key={s.symbol} className="grid grid-cols-[16px_1fr_38px_48px] sm:grid-cols-[20px_1fr_42px_55px] lg:grid-cols-[22px_1fr_42px_1fr_85px_70px_26px] items-center rounded-lg bg-surface-container-low p-1.5 hover:bg-[#16202f] transition-colors group gap-1">
+                      <div key={s.symbol} className="grid grid-cols-[16px_1fr_38px_48px] sm:grid-cols-[20px_1fr_42px_55px_70px] lg:grid-cols-[22px_1fr_42px_1fr_85px_70px_26px] items-center rounded-lg bg-surface-container-low p-1.5 hover:bg-[#16202f] transition-colors group gap-1">
                         <span className="text-[11px] text-text-disabled font-display-numeric text-center">{i + 1}</span>
                         <Link href={`/cn/stock?symbol=${s.symbol}`} className="flex items-center gap-1 min-w-0 overflow-hidden">
                           <span className="text-[13px] font-medium text-text-primary group-hover:text-status-info truncate transition-colors">{s.name}</span>
