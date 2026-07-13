@@ -11,6 +11,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# 仓库没有 public 目录,standalone 模式需要它
+RUN mkdir -p /app/public
 RUN npm run build
 
 FROM node:20-alpine AS runner
@@ -23,8 +25,7 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# 复制 standalone (必须有 public/ 目录或空目录,即使没用到)
-RUN mkdir -p /app/public
+# 复制 standalone 文件
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
