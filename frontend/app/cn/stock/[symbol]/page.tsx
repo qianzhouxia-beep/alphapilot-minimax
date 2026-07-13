@@ -31,7 +31,7 @@ type StockDetail = {
 };
 
 const scoreColor = (s: number) =>
-  s >= 0.75 ? "text-[#3EE6A8]" : s >= 0.70 ? "text-[#4DA3FF]" : s >= 0.65 ? "text-[#F5C451]" : "text-[#9FB0C7]";
+  s >= 0.75 ? "text-[#3EE6A8]" : s >= 0.70 ? "text-[#A78BFA]" : s >= 0.65 ? "text-[#F5C451]" : "text-[#9FB0C7]";
 
 async function fetchStockDetail(symbol: string): Promise<StockDetail> {
   const clean = symbol.replace(/\.(SH|SZ|sh|sz)$/, "");
@@ -113,7 +113,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
       <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
         <HeaderBar market="cn" />
         <div className="flex flex-col items-center justify-center py-40">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#1D2A42] border-t-[#4DA3FF]"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#1D2A42] border-t-[#A78BFA]"></div>
           <p className="mt-4 text-[14px] text-[#9FB0C7]">加载中...</p>
         </div>
       </main>
@@ -131,7 +131,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
             <Link href="/cn" className="rounded-lg border border-[#1D2A42] bg-[#0C1728] px-4 py-2 text-[12px] text-[#9FB0C7] hover:text-[#EAF2FF]">
               ← 返回首页
             </Link>
-            <button onClick={handleRefresh} className="rounded-lg bg-[#4DA3FF] px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff]">
+            <button onClick={handleRefresh} className="rounded-lg bg-[#A78BFA] px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#C084FC]">
               重试
             </button>
           </div>
@@ -155,11 +155,11 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
       {/* Header */}
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/cn" className="mb-2 inline-flex items-center gap-1 text-[12px] text-[#9FB0C7] hover:text-[#4DA3FF]">
+          <Link href="/cn" className="mb-2 inline-flex items-center gap-1 text-[12px] text-[#9FB0C7] hover:text-[#A78BFA]">
             ← 返回首页
           </Link>
           <div className="flex items-baseline gap-4">
-            <h1 className="font-mono text-[32px] font-semibold leading-none tracking-tight text-[#4DA3FF]">
+            <h1 className="font-mono text-[32px] font-semibold leading-none tracking-tight text-[#A78BFA]">
               {code}
             </h1>
             <span className="text-[18px] text-[#EAF2FF]">{stock?.name ?? code}</span>
@@ -195,7 +195,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
         <section className="col-span-1 glass-strong rounded-2xl p-6">
           <div className="mb-4 flex items-center justify-between">
             <span className="text-[11px] uppercase tracking-wider text-[#6E7C93]">V12 集成决策卡</span>
-            <span className="rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#4DA3FF] border border-[rgba(77,163,255,0.3)]">
+            <span className="rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#A78BFA] border border-[rgba(77,163,255,0.3)]">
               5 模型投票
             </span>
           </div>
@@ -239,10 +239,10 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
           )}
 
           <div className="flex gap-2">
-            <button className="flex-1 rounded-lg bg-[#4DA3FF] py-2 text-[13px] font-semibold text-[#00315b] hover:bg-[#7ddeff]">
+            <button className="flex-1 rounded-lg bg-[#A78BFA] py-2 text-[13px] font-semibold text-[#00315b] hover:bg-[#C084FC]">
               加入观察
             </button>
-            <button onClick={handleRefresh} className="rounded-lg border border-[#1D2A42] px-4 py-2 text-[13px] text-[#9FB0C7] hover:border-[#4DA3FF] hover:text-[#EAF2FF]">
+            <button onClick={handleRefresh} className="rounded-lg border border-[#1D2A42] px-4 py-2 text-[13px] text-[#9FB0C7] hover:border-[#A78BFA] hover:text-[#EAF2FF]">
               刷新
             </button>
           </div>
@@ -255,7 +255,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
             <span className="text-[11px] text-[#6E7C93]">V12 集成</span>
           </div>
           <div className="space-y-4">
-            <BarMeter label="XGBoost 概率" value={lgbScore} color="#4DA3FF" />
+            <BarMeter label="XGBoost 概率" value={lgbScore} color="#A78BFA" />
             <BarMeter label="板块热度" value={sectorHeat} color="#3EE6A8" />
             <BarMeter label="综合评分" value={score} color={score >= 0.7 ? "#3EE6A8" : score >= 0.65 ? "#F5C451" : "#9FB0C7"} />
           </div>
@@ -287,7 +287,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
                 <span className="text-[#EAF2FF] font-semibold">15/19 (79%)</span>
               </div>
             </div>
-            <Link href="/cn" className="mt-4 inline-flex items-center gap-1 text-[12px] text-[#4DA3FF] hover:underline">
+            <Link href="/cn" className="mt-4 inline-flex items-center gap-1 text-[12px] text-[#A78BFA] hover:underline">
               查看全部推荐 →
             </Link>
           </div>
