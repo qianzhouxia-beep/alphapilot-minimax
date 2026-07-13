@@ -41,7 +41,10 @@ async def proxy_api(path: str, request: Request):
             content={"error": "Backend unreachable", "detail": str(e), "backend": BACKEND_URL},
         )
 
-# Health check
+# Dockerfile health check endpoint
+@app.get("/api/v1/ping")
+async def ping():
+    return {"status": "ok"}
 @app.get("/_zeabur_health")
 async def health():
     return {"status": "ok", "backend": BACKEND_URL, "frontend_dir": str(FRONTEND_DIR), "frontend_exists": FRONTEND_DIR.exists()}
