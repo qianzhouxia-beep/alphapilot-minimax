@@ -1,30 +1,15 @@
-# Multi-stage Next.js Dockerfile - 听 8080 端口 (Zeabur 默认)
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
+FROM node:20-slim AS frontend-build
+WORKDIR /fe
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
-
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
+COPY frontend/ ./
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM python:3.11-slim
 WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=8080
-ENV HOSTNAME=0.0.0.0
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-EXPOSE 8080
-CMD ["node", "server.js"]
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/app ./app
+COPY --from=frontend-build /fe/out ./frontend/out
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
