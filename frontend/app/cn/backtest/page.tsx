@@ -319,7 +319,7 @@ export default function BacktestPage() {
             {/* 执行按钮 */}
             <button onClick={handleRun}
               disabled={loading || (mode === "stock" && selectedStocks.length === 0)}
-              className="w-full rounded-xl bg-gradient-to-r from-status-info to-[#35e0a3] px-4 py-3 text-[14px] font-bold text-[#0a1422] hover:shadow-lg hover:shadow-[#A78BFA]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              className="w-full rounded-xl bg-gradient-to-r from-status-info to-[#35e0a3] px-4 py-3 text-[14px] font-bold text-background hover:shadow-lg hover:shadow-[#A78BFA]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? "计算中..." : "运行回测"}
             </button>
           </div>
