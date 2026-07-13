@@ -1,5 +1,5 @@
-# AlphaPilot Frontend — Next.js 15 SSR (standalone)
-# 适配 next.config.ts 的 output: "standalone" 模式
+# AlphaPilot Frontend — Next.js 15 SSR via next start
+# 用 next start 替代 node server.js,更稳定
 
 FROM node:20-alpine AS deps
 WORKDIR /app
@@ -11,7 +11,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-# 仓库没有 public 目录,standalone 模式需要它
 RUN mkdir -p /app/public
 RUN npm run build
 
@@ -22,14 +21,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# 直接用 next start 需要完整 node_modules
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
 
-# 复制 standalone 文件
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-
-USER nextjs
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["npx", "next", "start", "-p", "8080", "-H", "0.0.0.0"]
