@@ -127,7 +127,7 @@ export default function LandingPage() {
           <div className="relative z-10 w-full max-w-[1440px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
             <div className="animate-fade-in-up" style={{ animationDelay:"0.2s" }}>
               <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#b99cfc]/10 border border-[#b99cfc]/20 text-text-primary text-[12px] font-medium mb-4">
-                <span className="w-2 h-2 rounded-full bg-[#b99cfc] mr-2 animate-pulse" />V18 Fusion 决策系统已就绪
+                <span className="w-2 h-2 rounded-full bg-[#b99cfc] mr-2 animate-pulse" />V19 Fusion 决策系统已就绪
               </span>
               <h1 className="text-[32px] md:text-[56px] md:leading-[64px] font-bold text-text-primary tracking-tight mb-4">
                 AI 驱动量价穿透 <br />
@@ -189,7 +189,7 @@ export default function LandingPage() {
         <section className="py-16 px-8 max-w-[1200px] mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-[30px] font-semibold mb-3 text-text-primary">全维度决策分析矩阵</h2>
-            <p className="text-text-secondary text-[15px] max-w-2xl mx-auto">V18 Fusion 决策系统 · 30维融合特征 · 5模型集成 · 动态止盈止损</p>
+            <p className="text-text-secondary text-[15px] max-w-2xl mx-auto">V19 Fusion 决策系统 · 30维融合特征 · 5模型集成 · 动态止盈止损</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Card 1: 主力行为雷达 */}
@@ -243,7 +243,7 @@ export default function LandingPage() {
               <p className="text-[13px] text-text-secondary mb-4 leading-relaxed">基于XGBoost集成模型，对全市场5000+标的进行多维度穿透评分，精选明日涨幅≥3%标的。</p>
               <div className="mt-auto bg-surface-container-low rounded-xl p-3 border border-border-subtle">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] text-text-secondary">V18 Fusion 评分</span>
+                  <span className="text-[11px] text-text-secondary">V19 Fusion 评分</span>
                   <span className="text-[18px] font-bold text-status-success">96.8</span>
                 </div>
                 <div className="flex gap-2 text-[11px] text-text-secondary">
@@ -333,7 +333,7 @@ export default function LandingPage() {
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
               <div>
-                <p className="text-[14px] font-semibold text-text-primary">V18 Fusion 决策系统已就绪</p>
+                <p className="text-[14px] font-semibold text-text-primary">V19 Fusion 决策系统已就绪</p>
                 <p className="text-[12px] text-text-secondary">每日凌晨5:00全量扫描 · 今日已有更新数据</p>
               </div>
             </div>
@@ -346,7 +346,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-[#b99cfc]/5 -skew-y-3 scale-y-110" />
           <div className="relative z-10 max-w-[1440px] mx-auto px-8 text-center">
             <h2 className="text-[32px] font-semibold mb-4">准备好开启智能交易时代了吗？</h2>
-            <p className="text-text-secondary text-[16px] max-w-xl mx-auto mb-6">V18 Fusion 决策系统 · 30维融合特征 · 5模型集成</p>
+            <p className="text-text-secondary text-[16px] max-w-xl mx-auto mb-6">V19 Fusion 决策系统 · 30维融合特征 · 5模型集成</p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
               <Link href="/cn" className="bg-status-info text-on-primary px-10 py-5 rounded-xl text-[20px] font-semibold shadow-2xl shadow-[#4da3ff]/40 hover:scale-105 active:scale-95 transition-all">立即体验</Link>
               <p className="text-text-disabled text-[12px]">无需注册 · 即享全功能访问</p>
