@@ -1,7 +1,7 @@
 """
 AlphaPilot Zeabur Gateway
 - Serve Next.js static build output from /app/frontend/out
-- Proxy /api/* requests to Tencent Cloud backend (150.158.100.236:8000)
+- Proxy /api/* requests to Tencent Cloud backend via nginx (port 80, firewall blocks :8000)
 """
 import os
 import httpx
@@ -12,8 +12,8 @@ from pathlib import Path
 
 app = FastAPI(title="AlphaPilot Gateway", version="1.0.0")
 
-# Backend URL on Tencent Cloud
-BACKEND_URL = os.environ.get("BACKEND_URL", "http://150.158.100.236:8000")
+# Backend URL on Tencent Cloud (nginx proxying port 80 -> localhost:8000)
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://150.158.100.236")
 FRONTEND_DIR = Path("/app/frontend/out")
 
 # Proxy /api/* to Tencent Cloud backend
@@ -51,28 +51,22 @@ async def health():
 
 # Serve static frontend files
 if FRONTEND_DIR.exists():
-    # Serve _next static assets first
     next_dir = FRONTEND_DIR / "_next"
     if next_dir.exists():
         app.mount("/_next", StaticFiles(directory=str(next_dir)), name="next_static")
 
-    # Catch-all: serve from frontend/out, fall through to index.html for SPA routing
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        # Try the exact file first
         file_path = FRONTEND_DIR / full_path
         if file_path.is_file():
             return FileResponse(str(file_path))
-        # Try with .html (Next.js static export with trailingSlash)
         if not full_path.endswith("/"):
             file_path_html = FRONTEND_DIR / (full_path + ".html")
             if file_path_html.is_file():
                 return FileResponse(str(file_path_html))
-        # Try as directory + index.html
         file_path_dir = FRONTEND_DIR / full_path / "index.html"
         if file_path_dir.is_file():
             return FileResponse(str(file_path_dir))
-        # 404 -> return 404.html if exists
         nf = FRONTEND_DIR / "404.html"
         if nf.is_file():
             return FileResponse(str(nf), status_code=404)
