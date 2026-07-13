@@ -165,7 +165,7 @@ export default function CNStockDetail() {
         <Link href="/cn" className="inline-flex items-center gap-1 text-[12px] text-text-secondary hover:text-status-info">
           ← 返回 Dashboard
         </Link>
-        <button onClick={handleRefresh} className="rounded-lg border border-border-subtle bg-surface-panel px-3 py-1.5 text-[12px] text-text-secondary hover:border-[#A78BFA] hover:text-text-primary transition-colors">
+        <button onClick={handleRefresh} className="rounded-lg border border-border-subtle bg-surface-panel px-3 py-1.5 text-[12px] text-text-secondary hover:border-status-info hover:text-text-primary transition-colors">
           刷新
         </button>
       </div>
@@ -412,7 +412,7 @@ function BarMeter({ label, value, color }: { label: string; value: number; color
         <span className="text-text-secondary">{label}</span>
         <span className="font-display-numeric font-semibold" style={{ color }}>{pct}</span>
       </div>
-      <div className="h-2 rounded-full bg-[#1D2A42] overflow-hidden">
+      <div className="h-2 rounded-full bg-border-subtle overflow-hidden">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
@@ -442,7 +442,7 @@ function ErrorState({ error, symbol, onRefresh }: { error: string; symbol: strin
           <Link href="/cn" className="rounded-lg border border-border-subtle bg-surface-panel px-4 py-2 text-[12px] text-text-secondary hover:text-text-primary">
             ← 返回首页
           </Link>
-          <button onClick={onRefresh} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#C084FC]">
+          <button onClick={onRefresh} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-on-primary hover:bg-[#C084FC]">
             重试
           </button>
         </div>
