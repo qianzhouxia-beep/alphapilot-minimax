@@ -770,7 +770,7 @@ export default function CNDashboard() {
               </button>
               <button onClick={confirmAddWatchlist} disabled={priceDialogLoading}
                 className="flex-1 rounded-lg bg-status-info py-2.5 text-[13px] font-semibold text-on-primary hover:bg-[#C084FC] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                {priceDialogLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#00315b] border-t-transparent" /> : null}
+                {priceDialogLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-text-on-primary border-t-transparent" /> : null}
                 {priceDialogLoading ? "添加中..." : "确认添加"}
               </button>
             </div>
