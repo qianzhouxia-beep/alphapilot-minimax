@@ -1,3 +1,6 @@
+# AlphaPilot Frontend — Next.js 15 SSR (standalone)
+# 适配 next.config.ts 的 output: "standalone" 模式
+
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
@@ -20,9 +23,11 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
+# 复制 standalone (必须有 public/ 目录或空目录,即使没用到)
+RUN mkdir -p /app/public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 EXPOSE 8080
