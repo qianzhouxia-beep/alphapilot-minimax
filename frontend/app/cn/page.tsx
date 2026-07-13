@@ -306,7 +306,7 @@ export default function CNDashboard() {
               )}
             </div>
             <p className="mt-0.5 text-[12px] text-text-disabled">
-              V18 Fusion 决策系统 · 30维融合特征 · 5模型集成 · 凌晨 5:00 选股 · 含隔夜美股影响因子 · 量比换手门控 · 自我提升学习 · 盘中60秒实时资金刷新 · 每5分钟动态重排 · Top 10 完整榜单
+              V19 Fusion 决策系统 · 30维融合特征 · 5模型集成 · 凌晨 5:00 选股 · 含隔夜美股影响因子 · 量比换手门控 · 自我提升学习 · 盘中60秒实时资金刷新 · 每5分钟动态重排 · Top 10 完整榜单
             </p>
           </div>
           <div className="flex items-center gap-2">
