@@ -285,7 +285,7 @@ export default function CNDashboard() {
         </>
       )}
 
-      <section className="glass rounded-2xl p-4 sm:p-6 mb-6">
+      <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -526,7 +526,7 @@ export default function CNDashboard() {
       )}
 
       {wlData.length > 0 && (
-        <section className="glass rounded-2xl p-4 sm:p-6 mb-6">
+        <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2"><svg className="w-5 h-5 text-[#F5C451]" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><h2 className="text-[20px] font-semibold text-text-primary">收藏追踪</h2></div>
@@ -597,7 +597,7 @@ export default function CNDashboard() {
         </section>
       )}
 
-      <section className="glass rounded-2xl p-4 sm:p-6 mb-6">
+      <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="flex items-start gap-3 mb-3">
           <div className="w-1 h-12 rounded-full bg-[#8B5CF6] shrink-0 mt-1"></div>
           <div className="flex-1">
@@ -671,7 +671,7 @@ export default function CNDashboard() {
 
               return (
                 <div key={s.symbol} className="rounded-lg bg-surface-container-low p-2.5 hover:bg-[#16202f] transition-colors">
-                  <div className="grid grid-cols-[20px_1fr_80px_80px] sm:grid-cols-[20px_1fr_110px_90px_70px] items-center gap-1">
+                  <div className="grid grid-cols-[16px_1fr_65px_55px] sm:grid-cols-[20px_1fr_80px_80px] xl:grid-cols-[20px_1fr_110px_90px_70px] items-center gap-1">
                     <span className="text-[13px] font-bold text-status-info">{i + 1}</span>
                     <div className="flex items-center gap-1.5 min-w-0">
                       <Link href={`/cn/stock?symbol=${s.symbol}`} className="text-[14px] font-medium text-text-primary hover:text-status-info truncate">{s.name}</Link>
@@ -711,7 +711,7 @@ export default function CNDashboard() {
           <h2 className="text-[18px] font-semibold text-text-primary">自我进化学习</h2>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(62,230,168,0.12)] text-[#3EE6A8] border border-[rgba(62,230,168,0.25)]">AI 驱动</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#A78BFA]">
             <svg className="w-6 h-6 mb-1 text-status-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">自动历史回撤</h3>
@@ -884,7 +884,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
               {stocks.length === 0 ? (
                 <p className="text-[11px] text-[#4A5568] px-1 py-1.5 italic">暂无标的</p>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-1 overflow-x-auto -mx-2 px-2">
                   {stocks.slice(0, 5).map((s: any, i: number) => {
                     const sym = s.symbol.replace(/^(sh|sz)/, "");
                     const isFav = watchlistSymbols.has(sym);
@@ -895,7 +895,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                     const chgColor = chg != null ? (chg >= 0 ? "text-[#FF5D5D]" : "text-[#3EE6A8]") : "text-text-disabled";
                     const scChg = s.sector_change_pct ?? (s.sector ? sectorChanges[s.sector] : null);
                     return (
-                      <div key={s.symbol} className="grid grid-cols-[20px_1fr_42px_55px] sm:grid-cols-[22px_1fr_42px_1fr_85px_70px_26px] items-center rounded-lg bg-surface-container-low p-1.5 hover:bg-[#16202f] transition-colors group gap-1">
+                      <div key={s.symbol} className="grid grid-cols-[16px_1fr_38px_48px] sm:grid-cols-[20px_1fr_42px_55px] lg:grid-cols-[22px_1fr_42px_1fr_85px_70px_26px] items-center rounded-lg bg-surface-container-low p-1.5 hover:bg-[#16202f] transition-colors group gap-1">
                         <span className="text-[11px] text-text-disabled font-display-numeric text-center">{i + 1}</span>
                         <Link href={`/cn/stock?symbol=${s.symbol}`} className="flex items-center gap-1 min-w-0 overflow-hidden">
                           <span className="text-[13px] font-medium text-text-primary group-hover:text-status-info truncate transition-colors">{s.name}</span>
