@@ -4,37 +4,39 @@
    Ref: designs/stitch/alphapilot_design_system/DESIGN.md (187 行) */
 
 @theme {
+  /* === 紫晶+铂金 配色方案 (Amethyst) === */
+  
   /* Surface tiers (Z-axis hierarchy) */
-  --color-background: #0a1422;
-  --color-surface: #0a1422;
-  --color-surface-panel: #0C1728;
-  --color-surface-card: #101C30;
-  --color-surface-container-low: #121c2a;
-  --color-surface-container: #16202f;
-  --color-surface-container-high: #212a39;
-  --color-surface-bright: #303a49;
-  --color-border-subtle: #1D2A42;
-  --color-outline: #8a919d;
-  --color-outline-variant: #404752;
+  --color-background: #0e0a16;
+  --color-surface: #0e0a16;
+  --color-surface-panel: #151023;
+  --color-surface-card: #1c152e;
+  --color-surface-container-low: #1a1228;
+  --color-surface-container: #1c152e;
+  --color-surface-container-high: #251d38;
+  --color-surface-bright: #2d2242;
+  --color-border-subtle: #2a1e3e;
+  --color-outline: #8a7a9e;
+  --color-outline-variant: #3a2e4e;
 
-  /* Primary & secondary (AI / active states) */
-  --color-primary: #a2c9ff;
-  --color-primary-container: #4DA3FF;
-  --color-on-primary: #00315b;
-  --color-on-primary-container: #003866;
-  --color-secondary: #7ddeff;
-  --color-secondary-container: #00c6f0;
-  --color-tertiary: #35e0a3;
-  --color-tertiary-container: #00b680;
+  /* Primary & secondary (紫晶+铂金) */
+  --color-primary: #A78BFA;
+  --color-primary-container: #A78BFA;
+  --color-on-primary: #1a0a33;
+  --color-on-primary-container: #1a0a33;
+  --color-secondary: #D4C4F0;
+  --color-secondary-container: #b89ee8;
+  --color-tertiary: #c4b0e0;
+  --color-tertiary-container: #a080c8;
 
-  /* Semantic (financial: long/short, gain/loss) */
-  --color-text-primary: #EAF2FF;
-  --color-text-secondary: #9FB0C7;
-  --color-text-disabled: #6E7C93;
+  /* Semantic — 保留交易红绿黄状态色 */
+  --color-text-primary: #e8e0f0;
+  --color-text-secondary: #9a8ab0;
+  --color-text-disabled: #6a5a7e;
   --color-status-success: #3EE6A8;
   --color-status-warning: #F5C451;
   --color-status-danger: #FF5D5D;
-  --color-status-info: #4DA3FF;
+  --color-status-info: #A78BFA;
 
   /* Radius (16-20px for cards, 8px for inputs) */
   --radius-sm: 0.25rem;
