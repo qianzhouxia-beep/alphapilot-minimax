@@ -115,7 +115,7 @@ export default function LandingPage() {
             <Link href="/cn/news" className="text-text-secondary hover:text-text-primary transition-colors text-[13px]">投资资讯</Link>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/cn" className="bg-status-info text-[#003866] px-6 py-2 rounded-lg text-[13px] font-medium active:scale-95 duration-200 transition-all hover:brightness-110">立即体验</Link>
+            <Link href="/cn" className="bg-status-info text-on-primary px-6 py-2 rounded-lg text-[13px] font-medium active:scale-95 duration-200 transition-all hover:brightness-110">立即体验</Link>
           </div>
         </div>
       </nav>
@@ -151,7 +151,7 @@ export default function LandingPage() {
                       <span className="font-bold" style={{ color }}>{idx.price.toFixed(2)}</span>
                       <span className="text-[10px]" style={{ color }}>{isUp ? "+" : ""}{chg.toFixed(2)}%</span>
                     </div>
-                    {indicesLoading && <div className="h-3 w-16 bg-[#1D2A42] rounded mt-1 animate-pulse" />}
+                    {indicesLoading && <div className="h-3 w-16 bg-border-subtle rounded mt-1 animate-pulse" />}
                   </div>
                 )})}
               </div>
@@ -160,7 +160,7 @@ export default function LandingPage() {
                 30维融合特征 + 5模型集成数据，用机构级的视角穿透市场迷雾。
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/cn" className="bg-status-info text-[#003866] px-8 py-4 rounded-xl text-[20px] font-semibold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#4da3ff]/20 text-center">立即体验智能决策</Link>
+                <Link href="/cn" className="bg-status-info text-on-primary px-8 py-4 rounded-xl text-[20px] font-semibold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-status-info/20 text-center">立即体验智能决策</Link>
                 <Link href="/cn/watchlist" className="glass text-text-primary px-8 py-4 rounded-xl text-[20px] font-semibold hover:bg-[#212a39] transition-all flex items-center justify-center gap-2">⭐ 收藏追踪</Link>
               </div>
             </div>
@@ -193,7 +193,7 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Card 1: 主力行为雷达 */}
-            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-[#A78BFA]/40 transition-all">
+            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-status-info/40 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[rgba(77,163,255,0.12)] flex items-center justify-center">
@@ -268,7 +268,7 @@ export default function LandingPage() {
                     <h3 className="text-[17px] font-semibold text-text-primary">资金阶段识别</h3>
                   </div>
                 </div>
-                <span className="text-[11px] text-[#A78BFA] bg-[rgba(139,92,246,0.1)] px-2 py-0.5 rounded-full border border-[rgba(139,92,246,0.25)]">9大阶段</span>
+                <span className="text-[11px] text-status-info bg-[rgba(139,92,246,0.1)] px-2 py-0.5 rounded-full border border-[rgba(139,92,246,0.25)]">9大阶段</span>
               </div>
               <p className="text-[13px] text-text-secondary mb-4 leading-relaxed">智能识别吸筹、拉升、出货、诱多等9种资金运作阶段，只参与拉升和右侧潜伏交易。</p>
               <div className="mt-auto grid grid-cols-3 gap-2">
@@ -337,7 +337,7 @@ export default function LandingPage() {
                 <p className="text-[12px] text-text-secondary">每日凌晨5:00全量扫描 · 今日已有更新数据</p>
               </div>
             </div>
-            <Link href="/cn" className="bg-status-info text-[#003866] px-5 py-2.5 rounded-lg text-[13px] font-semibold hover:brightness-110 transition-all shrink-0">进入智能决策终端</Link>
+            <Link href="/cn" className="bg-status-info text-on-primary px-5 py-2.5 rounded-lg text-[13px] font-semibold hover:brightness-110 transition-all shrink-0">进入智能决策终端</Link>
           </div>
         </section>
 
@@ -348,7 +348,7 @@ export default function LandingPage() {
             <h2 className="text-[32px] font-semibold mb-4">准备好开启智能交易时代了吗？</h2>
             <p className="text-text-secondary text-[16px] max-w-xl mx-auto mb-6">V18 Fusion 决策系统 · 30维融合特征 · 5模型集成</p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link href="/cn" className="bg-status-info text-[#003866] px-10 py-5 rounded-xl text-[20px] font-semibold shadow-2xl shadow-[#4da3ff]/40 hover:scale-105 active:scale-95 transition-all">立即体验</Link>
+              <Link href="/cn" className="bg-status-info text-on-primary px-10 py-5 rounded-xl text-[20px] font-semibold shadow-2xl shadow-[#4da3ff]/40 hover:scale-105 active:scale-95 transition-all">立即体验</Link>
               <p className="text-text-disabled text-[12px]">无需注册 · 即享全功能访问</p>
             </div>
           </div>
