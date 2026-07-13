@@ -1,0 +1,7 @@
+hb = open(r'D:\AI\alphapilot\部署文件\frontend\components\HeaderBar.tsx','r',encoding='utf-8-sig').read()
+pg = open(r'D:\AI\alphapilot\部署文件\frontend\app\cn\page.tsx','r',encoding='utf-8-sig').read()
+print('SVG star:', 'polygon points="12 2"' in hb)
+print('Border 50%:', '/50 bg-[#0C1728] p-0.5' in hb)
+print('Old emoji:', chr(0x2b50) in hb)
+print('sniper-card:', 'sniper-card' in pg)
+print('simplified name:', 'text-[13px] font-medium text-[#EAF2FF]' in pg)

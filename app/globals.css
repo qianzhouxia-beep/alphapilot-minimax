@@ -1,0 +1,560 @@
+@import "tailwindcss";
+
+/* AlphaPilot Design System — Stitch v1 (2026-06-05 老板用 Google Stitch 出)
+   Ref: designs/stitch/alphapilot_design_system/DESIGN.md (187 行) */
+
+@theme {
+  /* Surface tiers (Z-axis hierarchy) */
+  --color-background: #0a1422;
+  --color-surface: #0a1422;
+  --color-surface-panel: #0C1728;
+  --color-surface-card: #101C30;
+  --color-surface-container-low: #121c2a;
+  --color-surface-container: #16202f;
+  --color-surface-container-high: #212a39;
+  --color-surface-bright: #303a49;
+  --color-border-subtle: #1D2A42;
+  --color-outline: #8a919d;
+  --color-outline-variant: #404752;
+
+  /* Primary & secondary (AI / active states) */
+  --color-primary: #a2c9ff;
+  --color-primary-container: #4DA3FF;
+  --color-on-primary: #00315b;
+  --color-on-primary-container: #003866;
+  --color-secondary: #7ddeff;
+  --color-secondary-container: #00c6f0;
+  --color-tertiary: #35e0a3;
+  --color-tertiary-container: #00b680;
+
+  /* Semantic (financial: long/short, gain/loss) */
+  --color-text-primary: #EAF2FF;
+  --color-text-secondary: #9FB0C7;
+  --color-text-disabled: #6E7C93;
+  --color-status-success: #3EE6A8;
+  --color-status-warning: #F5C451;
+  --color-status-danger: #FF5D5D;
+  --color-status-info: #4DA3FF;
+
+  /* Radius (16-20px for cards, 8px for inputs) */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+
+  /* Spacing (8px base unit) */
+  --spacing-stack-sm: 8px;
+  --spacing-stack-md: 16px;
+  --spacing-stack-lg: 24px;
+  --spacing-gutter: 20px;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 32px;
+  --spacing-container-max: 1440px;
+
+  /* Typography */
+  --font-display-numeric: 36px;
+  --font-headline-lg: 32px;
+  --font-headline-md: 24px;
+  --font-headline-sm: 20px;
+  --font-body-lg: 16px;
+  --font-body-md: 14px;
+  --font-label-md: 13px;
+  --font-label-sm: 12px;
+}
+
+body {
+  /* System font stack: native fonts first (no Google Fonts dependency)
+     macOS: SF Pro / PingFang SC
+     Windows: Segoe UI / Microsoft YaHei
+     Linux: system-ui / Noto Sans SC
+  */
+  font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism utility (per Stitch DESIGN.md) */
+@utility glass {
+  background: rgba(16, 28, 48, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(29, 42, 66, 0.5);
+}
+
+@utility glass-strong {
+  background: rgba(16, 28, 48, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(29, 42, 66, 0.7);
+}
+
+/* Numeric display (per Stitch: bold + tight letter-spacing) */
+.font-display-numeric {
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+/* Hover lift (per Stitch: "card hover Y-offset + border opacity up") */
+.card-lift {
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  border-color: rgba(77, 163, 255, 0.4);
+  box-shadow: 0 0 0 1px rgba(77, 163, 255, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Animations for loading and transitions */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* ===== Cyberpunk Theme (from web/index.html) ===== */
+:root {
+  --bg-primary: #0a0e14;
+  --bg-secondary: #11161d;
+  --bg-tertiary: #1a212b;
+  --border: #1f2937;
+  --text-primary: #e6e6e6;
+  --text-muted: #6b7280;
+  --accent-up: #00d68f;
+  --accent-down: #ff3b5c;
+  --accent-warn: #ffb547;
+  --accent-info: #4d8eff;
+  --glow-green: 0 0 16px rgba(0, 214, 143, 0.4);
+  --glow-red: 0 0 16px rgba(255, 59, 92, 0.4);
+}
+
+/* Grain texture effect */
+.grain::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+}
+
+/* Glow effects */
+.glow-up {
+  color: var(--accent-up);
+  text-shadow: var(--glow-green);
+}
+
+.glow-down {
+  color: var(--accent-down);
+  text-shadow: var(--glow-red);
+}
+
+.border-glow-up {
+  box-shadow: 0 0 0 1px var(--accent-up), inset 0 0 12px rgba(0, 214, 143, 0.15);
+}
+
+.border-glow-down {
+  box-shadow: 0 0 0 1px var(--accent-down), inset 0 0 12px rgba(255, 59, 92, 0.15);
+}
+
+/* Scan line animation */
+.scan-line {
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-info), transparent);
+  animation: scan 3s linear infinite;
+}
+
+@keyframes scan {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Stage bar animation */
+.stage-bar {
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ticker scroll animation */
+.ticker {
+  animation: scroll 60s linear infinite;
+}
+
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ===== Phase Grid: 资金阶段分类卡片 ===== */
+.phase-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 640px) {
+  .phase-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.phase-group {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+.phase-group:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* 左侧信号色标 */
+.phase-group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 0 2px 2px 0;
+}
+
+/* 阶段组头部 */
+.phase-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+  margin-bottom: 6px;
+}
+
+/* 子阶段标签行 */
+.phase-sub-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 12px;
+  margin-bottom: 10px;
+}
+.phase-sub-tag {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+/* 分隔线 */
+.phase-divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+  margin: 0 0 6px 12px;
+}
+
+/* 资金阶段：每个股票行 */
+.phase-stock-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  transition: background 0.15s ease;
+  cursor: default;
+}
+.phase-stock-row:hover {
+  background: rgba(77, 163, 255, 0.06);
+}
+
+.phase-stock-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.phase-stock-rank {
+  font-size: 11px;
+  color: var(--color-text-disabled);
+  min-width: 16px;
+  flex-shrink: 0;
+}
+.phase-stock-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.phase-stock-code {
+  font-size: 11px;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  color: var(--color-text-disabled);
+  flex-shrink: 0;
+}
+
+.phase-stock-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.phase-stock-sector-tag {
+  display: none;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: rgba(77, 163, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+@media (min-width: 480px) {
+  .phase-stock-sector-tag {
+    display: inline;
+  }
+}
+.phase-stock-price {
+  font-size: 13px;
+  font-weight: 600;
+  font-feature-settings: "tnum" 1;
+  color: var(--color-text-primary);
+}
+.phase-stock-change {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 42px;
+  text-align: right;
+}
+
+/* 收藏小按钮 */
+.phase-star-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-disabled);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.phase-star-btn:hover {
+  border-color: var(--color-status-warning);
+  color: var(--color-status-warning);
+  background: rgba(245, 196, 81, 0.08);
+}
+
+/* ===== 尾盘狙击行（合并版） ===== */
+.sniper-card {
+  border-radius: 10px;
+  background: var(--color-surface-container-low);
+  padding: 10px 12px;
+  transition: all 0.15s ease;
+}
+.sniper-card:hover {
+  background: var(--color-surface-container);
+}
+
+/* ===== 收藏追踪滚动 ===== */
+.watch-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ===== KPI 数字渐变色（主题化） ===== */
+.kpi-value-gradient {
+  background: linear-gradient(135deg, #4DA3FF, #7ddeff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ===== 模块头部公式（SVG 图标 + 标题 + 描述） ===== */
+@utility section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.section-header-bar {
+  width: 4px;
+  height: 48px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+@utility section-header-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+@utility section-header-desc {
+  font-size: 11px;
+  color: var(--color-text-disabled);
+}
+@utility section-header-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-primary);
+}
+
+/* ===== 标签徽章（统一） ===== */
+@utility tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border-width: 1px;
+  white-space: nowrap;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* ===== 数据表格行（统一用于所有页面表格） ===== */
+@utility data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.data-table th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(29, 42, 66, 0.3);
+  vertical-align: middle;
+}
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+.data-table tr:hover td {
+  background: rgba(77, 163, 255, 0.03);
+}
+
+/* ===== 财务数字字体 ===== */
+@utility font-mono-sm {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: 13px;
+}
+
+/* ===== 信息卡片（小号内嵌卡片） ===== */
+@utility info-card {
+  border-radius: 10px;
+  background: var(--color-surface-card);
+  padding: 10px 14px;
+  border: 1px solid var(--color-border-subtle);
+}
+
+/* ===== 加载骨架 ===== */
+@utility skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* ===== 统一 scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Respect user motion preferences (WCAG §2.3.3 / UI/UX Pro Max §7) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .card-lift:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .card-lift {
+    transition: none;
+  }
+}
