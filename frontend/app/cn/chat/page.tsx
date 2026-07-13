@@ -30,10 +30,10 @@ type AgentVote = {
 
 // ---------- Agent 元信息（用于右侧说明面板） ----------
 const AGENT_LIST = [
-  { key: "lhb", name: "龙虎榜 Agent", color: "#4DA3FF" },
+  { key: "lhb", name: "龙虎榜 Agent", color: "#A78BFA" },
   { key: "block", name: "大宗交易 Agent", color: "#35e0a3" },
   { key: "limit_up", name: "涨停 Agent", color: "#F5C451" },
-  { key: "margin", name: "融资融券 Agent", color: "#7ddeff" },
+  { key: "margin", name: "融资融券 Agent", color: "#C084FC" },
   { key: "research", name: "研报 Agent", color: "#3EE6A8" },
   { key: "news", name: "舆情 Agent", color: "#FF9A5C" },
   { key: "technical", name: "技术 Agent", color: "#C084FC" },
