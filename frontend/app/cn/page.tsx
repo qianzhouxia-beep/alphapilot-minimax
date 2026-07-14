@@ -330,19 +330,6 @@ export default function CNDashboard() {
                       </div>
                     </div>
                   )}
-                  {/* 隔夜美股情绪卡片 */}
-                  {overnightData && (
-                    <div className="glass rounded-xl p-4 mb-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-text-primary">US 隔夜美股情绪</h3>
-                        <span className={overnightData.score > 0.3 ? "text-xs text-green-400" : overnightData.score > -0.1 ? "text-xs text-yellow-400" : "text-xs text-red-400"}>
-                          {overnightData.judgment}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 mb-3">
-                        {Object.entries(overnightData.indices || {}).slice(0,3).map(([k,v]) => (
-                          <div key={k} className="bg-background/50 rounded-lg p-2 text-center">
-                            <div className="text-[10px] text-text-secondary">{v.n.replace("ETF","").trim()}</div>
                             <div className="text-xs font-mono font-bold text-text-primary">{v.p.toFixed(2)}</div>
                             <div className={"text-[10px] " + (v.c > 0 ? "text-red-400" : v.c < 0 ? "text-green-400" : "text-text-secondary")}>{v.c > 0 ? "+" : ""}{v.c}%</div>
                           </div>
