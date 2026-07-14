@@ -12,9 +12,9 @@ import {
 
 function resultLabel(chg: number | null): { text: string; color: string; bg: string } {
   if (chg == null) return { text: "待定", color: "#9FB0C7", bg: "rgba(159,176,199,0.15)" };
-  if (chg >= 3) return { text: "达标", color: "#3EE6A8", bg: "rgba(62,230,168,0.15)" };
-  if (chg > 0) return { text: "微盈", color: "#F5C451", bg: "rgba(245,196,81,0.15)" };
-  return { text: "亏损", color: "#FF5D5D", bg: "rgba(255,93,93,0.15)" };
+  if (chg >= 3) return { text: "达标🔥", color: "#FF5D5D", bg: "rgba(255,93,93,0.15)" };
+  if (chg > 0) return { text: "微盈", color: "#FF8A8A", bg: "rgba(255,138,138,0.12)" };
+  return { text: "亏损", color: "#3EE6A8", bg: "rgba(62,230,168,0.15)" };
 }
 
 function totalReturn(w: WatchlistItem): number | null {
@@ -240,7 +240,7 @@ export default function WatchlistPage() {
 }
 
 // ═══ 追踪中表格 ═══
-const W_GRID = { gridTemplateColumns: '170px 80px 80px 70px 55px 80px 80px 80px 55px' };
+const W_GRID = { gridTemplateColumns: 'minmax(130px,1.5fr) 72px 72px 72px 56px 78px 78px 78px 64px' };
 function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -271,32 +271,32 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
           const chg = w.current_change_pct;
           return (
           <div key={w.id} className="grid text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors" style={W_GRID}>
-            <div className="px-3 py-3 overflow-hidden">
+            <div className="px-3 py-2.5 overflow-hidden">
               <div className="text-[14px] font-semibold text-text-primary truncate">{w.name}</div>
               <div className="text-[10px] text-text-disabled truncate">{w.symbol}</div>
             </div>
-            <div className="px-3 py-3 text-right font-mono">
+            <div className="px-3 py-2.5 text-right font-mono">
               <span className="text-status-warning cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.(w)}>
                 ¥{(w.entry_price || 0).toFixed(2)}
               </span>
             </div>
-            <div className={`px-3 py-3 text-right font-mono truncate ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
               {w.current_price != null ? `¥${w.current_price.toFixed(2)}` : "—"}
             </div>
-            <div className={`px-3 py-3 text-right font-mono font-semibold truncate ${chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${chg != null ? (chg > 0 ? "text-[#FF5D5D]" : chg < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
               {chg != null ? `${chg > 0 ? "+" : ""}${chg}%` : "—"}
             </div>
-            <div className="px-3 py-3 text-right font-mono text-text-secondary truncate">{(w.model_score * 100).toFixed(0)}%</div>
-            <div className={`px-3 py-3 text-right font-mono truncate ${w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-              {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%${d1Hit ? " 🎯" : ""}` : "—"}
+            <div className="px-3 py-2.5 text-right font-mono text-text-secondary truncate">{(w.model_score * 100).toFixed(0)}%</div>
+            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${w.day1_change != null ? (w.day1_change >= 3 ? "text-[#FF5D5D]" : w.day1_change > 0 ? "text-[#FF8A8A]" : w.day1_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
+              {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%${(w.day1_change ?? 0) >= 3 ? " 🎯" : ""}` : "—"}
             </div>
-            <div className={`px-3 py-3 text-right font-mono truncate ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day2_change != null ? (w.day2_change > 0 ? "text-[#FF8A8A]" : w.day2_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
               {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
             </div>
-            <div className={`px-3 py-3 text-right font-mono truncate ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day3_change != null ? (w.day3_change > 0 ? "text-[#FF8A8A]" : w.day3_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
               {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
             </div>
-            <div className="px-3 py-3 text-center">
+            <div className="px-3 py-2.5 text-center">
               <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
                 className="rounded-lg px-2.5 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
                 {isRemoving ? "..." : "删除"}
@@ -310,7 +310,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
 }
 
 // ═══ 历史记录表格 ═══
-const H_GRID = { gridTemplateColumns: '150px 80px 80px 80px 80px 80px 60px 80px' };
+const H_GRID = { gridTemplateColumns: 'minmax(130px,1.5fr) 72px 78px 78px 78px 78px 64px 90px' };
 function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -341,40 +341,40 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
           const rl = resultLabel(w.day1_change);
           return (
           <div key={w.id} className="grid text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors" style={H_GRID}>
-            <div className="px-3 py-3 overflow-hidden">
+            <div className="px-3 py-2.5 overflow-hidden">
               <div className="text-[14px] font-semibold text-text-primary truncate">{w.name}</div>
               <div className="text-[10px] text-text-disabled truncate">{w.symbol}</div>
             </div>
-            <div className="px-3 py-3 text-right font-mono text-status-warning truncate">
+            <div className="px-3 py-2.5 text-right font-mono text-status-warning truncate">
               <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...w, symbol: w.symbol, name: w.name, entry_price: w.entry_price || 0 } as any)}>
                 ¥{(w.entry_price || 0).toFixed(2)}
               </span>
             </div>
-            <div className={`px-3 py-3 text-right font-mono truncate ${w.day1_change != null ? (w.day1_change >= 3 ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${w.day1_change != null ? (w.day1_change >= 3 ? "text-[#FF5D5D]" : w.day1_change > 0 ? "text-[#FF8A8A]" : w.day1_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
               {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%` : "—"}
             </div>
-            <div className={`px-3 py-3 text-right font-mono truncate ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day2_change != null ? (w.day2_change > 0 ? "text-[#FF8A8A]" : w.day2_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
               {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
             </div>
-            <div className={`px-3 py-3 text-right font-mono truncate ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day3_change != null ? (w.day3_change > 0 ? "text-[#FF8A8A]" : w.day3_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
               {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
             </div>
-            <div className={`px-3 py-3 text-right font-mono font-semibold truncate ${tr != null ? (tr >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled"}`}>
+            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${tr != null ? (tr > 0 ? "text-[#FF5D5D]" : tr < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
               {tr != null ? `${tr > 0 ? "+" : ""}${tr.toFixed(2)}%` : "—"}
             </div>
-            <div className="px-3 py-3">
+            <div className="px-3 py-2.5">
               <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
                 {rl.text}
               </span>
             </div>
-            <div className="px-3 py-3">
-              <div className="flex items-center justify-center gap-1.5">
+            <div className="px-3 py-2.5">
+              <div className="flex items-center justify-center gap-1">
                 <button onClick={() => onRetrack(w)} disabled={isRetracking}
-                  className="rounded-lg px-2 py-1.5 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
+                  className="rounded-lg px-2 py-1 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
                   {isRetracking ? "..." : "再追踪"}
                 </button>
                 <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
-                  className="rounded-lg px-2 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
+                  className="rounded-lg px-2 py-1 text-[11px] text-[#FF5D5D] hover:bg-[rgba(255,93,93,0.1)] disabled:opacity-50 transition-colors">
                   {isRemoving ? "..." : "删除"}
                 </button>
               </div>
