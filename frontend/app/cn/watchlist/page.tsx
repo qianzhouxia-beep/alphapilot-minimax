@@ -250,17 +250,17 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <table className="w-full text-left data-table min-w-[700px]">
+      <table className="w-full text-left data-table min-w-[750px]" style={{ tableLayout: 'fixed' }}>
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[9%]" />
-          <col className="w-[12%]" />
-          <col className="w-[12%]" />
-          <col className="w-[12%]" />
-          <col className="w-[6%]" />
+          <col style={{ width: '170px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '70px' }} />
+          <col style={{ width: '55px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '55px' }} />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
@@ -336,16 +336,16 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <table className="w-full text-left data-table min-w-[600px]">
+      <table className="w-full text-left data-table min-w-[650px]" style={{ tableLayout: 'fixed' }}>
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[12%]" />
+          <col style={{ width: '150px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '60px' }} />
+          <col style={{ width: '80px' }} />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
