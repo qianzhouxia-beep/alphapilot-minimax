@@ -239,7 +239,7 @@ export default function WatchlistPage() {
   );
 }
 
-// ═══ 追踪中卡片 ═══
+// ═══ 追踪中表格 ═══
 function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -249,85 +249,82 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
   onPriceClick?: (w: WatchlistItem) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {items.map((w) => {
-        const isRemoving = removing === w.symbol;
-        const d1Hit = (w.day1_change ?? 0) >= 3;
-        const chg = w.current_change_pct;
-        const chgColor = chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled";
-        return (
-        <div key={w.id} className="glass card-lift rounded-xl p-4">
-          {/* Row 1: 股票名 + 浮动盈亏 */}
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[15px] font-semibold text-text-primary truncate">{w.name}</span>
-                <span className="text-[11px] text-text-disabled shrink-0">{w.symbol}</span>
-              </div>
-              {w.sector && (
-                <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 mt-0.5">{w.sector}</span>
-              )}
-            </div>
-            {/* 浮动盈亏 */}
-            {chg != null ? (
-              <div className="text-right shrink-0">
-                <div className={`text-[18px] font-bold font-display-numeric ${chgColor}`}>{chg > 0 ? "+" : ""}{chg}%</div>
-                <div className="text-[10px] text-text-disabled">浮动</div>
-              </div>
-            ) : (
-              <div className="text-right shrink-0">
-                <div className="text-[14px] text-text-disabled">—</div>
-                <div className="text-[10px] text-text-disabled">浮动</div>
-              </div>
-            )}
-          </div>
-          {/* Row 2: 入场 + 实时 + 评分 */}
-          <div className="flex items-center justify-between mb-2.5 text-[12px]">
-            <div>
-              <span className="text-text-disabled">入场 </span>
-              <span className="font-mono text-status-warning cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.(w)}>
-                ¥{(w.entry_price || 0).toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-text-disabled">实时 </span>
-              <span className={`font-mono ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <table className="w-full text-left data-table min-w-[700px]">
+        <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[9%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+        </colgroup>
+        <thead>
+          <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
+            <th className="px-3 py-2.5 font-medium text-left">股票</th>
+            <th className="px-3 py-2.5 font-medium text-right">入场</th>
+            <th className="px-3 py-2.5 font-medium text-right">实时</th>
+            <th className="px-3 py-2.5 font-medium text-right">浮动</th>
+            <th className="px-3 py-2.5 font-medium text-right">评分</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+1</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+2</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+3</th>
+            <th className="px-3 py-2.5 font-medium text-center">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((w) => {
+            const isRemoving = removing === w.symbol;
+            const d1Hit = (w.day1_change ?? 0) >= 3;
+            const chg = w.current_change_pct;
+            return (
+            <tr key={w.id} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
+              <td className="px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <div className="text-[14px] font-semibold text-text-primary">{w.name}</div>
+                    <div className="text-[10px] text-text-disabled">{w.symbol}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-3 py-3 text-right font-mono">
+                <span className="text-status-warning cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.(w)}>
+                  ¥{(w.entry_price || 0).toFixed(2)}
+                </span>
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
                 {w.current_price != null ? `¥${w.current_price.toFixed(2)}` : "—"}
-              </span>
-            </div>
-            <div>
-              <span className="text-text-disabled">评分 </span>
-              <span className="font-mono text-text-secondary">{(w.model_score * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-          {/* Row 3: T+1 T+2 T+3 + 操作 */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 text-[12px]">
-              <span className="text-text-disabled">T+1 <span className={`font-mono ${w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+              </td>
+              <td className={`px-3 py-3 text-right font-mono font-semibold ${chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
+                {chg != null ? `${chg > 0 ? "+" : ""}${chg}%` : "—"}
+              </td>
+              <td className="px-3 py-3 text-right font-mono text-text-secondary">{(w.model_score * 100).toFixed(0)}%</td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
                 {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%${d1Hit ? " 🎯" : ""}` : "—"}
-              </span></span>
-              <span className="text-text-disabled hidden xs:inline">T+2 <span className={`font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
                 {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
-              </span></span>
-              <span className="text-text-disabled hidden sm:inline">T+3 <span className={`font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
                 {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
-              </span></span>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {w.added_at && <span className="text-[9px] text-text-disabled hidden md:inline">{w.added_at.slice(0, 10)}</span>}
-              <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
-                className="rounded-lg px-2 py-1.5 text-[10px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
-                {isRemoving ? "..." : "删除"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )})}
+              </td>
+              <td className="px-3 py-3 text-center">
+                <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
+                  className="rounded-lg px-2.5 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
+                  {isRemoving ? "..." : "删除"}
+                </button>
+              </td>
+            </tr>
+          )})}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-// ═══ 历史记录卡片 ═══
+// ═══ 历史记录表格 ═══
 function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -337,49 +334,84 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
   onPriceClick?: (w: WatchlistItem) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {items.map((w) => {
-        const isRemoving = removing === w.symbol;
-        const isRetracking = retracking === w.symbol;
-        const tr = totalReturn(w);
-        const rl = resultLabel(w.day1_change);
-        return (
-        <div key={w.id} className="bg-surface-card rounded-xl p-3 border border-border-subtle/50 card-lift">
-          <div className="flex items-center justify-between gap-2 mb-2.5">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[14px] font-semibold text-text-primary truncate">{w.name}</span>
-                <span className="text-[11px] text-text-disabled shrink-0">{w.symbol}</span>
-              </div>
-            </div>
-            {/* 总收益 */}
-            {tr != null ? (
-              <span className={`text-[16px] font-bold font-display-numeric shrink-0 ${tr >= 0 ? "text-status-success" : "text-status-danger"}`}>
-                {tr > 0 ? "+" : ""}{tr.toFixed(2)}%
-              </span>
-            ) : null}
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 text-[12px]">
-              <span className="text-text-disabled">入场 <span className="font-mono text-status-warning">{w.entry_price ? `¥${w.entry_price.toFixed(2)}` : "—"}</span></span>
-              <span className="text-text-disabled">T+1 <span className={`font-mono ${w.day1_change != null ? (w.day1_change >= 3 ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>{w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%` : "—"}</span></span>
-              <span className="text-text-disabled hidden xs:inline">T+2 <span className={`font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>{w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}</span></span>
-              <span className="text-text-disabled hidden sm:inline">T+3 <span className={`font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>{w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}</span></span>
-            </div>
-            <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ backgroundColor: rl.bg, color: rl.color }}>{rl.text}</span>
-          </div>
-          <div className="flex items-center justify-end gap-1.5 mt-2 pt-2 border-t border-border-subtle/30">
-            <button onClick={() => onRetrack(w)} disabled={isRetracking}
-              className="rounded-lg px-2 py-1 text-[10px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
-              {isRetracking ? "..." : "🔄 再追踪"}
-            </button>
-            <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
-              className="rounded-lg px-2 py-1 text-[10px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
-              {isRemoving ? "..." : "删除"}
-            </button>
-          </div>
-        </div>
-      )})}
+    <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <table className="w-full text-left data-table min-w-[600px]">
+        <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[12%]" />
+        </colgroup>
+        <thead>
+          <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
+            <th className="px-3 py-2.5 font-medium text-left">股票</th>
+            <th className="px-3 py-2.5 font-medium text-right">入场</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+1</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+2</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+3</th>
+            <th className="px-3 py-2.5 font-medium text-right">总收益</th>
+            <th className="px-3 py-2.5 font-medium text-left">结果</th>
+            <th className="px-3 py-2.5 font-medium text-center">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((w) => {
+            const isRemoving = removing === w.symbol;
+            const isRetracking = retracking === w.symbol;
+            const tr = totalReturn(w);
+            const rl = resultLabel(w.day1_change);
+            return (
+            <tr key={w.id} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
+              <td className="px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <div className="text-[14px] font-semibold text-text-primary">{w.name}</div>
+                    <div className="text-[10px] text-text-disabled">{w.symbol}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-3 py-3 text-right font-mono text-status-warning">
+                <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...w, symbol: w.symbol, name: w.name, entry_price: w.entry_price || 0 } as any)}>
+                  ¥{(w.entry_price || 0).toFixed(2)}
+                </span>
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day1_change != null ? (w.day1_change >= 3 ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono font-semibold ${tr != null ? (tr >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled"}`}>
+                {tr != null ? `${tr > 0 ? "+" : ""}${tr.toFixed(2)}%` : "—"}
+              </td>
+              <td className="px-3 py-3">
+                <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
+                  {rl.text}
+                </span>
+              </td>
+              <td className="px-3 py-3">
+                <div className="flex items-center justify-center gap-1.5">
+                  <button onClick={() => onRetrack(w)} disabled={isRetracking}
+                    className="rounded-lg px-2 py-1.5 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
+                    {isRetracking ? "..." : "再追踪"}
+                  </button>
+                  <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
+                    className="rounded-lg px-2 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
+                    {isRemoving ? "..." : "删除"}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          )})}
+        </tbody>
+      </table>
     </div>
   );
 }
