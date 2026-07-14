@@ -315,8 +315,10 @@ function TradeLogView({ log, heldSymbols }: { log: TradeLogEntry[]; heldSymbols:
                   }`}>
                     {p.exit.action}
                   </span>
+                ) : isHeld ? (
+                  <span className="tag-badge text-[11px] bg-[rgba(77,163,255,0.12)] text-[#4DA3FF]">持仓中</span>
                 ) : (
-                  <span className="tag-badge bg-[rgba(77,163,255,0.12)] text-[#4DA3FF] text-[11px]">持仓中</span>
+                  <span className="tag-badge text-[11px] bg-[rgba(159,176,199,0.12)] text-[#9FB0C7]">已清仓</span>
                 )}
               </div>
             </div>
