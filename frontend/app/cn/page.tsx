@@ -35,6 +35,7 @@ export default function CNDashboard() {
   // 实时状态标记
   const [liveTs, setLiveTs] = useState<number>(0);
   const [livePolling, setLivePolling] = useState<boolean>(false);
+  const [overnightData, setOvernightData] = useState<any>(null);
 
   const loadData = async () => {
     try {
@@ -50,24 +51,24 @@ export default function CNDashboard() {
   };
 
   
-
-
+  useEffect(() => {
+    fetch("/api/v1/cn/overnight")
+      .then(r => r.json())
+      .then(d => setOvernightData(d))
+      .catch(() => {});
   }, []);
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      await loadData();
+    setLoading(true);
+    loadData().finally(() => {
       if (!cancelled) { setLoading(false); setCatLoading(false); }
-    })();
+    });
     return () => { cancelled = true; };
   }, []);
 
   // 30 min auto refresh (全量评分+分类)
-  
 
-
-  }, []);
+  useEffect(() => {
     const id = setInterval(loadData, 30 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
@@ -76,13 +77,8 @@ export default function CNDashboard() {
   const rerankCounterRef = useRef(0);
 
   // 60秒实时资金流刷新 + 每5分钟动态重排
-  
+
   useEffect(() => {
-    fetch("/api/v1/cn/overnight")
-      .then(r => r.json())
-      .then(d => setOvernightData(d))
-      .catch(() => {});
-  }, []);
     const pollLive = async () => {
       if (document.hidden) return; // 标签页隐藏时不轮询
       // 非交易时间不轮询（9:25-15:05 为交易时段，仅工作日）
@@ -297,70 +293,6 @@ export default function CNDashboard() {
         </section>
         </>
       )}
-
-
-                            <div className="text-xs font-mono font-bold text-text-primary">{v.p.toFixed(2)}</div>
-                            <div className={"text-[10px] " + (v.c > 0 ? "text-red-400" : v.c < 0 ? "text-green-400" : "text-text-secondary")}>{v.c > 0 ? "+" : ""}{v.c}%</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mb-2">
-                        <div className="text-[10px] text-text-secondary mb-1.5">板块映射 Top</div>
-                        <div className="flex flex-wrap gap-1.5">
-                            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20">{s.name} +{s.bonus}%</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-text-secondary mb-1.5">科技巨头涨跌</div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            <span key={k} className={"text-[11px] " + (v > 0 ? "text-red-400" : v < 0 ? "text-green-400" : "text-text-secondary")}>{k} {v > 0 ? "+" : ""}{v}%</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                            <div className="text-xs font-mono font-bold text-text-primary">{v.p.toFixed(2)}</div>
-                            <div className={"text-[10px] " + (v.c > 0 ? "text-red-400" : v.c < 0 ? "text-green-400" : "text-text-secondary")}>{v.c > 0 ? "+" : ""}{v.c}%</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mb-2">
-                        <div className="text-[10px] text-text-secondary mb-1.5">板块映射 Top</div>
-                        <div className="flex flex-wrap gap-1.5">
-                            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20">{s.name} +{s.bonus}%</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] text-text-secondary mb-1.5">科技巨头涨跌</div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1">
-                            <span key={k} className={"text-[11px] " + (v > 0 ? "text-red-400" : v < 0 ? "text-green-400" : "text-text-secondary")}>{k} {v > 0 ? "+" : ""}{v}%</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                                <div className={"text-[10px] " + (v.c > 0 ? "text-red-400" : "text-green-400")}>{v.c > 0 ? "+" : ""}{v.c}%</div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="col-span-3 text-[10px] text-text-secondary text-center py-2">暂无美股指数数据</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-
-
-
-                  {overnightData && <div className="bg-background/50 rounded-lg p-3 mb-4 text-[11px]">
-                    <div className="font-semibold text-text-primary mb-1">US Overnight</div>
-                    <div className="text-text-secondary">{overnightData.judgment}</div>
-                    <div className="text-text-secondary mt-1">{overnightData.time}</div>
-                  </div>}
 
       <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -847,7 +779,7 @@ export default function CNDashboard() {
               </button>
               <button onClick={confirmAddWatchlist} disabled={priceDialogLoading}
                 className="flex-1 rounded-lg bg-status-info py-2.5 text-[13px] font-semibold text-on-primary hover:bg-[#C084FC] transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                {priceDialogLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-text-on-primary border-t-transparent" /> : null}
+                {priceDialogLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#00315b] border-t-transparent" /> : null}
                 {priceDialogLoading ? "添加中..." : "确认添加"}
               </button>
             </div>
