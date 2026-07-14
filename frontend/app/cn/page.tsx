@@ -840,6 +840,9 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                           <span className="text-[12px] font-medium text-text-primary group-hover:text-status-info truncate transition-colors">{s.name}</span>
                           <span className="text-[9px] text-text-disabled shrink-0">{sym}</span>
                         </Link>
+                        <span className="text-[10px] font-mono text-text-secondary w-[48px] text-right shrink-0">
+                          {price > 0 ? `¥${price.toFixed(2)}` : "—"}
+                        </span>
                         <span className={`text-[10px] font-bold font-display-numeric w-[24px] text-center ${
                           displayScore(s.score_raw || s.score) > 85 ? "text-status-success" : displayScore(s.score_raw || s.score) > 80 ? "text-primary" : "text-text-secondary"
                         }`}>{displayScore(s.score_raw || s.score)}</span>
