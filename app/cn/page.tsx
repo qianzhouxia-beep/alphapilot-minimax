@@ -35,6 +35,7 @@ export default function CNDashboard() {
   // 实时状态标记
   const [liveTs, setLiveTs] = useState<number>(0);
   const [livePolling, setLivePolling] = useState<boolean>(false);
+  const [overnightData, setOvernightData] = useState<any>(null);
 
   const loadData = async () => {
     try {
