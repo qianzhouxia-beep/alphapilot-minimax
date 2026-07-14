@@ -426,7 +426,7 @@ export default function CNDashboard() {
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <div className="text-right">
                       <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-none">
-                        {item.buy_price > 0 ? item.buy_price.toFixed(2) : "—"}
+                        {item.price > 0 ? item.price.toFixed(2) : (item.buy_price > 0 ? item.buy_price.toFixed(2) : "—")}
                       </div>
                       {item.buy_price > 0 && (
                         <div className="text-[10px] text-text-disabled mt-0.5">昨收 ¥{item.buy_price.toFixed(2)}</div>
