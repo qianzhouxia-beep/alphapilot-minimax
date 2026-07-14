@@ -306,6 +306,43 @@ export default function CNDashboard() {
         </>
       )}
 
+
+                  {/* 隔夜美股情绪卡片 */}
+                  {overnightData && (
+                    <div className="glass rounded-xl p-4 mb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-text-primary">US 隔夜美股情绪</h3>
+                        <span className={overnightData.score > 0.3 ? "text-xs text-green-400" : overnightData.score > -0.1 ? "text-xs text-yellow-400" : "text-xs text-red-400"}>
+                          {overnightData.judgment}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        {Object.entries(overnightData.indices || {}).slice(0,3).map(([k,v]) => (
+                          <div key={k} className="bg-background/50 rounded-lg p-2 text-center">
+                            <div className="text-[10px] text-text-secondary">{v.n.replace("ETF","").trim()}</div>
+                            <div className="text-xs font-mono font-bold text-text-primary">{v.p.toFixed(2)}</div>
+                            <div className={"text-[10px] " + (v.c > 0 ? "text-red-400" : v.c < 0 ? "text-green-400" : "text-text-secondary")}>{v.c > 0 ? "+" : ""}{v.c}%</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mb-2">
+                        <div className="text-[10px] text-text-secondary mb-1.5">板块映射 Top</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(overnightData.sectors || []).slice(0,6).map((s,i) => (
+                            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20">{s.name} +{s.bonus}%</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-text-secondary mb-1.5">科技巨头涨跌</div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
+                          {Object.entries(overnightData.tech || {}).slice(0,7).map(([k,v]) => (
+                            <span key={k} className={"text-[11px] " + (v > 0 ? "text-red-400" : v < 0 ? "text-green-400" : "text-text-secondary")}>{k} {v > 0 ? "+" : ""}{v}%</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
       <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
