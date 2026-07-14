@@ -353,6 +353,34 @@ export default function CNDashboard() {
                       </div>
                     </div>
                   )}
+
+                  {overnightData && (
+                    <div className="glass rounded-xl p-4 mb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-text-primary">US 隔夜美股情绪</h3>
+                        <span className="text-xs text-green-400">{overnightData.judgment}</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        {Object.keys(overnightData.indices || {}).length > 0 ? (
+                          Object.entries(overnightData.indices).slice(0,3).map(function(e) {
+                            var k = e[0], v = e[1];
+                            return (
+                              <div key={k} className="bg-background/50 rounded-lg p-2 text-center">
+                                <div className="text-[10px] text-text-secondary">{v.n}</div>
+                                <div className="text-xs font-bold text-text-primary">{v.p.toFixed(2)}</div>
+                                <div className={"text-[10px] " + (v.c > 0 ? "text-red-400" : "text-green-400")}>{v.c > 0 ? "+" : ""}{v.c}%</div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="col-span-3 text-[10px] text-text-secondary text-center py-2">暂无美股指数数据</div>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-text-secondary mb-1">板块映射: {(overnightData.sectors || []).slice(0,5).map(function(s,i){return s.name + "+" + s.bonus + "%"}).join(" | ")}</div>
+                      <div className="text-[10px] text-text-secondary">科技股: {Object.entries(overnightData.tech || {}).slice(0,5).map(function(e){return e[0] + " " + (e[1] > 0 ? "+" : "") + e[1] + "%"}).join(" | ")}</div>
+                    </div>
+                  )}
+
       <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
