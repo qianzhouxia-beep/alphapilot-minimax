@@ -1,31 +1,41 @@
-# AlphaPilot Frontend — Next.js 15 SSR via next start
-# 仅前端,后端在 150.158.100.236:8000 (上海腾讯云)
+# AlphaPilot Multi-stage Dockerfile (Zeabur)
+# Root Directory = "." → context = repo root
 
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci
+# ===== Stage 1: frontend build =====
+FROM node:20-slim AS frontend-build
+WORKDIR /fe
 
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN mkdir -p /app/public
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install --no-audit --no-fund
+
+COPY frontend/ ./
+
 RUN npm run build
 
-FROM node:20-alpine AS runner
+# ===== Stage 2: python backend =====
+FROM python:3.11-slim
+ARG CACHEBUSTER=20260615-1124
 WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=8080
-ENV HOSTNAME=0.0.0.0
 
-# 用 next start 模式 (避免 standalone 路径问题)
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
+RUN apt-get update && apt-get install -y --no-install-recommends \
+ build-essential \
+ libpq-dev \
+ curl \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/app ./app
+
+COPY --from=frontend-build /fe/out ./frontend/out
+
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8080
-CMD ["npx", "next", "start", "-p", "8080", "-H", "0.0.0.0"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+ CMD curl -fsS http://localhost:8080/api/v1/ping || exit 1
+
+CMD ["sh", "-c", "echo '=== Starting uvicorn on port ${PORT:-8080} ===' && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
