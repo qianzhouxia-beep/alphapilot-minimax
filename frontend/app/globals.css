@@ -455,6 +455,7 @@ body {
 /* ===== 数据表格行（统一用于所有页面表格） ===== */
 @utility data-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 }
