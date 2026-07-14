@@ -50,8 +50,8 @@ export default function CNDashboard() {
   };
 
   
-  useEffect(() => {
-    fetch("/api/v1/cn/overnight")
+
+
       .then(r => r.json())
       .then(d => setOvernightData(d))
       .catch(() => {});
@@ -68,8 +68,8 @@ export default function CNDashboard() {
 
   // 30 min auto refresh (全量评分+分类)
   
-  useEffect(() => {
-    fetch("/api/v1/cn/overnight")
+
+
       .then(r => r.json())
       .then(d => setOvernightData(d))
       .catch(() => {});
