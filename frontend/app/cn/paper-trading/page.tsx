@@ -238,7 +238,7 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
 }
 
 // ═══ 交易记录视图：配对买入/卖出，显示盈亏 ═══
-const T_GRID = { gridTemplateColumns: '1.2fr 1fr 1fr 1fr 1fr' };
+const T_GRID = { gridTemplateColumns: '1.2fr 1fr 1fr 1fr 0.8fr 0.8fr' };
 function TradeLogView({ log, heldSymbols, pnlMap, pnlPctMap }: {
   log: TradeLogEntry[];
   heldSymbols: Set<string>;
@@ -276,12 +276,13 @@ function TradeLogView({ log, heldSymbols, pnlMap, pnlPctMap }: {
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[650px]">
+      <div className="min-w-[720px]">
         <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={T_GRID}>
           <div className="px-3 py-2 font-medium">股票</div>
           <div className="px-3 py-2 font-medium text-right">买入价</div>
           <div className="px-3 py-2 font-medium text-right">卖出价</div>
           <div className="px-3 py-2 font-medium text-right">收益</div>
+          <div className="px-3 py-2 font-medium text-right">股数</div>
           <div className="px-3 py-2 font-medium">状态</div>
         </div>
         {pairs.map((p, i) => {
@@ -318,6 +319,7 @@ function TradeLogView({ log, heldSymbols, pnlMap, pnlPctMap }: {
                   <span className="text-text-disabled">—</span>
                 )}
               </div>
+              <div className="px-3 py-2 text-right font-display-numeric text-text-secondary truncate">{p.entry?.quantity ?? p.exit?.quantity ?? ""}</div>
               <div className="px-3 py-2 truncate">
                 {p.exit ? (
                   <span className={`tag-badge text-[11px] ${
