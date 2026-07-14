@@ -1,0 +1,6 @@
+# ============ 启动完整管线(在 OrcaTerm 终端粘这一行) ============
+
+curl -X POST http://localhost:8000/api/v1/cn/pipeline/run -H "Content-Type: application/json" -d '{}' && echo "⏳ 管线已启动,后台跑 5527 只约 15min..."
+
+# 实时监控跑批进度(可选,另开一个标签粘):
+# watch -n 30 'curl -s http://localhost:8000/api/v1/cn/recommend | python3 -c "import sys,json; d=json.load(sys.stdin); print(\"items:\", len(d.get(\"items\",[]))); print(\"source:\", d.get(\"source\",\"?\"))" 2>/dev/null || echo "缓存未生成,管线进行中"'

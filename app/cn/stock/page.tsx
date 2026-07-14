@@ -245,7 +245,7 @@ export default function CNStockDetail() {
             <div className="mb-3 flex items-center justify-between">
               <span className="text-[11px] uppercase tracking-wider text-text-disabled">🤖 AI 评分决策卡</span>
               <span className="rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[10px] font-semibold text-status-info border border-[rgba(77,163,255,0.3)]">
-                V19 Fusion
+                V1.9 Fusion
               </span>
             </div>
 

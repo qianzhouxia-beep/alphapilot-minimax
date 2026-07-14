@@ -1,0 +1,7 @@
+**OrcaTerm 粘这两条，看 recommend.py 定义了哪些函数：**
+
+# 第1条 — 所有函数定义
+grep -n "def " ~/alphapilot/recommend.py | head -20
+
+# 第2条 — pipeline/run 路由在 api_server.py 中如何调用 recommend
+grep -n -A 20 "@app.post.*pipeline" ~/alphapilot/api_server.py | head -30

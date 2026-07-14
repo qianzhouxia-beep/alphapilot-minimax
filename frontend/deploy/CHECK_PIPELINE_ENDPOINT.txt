@@ -1,0 +1,23 @@
+# 探查管线真实端点(在 OrcaTerm 粘这几条)
+
+# 1. 列出所有端点看哪条是真正的"全量管线"
+curl -s http://localhost:8000/openapi.json | python3 -c "import sys,json; d=json.load(sys.stdin); [print(f'  {m.upper():6s} {p}') for p,ops in d['paths'].items() for m in ops]"
+
+# 2. 查 pipeline 相关端点的入参定义
+curl -s http://localhost:8000/openapi.json | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+for p, ops in d['paths'].items():
+    if 'pipeline' in p.lower() or 'run' in p.lower() or 'recommend' in p.lower():
+        for m, spec in ops.items():
+            params = spec.get('parameters', [])
+            print(f'  {m.upper()} {p}')
+            for prm in params:
+                req = '必填' if prm.get('required') else '可选'
+                print(f'    {req} {prm[\"name\"]} (in={prm[\"in\"]}): {prm.get(\"description\",\"\")[:60]}')
+"
+
+# 3. 直接看 recommend.py 怎么调用管线的
+grep -n "def run\|@app\.\|pipeline\|BackgroundTasks" ~/alphapilot/recommend.py 2>/dev/null | head -30
+
+# 把所有输出贴回
