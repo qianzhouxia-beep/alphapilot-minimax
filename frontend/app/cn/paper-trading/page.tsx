@@ -238,7 +238,7 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
 }
 
 // ═══ 交易记录视图：配对买入/卖出，显示盈亏 ═══
-const T_GRID = { gridTemplateColumns: '1.2fr 1fr 1fr 1fr 0.8fr 0.8fr' };
+const T_GRID = { gridTemplateColumns: '1.2fr 1fr 1fr 1fr 1fr 1fr' };
 function TradeLogView({ log, heldSymbols, pnlMap, pnlPctMap }: {
   log: TradeLogEntry[];
   heldSymbols: Set<string>;
