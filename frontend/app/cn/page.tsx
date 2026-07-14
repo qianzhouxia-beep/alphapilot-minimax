@@ -49,6 +49,13 @@ export default function CNDashboard() {
     }
   };
 
+  
+  useEffect(() => {
+    fetch("/api/v1/cn/overnight")
+      .then(r => r.json())
+      .then(d => setOvernightData(d))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -60,6 +67,13 @@ export default function CNDashboard() {
   }, []);
 
   // 30 min auto refresh (全量评分+分类)
+  
+  useEffect(() => {
+    fetch("/api/v1/cn/overnight")
+      .then(r => r.json())
+      .then(d => setOvernightData(d))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     const id = setInterval(loadData, 30 * 60 * 1000);
     return () => clearInterval(id);
@@ -69,6 +83,13 @@ export default function CNDashboard() {
   const rerankCounterRef = useRef(0);
 
   // 60秒实时资金流刷新 + 每5分钟动态重排
+  
+  useEffect(() => {
+    fetch("/api/v1/cn/overnight")
+      .then(r => r.json())
+      .then(d => setOvernightData(d))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     const pollLive = async () => {
       if (document.hidden) return; // 标签页隐藏时不轮询
