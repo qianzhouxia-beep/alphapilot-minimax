@@ -85,7 +85,7 @@ export default function PaperTradingPage() {
             <span className="tag-badge tag-badge bg-status-info/10 text-status-info border border-status-info/30">Beta</span>
           </h1>
           <p className="mt-1 text-[12px] text-text-disabled">
-            V19 Fusion 日频量化 · 尾盘狙击+双策略并行 · 动态止损止盈
+            V1.9 Fusion 日频量化 · 尾盘狙击+双策略并行 · 动态止损止盈
           </p>
         </div>
         </div>

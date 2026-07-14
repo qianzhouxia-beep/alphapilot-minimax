@@ -1,4 +1,4 @@
-// AlphaPilot A 股 Dashboard — V15 真实筹码模型 (2026-07-09)
+// AlphaPilot A 股 Dashboard — V1.9 Fusion 模型 (2026-07-15)
 // Zeabur HTTPS -> cn_proxy.py -> 腾讯云 150.158.100.236
 // 2026-07-13: 60秒轮询 /recommend/live 实时资金流（盘中阶段标签实时刷新）
 "use client";
@@ -300,7 +300,7 @@ export default function CNDashboard() {
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1 h-6 rounded-full bg-status-info"></div>
               <h2 className="text-[18px] font-semibold text-text-primary">A 股 Top 10 机会</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(167,139,250,0.12)] text-status-info border border-[rgba(167,139,250,0.25)]">V18</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(167,139,250,0.12)] text-status-info border border-[rgba(167,139,250,0.25)]">V1.9</span>
               {items[0]?._reranked && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-[rgba(62,230,168,0.3)]">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-success animate-pulse"></span>
@@ -315,7 +315,7 @@ export default function CNDashboard() {
               )}
             </div>
             <p className="mt-0.5 text-[12px] text-text-disabled">
-              V19 Fusion 决策系统 · 30维融合特征 · 5模型集成 · 凌晨 5:00 选股 · 含隔夜美股影响因子 · 量比换手门控 · 自我提升学习 · 盘中60秒实时资金刷新 · 每5分钟动态重排 · Top 10 完整榜单
+              V1.9 Fusion 决策系统 · 30维融合特征 · 5模型集成 · 凌晨 5:00 选股 · 含隔夜美股影响因子 · 量比换手门控 · 自我提升学习 · 盘中60秒实时资金刷新 · 每5分钟动态重排 · Top 10 完整榜单
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -556,7 +556,7 @@ export default function CNDashboard() {
               )}
             </div>
             <p className="text-[11px] text-text-disabled">
-              V19 Fusion 综合评分 · 动态重排 Top 3 · 资金+模型双重筛选 · 14:00 自动输出
+              V1.9 Fusion 综合评分 · 动态重排 Top 3 · 资金+模型双重筛选 · 14:00 自动输出
             </p>
           </div>
         </div>

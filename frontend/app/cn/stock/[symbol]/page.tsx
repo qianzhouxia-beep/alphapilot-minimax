@@ -305,9 +305,9 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
       </div>
 
       <section className="mt-6 glass rounded-2xl p-6">
-        <h2 className="mb-4 text-[16px] font-semibold">关于 V12 评分</h2>
+        <h2 className="mb-4 text-[16px] font-semibold">关于 V1.9 评分</h2>
         <p className="text-[12px] text-text-secondary leading-relaxed">
-          V19 多模型集成方案使用 53 维特征（量价 + 趋势 + 板块指标）训练 5 个 XGBoost 模型，
+          V1.9 多模型集成方案使用 30 维融合特征（量价 + 趋势 + 筹码 + 资金流指标）训练 5 个 XGBoost 模型，
           输出平均概率与板块热度评分加权，最终选出综合评分最高的前 20 只股票。
           持有期 2 天，目标涨幅 4%+，每日全 A 股并行扫描。
           特征矩阵基于新浪日 K 线 + 同花顺板块数据实时计算，辅以 8 Agent 辩论投票系统。
