@@ -59,11 +59,10 @@ export default function CNDashboard() {
   }, []);
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      await loadData();
+    setLoading(true);
+    loadData().finally(() => {
       if (!cancelled) { setLoading(false); setCatLoading(false); }
-    })();
+    });
     return () => { cancelled = true; };
   }, []);
 
