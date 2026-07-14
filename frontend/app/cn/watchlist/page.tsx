@@ -260,6 +260,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
           <col className="w-[12%]" />
           <col className="w-[12%]" />
           <col className="w-[12%]" />
+          <col className="w-[6%]" />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
