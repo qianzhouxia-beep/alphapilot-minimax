@@ -35,6 +35,7 @@ export default function CNDashboard() {
   // 实时状态标记
   const [liveTs, setLiveTs] = useState<number>(0);
   const [livePolling, setLivePolling] = useState<boolean>(false);
+  const [overnightData, setOvernightData] = useState<any>(null);
 
   const loadData = async () => {
     try {
@@ -67,13 +68,6 @@ export default function CNDashboard() {
   }, []);
 
   // 30 min auto refresh (全量评分+分类)
-  
-  useEffect(() => {
-    fetch("/api/v1/cn/overnight")
-      .then(r => r.json())
-      .then(d => setOvernightData(d))
-      .catch(() => {});
-  }, []);
   useEffect(() => {
     const id = setInterval(loadData, 30 * 60 * 1000);
     return () => clearInterval(id);
@@ -83,13 +77,6 @@ export default function CNDashboard() {
   const rerankCounterRef = useRef(0);
 
   // 60秒实时资金流刷新 + 每5分钟动态重排
-  
-  useEffect(() => {
-    fetch("/api/v1/cn/overnight")
-      .then(r => r.json())
-      .then(d => setOvernightData(d))
-      .catch(() => {});
-  }, []);
   useEffect(() => {
     const pollLive = async () => {
       if (document.hidden) return; // 标签页隐藏时不轮询
