@@ -381,6 +381,26 @@ export default function CNDashboard() {
                     </div>
                   )}
 
+
+                  {overnightData && (
+                    <div className="glass rounded-xl p-3 mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-text-primary">US 隔夜情绪</span>
+                        <span className={"text-[10px] " + (overnightData.score > 0.3 ? "text-green-400" : "text-yellow-400")}>
+                          {overnightData.judgment}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-text-secondary mb-1">
+                        {overnightData.indices && Object.keys(overnightData.indices).length > 0 ? 
+                          JSON.stringify(Object.values(overnightData.indices).slice(0,3).map(function(v){return v.n + " " + (v.c>0?"+":"") + v.c + "%"})) : 
+                          "暂无美股指数数据"}
+                      </div>
+                      <div className="text-[10px] text-text-secondary">
+                        板块: {overnightData.sectors && overnightData.sectors.slice(0,4).map(function(s){return s.name}).join(" ")}
+                      </div>
+                    </div>
+                  )}
+
       <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
