@@ -36,6 +36,7 @@ export default function CNDashboard() {
   // 实时状态标记
   const [liveTs, setLiveTs] = useState<number>(0);
   const [livePolling, setLivePolling] = useState<boolean>(false);
+  const [overnightData, setOvernightData] = useState<any>(null);
 
   const loadData = async () => {
     try {
@@ -58,6 +59,14 @@ export default function CNDashboard() {
       if (!cancelled) { setLoading(false); setCatLoading(false); }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  // 隔夜美股情绪（三大指数 + 板块映射 + 科技股涨幅）
+  useEffect(() => {
+    fetch("/api/v1/cn/overnight")
+      .then(r => r.json())
+      .then(d => setOvernightData(d))
+      .catch(() => {});
   }, []);
 
   // 30 min auto refresh (全量评分+分类)
@@ -284,6 +293,81 @@ export default function CNDashboard() {
           <KPI label="全量扫描" value={`${data.stats.valid_scored}`} sub={`${data.stats.total_scanned} 只 · ${(data.stats.elapsed_seconds / 60).toFixed(0)}m · 自我学习`} accent="#F5C451" />
         </section>
         </>
+      )}
+
+      {/* 隔夜美股情绪卡片 */}
+      {overnightData && (
+        <section className="glass rounded-2xl p-4 sm:p-6 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-5 h-5 text-[#4DA3FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 6.5C22 9.1 18.3 11 14 11S6 9.1 6 6.5" />
+              <path d="M22 6.5C22 3.9 18.3 2 14 2S6 3.9 6 6.5" />
+              <path d="M22 6.5V12" />
+              <path d="M22 12c0 2.6-3.7 4.5-8 4.5" />
+              <path d="M14 16.5c-4.3 0-8-1.9-8-4.5" />
+              <path d="M6 12V6.5" />
+              <path d="M22 17.5c0 2.6-3.7 4.5-8 4.5" />
+              <path d="M14 22c-4.3 0-8-1.9-8-4.5" />
+              <path d="M6 17.5V12" />
+            </svg>
+            <h2 className="text-[15px] font-semibold text-[#EAF2FF]">隔夜美股情绪</h2>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(77,163,255,0.12)] text-[#4DA3FF] border border-[rgba(77,163,255,0.25)]">
+              {overnightData.time || "—"}
+            </span>
+            {overnightData.judgment && (
+              <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                overnightData.judgment === "积极" || overnightData.judgment === "看多"
+                  ? "bg-[rgba(62,230,168,0.12)] text-[#3EE6A8] border border-[rgba(62,230,168,0.25)]"
+                  : overnightData.judgment === "消极" || overnightData.judgment === "看空"
+                  ? "bg-[rgba(255,93,93,0.12)] text-[#FF5D5D] border border-[rgba(255,93,93,0.25)]"
+                  : "bg-[rgba(245,196,81,0.12)] text-[#F5C451] border border-[rgba(245,196,81,0.25)]"
+              }`}>
+                {overnightData.judgment}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* 三大指数 */}
+            {overnightData.indices && overnightData.indices.map((idx: any, i: number) => (
+              <div key={i} className="bg-[#121c2a] rounded-lg p-3">
+                <span className="text-[11px] text-[#6E7C93]">{idx.name}</span>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className="text-[16px] font-bold text-[#EAF2FF]">{idx.price}</span>
+                  <span className={`text-[12px] font-medium ${
+                    (idx.change_pct || 0) >= 0 ? "text-[#FF5D5D]" : "text-[#3EE6A8]"
+                  }`}>
+                    {idx.change_pct >= 0 ? "+" : ""}{idx.change_pct?.toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            ))}
+            {/* 板块映射 Top */}
+            {overnightData.sector_map && overnightData.sector_map.length > 0 && (
+              <div className="bg-[#121c2a] rounded-lg p-3">
+                <span className="text-[11px] text-[#6E7C93]">板块映射 Top</span>
+                {overnightData.sector_map.slice(0, 3).map((sm: any, i: number) => (
+                  <div key={i} className="flex justify-between text-[12px] mt-1">
+                    <span className="text-[#9FB0C7]">{sm.name}</span>
+                    <span className={(sm.chg || 0) >= 0 ? "text-[#FF5D5D]" : "text-[#3EE6A8]"}>
+                      {sm.chg > 0 ? "+" : ""}{sm.chg?.toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* 科技股涨幅 Top */}
+          {overnightData.tech_stocks && overnightData.tech_stocks.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="text-[11px] text-[#6E7C93] shrink-0">科技股：</span>
+              {overnightData.tech_stocks.slice(0, 5).map((ts: any, i: number) => (
+                <span key={i} className="text-[11px] px-1.5 py-0.5 rounded-full bg-[rgba(77,163,255,0.1)] text-[#4DA3FF] border border-[rgba(77,163,255,0.2)]">
+                  {ts.name} {(ts.chg || 0) >= 0 ? "+" : ""}{ts.chg?.toFixed(1)}%
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       <section className="glass rounded-2xl p-4 sm:p-6 mb-6">
