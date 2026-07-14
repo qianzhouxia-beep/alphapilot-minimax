@@ -267,7 +267,6 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
         {/* Data rows */}
         {items.map((w) => {
           const isRemoving = removing === w.symbol;
-          const d1Hit = (w.day1_change ?? 0) >= 3;
           const chg = w.current_change_pct;
           return (
           <div key={w.id} className="grid text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors" style={W_GRID}>
