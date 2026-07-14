@@ -12,6 +12,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN mkdir -p /app/public
+RUN node -e "console.log('Node:',process.version);console.log('Next:',require('next/package.json').version)"
 RUN npm run build
 
 FROM node:20-alpine AS runner
