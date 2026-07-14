@@ -240,7 +240,7 @@ export default function WatchlistPage() {
 }
 
 // ═══ 追踪中表格 ═══
-const W_GRID = { gridTemplateColumns: 'minmax(130px,1.5fr) 72px 72px 72px 56px 78px 78px 78px 64px' };
+const W_GRID = { gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.2fr 1fr 1fr 1fr' };
 function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -251,7 +251,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <div className="w-full min-w-[750px]">
+      <div className="w-full min-w-[820px]">
         {/* Header */}
         <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={W_GRID}>
           <div className="px-3 py-2.5 font-medium text-left">股票</div>
@@ -309,7 +309,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
 }
 
 // ═══ 历史记录表格 ═══
-const H_GRID = { gridTemplateColumns: 'minmax(130px,1.5fr) 72px 78px 78px 78px 78px 64px 90px' };
+const H_GRID = { gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1fr 1fr 1.2fr' };
 function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -320,7 +320,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <div className="w-full min-w-[650px]">
+      <div className="w-full min-w-[720px]">
         {/* Header */}
         <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={H_GRID}>
           <div className="px-3 py-2.5 font-medium text-left">股票</div>
