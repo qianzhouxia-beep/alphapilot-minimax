@@ -369,6 +369,13 @@ export default function CNDashboard() {
 
 
 
+
+                  {overnightData && <div className="bg-background/50 rounded-lg p-3 mb-4 text-[11px]">
+                    <div className="font-semibold text-text-primary mb-1">US Overnight</div>
+                    <div className="text-text-secondary">{overnightData.judgment}</div>
+                    <div className="text-text-secondary mt-1">{overnightData.time}</div>
+                  </div>}
+
       <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
