@@ -52,11 +52,7 @@ export default function CNDashboard() {
   
 
 
-      .then(r => r.json())
-      .then(d => setOvernightData(d))
-      .catch(() => {});
   }, []);
-  useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -70,11 +66,7 @@ export default function CNDashboard() {
   
 
 
-      .then(r => r.json())
-      .then(d => setOvernightData(d))
-      .catch(() => {});
   }, []);
-  useEffect(() => {
     const id = setInterval(loadData, 30 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
@@ -90,7 +82,6 @@ export default function CNDashboard() {
       .then(d => setOvernightData(d))
       .catch(() => {});
   }, []);
-  useEffect(() => {
     const pollLive = async () => {
       if (document.hidden) return; // 标签页隐藏时不轮询
       // 非交易时间不轮询（9:25-15:05 为交易时段，仅工作日）
