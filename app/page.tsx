@@ -96,7 +96,7 @@ export default function LandingPage() {
         @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes float { 0%{transform:translateY(0px)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0px)} }
         .animate-fade-in-up { animation:fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .glass-panel { background:rgba(16,28,48,0.6); backdrop-filter:blur(16px); border:1px solid rgba(29,42,66,0.5); }
+        .glass-panel { background:rgba(14,10,22,0.7); backdrop-filter:blur(16px); border:1px solid rgba(42,30,62,0.5); }
         .no-scrollbar::-webkit-scrollbar { display:none; }
         .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
       `}</style>
@@ -108,7 +108,7 @@ export default function LandingPage() {
             <Link href="/"><Image src="/logo.png" alt="AlphaPilot" className="h-8 w-auto" width={140} height={32} priority /></Link>
           </div>
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/cn" className="text-text-primary font-bold border-b-2 border-[#b99cfc] pb-1 text-[13px]">智能决策终端</Link>
+            <Link href="/cn" className="text-text-primary font-bold border-b-2 border-primary pb-1 text-[13px]">智能决策终端</Link>
             <Link href="/cn" className="text-text-secondary hover:text-text-primary transition-colors text-[13px]">A 股选股</Link>
             <Link href="/cn/watchlist" className="text-text-secondary hover:text-text-primary transition-colors text-[13px]">收藏追踪</Link>
             <Link href="/cn/paper-trading" className="text-text-secondary hover:text-text-primary transition-colors text-[13px]">量化模拟盘</Link>
@@ -126,12 +126,12 @@ export default function LandingPage() {
           <div className="absolute inset-0 z-0 opacity-40"><canvas ref={shaderRef} className="w-full h-full" /></div>
           <div className="relative z-10 w-full max-w-[1440px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
             <div className="animate-fade-in-up" style={{ animationDelay:"0.2s" }}>
-              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#b99cfc]/10 border border-[#b99cfc]/20 text-text-primary text-[12px] font-medium mb-4">
-                <span className="w-2 h-2 rounded-full bg-[#b99cfc] mr-2 animate-pulse" />V19 Fusion 决策系统已就绪
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-text-primary text-[12px] font-medium mb-4">
+                <span className="w-2 h-2 rounded-full bg-primary mr-2 animate-pulse" />V19 Fusion 决策系统已就绪
               </span>
               <h1 className="text-[32px] md:text-[56px] md:leading-[64px] font-bold text-text-primary tracking-tight mb-4">
                 AI 驱动量价穿透 <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#b99cfc] to-[#C084FC]">洞察主力意图的决策终端</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/80">洞察主力意图的决策终端</span>
               </h1>
               {/* Market Indices */}
               <div className="flex gap-4 mb-6 overflow-x-auto pb-2 no-scrollbar">
@@ -145,7 +145,7 @@ export default function LandingPage() {
                   // A 股惯例：涨→红(#FF5D5D) 跌→绿(#35e0a3)
                   const color = isUp ? "#FF5D5D" : "#35e0a3";
                   return (
-                  <div key={idx.name} className="glass px-4 py-2 rounded-lg flex flex-col min-w-[120px]">
+                  <div key={idx.name} className="glass card-lift px-4 py-2 rounded-lg flex flex-col min-w-[120px]">
                     <span className="text-[12px] text-text-secondary">{idx.name}</span>
                     <div className="flex items-center gap-2">
                       <span className="font-bold" style={{ color }}>{idx.price.toFixed(2)}</span>
@@ -161,7 +161,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/cn" className="bg-status-info text-on-primary px-8 py-4 rounded-xl text-[20px] font-semibold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-status-info/20 text-center">立即体验智能决策</Link>
-                <Link href="/cn/watchlist" className="glass text-text-primary px-8 py-4 rounded-xl text-[20px] font-semibold hover:bg-[#212a39] transition-all flex items-center justify-center gap-2">⭐ 收藏追踪</Link>
+                <Link href="/cn/watchlist" className="glass card-lift text-text-primary px-8 py-4 rounded-xl text-[20px] font-semibold hover:bg-surface-panel transition-all flex items-center justify-center gap-2">⭐ 收藏追踪</Link>
               </div>
             </div>
             <div className="hidden lg:block relative h-[600px] animate-fade-in-up" style={{ animationDelay:"0.4s" }}>
@@ -174,7 +174,7 @@ export default function LandingPage() {
         </section>
 
         {/* Trust Stats */}
-        <section className="py-6 border-y border-border-subtle bg-[#050e1c]/50 backdrop-blur-md">
+        <section className="py-6 border-y border-border-subtle bg-background/50 backdrop-blur-md">
           <div className="max-w-[1440px] mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-5 text-center">
             {[{ label:"波段胜率", value:"84%", color:"#35e0a3" },{ label:"平均盈亏比", value:"3.2:1", color:"#b99cfc" },{ label:"每日决策信号", value:"500+", color:"#EAF2FF" },{ label:"行情响应延迟", value:"5ms", color:"#C084FC" }].map((s) => (
               <div key={s.label} className="space-y-1">
@@ -193,10 +193,10 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Card 1: 主力行为雷达 */}
-            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-status-info/40 transition-all">
+            <div className="glass card-lift card-lift rounded-2xl p-5 flex flex-col h-full hover:border-status-info/40 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[rgba(77,163,255,0.12)] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-primary/12 flex items-center justify-center">
                     <svg className="w-5 h-5 text-status-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 6a6 6 0 0 1 6 6"/><path d="M12 10a2 2 0 0 1 2 2"/>
                       <path d="M12 22a10 10 0 0 1-10-10"/><path d="M12 18a6 6 0 0 1-6-6"/><path d="M12 14a2 2 0 0 1-2-2"/>
@@ -208,26 +208,26 @@ export default function LandingPage() {
                     <h3 className="text-[17px] font-semibold text-text-primary">主力行为雷达</h3>
                   </div>
                 </div>
-                <span className="text-[11px] text-status-success bg-[rgba(62,230,168,0.1)] px-2 py-0.5 rounded-full border border-[rgba(62,230,168,0.25)]">实时追踪</span>
+                <span className="text-[11px] text-status-success bg-status-success/10 px-2 py-0.5 rounded-full border border-status-success/25">实时追踪</span>
               </div>
               <p className="text-[13px] text-text-secondary mb-4 leading-relaxed">30维融合特征穿透式监控主力资金动向，结合5模型集成数据验证持仓分布。</p>
               <div className="mt-auto grid grid-cols-2 gap-3">
                 <div className="bg-surface-container-low p-3 rounded-xl border border-border-subtle">
                   <div className="flex justify-between mb-2"><span className="text-[11px] text-text-secondary">机构持续流入</span><span className="text-[11px] font-semibold text-status-success">极高</span></div>
-                  <div className="h-1.5 bg-[#2c3545] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#3EE6A8]" style={{width:"88%"}} /></div>
+                  <div className="h-1.5 bg-surface-container-high rounded-full overflow-hidden"><div className="h-full rounded-full bg-status-success" style={{width:"88%"}} /></div>
                 </div>
                 <div className="bg-surface-container-low p-3 rounded-xl border border-border-subtle">
                   <div className="flex justify-between mb-2"><span className="text-[11px] text-text-secondary">短期过热预警</span><span className="text-[11px] font-semibold text-status-warning">中风险</span></div>
-                  <div className="h-1.5 bg-[#2c3545] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#F5C451]" style={{width:"45%"}} /></div>
+                  <div className="h-1.5 bg-surface-container-high rounded-full overflow-hidden"><div className="h-full rounded-full bg-status-warning" style={{width:"45%"}} /></div>
                 </div>
               </div>
             </div>
 
             {/* Card 2: 量化信号筛选 */}
-            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-[#3EE6A8]/40 transition-all">
+            <div className="glass card-lift card-lift rounded-2xl p-5 flex flex-col h-full hover:border-status-success/40 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[rgba(62,230,168,0.12)] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-status-success/12 flex items-center justify-center">
                     <svg className="w-5 h-5 text-status-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="4" y1="6" x2="20" y2="6"/><line x1="6" y1="10" x2="18" y2="10"/>
                       <line x1="8" y1="14" x2="16" y2="14"/><line x1="10" y1="18" x2="14" y2="18"/>
@@ -238,7 +238,7 @@ export default function LandingPage() {
                     <h3 className="text-[17px] font-semibold text-text-primary">量化信号筛选</h3>
                   </div>
                 </div>
-                <span className="text-[11px] text-status-warning bg-[rgba(245,196,81,0.1)] px-2 py-0.5 rounded-full border border-[rgba(245,196,81,0.25)]">Top 1%</span>
+                <span className="text-[11px] text-status-warning bg-status-warning/10 px-2 py-0.5 rounded-full border border-status-warning/25">Top 1%</span>
               </div>
               <p className="text-[13px] text-text-secondary mb-4 leading-relaxed">基于XGBoost集成模型，对全市场5000+标的进行多维度穿透评分，精选明日涨幅≥3%标的。</p>
               <div className="mt-auto bg-surface-container-low rounded-xl p-3 border border-border-subtle">
@@ -255,10 +255,10 @@ export default function LandingPage() {
             </div>
 
             {/* Card 3: 资金阶段识别 */}
-            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-[#F5C451]/40 transition-all">
+            <div className="glass card-lift card-lift rounded-2xl p-5 flex flex-col h-full hover:border-status-warning/40 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[rgba(245,196,81,0.12)] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-status-warning/12 flex items-center justify-center">
                     <svg className="w-5 h-5 text-status-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
                     </svg>
@@ -268,7 +268,7 @@ export default function LandingPage() {
                     <h3 className="text-[17px] font-semibold text-text-primary">资金阶段识别</h3>
                   </div>
                 </div>
-                <span className="text-[11px] text-status-info bg-[rgba(139,92,246,0.1)] px-2 py-0.5 rounded-full border border-[rgba(139,92,246,0.25)]">9大阶段</span>
+                <span className="text-[11px] text-status-info bg-status-info/10 px-2 py-0.5 rounded-full border border-status-info/25">9大阶段</span>
               </div>
               <p className="text-[13px] text-text-secondary mb-4 leading-relaxed">智能识别吸筹、拉升、出货、诱多等9种资金运作阶段，只参与拉升和右侧潜伏交易。</p>
               <div className="mt-auto grid grid-cols-3 gap-2">
@@ -277,30 +277,30 @@ export default function LandingPage() {
                       <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
                     </svg>
                     <div className="text-[11px] font-medium text-status-danger">拉升</div>
-                    <div className="h-1 bg-[#2c3545] rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-[#FF5D5D]" style={{width:"78%"}} /></div>
+                    <div className="h-1 bg-surface-container-high rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-status-danger" style={{width:"78%"}} /></div>
                   </div>
                   <div className="bg-surface-container-low p-2.5 rounded-xl border border-border-subtle text-center">
                     <svg className="mx-auto mb-1" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="#F59E0B" stroke="none"/>
                     </svg>
-                    <div className="text-[11px] font-medium text-[#F59E0B]">潜伏</div>
-                    <div className="h-1 bg-[#2c3545] rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-[#F59E0B]" style={{width:"62%"}} /></div>
+                    <div className="text-[11px] font-medium text-status-warning">潜伏</div>
+                    <div className="h-1 bg-surface-container-high rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-status-warning" style={{width:"62%"}} /></div>
                   </div>
                   <div className="bg-surface-container-low p-2.5 rounded-xl border border-border-subtle text-center">
                     <svg className="mx-auto mb-1" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="2" x2="12" y2="15"/><polyline points="5 8 12 15 19 8"/><line x1="4" y1="20" x2="20" y2="20"/>
                     </svg>
-                    <div className="text-[11px] font-medium text-[#3B82F6]">吸筹</div>
-                    <div className="h-1 bg-[#2c3545] rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-[#3B82F6]" style={{width:"70%"}} /></div>
+                    <div className="text-[11px] font-medium text-status-info">吸筹</div>
+                    <div className="h-1 bg-surface-container-high rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-status-info" style={{width:"70%"}} /></div>
                   </div>
               </div>
             </div>
 
             {/* Card 4: 动态风控引擎 */}
-            <div className="glass card-lift rounded-2xl p-5 flex flex-col h-full hover:border-[#FF5D5D]/40 transition-all">
+            <div className="glass card-lift card-lift rounded-2xl p-5 flex flex-col h-full hover:border-status-danger/40 transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[rgba(255,93,93,0.12)] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-status-danger/12 flex items-center justify-center">
                     <svg className="w-5 h-5 text-status-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
@@ -310,7 +310,7 @@ export default function LandingPage() {
                     <h3 className="text-[17px] font-semibold text-text-primary">动态风控引擎</h3>
                   </div>
                 </div>
-                <span className="text-[11px] text-status-success bg-[rgba(62,230,168,0.1)] px-2 py-0.5 rounded-full border border-[rgba(62,230,168,0.25)]">自动止损</span>
+                <span className="text-[11px] text-status-success bg-status-success/10 px-2 py-0.5 rounded-full border border-status-success/25">自动止损</span>
               </div>
               <p className="text-[13px] text-text-secondary mb-4 leading-relaxed">动态追踪止盈 · 自动硬止损 · 单票仓位上限30% · 最大回撤-8%暂停交易，护航每一笔交易。</p>
               <div className="mt-auto flex flex-col gap-2">
@@ -343,12 +343,12 @@ export default function LandingPage() {
 
         {/* CTA */}
         <section className="relative py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-[#b99cfc]/5 -skew-y-3 scale-y-110" />
+          <div className="absolute inset-0 bg-primary/5 -skew-y-3 scale-y-110" />
           <div className="relative z-10 max-w-[1440px] mx-auto px-8 text-center">
             <h2 className="text-[32px] font-semibold mb-4">准备好开启智能交易时代了吗？</h2>
             <p className="text-text-secondary text-[16px] max-w-xl mx-auto mb-6">V19 Fusion 决策系统 · 30维融合特征 · 5模型集成</p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link href="/cn" className="bg-status-info text-on-primary px-10 py-5 rounded-xl text-[20px] font-semibold shadow-2xl shadow-[#4da3ff]/40 hover:scale-105 active:scale-95 transition-all">立即体验</Link>
+              <Link href="/cn" className="bg-status-info text-on-primary px-10 py-5 rounded-xl text-[20px] font-semibold shadow-2xl shadow-primary/40 hover:scale-105 active:scale-95 transition-all">立即体验</Link>
               <p className="text-text-disabled text-[12px]">无需注册 · 即享全功能访问</p>
             </div>
           </div>
@@ -356,7 +356,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#050e1c] border-t border-border-subtle w-full py-6">
+      <footer className="bg-background border-t border-border-subtle w-full py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-8 max-w-[1440px] mx-auto items-center">
           <div className="space-y-2">
             <Image src="/logo.png" alt="AlphaPilot" className="h-6 w-auto opacity-80" width={120} height={24} />
