@@ -53,6 +53,7 @@ export default function CNDashboard() {
 
 
   }, []);
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
