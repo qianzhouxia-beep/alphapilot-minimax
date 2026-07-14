@@ -35,6 +35,7 @@ export default function CNDashboard() {
   // 实时状态标记
   const [liveTs, setLiveTs] = useState<number>(0);
   const [livePolling, setLivePolling] = useState<boolean>(false);
+  const [overnightData, setOvernightData] = useState<any>(null);
 
   const loadData = async () => {
     try {
@@ -67,97 +68,6 @@ export default function CNDashboard() {
   }, []);
 
   // 30 min auto refresh (全量评分+分类)
-  
-  useEffect(() => {
-    fetch("/api/v1/cn/overnight")
-      .then(r => r.json())
-      .then(d => setOvernightData(d))
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    const id = setInterval(loadData, 30 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // 轮询计数器：每5次（5分钟）触发一次动态重排
-  const rerankCounterRef = useRef(0);
-
-  // 60秒实时资金流刷新 + 每5分钟动态重排
-  
-  useEffect(() => {
-    fetch("/api/v1/cn/overnight")
-      .then(r => r.json())
-      .then(d => setOvernightData(d))
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    const pollLive = async () => {
-      if (document.hidden) return; // 标签页隐藏时不轮询
-      // 非交易时间不轮询（9:25-15:05 为交易时段，仅工作日）
-      const _now = new Date();
-      const _h = _now.getHours(), _m = _now.getMinutes(), _d = _now.getDay();
-      const _isWeekend = _d === 0 || _d === 6;
-      const _isBeforeOpen = _h < 9 || (_h === 9 && _m < 25);
-      const _isAfterClose = _h > 15 || (_h === 15 && _m > 5);
-      const _isLunchBreak = _h === 11 && _m > 30;
-      if (_isWeekend || _isBeforeOpen || _isAfterClose || _isLunchBreak) return;
-      setLivePolling(true);
-      rerankCounterRef.current += 1;
-      // 第1次（页面加载5秒后）和此后每5次（每5分钟）做动态重排
-      const isRerank = rerankCounterRef.current === 1 || rerankCounterRef.current % 5 === 0;
-
-      try {
-        // 重排时：rerank=true 获取 Top 100 动态重排
-        // 其他时候：普通60秒字段合并
-        const topN = isRerank ? 100 : 50;
-        const live = await fetchLiveRecommend(topN, isRerank);
-        setLiveTs(live.ts || Date.now() / 1000);
-
-        // 重排时：直接替换整个推荐列表
-        if (isRerank && live.rerank && live.data && live.data.length > 0) {
-          // 只取重排后的前10只（提升性能）
-          const reranked = live.data.slice(0, 10).map((it: any) => ({
-            ...it,
-            _reranked: true,
-          }));
-          setData((prev) => {
-            if (!prev) return prev;
-            return { ...prev, recommendations: reranked };
-          });
-          console.log(`[rerank] ${new Date().toLocaleTimeString()} 动态重排完成`);
-        } else if (live && live.data && live.data.length > 0) {
-          // 普通60秒：字段级合并（不改变排名）
-          setData((prev) => {
-            if (!prev) return prev;
-            const liveMap = new Map(live.data.map((it: any) => [it.symbol, it]));
-            const updated = prev.recommendations.map((it: any) => {
-              const liveItem = liveMap.get(it.symbol);
-              if (liveItem) {
-                const isLiveReal = liveItem._data_source === "live";
-                const currentAbr = it.active_buy_ratio;
-                const liveAbr = liveItem.active_buy_ratio;
-                const finalAbr = isLiveReal
-                  ? liveAbr
-                  : (currentAbr !== undefined && currentAbr !== null ? currentAbr : liveAbr);
-                return {
-                  ...it,
-                  active_buy_ratio: finalAbr,
-                  money_phase_label: isLiveReal
-                    ? (liveItem.money_phase_label ?? it.money_phase_label)
-                    : (it.money_phase_label ?? liveItem.money_phase_label),
-                  change_pct: isLiveReal
-                    ? (liveItem.change_pct ?? it.change_pct)
-                    : (it.change_pct ?? liveItem.change_pct),
-                  turnover: isLiveReal
-                    ? (liveItem.turnover ?? it.turnover)
-                    : (it.turnover ?? liveItem.turnover),
-                  price: isLiveReal
-                    ? (liveItem.price ?? it.price)
-                    : (it.price ?? liveItem.price),
-                };
-              }
-              return it;
-            });
             return { ...prev, recommendations: updated };
           });
         }
