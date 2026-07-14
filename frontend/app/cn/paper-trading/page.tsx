@@ -1,7 +1,7 @@
 ﻿﻿"use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse } from "@/lib/cn-api";
+import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse, type TradeLogEntry } from "@/lib/cn-api";
 
 export default function PaperTradingPage() {
   const [data, setData] = useState<PaperTradingData | null>(null);
@@ -119,33 +119,7 @@ export default function PaperTradingPage() {
             <span className="w-1 h-5 rounded-full bg-status-warning"></span>
             交易记录
           </h2>
-          <div className="overflow-x-auto">
-            <div className="min-w-[600px]">
-              <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={{ gridTemplateColumns: '1fr 1.8fr 0.8fr 0.8fr 0.8fr' }}>
-                <div className="px-3 py-2 font-medium">时间</div>
-                <div className="px-3 py-2 font-medium">股票</div>
-                <div className="px-3 py-2 font-medium">操作</div>
-                <div className="px-3 py-2 font-medium text-right">价格</div>
-                <div className="px-3 py-2 font-medium text-right">数量</div>
-              </div>
-              {data.trade_log.slice(0, 20).map((log, i) => (
-                <div key={i} className="grid text-[13px] border-b border-border-subtle/30" style={{ gridTemplateColumns: '1fr 1.8fr 0.8fr 0.8fr 0.8fr' }}>
-                  <div className="px-3 py-2 text-text-secondary font-mono text-[11px] truncate">{log.time}</div>
-                  <div className="px-3 py-2 truncate">
-                    <span className="font-semibold text-text-primary">{log.name}</span>
-                    <span className="ml-2 text-text-disabled text-[11px]">{log.symbol}</span>
-                  </div>
-                  <div className="px-3 py-2">
-                    <span className={`tag-badge ${
-                      log.action === "买入" ? "bg-[rgba(255,93,93,0.15)] text-status-danger" : "bg-[rgba(62,230,168,0.15)] text-status-success"
-                    }`}>{log.action}</span>
-                  </div>
-                  <div className="px-3 py-2 text-right font-display-numeric text-text-primary truncate">¥{log.price.toFixed(2)}</div>
-                  <div className="px-3 py-2 text-right font-display-numeric text-text-secondary truncate">{log.quantity}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <TradeLogView log={data.trade_log} heldSymbols={new Set(data.strategies.flatMap(s => s.positions.map(p => p.symbol)))} />
         </section>
       )}
 
@@ -258,5 +232,97 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
         </div>
       )}
     </section>
+  );
+}
+
+// ═══ 交易记录视图：配对买入/卖出，显示盈亏 ═══
+const T_GRID = { gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr' };
+function TradeLogView({ log, heldSymbols }: { log: TradeLogEntry[]; heldSymbols: Set<string> }) {
+  // 按时间倒序，配对 buy/sell
+  const pairs = useMemo(() => {
+    const buys: Record<string, TradeLogEntry> = {};
+    const result: { entry: TradeLogEntry; exit?: TradeLogEntry }[] = [];
+
+    for (const entry of log) {
+      const key = entry.symbol;
+      if (entry.action === "买入") {
+        buys[key] = entry; // latest buy
+      } else {
+        const buy = buys[key];
+        if (buy) {
+          result.push({ entry: buy, exit: entry });
+          delete buys[key];
+        } else {
+          // sell without matching buy in this window
+          result.push({ exit: entry });
+        }
+      }
+    }
+    // remaining buys = still held
+    for (const key of Object.keys(buys)) {
+      result.push({ entry: buys[key] });
+    }
+    return result.reverse(); // newest first
+  }, [log]);
+
+  if (pairs.length === 0) return null;
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="min-w-[650px]">
+        <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={T_GRID}>
+          <div className="px-3 py-2 font-medium">股票</div>
+          <div className="px-3 py-2 font-medium text-right">买入价</div>
+          <div className="px-3 py-2 font-medium text-right">卖出价</div>
+          <div className="px-3 py-2 font-medium text-right">收益</div>
+          <div className="px-3 py-2 font-medium">状态</div>
+        </div>
+        {pairs.map((p, i) => {
+          const buyPrice = p.entry?.price ?? 0;
+          const sellPrice = p.exit?.price ?? 0;
+          const pnl = p.exit?.pnl ?? 0;
+          const isHeld = !p.exit && heldSymbols.has(p.entry?.symbol ?? "");
+          return (
+            <div key={i} className="grid text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors" style={T_GRID}>
+              <div className="px-3 py-2 truncate">
+                <span className="font-semibold text-text-primary">{p.entry?.name || p.exit?.name}</span>
+                <span className="ml-1.5 text-text-disabled text-[11px]">{p.entry?.symbol || p.exit?.symbol}</span>
+                <div className="text-[10px] text-text-disabled mt-0.5">{p.entry?.time || ""}</div>
+              </div>
+              <div className="px-3 py-2 text-right font-display-numeric text-text-primary truncate">¥{buyPrice.toFixed(2)}</div>
+              <div className="px-3 py-2 text-right font-display-numeric truncate">
+                {p.exit ? (
+                  <span className="text-text-primary">¥{sellPrice.toFixed(2)}</span>
+                ) : (
+                  <span className="text-text-disabled">—</span>
+                )}
+              </div>
+              <div className="px-3 py-2 text-right font-display-numeric font-semibold truncate">
+                {p.exit ? (
+                  <span style={{ color: pnl >= 0 ? '#FF5D5D' : '#3EE6A8' }}>
+                    {pnl >= 0 ? "+" : ""}¥{pnl.toFixed(0)}
+                  </span>
+                ) : isHeld ? (
+                  <span className="text-text-disabled">持仓中</span>
+                ) : (
+                  <span className="text-text-disabled">—</span>
+                )}
+              </div>
+              <div className="px-3 py-2 truncate">
+                {p.exit ? (
+                  <span className={`tag-badge text-[11px] ${
+                    p.exit.action.includes("止盈") ? "bg-[rgba(255,93,93,0.15)] text-[#FF5D5D]" : "bg-[rgba(62,230,168,0.15)] text-[#3EE6A8]"
+                  }`}>
+                    {p.exit.action}
+                  </span>
+                ) : (
+                  <span className="tag-badge bg-[rgba(77,163,255,0.12)] text-[#4DA3FF] text-[11px]">持仓中</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
