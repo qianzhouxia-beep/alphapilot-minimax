@@ -307,7 +307,6 @@ export default function CNDashboard() {
                       <div className="mb-2">
                         <div className="text-[10px] text-text-secondary mb-1.5">板块映射 Top</div>
                         <div className="flex flex-wrap gap-1.5">
-                          {(overnightData.sectors || []).slice(0,6).map((s,i) => (
                             <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20">{s.name} +{s.bonus}%</span>
                           ))}
                         </div>
@@ -315,7 +314,6 @@ export default function CNDashboard() {
                       <div>
                         <div className="text-[10px] text-text-secondary mb-1.5">科技巨头涨跌</div>
                         <div className="flex flex-wrap gap-x-3 gap-y-1">
-                          {Object.entries(overnightData.tech || {}).slice(0,7).map(([k,v]) => (
                             <span key={k} className={"text-[11px] " + (v > 0 ? "text-red-400" : v < 0 ? "text-green-400" : "text-text-secondary")}>{k} {v > 0 ? "+" : ""}{v}%</span>
                           ))}
                         </div>
@@ -330,7 +328,6 @@ export default function CNDashboard() {
                       <div className="mb-2">
                         <div className="text-[10px] text-text-secondary mb-1.5">板块映射 Top</div>
                         <div className="flex flex-wrap gap-1.5">
-                          {(overnightData.sectors || []).slice(0,6).map((s,i) => (
                             <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-info/10 text-status-info border border-status-info/20">{s.name} +{s.bonus}%</span>
                           ))}
                         </div>
@@ -338,7 +335,6 @@ export default function CNDashboard() {
                       <div>
                         <div className="text-[10px] text-text-secondary mb-1.5">科技巨头涨跌</div>
                         <div className="flex flex-wrap gap-x-3 gap-y-1">
-                          {Object.entries(overnightData.tech || {}).slice(0,7).map(([k,v]) => (
                             <span key={k} className={"text-[11px] " + (v > 0 ? "text-red-400" : v < 0 ? "text-green-400" : "text-text-secondary")}>{k} {v > 0 ? "+" : ""}{v}%</span>
                           ))}
                         </div>
@@ -354,8 +350,6 @@ export default function CNDashboard() {
                           <div className="col-span-3 text-[10px] text-text-secondary text-center py-2">暂无美股指数数据</div>
                         )}
                       </div>
-                      <div className="text-[10px] text-text-secondary mb-1">板块映射: {(overnightData.sectors || []).slice(0,5).map(function(s,i){return s.name + "+" + s.bonus + "%"}).join(" | ")}</div>
-                      <div className="text-[10px] text-text-secondary">科技股: {Object.entries(overnightData.tech || {}).slice(0,5).map(function(e){return e[0] + " " + (e[1] > 0 ? "+" : "") + e[1] + "%"}).join(" | ")}</div>
                     </div>
                   )}
 
