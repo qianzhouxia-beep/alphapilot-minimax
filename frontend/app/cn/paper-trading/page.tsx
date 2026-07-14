@@ -119,7 +119,9 @@ export default function PaperTradingPage() {
             <span className="w-1 h-5 rounded-full bg-status-warning"></span>
             交易记录
           </h2>
-          <TradeLogView log={data.trade_log} heldSymbols={new Set(data.strategies.flatMap(s => s.positions.map(p => p.symbol)))} />
+          <TradeLogView log={data.trade_log} heldSymbols={new Set(data.strategies.flatMap(s => s.positions.map(p => p.symbol)))}
+            pnlMap={new Map(data.strategies.flatMap(s => s.positions.map(p => [p.symbol, p.pnl_amount] as [string, number])))}
+            pnlPctMap={new Map(data.strategies.flatMap(s => s.positions.map(p => [p.symbol, p.pnl_pct] as [string, number])))} />
         </section>
       )}
 
@@ -236,8 +238,13 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
 }
 
 // ═══ 交易记录视图：配对买入/卖出，显示盈亏 ═══
-const T_GRID = { gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr' };
-function TradeLogView({ log, heldSymbols }: { log: TradeLogEntry[]; heldSymbols: Set<string> }) {
+const T_GRID = { gridTemplateColumns: '1.2fr 1fr 1fr 1fr 1fr' };
+function TradeLogView({ log, heldSymbols, pnlMap, pnlPctMap }: {
+  log: TradeLogEntry[];
+  heldSymbols: Set<string>;
+  pnlMap: Map<string, number>;
+  pnlPctMap: Map<string, number>;
+}) {
   // 按时间倒序，配对 buy/sell
   const pairs = useMemo(() => {
     const buys: Record<string, TradeLogEntry> = {};
@@ -303,7 +310,10 @@ function TradeLogView({ log, heldSymbols }: { log: TradeLogEntry[]; heldSymbols:
                     {pnl >= 0 ? "+" : ""}¥{pnl.toFixed(0)}
                   </span>
                 ) : isHeld ? (
-                  <span className="text-text-disabled">持仓中</span>
+                  <span style={{ color: (pnlMap.get(p.entry?.symbol ?? '') ?? 0) >= 0 ? '#FF5D5D' : '#3EE6A8' }}>
+                    {(pnlMap.get(p.entry?.symbol ?? '') ?? 0) >= 0 ? "+" : ""}¥{(pnlMap.get(p.entry?.symbol ?? '') ?? 0).toFixed(0)}
+                    <span className="text-[10px] ml-1">({(pnlPctMap.get(p.entry?.symbol ?? '') ?? 0) >= 0 ? "+" : ""}{(pnlPctMap.get(p.entry?.symbol ?? '') ?? 0).toFixed(2)}%)</span>
+                  </span>
                 ) : (
                   <span className="text-text-disabled">—</span>
                 )}
