@@ -346,160 +346,111 @@ export default function CNDashboard() {
         )}
 
         {data && (
-          <div className="overflow-x-auto animate-fade-in">
-            <table className="w-full table-fixed">
-              <colgroup>
-                <col className="w-[4%]" />
-                <col className="w-[9%]" />
-                <col className="w-[14%]" />
-                <col className="w-[12%]" />
-                <col className="w-[10%]" />
-                <col className="w-[12%]" />
-                <col className="w-[9%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                  <th className="px-3 py-3 font-medium text-left">#</th>
-                  <th className="px-3 py-3 font-medium text-left">代码</th>
-                  <th className="px-3 py-3 font-medium text-left hidden sm:table-cell">名称</th>
-                  <th className="px-3 py-3 font-medium text-left hidden lg:table-cell">板块</th>
-                  <th className="px-3 py-3 font-medium text-right">评分</th>
-                  <th className="px-3 py-3 font-medium text-left hidden xl:table-cell">资金</th>
-                  <th className="px-3 py-3 font-medium text-left hidden 2xl:table-cell">基本</th>
-                  <th className="px-3 py-3 font-medium text-right">现价</th>
-                  <th className="px-3 py-3 font-medium text-right hidden xl:table-cell">目标价</th>
-                  <th className="px-3 py-3 font-medium text-left">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, i) => {
-                  const sym = item.symbol.replace(/^(sh|sz)/, "");
-                  const isFav = watchlistSymbols.has(sym);
-                  const isWlLoading = wlLoading[sym] ?? false;
-                  return (
-                  <tr key={item.symbol} className="border-b border-border-subtle/50 hover:bg-[rgba(77,163,255,0.04)]">
-                    <td className="px-3 py-3 text-left text-[12px] text-text-disabled font-display-numeric">
+          <div className="space-y-3 animate-fade-in">
+            {items.map((item, i) => {
+              const sym = item.symbol.replace(/^(sh|sz)/, "");
+              const isFav = watchlistSymbols.has(sym);
+              const isWlLoading = wlLoading[sym] ?? false;
+              const changePct = item.change_pct ?? 0;
+              const isUp = changePct >= 0;
+              return (
+              <div key={item.symbol} className="glass card-lift rounded-xl p-4">
+                {/* Row 1: Rank + Symbol + Name + Sector + Change% */}
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[12px] font-display-numeric text-text-disabled shrink-0 w-[24px]">
                       {String(i + 1).padStart(2, "0")}
-                    </td>
-                    <td className="px-3 py-3 text-left">
-                      <span className="font-mono text-[14px] font-semibold text-status-info">{sym}</span>
-                    </td>
-                    <td className="px-3 py-3 text-left text-[13px] text-text-primary hidden sm:table-cell">
-                      <Link href={`/cn/stock?symbol=${item.symbol}`} className="hover:text-status-info transition-colors">{item.name}</Link>
-                    </td>
-                    <td className="px-3 py-3 text-left hidden lg:table-cell">
-                      {item.sector ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(167,139,250,0.12)] px-2 py-0.5 text-[11px] font-medium text-status-info border border-[rgba(167,139,250,0.25)] max-w-[180px] whitespace-nowrap">
-                          <span className="truncate">{item.sector}</span>
-                          {item.sector_change_pct != null && (
-                            <span className={`shrink-0 ${
-                              item.sector_change_pct >= 0 ? "text-status-danger" : "text-status-success"
-                            }`}>
-                              {item.sector_change_pct > 0 ? "+" : ""}{item.sector_change_pct.toFixed(1)}%
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-[12px] text-text-disabled">—</span>
-                      )}
-                    </td>
-                    <td className={`px-3 py-3 text-right ${scoreColor(item.score)}`}>
-                      <div className="flex flex-col items-end">
-                        <span className="font-display-numeric text-[22px] font-bold leading-none">
-                          {displayScore(item.score)}<span className="text-[13px]">信心</span>
-                        </span>
-                        {item.score_label && (
-                          <span className="text-[10px] text-text-disabled mt-0.5">{item.score_label}</span>
+                    </span>
+                    <span className="font-mono text-[13px] font-semibold text-status-info shrink-0">{sym}</span>
+                    <Link href={`/cn/stock?symbol=${item.symbol}`} className="text-[15px] font-semibold text-text-primary hover:text-status-info truncate transition-colors">
+                      {item.name}
+                    </Link>
+                    {item.sector && (
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20 shrink-0">
+                        {item.sector}
+                        {item.sector_change_pct != null && (
+                          <span className={`${item.sector_change_pct >= 0 ? "text-status-danger" : "text-status-success"}`}>
+                            {item.sector_change_pct > 0 ? "+" : ""}{item.sector_change_pct.toFixed(1)}%
+                          </span>
                         )}
-                        <span className={`text-[9px] font-medium ${scoreColor(item.score)}`}>
-                          {scoreLabel(item.score)}
-                          {item.score >= 0.45 && ' '}<svg className="inline-block w-3 h-3 text-status-warning" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                          {item.score >= 0.55 && '🔥'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Change % badge */}
+                    <span className={`text-[13px] font-bold font-display-numeric ${isUp ? "text-status-danger" : "text-status-success"}`}>
+                      {changePct > 0 ? "+" : ""}{changePct.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Row 2: Score bar + Price + Signal tags */}
+                <div className="flex items-end justify-between gap-4">
+                  {/* Left: Score bar + signal tags */}
+                  <div className="flex-1 min-w-0">
+                    {/* Score bar */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex-1 h-1.5 rounded-full bg-surface-container-high overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary" style={{ width: `${(item.score / 0.6) * 100}%` }} />
+                      </div>
+                      <span className={`font-display-numeric text-[15px] font-bold ${scoreColor(item.score)}`}>
+                        {displayScore(item.score)}
+                      </span>
+                      {item.score_label && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">{item.score_label}</span>
+                      )}
+                    </div>
+                    {/* Signal tags */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {item.money_phase_label && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-status-warning/12 px-2 py-0.5 text-[10px] font-medium text-status-warning border border-status-warning/20">
+                          {item.money_phase_label}
                         </span>
+                      )}
+                      {item.active_buy_ratio != null && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-status-success/12 px-2 py-0.5 text-[10px] font-medium text-status-success border border-status-success/20">
+                          {(item.active_buy_ratio * 100).toFixed(0)}% 主动买入
+                        </span>
+                      )}
+                      {/* Multi-source signal badges */}
+                      {item._signals?.includes("ths_hot") && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-status-info/15 px-1.5 py-0.5 text-[9px] font-medium text-status-info border border-status-info/25">📊 热点</span>
+                      )}
+                      {item._signals?.includes("margin_up") && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-status-success/15 px-1.5 py-0.5 text-[9px] font-medium text-status-success border border-status-success/25">🧲 融资</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right: Price + Actions */}
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="text-right">
+                      <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-none">
+                        {item.buy_price > 0 ? item.buy_price.toFixed(2) : "—"}
                       </div>
-                    </td>
-                    <td className="px-3 py-3 text-left hidden xl:table-cell">
-                      {item.active_buy_ratio != null ? (
-                        <div className="flex flex-col gap-1">
-                          <span className={`text-[12px] font-display-numeric ${item.active_buy_ratio >= 0.5 ? "text-status-success" : "text-status-danger"}`}>
-                            {(item.active_buy_ratio * 100).toFixed(0)}% 主动买入
-                          </span>
-                          {item.money_phase_label && (
-                            <span className="text-[11px] text-status-warning">{item.money_phase_label}</span>
-                          )}
-                          {/* 多源信号标签 */}
-                          {item._signals && item._signals.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-0.5">
-                              {item._signals.includes("ths_hot") && (
-                                <span className="inline-flex items-center gap-0.5 rounded-full bg-[rgba(139,92,246,0.15)] px-1.5 py-0.5 text-[9px] font-medium text-status-info border border-[rgba(139,92,246,0.25)]">
-                                  📊 热点
-                                </span>
-                              )}
-                              {item._signals.includes("margin_up") && (
-                                <span className="inline-flex items-center gap-0.5 rounded-full bg-status-success/15 px-1.5 py-0.5 text-[9px] font-medium text-status-success border border-[rgba(62,230,168,0.25)]">
-                                  🧲 融资
-                                </span>
-                              )}
-                              {/* longhubang 和northbound 等将来从API获取时再加 */}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[12px] text-text-disabled">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-left hidden 2xl:table-cell">
-                      {item.eps != null ? (
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[12px] font-display-numeric text-text-primary">
-                            EPS {item.eps.toFixed(2)}
-                          </span>
-                          {item.fundamental_pass === true && (
-                            <span className="inline-flex w-fit items-center rounded-full bg-status-success/15 px-1.5 py-0.5 text-[10px] font-medium text-status-success">盈利</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[12px] text-text-disabled">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-right text-[14px] text-text-primary font-display-numeric">
-                      {(() => {
-                        const curPrice = item.buy_price > 0 && item.change_pct != null
-                          ? item.buy_price.toFixed(2)
-                          : null;
-                        return curPrice ? `${curPrice}` : (item.buy_price > 0 ? item.buy_price.toFixed(2) : "—");
-                      })()}
                       {item.buy_price > 0 && (
-                        <span className="block text-[9px] text-text-disabled font-normal">昨收 ¥{item.buy_price.toFixed(2)}</span>
+                        <div className="text-[10px] text-text-disabled mt-0.5">昨收 ¥{item.buy_price.toFixed(2)}</div>
                       )}
-                    </td>
-                    <td className="px-3 py-3 text-right text-[13px] text-status-success font-display-numeric hidden xl:table-cell">
-                      {item.target_price > 0 ? item.target_price.toFixed(2) : "—"}
-                    </td>
-                    <td className="px-3 py-3 text-left">
-                      <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap">
-                        <button
-                          onClick={() => handleToggleWatchlist(item)}
-                          disabled={isWlLoading}
-                          className={`rounded-lg px-1.5 sm:px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 whitespace-nowrap ${
-                            isFav
-                              ? "bg-[rgba(245,196,81,0.15)] text-status-warning hover:bg-[rgba(245,196,81,0.25)]"
-                              : "border border-border-subtle bg-surface-card text-text-disabled hover:border-status-warning hover:text-status-warning"
-                          }`}>
-                          {isWlLoading ? "..." : isFav ? "★已收藏" : "☆收藏"}
-                        </button>
-                        <Link href={`/cn/stock?symbol=${item.symbol}`} className="text-[12px] text-status-info hover:underline shrink-0">
-                          详情
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                )})}
-              </tbody>
-            </table>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleToggleWatchlist(item)}
+                        disabled={isWlLoading}
+                        className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                          isFav
+                            ? "bg-status-warning/15 text-status-warning hover:bg-status-warning/25"
+                            : "border border-border-subtle bg-surface-card text-text-disabled hover:border-status-warning hover:text-status-warning"
+                        }`}>
+                        {isWlLoading ? "..." : isFav ? "★已收藏" : "☆收藏"}
+                      </button>
+                      <Link href={`/cn/stock?symbol=${item.symbol}`} className="rounded-lg bg-surface-container-high px-2.5 py-1.5 text-[11px] font-medium text-text-secondary hover:text-text-primary transition-colors">
+                        详情
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )})}
           </div>
         )}
       </section>
