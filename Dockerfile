@@ -4,16 +4,19 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit
 
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN rm -rf /app/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+RUN rm -rf .next node_modules/.cache
 RUN mkdir -p /app/public
-RUN node -e "console.log('Node:',process.version);console.log('Next:',require('next/package.json').version)"
-RUN npm run build
+RUN node -e "console.log('Node:',process.version)"
+RUN npx next build 2>&1
 
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -22,7 +25,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
 
-# 用 next start 模式 (避免 standalone 路径问题)
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
