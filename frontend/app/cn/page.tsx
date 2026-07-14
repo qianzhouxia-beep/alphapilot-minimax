@@ -346,7 +346,7 @@ export default function CNDashboard() {
         )}
 
         {data && (
-          <div className="space-y-3 animate-fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in">
             {items.map((item, i) => {
               const sym = item.symbol.replace(/^(sh|sz)/, "");
               const isFav = watchlistSymbols.has(sym);
@@ -391,7 +391,7 @@ export default function CNDashboard() {
                     {/* Score bar */}
                     <div className="flex items-center gap-2 mb-2">
                       <div className="flex-1 h-1.5 rounded-full bg-surface-container-high overflow-hidden">
-                        <div className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary" style={{ width: `${(item.score / 0.6) * 100}%` }} />
+                        <div className="h-full rounded-full bg-gradient-to-r from-primary/60 to-primary" style={{ width: `${displayScore(item.score)}%` }} />
                       </div>
                       <span className={`font-display-numeric text-[15px] font-bold ${scoreColor(item.score)}`}>
                         {displayScore(item.score)}
