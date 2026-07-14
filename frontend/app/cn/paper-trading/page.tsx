@@ -120,35 +120,31 @@ export default function PaperTradingPage() {
             交易记录
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-left data-table">
-              <thead>
-                <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                  <th className="px-3 py-2 font-medium">时间</th>
-                  <th className="px-3 py-2 font-medium">股票</th>
-                  <th className="px-3 py-2 font-medium">操作</th>
-                  <th className="px-3 py-2 font-medium text-right">价格</th>
-                  <th className="px-3 py-2 font-medium text-right">数量</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.trade_log.slice(0, 20).map((log, i) => (
-                  <tr key={i} className="border-b border-border-subtle/30 text-[13px]">
-                    <td className="px-3 py-2 text-text-secondary font-mono text-[11px]">{log.time}</td>
-                    <td className="px-3 py-2">
-                      <span className="font-semibold text-text-primary">{log.name}</span>
-                      <span className="ml-2 text-text-disabled text-[11px]">{log.symbol}</span>
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className={`tag-badge tag-badge ${
-                        log.action === "买入" ? "bg-[rgba(255,93,93,0.15)] text-status-danger" : "bg-[rgba(62,230,168,0.15)] text-status-success"
-                      }`}>{log.action}</span>
-                    </td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-text-primary">¥{log.price.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-text-secondary">{log.quantity}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="min-w-[600px]">
+              <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={{ gridTemplateColumns: '1fr 1.8fr 0.8fr 0.8fr 0.8fr' }}>
+                <div className="px-3 py-2 font-medium">时间</div>
+                <div className="px-3 py-2 font-medium">股票</div>
+                <div className="px-3 py-2 font-medium">操作</div>
+                <div className="px-3 py-2 font-medium text-right">价格</div>
+                <div className="px-3 py-2 font-medium text-right">数量</div>
+              </div>
+              {data.trade_log.slice(0, 20).map((log, i) => (
+                <div key={i} className="grid text-[13px] border-b border-border-subtle/30" style={{ gridTemplateColumns: '1fr 1.8fr 0.8fr 0.8fr 0.8fr' }}>
+                  <div className="px-3 py-2 text-text-secondary font-mono text-[11px] truncate">{log.time}</div>
+                  <div className="px-3 py-2 truncate">
+                    <span className="font-semibold text-text-primary">{log.name}</span>
+                    <span className="ml-2 text-text-disabled text-[11px]">{log.symbol}</span>
+                  </div>
+                  <div className="px-3 py-2">
+                    <span className={`tag-badge ${
+                      log.action === "买入" ? "bg-[rgba(255,93,93,0.15)] text-status-danger" : "bg-[rgba(62,230,168,0.15)] text-status-success"
+                    }`}>{log.action}</span>
+                  </div>
+                  <div className="px-3 py-2 text-right font-display-numeric text-text-primary truncate">¥{log.price.toFixed(2)}</div>
+                  <div className="px-3 py-2 text-right font-display-numeric text-text-secondary truncate">{log.quantity}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
@@ -201,42 +197,34 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
 
       {strategy.positions.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-left data-table">
-            <thead>
-              <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                <th className="px-3 py-2 font-medium">股票</th>
-                <th className="px-3 py-2 font-medium text-right">入场价</th>
-                <th className="px-3 py-2 font-medium text-right">现价</th>
-                <th className="px-3 py-2 font-medium text-right">盈亏</th>
-                <th className="px-3 py-2 font-medium text-right">止损</th>
-              </tr>
-            </thead>
-            <tbody>
-              {strategy.positions.map((p) => {
-                const pnl = p.pnl_pct || 0;
-                const pColor = pnl >= 0 ? "text-status-danger" : "text-status-success";
-                return (
-                  <tr key={p.symbol} className="border-b border-border-subtle/30 text-[13px]">
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-text-primary">{p.name}</span>
-                        <span className="text-text-disabled text-[11px]">{p.symbol}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-text-primary">¥{p.entry_price.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-status-warning">¥{(p.current_price || p.entry_price).toFixed(2)}</td>
-                    <td className={`px-3 py-2 text-right font-display-numeric ${pColor}`}>
-                      {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
-                      <div className="text-[10px] text-text-disabled">
-                        ¥{p.pnl_amount >= 0 ? "+" : ""}{p.pnl_amount.toFixed(0)}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-status-danger">¥{p.stop_loss.toFixed(2)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="min-w-[500px]">
+            <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={{ gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1fr' }}>
+              <div className="px-3 py-2 font-medium">股票</div>
+              <div className="px-3 py-2 font-medium text-right">入场价</div>
+              <div className="px-3 py-2 font-medium text-right">现价</div>
+              <div className="px-3 py-2 font-medium text-right">盈亏</div>
+              <div className="px-3 py-2 font-medium text-right">止损</div>
+            </div>
+            {strategy.positions.map((p) => {
+              const pnl = p.pnl_pct || 0;
+              const pColor = pnl > 0 ? "text-[#FF5D5D]" : pnl < 0 ? "text-[#3EE6A8]" : "text-text-secondary";
+              return (
+                <div key={p.symbol} className="grid text-[13px] border-b border-border-subtle/30" style={{ gridTemplateColumns: '1.8fr 1fr 1fr 1fr 1fr' }}>
+                  <div className="px-3 py-2 truncate">
+                    <span className="font-semibold text-text-primary">{p.name}</span>
+                    <span className="ml-1.5 text-text-disabled text-[11px]">{p.symbol}</span>
+                  </div>
+                  <div className="px-3 py-2 text-right font-display-numeric text-text-primary truncate">¥{p.entry_price.toFixed(2)}</div>
+                  <div className="px-3 py-2 text-right font-display-numeric text-status-warning truncate">¥{(p.current_price || p.entry_price).toFixed(2)}</div>
+                  <div className={`px-3 py-2 text-right font-display-numeric font-semibold ${pColor}`}>
+                    <div>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%</div>
+                    <div className="text-[10px]" style={{ color: pnl >= 0 ? '#FF8A8A' : '#5AE6B8' }}>¥{p.pnl_amount >= 0 ? "+" : ""}{p.pnl_amount.toFixed(0)}</div>
+                  </div>
+                  <div className="px-3 py-2 text-right font-display-numeric text-[#FF5D5D] truncate">¥{p.stop_loss.toFixed(2)}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div className="text-center py-8 text-text-disabled text-[13px]">
