@@ -486,73 +486,53 @@ export default function CNDashboard() {
       )}
 
       {wlData.length > 0 && (
-        <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+        <section className="glass rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2"><svg className="w-5 h-5 text-status-warning" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><h2 className="text-[20px] font-semibold text-text-primary">收藏追踪</h2></div>
-              <p className="mt-0.5 text-[12px] text-text-disabled">
-                记录入场价 · 自动追踪 T+1/T+2/T+3 涨跌
-              </p>
+              <div className="flex items-center gap-2 mb-1">
+                <svg className="w-5 h-5 text-status-warning" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <h2 className="text-[18px] font-semibold text-text-primary">收藏追踪</h2>
+              </div>
+              <p className="text-[12px] text-text-disabled">记录入场价 · 自动追踪 T+1/T+2/T+3 涨跌</p>
             </div>
-            <Link href="/cn/watchlist" className="text-[12px] text-status-info hover:underline">
-              查看全部 →
-            </Link>
+            <Link href="/cn/watchlist" className="text-[12px] text-status-info hover:underline shrink-0">查看全部 →</Link>
           </div>
-          <div className="overflow-x-auto animate-fade-in">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                  <th className="px-3 py-2 font-medium">股票</th>
-                  <th className="px-3 py-2 text-right font-medium">入场价</th>
-                  <th className="px-3 py-2 text-right font-medium">T+1</th>
-                  <th className="px-3 py-2 text-right font-medium">T+2</th>
-                  <th className="px-3 py-2 text-right font-medium hidden sm:table-cell">T+3</th>
-                  <th className="px-3 py-2 font-medium hidden sm:table-cell">状态</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wlData.slice(0, 5).map((w) => (
-                  <tr key={w.id} className="border-b border-border-subtle/50 text-[13px]">
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
-                        <span className="font-semibold text-text-primary truncate">{w.name}</span>
-                        <span className="text-text-disabled text-[11px] shrink-0">{w.symbol}</span>
-                        {w.sector && (
-                          <span className="hidden sm:inline-flex items-center gap-1 text-[9px] px-1 py-0.5 rounded-full bg-[rgba(167,139,250,0.1)] text-status-info border border-[rgba(167,139,250,0.2)] leading-none shrink-0">
-                            <span className="truncate max-w-[50px]">{w.sector}</span>
-                            {(() => {
-                              const sc = (w as any).sector_change_pct ?? sectorChanges[w.sector];
-                              return sc != null ? (
-                                <span className={`shrink-0 ${
-                                  sc >= 0 ? "text-status-danger" : "text-status-success"
-                                }`}>
-                                  {sc > 0 ? "+" : ""}{sc.toFixed(1)}%
-                                </span>
-                              ) : null;
-                            })()}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono text-status-warning">{w.entry_price.toFixed(2)}</td>
-                    <td className={`px-3 py-2 text-right font-mono ${w.day1_change != null ? (w.day1_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
-                      {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%` : "—"}
-                    </td>
-                    <td className={`px-3 py-2 text-right font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
-                      {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
-                    </td>
-                    <td className={`px-3 py-2 text-right font-mono hidden sm:table-cell ${w.day3_change != null ? (w.day3_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
-                      {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
-                    </td>
-                    <td className="px-3 py-2 hidden sm:table-cell">
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full ${w.status === "active" ? "bg-status-success/15 text-status-success" : "bg-[rgba(159,176,199,0.15)] text-text-secondary"}`}>
-                        {w.status === "active" ? "追踪中" : "历史记录"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {wlData.slice(0, 5).map((w) => {
+              const day1 = w.day1_change;
+              const day2 = w.day2_change;
+              const day3 = w.day3_change;
+              const latestChg = day3 ?? day2 ?? day1;
+              const isPositive = latestChg != null ? latestChg >= 0 : null;
+              return (
+              <div key={w.id} className="bg-surface-card rounded-xl p-3 border border-border-subtle/50 card-lift">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="font-semibold text-[14px] text-text-primary truncate">{w.name}</span>
+                    <span className="text-[11px] text-text-disabled shrink-0">{w.symbol}</span>
+                  </div>
+                  {isPositive !== null && (
+                    <span className={`text-[15px] font-bold font-display-numeric ${isPositive ? "text-status-danger" : "text-status-success"}`}>
+                      {latestChg > 0 ? "+" : ""}{latestChg}%
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-[12px]">
+                  <div>
+                    <span className="text-text-disabled">入场 </span>
+                    <span className="font-mono text-status-warning font-medium">¥{w.entry_price.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-text-disabled">T+1 <span className={`font-mono ${day1 != null ? (day1 >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>{day1 != null ? `${day1 > 0 ? "+" : ""}${day1}%` : "—"}</span></span>
+                    <span className="text-text-disabled">T+2 <span className={`font-mono ${day2 != null ? (day2 >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>{day2 != null ? `${day2 > 0 ? "+" : ""}${day2}%` : "—"}</span></span>
+                    <span className="text-text-disabled hidden sm:inline">T+3 <span className={`font-mono ${day3 != null ? (day3 >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>{day3 != null ? `${day3 > 0 ? "+" : ""}${day3}%` : "—"}</span></span>
+                  </div>
+                  <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full ${w.status === "active" ? "bg-status-success/15 text-status-success" : "bg-text-secondary/15 text-text-secondary"}`}>
+                    {w.status === "active" ? "追踪中" : "历史"}
+                  </span>
+                </div>
+              </div>
+            )})}
           </div>
         </section>
       )}
@@ -566,10 +546,10 @@ export default function CNDashboard() {
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
               <h2 className="text-[17px] font-semibold text-text-primary">尾盘狙击</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(139,92,246,0.12)] text-status-info border border-[rgba(139,92,246,0.3)]">14:00</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-[rgba(245,196,81,0.3)]">一夜持股</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/30">14:00</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/30">一夜持股</span>
               {items[0]?._reranked && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-[rgba(139,92,246,0.15)] text-status-info border border-[rgba(139,92,246,0.3)]">
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-info animate-pulse"></span>
                   动态重排中
                 </span>
@@ -637,7 +617,7 @@ export default function CNDashboard() {
                       <Link href={`/cn/stock?symbol=${s.symbol}`} className="text-[14px] font-medium text-text-primary hover:text-status-info truncate">{s.name}</Link>
                       <span className="text-[10px] text-text-disabled shrink-0">{sym}</span>
                       {s.sector && (
-                        <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(139,92,246,0.1)] text-status-info border border-[rgba(139,92,246,0.2)] truncate max-w-[80px]">{s.sector}</span>
+                        <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 truncate max-w-[80px]">{s.sector}</span>
                       )}
                     </div>
                     <span className="text-[13px] font-display-numeric text-text-primary text-right">{livePrice}</span>
@@ -819,7 +799,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
           </div>
         </div>
         {totalCount > 0 && (
-          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[rgba(245,196,81,0.15)] text-status-warning border border-[rgba(245,196,81,0.3)] font-medium animate-pulse">
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-status-warning/15 text-status-warning border border-status-warning/30 font-medium animate-pulse">
             今日有数据
           </span>
         )}
@@ -844,7 +824,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
               {stocks.length === 0 ? (
                 <p className="text-[11px] text-text-disabled px-1 py-1.5 italic">暂无标的</p>
               ) : (
-                <div className="space-y-1 overflow-x-auto -mx-2 px-2">
+                <div className="space-y-1">
                   {stocks.slice(0, 5).map((s: any, i: number) => {
                     const sym = s.symbol.replace(/^(sh|sz)/, "");
                     const isFav = watchlistSymbols.has(sym);
@@ -853,41 +833,21 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                     const chg = s.change_pct;
                     const chgStr = chg != null ? `${chg > 0 ? "+" : ""}${chg.toFixed(1)}%` : "—";
                     const chgColor = chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled";
-                    const scChg = s.sector_change_pct ?? (s.sector ? sectorChanges[s.sector] : null);
                     return (
-                      <div key={s.symbol} className="grid grid-cols-[16px_1fr_38px_48px] sm:grid-cols-[20px_1fr_42px_55px_70px] lg:grid-cols-[22px_1fr_42px_1fr_85px_70px_26px] items-center rounded-lg bg-surface-container-low p-1.5 hover:bg-surface-card transition-colors group gap-1">
-                        <span className="text-[11px] text-text-disabled font-display-numeric text-center">{i + 1}</span>
-                        <Link href={`/cn/stock?symbol=${s.symbol}`} className="flex items-center gap-1 min-w-0 overflow-hidden">
-                          <span className="text-[13px] font-medium text-text-primary group-hover:text-status-info truncate transition-colors">{s.name}</span>
-                          <span className="text-[10px] text-text-disabled shrink-0">{sym}</span>
+                      <div key={s.symbol} className="flex items-center gap-1.5 rounded-lg bg-surface-container-low p-1.5 hover:bg-surface-card transition-colors group">
+                        <span className="text-[10px] text-text-disabled font-display-numeric w-[14px] text-center shrink-0">{i + 1}</span>
+                        <Link href={`/cn/stock?symbol=${s.symbol}`} className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+                          <span className="text-[12px] font-medium text-text-primary group-hover:text-status-info truncate transition-colors">{s.name}</span>
+                          <span className="text-[9px] text-text-disabled shrink-0">{sym}</span>
                         </Link>
-                        <span className="font-display-numeric text-[11px] font-bold text-center" style={{color: displayScore(s.score_raw || s.score) > 85 ? "#3EE6A8" : displayScore(s.score_raw || s.score) > 80 ? "#A78BFA" : "#9a8ab0"}}>
-                          {displayScore(s.score_raw || s.score)}
-                        </span>
-                        <div className="hidden sm:flex items-center gap-1 min-w-0 overflow-hidden">
-                          {s.sector ? (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[rgba(167,139,250,0.1)] text-status-info border border-[rgba(167,139,250,0.2)] leading-none shrink-0">
-                              <span className="truncate max-w-[55px] sm:max-w-[65px]">{s.sector}</span>
-                              {scChg != null && (
-                                <span className={`shrink-0 ${scChg >= 0 ? "text-status-danger" : "text-status-success"}`}>
-                                  {scChg > 0 ? "+" : ""}{scChg.toFixed(1)}%
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-text-disabled">—</span>
-                          )}
-                        </div>
-                        <span className="hidden sm:block font-display-numeric text-[12px] text-text-primary text-right">
-                          {price > 0 ? price.toFixed(2) : "—"}
-                        </span>
-                        <span className={`font-display-numeric text-[12px] font-medium text-right ${chgColor}`}>
-                          {chgStr}
-                        </span>
+                        <span className={`text-[10px] font-bold font-display-numeric w-[24px] text-center ${
+                          displayScore(s.score_raw || s.score) > 85 ? "text-status-success" : displayScore(s.score_raw || s.score) > 80 ? "text-primary" : "text-text-secondary"
+                        }`}>{displayScore(s.score_raw || s.score)}</span>
+                        <span className={`font-display-numeric text-[11px] font-medium w-[48px] text-right shrink-0 ${chgColor}`}>{chgStr}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); onToggleWatchlist(s); }}
                           disabled={isWlLoading}
-                          className={`hidden sm:block text-[14px] text-center transition-colors disabled:opacity-50 ${
+                          className={`text-[13px] w-[20px] text-center shrink-0 transition-colors disabled:opacity-50 ${
                             isFav ? "text-status-warning" : "text-text-disabled hover:text-status-warning"
                           }`}>
                           {isWlLoading ? "..." : isFav ? "★" : "☆"}
@@ -896,7 +856,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                     );
                   })}
                   {stocks.length > 5 && (
-                    <p className="text-[11px] text-status-info text-right pr-1">+{stocks.length - 5} 只更多</p>
+                    <p className="text-[10px] text-status-info text-right pr-1">+{stocks.length - 5} 只更多</p>
                   )}
                 </div>
               )}
