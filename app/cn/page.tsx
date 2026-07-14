@@ -1,6 +1,7 @@
 // AlphaPilot A 股 Dashboard — V15 真实筹码模型 (2026-07-09)
 // Zeabur HTTPS -> cn_proxy.py -> 腾讯云 150.158.100.236
 // 2026-07-13: 60秒轮询 /recommend/live 实时资金流（盘中阶段标签实时刷新）
+// 2026-07-14: v2 — 修复 Zeabur 构建缓存（强制清除 Docker 缓存层）
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
