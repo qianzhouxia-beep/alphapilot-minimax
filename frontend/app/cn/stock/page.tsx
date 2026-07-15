@@ -134,8 +134,8 @@ export default function CNStockDetail() {
 
   const code = symbol;
   const score = stock?.score ?? 0;
-  const change = stock?.change_pct;
-  const price = stock?.price;
+  const change = stock?.live_change_pct ?? stock?.change_pct;
+  const price = stock?.live_price ?? stock?.price ?? stock?.buy_price;
   const isWatched = wlSymbols.has(symbol);
   
   const toggleWatchlist = async () => {
@@ -165,7 +165,7 @@ export default function CNStockDetail() {
         <Link href="/cn" className="inline-flex items-center gap-1 text-[12px] text-text-secondary hover:text-status-info">
           ← 返回 Dashboard
         </Link>
-        <button onClick={handleRefresh} className="rounded-lg border border-border-subtle bg-surface-panel px-3 py-1.5 text-[12px] text-text-secondary hover:border-status-info hover:text-text-primary transition-colors">
+        <button onClick={handleRefresh} className="rounded-lg border border-border-subtle bg-surface-panel px-3 py-1.5 text-[12px] text-text-secondary hover:border-[#4DA3FF] hover:text-text-primary transition-colors">
           刷新
         </button>
       </div>
@@ -204,7 +204,9 @@ export default function CNStockDetail() {
                 {chgSign(change)}{change?.toFixed(2) ?? "—"}%
               </div>
               {stock?.prev_close && (
-                <div className="text-[11px] text-text-disabled mt-0.5">昨收 ¥{stock.prev_close.toFixed(2)}</div>
+                <div className="text-[11px] text-text-disabled mt-0.5">
+                  {stock.live_price ? "实时" : "昨收"} ¥{stock.prev_close.toFixed(2)}
+                </div>
               )}
             </div>
             <button onClick={toggleWatchlist}
@@ -262,7 +264,7 @@ export default function CNStockDetail() {
 
             {/* Score breakdown bars */}
             <div className="space-y-3 mb-4">
-              <BarMeter label="XGBoost 概率" value={stock?.lgb_score ?? score} color="#A78BFA" />
+              <BarMeter label="XGBoost 概率" value={stock?.lgb_score ?? score} color="#4DA3FF" />
               <BarMeter label="板块热度" value={stock?.sector_heat ?? 0.5} color="#3EE6A8" />
               <BarMeter label="综合评分" value={score} color={score >= 0.7 ? "#3EE6A8" : score >= 0.65 ? "#F5C451" : "#9FB0C7"} />
             </div>
@@ -316,7 +318,7 @@ export default function CNStockDetail() {
                   </div>
                   {peersLoading ? (
                     <div className="flex items-center gap-2 text-[12px] text-text-disabled">
-                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-subtle border-t-[#A78BFA]" />
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-border-subtle border-t-[#4DA3FF]" />
                       加载中...
                     </div>
                   ) : peers.length > 0 ? (
@@ -367,7 +369,7 @@ export default function CNStockDetail() {
             </h3>
             {newsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="h-6 w-6 animate-spin rounded-full border-3 border-border-subtle border-t-[#A78BFA]" />
+                <div className="h-6 w-6 animate-spin rounded-full border-3 border-border-subtle border-t-[#4DA3FF]" />
               </div>
             ) : news.length > 0 ? (
               <div className="space-y-2">
@@ -412,7 +414,7 @@ function BarMeter({ label, value, color }: { label: string; value: number; color
         <span className="text-text-secondary">{label}</span>
         <span className="font-display-numeric font-semibold" style={{ color }}>{pct}</span>
       </div>
-      <div className="h-2 rounded-full bg-border-subtle overflow-hidden">
+      <div className="h-2 rounded-full bg-[#1D2A42] overflow-hidden">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
@@ -424,7 +426,7 @@ function LoadingSkeleton() {
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
       <HeaderBar market="cn" />
       <div className="flex flex-col items-center justify-center py-40">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-[#A78BFA]" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-[#4DA3FF]" />
         <p className="mt-4 text-[14px] text-text-secondary">加载中...</p>
       </div>
     </main>
@@ -442,7 +444,7 @@ function ErrorState({ error, symbol, onRefresh }: { error: string; symbol: strin
           <Link href="/cn" className="rounded-lg border border-border-subtle bg-surface-panel px-4 py-2 text-[12px] text-text-secondary hover:text-text-primary">
             ← 返回首页
           </Link>
-          <button onClick={onRefresh} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-on-primary hover:bg-[#C084FC]">
+          <button onClick={onRefresh} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff]">
             重试
           </button>
         </div>

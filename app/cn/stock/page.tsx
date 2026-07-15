@@ -134,8 +134,8 @@ export default function CNStockDetail() {
 
   const code = symbol;
   const score = stock?.score ?? 0;
-  const change = stock?.change_pct;
-  const price = stock?.price;
+  const change = stock?.live_change_pct ?? stock?.change_pct;
+  const price = stock?.live_price ?? stock?.price ?? stock?.buy_price;
   const isWatched = wlSymbols.has(symbol);
   
   const toggleWatchlist = async () => {
@@ -204,7 +204,9 @@ export default function CNStockDetail() {
                 {chgSign(change)}{change?.toFixed(2) ?? "—"}%
               </div>
               {stock?.prev_close && (
-                <div className="text-[11px] text-text-disabled mt-0.5">昨收 ¥{stock.prev_close.toFixed(2)}</div>
+                <div className="text-[11px] text-text-disabled mt-0.5">
+                  {stock.live_price ? "实时" : "昨收"} ¥{stock.prev_close.toFixed(2)}
+                </div>
               )}
             </div>
             <button onClick={toggleWatchlist}
