@@ -12,9 +12,9 @@ import {
 
 function resultLabel(chg: number | null): { text: string; color: string; bg: string } {
   if (chg == null) return { text: "待定", color: "#9FB0C7", bg: "rgba(159,176,199,0.15)" };
-  if (chg >= 3) return { text: "达标🔥", color: "#FF5D5D", bg: "rgba(255,93,93,0.15)" };
-  if (chg > 0) return { text: "微盈", color: "#FF8A8A", bg: "rgba(255,138,138,0.12)" };
-  return { text: "亏损", color: "#3EE6A8", bg: "rgba(62,230,168,0.15)" };
+  if (chg >= 3) return { text: "达标", color: "#3EE6A8", bg: "rgba(62,230,168,0.15)" };
+  if (chg > 0) return { text: "微盈", color: "#F5C451", bg: "rgba(245,196,81,0.15)" };
+  return { text: "亏损", color: "#FF5D5D", bg: "rgba(255,93,93,0.15)" };
 }
 
 function totalReturn(w: WatchlistItem): number | null {
@@ -240,7 +240,6 @@ export default function WatchlistPage() {
 }
 
 // ═══ 追踪中表格 ═══
-const W_GRID = { gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1.2fr 1fr 1fr 1fr' };
 function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -251,65 +250,81 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <div className="w-full min-w-[820px]">
-        {/* Header */}
-        <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={W_GRID}>
-          <div className="px-3 py-2.5 font-medium text-left">股票</div>
-          <div className="px-3 py-2.5 font-medium text-right">入场</div>
-          <div className="px-3 py-2.5 font-medium text-right">实时</div>
-          <div className="px-3 py-2.5 font-medium text-right">浮动</div>
-          <div className="px-3 py-2.5 font-medium text-right">评分</div>
-          <div className="px-3 py-2.5 font-medium text-right">T+1</div>
-          <div className="px-3 py-2.5 font-medium text-right">T+2</div>
-          <div className="px-3 py-2.5 font-medium text-right">T+3</div>
-          <div className="px-3 py-2.5 font-medium text-center">操作</div>
-        </div>
-        {/* Data rows */}
-        {items.map((w) => {
-          const isRemoving = removing === w.symbol;
-          const chg = w.current_change_pct;
-          return (
-          <div key={w.id} className="grid text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors" style={W_GRID}>
-            <div className="px-3 py-2.5 overflow-hidden">
-              <div className="text-[14px] font-semibold text-text-primary truncate">{w.name}</div>
-              <div className="text-[10px] text-text-disabled truncate">{w.symbol}</div>
-            </div>
-            <div className="px-3 py-2.5 text-right font-mono">
-              <span className="text-status-warning cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.(w)}>
-                ¥{(w.entry_price || 0).toFixed(2)}
-              </span>
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
-              {w.current_price != null ? `¥${w.current_price.toFixed(2)}` : "—"}
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${chg != null ? (chg > 0 ? "text-[#FF5D5D]" : chg < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {chg != null ? `${chg > 0 ? "+" : ""}${chg}%` : "—"}
-            </div>
-            <div className="px-3 py-2.5 text-right font-mono text-text-secondary truncate">{(w.model_score * 100).toFixed(0)}%</div>
-            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${w.day1_change != null ? (w.day1_change >= 3 ? "text-[#FF5D5D]" : w.day1_change > 0 ? "text-[#FF8A8A]" : w.day1_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%${(w.day1_change ?? 0) >= 3 ? " 🎯" : ""}` : "—"}
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day2_change != null ? (w.day2_change > 0 ? "text-[#FF8A8A]" : w.day2_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day3_change != null ? (w.day3_change > 0 ? "text-[#FF8A8A]" : w.day3_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
-            </div>
-            <div className="px-3 py-2.5 text-center">
-              <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
-                className="rounded-lg px-2.5 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
-                {isRemoving ? "..." : "删除"}
-              </button>
-            </div>
-          </div>
-        )})}
-      </div>
+      <table className="w-full text-left data-table min-w-[700px]">
+        <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[9%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+        </colgroup>
+        <thead>
+          <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
+            <th className="px-3 py-2.5 font-medium text-left">股票</th>
+            <th className="px-3 py-2.5 font-medium text-right">入场</th>
+            <th className="px-3 py-2.5 font-medium text-right">实时</th>
+            <th className="px-3 py-2.5 font-medium text-right">浮动</th>
+            <th className="px-3 py-2.5 font-medium text-right">评分</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+1</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+2</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+3</th>
+            <th className="px-3 py-2.5 font-medium text-center">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((w) => {
+            const isRemoving = removing === w.symbol;
+            const d1Hit = (w.day1_change ?? 0) >= 3;
+            const chg = w.current_change_pct;
+            return (
+            <tr key={w.id} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
+              <td className="px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <div className="text-[14px] font-semibold text-text-primary">{w.name}</div>
+                    <div className="text-[10px] text-text-disabled">{w.symbol}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-3 py-3 text-right font-mono">
+                <span className="text-status-warning cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.(w)}>
+                  ¥{(w.entry_price || 0).toFixed(2)}
+                </span>
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
+                {w.current_price != null ? `¥${w.current_price.toFixed(2)}` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono font-semibold ${chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
+                {chg != null ? `${chg > 0 ? "+" : ""}${chg}%` : "—"}
+              </td>
+              <td className="px-3 py-3 text-right font-mono text-text-secondary">{(w.model_score * 100).toFixed(0)}%</td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%${d1Hit ? " 🎯" : ""}` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
+              </td>
+              <td className="px-3 py-3 text-center">
+                <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
+                  className="rounded-lg px-2.5 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
+                  {isRemoving ? "..." : "删除"}
+                </button>
+              </td>
+            </tr>
+          )})}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 // ═══ 历史记录表格 ═══
-const H_GRID = { gridTemplateColumns: '1.6fr 1fr 1fr 1fr 1fr 1fr 1fr 1.2fr' };
 function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -320,67 +335,83 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <div className="w-full min-w-[720px]">
-        {/* Header */}
-        <div className="grid text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle" style={H_GRID}>
-          <div className="px-3 py-2.5 font-medium text-left">股票</div>
-          <div className="px-3 py-2.5 font-medium text-right">入场</div>
-          <div className="px-3 py-2.5 font-medium text-right">T+1</div>
-          <div className="px-3 py-2.5 font-medium text-right">T+2</div>
-          <div className="px-3 py-2.5 font-medium text-right">T+3</div>
-          <div className="px-3 py-2.5 font-medium text-right">总收益</div>
-          <div className="px-3 py-2.5 font-medium text-left">结果</div>
-          <div className="px-3 py-2.5 font-medium text-center">操作</div>
-        </div>
-        {/* Data rows */}
-        {items.map((w) => {
-          const isRemoving = removing === w.symbol;
-          const isRetracking = retracking === w.symbol;
-          const tr = totalReturn(w);
-          const rl = resultLabel(w.day1_change);
-          return (
-          <div key={w.id} className="grid text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors" style={H_GRID}>
-            <div className="px-3 py-2.5 overflow-hidden">
-              <div className="text-[14px] font-semibold text-text-primary truncate">{w.name}</div>
-              <div className="text-[10px] text-text-disabled truncate">{w.symbol}</div>
-            </div>
-            <div className="px-3 py-2.5 text-right font-mono text-status-warning truncate">
-              <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...w, symbol: w.symbol, name: w.name, entry_price: w.entry_price || 0 } as any)}>
-                ¥{(w.entry_price || 0).toFixed(2)}
-              </span>
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${w.day1_change != null ? (w.day1_change >= 3 ? "text-[#FF5D5D]" : w.day1_change > 0 ? "text-[#FF8A8A]" : w.day1_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%` : "—"}
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day2_change != null ? (w.day2_change > 0 ? "text-[#FF8A8A]" : w.day2_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono truncate ${w.day3_change != null ? (w.day3_change > 0 ? "text-[#FF8A8A]" : w.day3_change < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
-            </div>
-            <div className={`px-3 py-2.5 text-right font-mono font-semibold truncate ${tr != null ? (tr > 0 ? "text-[#FF5D5D]" : tr < 0 ? "text-[#3EE6A8]" : "text-text-secondary") : "text-text-disabled"}`}>
-              {tr != null ? `${tr > 0 ? "+" : ""}${tr.toFixed(2)}%` : "—"}
-            </div>
-            <div className="px-3 py-2.5">
-              <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
-                {rl.text}
-              </span>
-            </div>
-            <div className="px-3 py-2.5">
-              <div className="flex items-center justify-center gap-1">
-                <button onClick={() => onRetrack(w)} disabled={isRetracking}
-                  className="rounded-lg px-2 py-1 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
-                  {isRetracking ? "..." : "再追踪"}
-                </button>
-                <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
-                  className="rounded-lg px-2 py-1 text-[11px] text-[#FF5D5D] hover:bg-[rgba(255,93,93,0.1)] disabled:opacity-50 transition-colors">
-                  {isRemoving ? "..." : "删除"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )})}
-      </div>
+      <table className="w-full text-left data-table min-w-[600px]">
+        <colgroup>
+          <col className="w-[22%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[12%]" />
+        </colgroup>
+        <thead>
+          <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
+            <th className="px-3 py-2.5 font-medium text-left">股票</th>
+            <th className="px-3 py-2.5 font-medium text-right">入场</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+1</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+2</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+3</th>
+            <th className="px-3 py-2.5 font-medium text-right">总收益</th>
+            <th className="px-3 py-2.5 font-medium text-left">结果</th>
+            <th className="px-3 py-2.5 font-medium text-center">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((w) => {
+            const isRemoving = removing === w.symbol;
+            const isRetracking = retracking === w.symbol;
+            const tr = totalReturn(w);
+            const rl = resultLabel(w.day1_change);
+            return (
+            <tr key={w.id} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
+              <td className="px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <div>
+                    <div className="text-[14px] font-semibold text-text-primary">{w.name}</div>
+                    <div className="text-[10px] text-text-disabled">{w.symbol}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-3 py-3 text-right font-mono text-status-warning">
+                <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...w, symbol: w.symbol, name: w.name, entry_price: w.entry_price || 0 } as any)}>
+                  ¥{(w.entry_price || 0).toFixed(2)}
+                </span>
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day1_change != null ? (w.day1_change >= 3 ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono font-semibold ${tr != null ? (tr >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled"}`}>
+                {tr != null ? `${tr > 0 ? "+" : ""}${tr.toFixed(2)}%` : "—"}
+              </td>
+              <td className="px-3 py-3">
+                <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
+                  {rl.text}
+                </span>
+              </td>
+              <td className="px-3 py-3">
+                <div className="flex items-center justify-center gap-1.5">
+                  <button onClick={() => onRetrack(w)} disabled={isRetracking}
+                    className="rounded-lg px-2 py-1.5 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
+                    {isRetracking ? "..." : "再追踪"}
+                  </button>
+                  <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
+                    className="rounded-lg px-2 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
+                    {isRemoving ? "..." : "删除"}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          )})}
+        </tbody>
+      </table>
     </div>
   );
 }
