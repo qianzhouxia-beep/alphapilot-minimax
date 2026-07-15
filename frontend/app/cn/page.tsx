@@ -1,4 +1,4 @@
-// AlphaPilot A 股 Dashboard — V1.9 Fusion 模型 (2026-07-15)
+// AlphaPilot A 股 Dashboard — V15 真实筹码模型 (2026-07-09)
 // Zeabur HTTPS -> cn_proxy.py -> 腾讯云 150.158.100.236
 // 2026-07-13: 60秒轮询 /recommend/live 实时资金流（盘中阶段标签实时刷新）
 "use client";
@@ -300,7 +300,7 @@ export default function CNDashboard() {
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1 h-6 rounded-full bg-status-info"></div>
               <h2 className="text-[18px] font-semibold text-text-primary">A 股 Top 10 机会</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(167,139,250,0.12)] text-status-info border border-[rgba(167,139,250,0.25)]">V1.9</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(167,139,250,0.12)] text-status-info border border-[rgba(167,139,250,0.25)]">V18</span>
               {items[0]?._reranked && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-[rgba(62,230,168,0.3)]">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-success animate-pulse"></span>
@@ -426,7 +426,7 @@ export default function CNDashboard() {
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <div className="text-right">
                       <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-none">
-                        {item.price > 0 ? item.price.toFixed(2) : (item.buy_price > 0 ? item.buy_price.toFixed(2) : "—")}
+                        {item.buy_price > 0 ? item.buy_price.toFixed(2) : "—"}
                       </div>
                       {item.buy_price > 0 && (
                         <div className="text-[10px] text-text-disabled mt-0.5">昨收 ¥{item.buy_price.toFixed(2)}</div>
@@ -840,9 +840,6 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                           <span className="text-[12px] font-medium text-text-primary group-hover:text-status-info truncate transition-colors">{s.name}</span>
                           <span className="text-[9px] text-text-disabled shrink-0">{sym}</span>
                         </Link>
-                        <span className="text-[10px] font-mono text-text-secondary w-[48px] text-right shrink-0">
-                          {price > 0 ? `¥${price.toFixed(2)}` : "—"}
-                        </span>
                         <span className={`text-[10px] font-bold font-display-numeric w-[24px] text-center ${
                           displayScore(s.score_raw || s.score) > 85 ? "text-status-success" : displayScore(s.score_raw || s.score) > 80 ? "text-primary" : "text-text-secondary"
                         }`}>{displayScore(s.score_raw || s.score)}</span>
