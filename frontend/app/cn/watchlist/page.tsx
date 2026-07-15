@@ -252,18 +252,21 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
     <div className="overflow-x-auto -mx-4 sm:mx-0">
       <table className="w-full text-left data-table min-w-[700px]">
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[9%]" />
+          <col className="w-[17%]" />
           <col className="w-[12%]" />
-          <col className="w-[12%]" />
-          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[8%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[3%]" />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
             <th className="px-3 py-2.5 font-medium text-left">股票</th>
+            <th className="px-3 py-2.5 font-medium text-left">添加时间</th>
             <th className="px-3 py-2.5 font-medium text-right">入场</th>
             <th className="px-3 py-2.5 font-medium text-right">实时</th>
             <th className="px-3 py-2.5 font-medium text-right">浮动</th>
@@ -288,6 +291,12 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
                     <div className="text-[10px] text-text-disabled">{w.symbol}</div>
                   </div>
                 </div>
+              </td>
+              <td className="px-3 py-3 text-[11px] text-text-disabled">
+                {w.added_at ? (() => {
+                  const d = new Date(w.added_at);
+                  return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+                })() : "—"}
               </td>
               <td className="px-3 py-3 text-right font-mono">
                 <span className="text-status-warning cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.(w)}>
