@@ -250,18 +250,17 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <table className="w-full text-left data-table min-w-[700px] table-fixed">
+      <table className="w-full text-left data-table">
         <colgroup>
-          <col className="w-[110px]" />
-          <col className="w-[100px]" />
-          <col className="w-[80px]" />
-          <col className="w-[80px]" />
-          <col className="w-[70px]" />
-          <col className="w-[60px]" />
-          <col className="w-[60px]" />
-          <col className="w-[60px]" />
-          <col className="w-[60px]" />
-          <col className="w-[70px]" />
+          <col className="w-[18%]" />
+          <col className="w-[13%]" />
+          <col className="w-[12%]" />
+          <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
+          <col className="w-[9%]" />
+          <col className="w-[8%]" />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
@@ -364,29 +363,31 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
 
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <table className="w-full text-left data-table min-w-[700px]">
+      <table className="w-full text-left data-table">
         <colgroup>
-          <col className="w-[18%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
+          <col className="w-[15%]" />
           <col className="w-[12%]" />
           <col className="w-[10%]" />
           <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[8%]" />
+          <col className="w-[5%]" />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
-            <th className="px-3 py-2.5 font-medium text-left align-middle">股票</th>
-            <th className="px-3 py-2.5 font-medium text-right align-middle">买入价</th>
-            <th className="px-3 py-2.5 font-medium text-right align-middle">卖出价</th>
-            <th className="px-3 py-2.5 font-medium text-right align-middle">收益</th>
-            <th className="px-3 py-2.5 font-medium text-right align-middle">收益率</th>
-            <th className="px-3 py-2.5 font-medium text-right align-middle">T+1</th>
-            <th className="px-3 py-2.5 font-medium text-right align-middle">T+2/3</th>
-            <th className="px-3 py-2.5 font-medium text-right align-middle">结果</th>
-            <th className="px-3 py-2.5 font-medium text-center align-middle">操作</th>
+            <th className="px-2 py-2.5 font-medium text-left align-middle">股票</th>
+            <th className="px-2 py-2.5 font-medium text-left align-middle whitespace-nowrap">时间</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle">买入价</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle">卖出价</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle">收益</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle">收益率</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle">T+1</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle">T+2/3</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle">结果</th>
+            <th className="px-2 py-2.5 font-medium text-center align-middle">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -410,7 +411,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
             
             return (
             <tr key={row.symbol} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
-              <td className="px-3 py-3">
+              <td className="px-2 py-3 align-middle">
                 <div className="flex items-center gap-2">
                   <div>
                     <div className="text-[14px] font-semibold text-text-primary">{row.name}</div>
@@ -418,27 +419,33 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-3 text-right font-mono text-status-warning">
+              <td className="px-2 py-3 align-middle text-[11px] text-text-disabled whitespace-nowrap">
+                {firstBuy.added_at ? (() => {
+                  const d = new Date(firstBuy.added_at);
+                  return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+                })() : "—"}
+              </td>
+              <td className="px-2 py-3 align-middle text-right font-mono text-status-warning">
                 <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...firstBuy, symbol: row.symbol, name: row.name, entry_price: entryPrice } as any)}>
                   ¥{entryPrice.toFixed(2)}
                 </span>
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${hasSell ? "text-status-success" : "text-text-disabled"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono ${hasSell ? "text-text-primary" : "text-text-disabled"}`}>
                 {hasSell ? `¥${exitPrice.toFixed(2)}` : "—"}
               </td>
-              <td className={`px-3 py-3 text-right font-mono font-semibold ${profitPct >= 0 ? "text-status-success" : "text-status-danger"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono font-semibold ${profitAmt >= 0 ? "text-status-success" : "text-status-danger"}`}>
                 {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
               </td>
-              <td className={`px-3 py-3 text-right font-mono font-semibold ${profitPct >= 3 ? "text-status-success" : profitPct >= 0 ? "text-text-secondary" : "text-status-danger"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono font-semibold ${profitPct >= 3 ? "text-status-success" : profitPct >= 0 ? "text-text-secondary" : "text-status-danger"}`}>
                 {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(2)}%
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${d1 != null ? (d1 >= 3 ? "text-status-success font-semibold" : d1 >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono ${d1 != null ? (d1 >= 3 ? "text-status-success font-semibold" : d1 >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
                 {d1 != null ? `${d1 > 0 ? "+" : ""}${d1}%` : "—"}
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${d2 != null || d3 != null ? "text-text-secondary" : "text-text-disabled"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono ${d2 != null || d3 != null ? "text-text-secondary" : "text-text-disabled"}`}>
                 {d2 != null ? `${d2 > 0 ? "+" : ""}${d2}%` : d3 != null ? `${d3 > 0 ? "+" : ""}${d3}%` : "—"}
               </td>
-              <td className="px-3 py-3">
+              <td className="px-2 py-3 align-middle">
                 <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
                   {rl.text}
                 </span>
