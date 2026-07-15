@@ -321,8 +321,8 @@ export default function CNDashboard() {
               V1.9 Fusion 决策系统 · 35维融合特征 · 5模型集成 · 凌晨 5:00 选股 · 含隔夜美股影响因子 · 量比换手门控 · 自我提升学习 · 盘中60秒实时资金刷新 · 每5分钟动态重排 · Top 10 完整榜单
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/cn/watchlist" className="rounded-lg border border-border-subtle bg-surface-card px-3 py-1.5 text-[12px] text-status-warning hover:border-status-warning transition-colors flex items-center gap-1">
+          <div className="flex flex-row items-center gap-2 shrink-0">
+            <Link href="/cn/watchlist" className="rounded-lg border border-border-subtle bg-surface-card px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-[12px] text-status-warning hover:border-status-warning transition-colors flex items-center gap-1 whitespace-nowrap">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               收藏追踪
             </Link>
