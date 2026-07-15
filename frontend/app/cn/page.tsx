@@ -1,6 +1,7 @@
 // AlphaPilot A 股 Dashboard — V15 真实筹码模型 (2026-07-09)
 // Zeabur HTTPS -> cn_proxy.py -> 腾讯云 150.158.100.236
 // 2026-07-13: 60秒轮询 /recommend/live 实时资金流（盘中阶段标签实时刷新）
+// 2026-07-16: 价格标注带日期（交易时间=实时，非交易时间=最新收盘）
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -16,6 +17,28 @@ import {
 const scoreColor = (s: number) =>
   s >= 0.50 ? "text-status-success" : s >= 0.40 ? "text-status-info" : s >= 0.30 ? "text-status-warning" : "text-text-secondary";
 const displayScore = (s: number) => Math.min(99, Math.max(75, Math.round(s * 45 + 75)));
+
+// ─── 价格日期标注工具 ───
+function isTradingHours(): boolean {
+  const now = new Date();
+  const cst = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+  const d = cst.getDay(), h = cst.getHours(), m = cst.getMinutes();
+  return d >= 1 && d <= 5 && (h * 60 + m) >= 570 && (h * 60 + m) < 900; // 09:30-15:00
+}
+function getPriceLabel(): { label: string; date: string } {
+  const now = new Date();
+  const cst = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Shanghai" }));
+  const d = cst.getDay();
+  const fmt = (dt: Date) => `${String(dt.getMonth()+1).padStart(2,"0")}/${String(dt.getDate()).padStart(2,"0")}`;
+  if (isTradingHours()) return { label: "实时", date: fmt(cst) };
+  // 非交易时间→最近收盘日
+  let offset = 1;
+  if (d === 1) offset = 3;  else if (d === 0) offset = 2;
+  const last = new Date(cst);
+  last.setDate(last.getDate() - offset);
+  return { label: "收盘", date: fmt(last) };
+}
+
 const scoreLabel = (s: number) =>
   s >= 0.50 ? "A+" : s >= 0.35 ? "A" : s >= 0.25 ? "B+" : "B";
 
@@ -427,14 +450,21 @@ export default function CNDashboard() {
 
                   {/* Right: Price + Actions */}
                   <div className="flex flex-col items-end gap-2 shrink-0">
+                    {(() => {
+                      const pl = getPriceLabel();
+                      const mainPrice = item.live_price || item.buy_price || 0;
+                      return (
                     <div className="text-right">
                       <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-none">
-                        {(item.live_price || item.buy_price || 0) > 0 ? (item.live_price || item.buy_price || 0).toFixed(2) : "—"}
+                        ¥{mainPrice > 0 ? mainPrice.toFixed(2) : "—"}
+                        <span className="text-[10px] text-text-disabled ml-1 font-normal">{pl.label} {pl.date}</span>
                       </div>
                       {item.buy_price > 0 && (
-                        <div className="text-[10px] text-text-disabled mt-0.5">{item.live_price ? "实时" : "昨收"} ¥{item.buy_price.toFixed(2)}</div>
+                        <div className="text-[10px] text-text-disabled mt-0.5">推荐价 ¥{item.buy_price.toFixed(2)}</div>
                       )}
                     </div>
+                      );
+                    })()}
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleToggleWatchlist(item)}
