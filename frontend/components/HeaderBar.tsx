@@ -141,7 +141,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
         </div>
 
         {/* ============ Mobile nav (<md) — Dashboard + 菜单按钮 ============ */}
-        <div ref={menuRef} className="md:hidden flex items-center gap-1 rounded-lg border border-border-subtle/50 bg-surface-card p-0.5">
+        <div ref={menuRef} className="md:hidden relative flex items-center gap-1 rounded-lg border border-border-subtle/50 bg-surface-card p-0.5">
           <Link
             href="/cn"
             className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${

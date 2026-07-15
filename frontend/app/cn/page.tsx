@@ -254,6 +254,9 @@ export default function CNDashboard() {
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
       <HeaderBar market="cn" />
 
+      {/* 数据状态卡片 - 盘后数据更新时间 + 一键刷新 */}
+      <DataStatusCard />
+
       {wlMsg && (
         <div className={`fixed top-20 right-4 z-50 rounded-xl p-4 shadow-2xl ${
           wlMsg.type === "success" ? "bg-status-success/15 border border-status-success" : "bg-status-danger/15 border border-status-danger"
@@ -864,6 +867,92 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ─── 数据状态卡片 ─── */
+function DataStatusCard() {
+  const [dataStatus, setDataStatus] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshStatus, setRefreshStatus] = useState<any>(null);
+  const pollRef = useRef<any>(null);
+
+  const loadStatus = useCallback(async () => {
+    try { setDataStatus(await (await fetch("/api/v1/cn/data-status")).json()); } catch {}
+  }, []);
+
+  const loadRefreshStatus = useCallback(async () => {
+    try {
+      const s = await (await fetch("/api/v1/cn/refresh-all-data/status")).json();
+      setRefreshStatus(s);
+      if (s.step === "idle" || s.progress === 100 || s.progress === -1) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+        setRefreshing(false);
+        loadStatus();
+      }
+    } catch {}
+  }, [loadStatus]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try { await fetch("/api/v1/cn/refresh-all-data", { method: "POST" }); } catch {}
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(loadRefreshStatus, 5000);
+    loadRefreshStatus();
+  };
+
+  useEffect(() => { loadStatus(); }, [loadStatus]);
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  const stepLabels: Record<string, string> = {
+    fund_flow: "资金流", recommend: "推荐管线", chip: "筹码", done: "完成", idle: "空闲",
+  };
+
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border-subtle/50 bg-surface-card/60 backdrop-blur-sm px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-text-secondary">
+        {dataStatus ? (
+          <>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-status-success" />
+              筹码: {dataStatus.chip_data?.updated_at || "无"}
+            </span>
+            <span className="text-text-disabled">|</span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-status-info" />
+              资金流: {dataStatus.fund_flow?.updated_at || "无"}
+            </span>
+            <span className="text-text-disabled">|</span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C451]" />
+              推荐: {dataStatus.daily_recommend?.updated_at || "无"}
+            </span>
+          </>
+        ) : (
+          <span className="text-text-disabled">加载数据状态...</span>
+        )}
+        {refreshStatus && refreshStatus.step !== "idle" && (
+          <span className="text-status-info ml-1">
+            {stepLabels[refreshStatus.step]}: {refreshStatus.progress}%
+          </span>
+        )}
+      </div>
+      <button
+        onClick={handleRefresh}
+        disabled={refreshing}
+        className="ml-auto rounded-lg px-3 py-1 text-[11px] font-medium transition-all
+          bg-status-info/10 text-status-info border border-status-info/20 hover:bg-status-info/20
+          disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 whitespace-nowrap"
+      >
+        <svg className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+        {refreshing ? "刷新中..." : "刷新盘后数据"}
+      </button>
     </div>
   );
 }
