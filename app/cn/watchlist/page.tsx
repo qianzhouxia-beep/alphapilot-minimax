@@ -250,31 +250,31 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
 }) {
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <table className="w-full text-left data-table min-w-[700px]">
+      <table className="w-full text-left data-table min-w-[700px] table-fixed">
         <colgroup>
-          <col className="w-[17%]" />
-          <col className="w-[12%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[8%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-          <col className="w-[3%]" />
+          <col className="w-[110px]" />
+          <col className="w-[100px]" />
+          <col className="w-[80px]" />
+          <col className="w-[80px]" />
+          <col className="w-[70px]" />
+          <col className="w-[60px]" />
+          <col className="w-[60px]" />
+          <col className="w-[60px]" />
+          <col className="w-[60px]" />
+          <col className="w-[70px]" />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
-            <th className="px-3 py-2.5 font-medium text-left">股票</th>
-            <th className="px-3 py-2.5 font-medium text-left">添加时间</th>
-            <th className="px-3 py-2.5 font-medium text-right">入场</th>
-            <th className="px-3 py-2.5 font-medium text-right">实时</th>
-            <th className="px-3 py-2.5 font-medium text-right">浮动</th>
-            <th className="px-3 py-2.5 font-medium text-right">评分</th>
-            <th className="px-3 py-2.5 font-medium text-right">T+1</th>
-            <th className="px-3 py-2.5 font-medium text-right">T+2</th>
-            <th className="px-3 py-2.5 font-medium text-right">T+3</th>
-            <th className="px-3 py-2.5 font-medium text-center">操作</th>
+            <th className="px-2 py-2.5 font-medium text-left">股票</th>
+            <th className="px-2 py-2.5 font-medium text-left whitespace-nowrap">添加时间</th>
+            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">入场</th>
+            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">实时</th>
+            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">浮动</th>
+            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">评分</th>
+            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+1</th>
+            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+2</th>
+            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+3</th>
+            <th className="px-2 py-2.5 font-medium text-center">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -284,42 +284,42 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
             const chg = w.current_change_pct;
             return (
             <tr key={w.id} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
-              <td className="px-3 py-3">
+              <td className="px-2 py-3 align-middle">
                 <div className="flex items-center gap-2">
                   <div>
                     <div className="text-[14px] font-semibold text-text-primary">{w.name}</div>
-                    <div className="text-[10px] text-text-disabled">{w.symbol}</div>
+                    <div className="text-[10px] text-text-disabled font-mono">{w.symbol}</div>
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-3 text-[11px] text-text-disabled">
+              <td className="px-2 py-3 align-middle text-[11px] text-text-disabled whitespace-nowrap">
                 {w.added_at ? (() => {
                   const d = new Date(w.added_at);
                   return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
                 })() : "—"}
               </td>
-              <td className="px-3 py-3 text-right font-mono">
+              <td className="px-2 py-3 align-middle text-right font-mono whitespace-nowrap">
                 <span className="text-status-warning cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.(w)}>
                   ¥{(w.entry_price || 0).toFixed(2)}
                 </span>
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
+              <td className="px-2 py-3 align-middle text-right font-mono whitespace-nowrap text-text-primary">
                 {w.current_price != null ? `¥${w.current_price.toFixed(2)}` : "—"}
               </td>
-              <td className={`px-3 py-3 text-right font-mono font-semibold ${chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono font-semibold whitespace-nowrap ${chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
                 {chg != null ? `${chg > 0 ? "+" : ""}${chg}%` : "—"}
               </td>
-              <td className="px-3 py-3 text-right font-mono text-text-secondary">{(w.model_score * 100).toFixed(0)}%</td>
-              <td className={`px-3 py-3 text-right font-mono ${w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+              <td className="px-2 py-3 align-middle text-right font-mono text-text-secondary whitespace-nowrap">{(w.model_score * 100).toFixed(0)}%</td>
+              <td className={`px-2 py-3 align-middle text-right font-mono whitespace-nowrap ${w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
                 {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%${d1Hit ? " 🎯" : ""}` : "—"}
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono whitespace-nowrap ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
                 {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+              <td className={`px-2 py-3 align-middle text-right font-mono whitespace-nowrap ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
                 {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
               </td>
-              <td className="px-3 py-3 text-center">
+              <td className="px-2 py-3 align-middle text-center">
                 <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
                   className="rounded-lg px-2.5 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
                   {isRemoving ? "..." : "删除"}
