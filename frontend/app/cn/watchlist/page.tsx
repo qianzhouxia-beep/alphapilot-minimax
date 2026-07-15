@@ -412,7 +412,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
               <div className={"px-2 py-3 text-right font-mono " + (d2 != null || d3 != null ? "text-text-secondary" : "text-text-disabled")}>
                 {d2 != null ? (d2 > 0 ? "+" : "") + d2 + "%" : d3 != null ? (d3 > 0 ? "+" : "") + d3 + "%" : "—"}
               </div>
-              <div className="px-2 py-3">
+              <div className="px-2 py-3 text-right">
                 <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
                   {rl.text}
                 </span>
