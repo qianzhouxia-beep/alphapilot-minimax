@@ -429,10 +429,10 @@ export default function CNDashboard() {
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <div className="text-right">
                       <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-none">
-                        {item.buy_price > 0 ? item.buy_price.toFixed(2) : "—"}
+                        {(item.live_price || item.buy_price || 0) > 0 ? (item.live_price || item.buy_price || 0).toFixed(2) : "—"}
                       </div>
                       {item.buy_price > 0 && (
-                        <div className="text-[10px] text-text-disabled mt-0.5">昨收 ¥{item.buy_price.toFixed(2)}</div>
+                        <div className="text-[10px] text-text-disabled mt-0.5">{item.live_price ? "实时" : "昨收"} ¥{item.buy_price.toFixed(2)}</div>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5">
