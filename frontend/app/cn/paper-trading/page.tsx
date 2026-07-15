@@ -130,11 +130,11 @@ export default function PaperTradingPage() {
               </colgroup>
               <thead>
                 <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                  <th className="px-3 py-2.5 font-medium text-left">时间</th>
-                  <th className="px-3 py-2.5 font-medium text-left">股票</th>
-                  <th className="px-3 py-2.5 font-medium text-center">操作</th>
-                  <th className="px-3 py-2.5 font-medium text-right">价格</th>
-                  <th className="px-3 py-2.5 font-medium text-right">数量</th>
+                  <th className="px-3 py-2.5 font-medium text-left align-middle">时间</th>
+                  <th className="px-3 py-2.5 font-medium text-left align-middle">股票</th>
+                  <th className="px-3 py-2.5 font-medium text-center align-middle">操作</th>
+                  <th className="px-3 py-2.5 font-medium text-right align-middle">价格</th>
+                  <th className="px-3 py-2.5 font-medium text-right align-middle">数量</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,11 +218,11 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
             </colgroup>
             <thead>
               <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                <th className="px-3 py-2.5 font-medium text-left">股票</th>
-                <th className="px-3 py-2.5 font-medium text-right">入场价</th>
-                <th className="px-3 py-2.5 font-medium text-right">现价</th>
-                <th className="px-3 py-2.5 font-medium text-right">盈亏</th>
-                <th className="px-3 py-2.5 font-medium text-right">止损</th>
+                <th className="px-3 py-2.5 font-medium text-left align-middle">股票</th>
+                <th className="px-3 py-2.5 font-medium text-right align-middle">入场价</th>
+                <th className="px-3 py-2.5 font-medium text-right align-middle">现价</th>
+                <th className="px-3 py-2.5 font-medium text-right align-middle">盈亏</th>
+                <th className="px-3 py-2.5 font-medium text-right align-middle">止损</th>
               </tr>
             </thead>
             <tbody>

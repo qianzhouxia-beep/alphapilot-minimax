@@ -265,16 +265,16 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
-            <th className="px-2 py-2.5 font-medium text-left">股票</th>
-            <th className="px-2 py-2.5 font-medium text-left whitespace-nowrap">添加时间</th>
-            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">入场</th>
-            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">实时</th>
-            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">浮动</th>
-            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">评分</th>
-            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+1</th>
-            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+2</th>
-            <th className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+3</th>
-            <th className="px-2 py-2.5 font-medium text-center">操作</th>
+            <th className="px-2 py-2.5 font-medium text-left align-middle">股票</th>
+            <th className="px-2 py-2.5 font-medium text-left align-middle whitespace-nowrap">添加时间</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle whitespace-nowrap">入场</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle whitespace-nowrap">实时</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle whitespace-nowrap">浮动</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle whitespace-nowrap">评分</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle whitespace-nowrap">T+1</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle whitespace-nowrap">T+2</th>
+            <th className="px-2 py-2.5 font-medium text-right align-middle whitespace-nowrap">T+3</th>
+            <th className="px-2 py-2.5 font-medium text-center align-middle">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -378,15 +378,15 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
-            <th className="px-3 py-2.5 font-medium text-left">股票</th>
-            <th className="px-3 py-2.5 font-medium text-right">买入价</th>
-            <th className="px-3 py-2.5 font-medium text-right">卖出价</th>
-            <th className="px-3 py-2.5 font-medium text-right">收益</th>
-            <th className="px-3 py-2.5 font-medium text-right">收益率</th>
-            <th className="px-3 py-2.5 font-medium text-right">T+1</th>
-            <th className="px-3 py-2.5 font-medium text-right">T+2/3</th>
-            <th className="px-3 py-2.5 font-medium text-right">结果</th>
-            <th className="px-3 py-2.5 font-medium text-center">操作</th>
+            <th className="px-3 py-2.5 font-medium text-left align-middle">股票</th>
+            <th className="px-3 py-2.5 font-medium text-right align-middle">买入价</th>
+            <th className="px-3 py-2.5 font-medium text-right align-middle">卖出价</th>
+            <th className="px-3 py-2.5 font-medium text-right align-middle">收益</th>
+            <th className="px-3 py-2.5 font-medium text-right align-middle">收益率</th>
+            <th className="px-3 py-2.5 font-medium text-right align-middle">T+1</th>
+            <th className="px-3 py-2.5 font-medium text-right align-middle">T+2/3</th>
+            <th className="px-3 py-2.5 font-medium text-right align-middle">结果</th>
+            <th className="px-3 py-2.5 font-medium text-center align-middle">操作</th>
           </tr>
         </thead>
         <tbody>
