@@ -333,7 +333,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
   );
 }
 
-// ═══ 历史记录表格 ═══
+// ═══ 历史记录表格（合并买入卖出）═══
 function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -342,63 +342,101 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
   retracking: string | null;
   onPriceClick?: (w: WatchlistItem) => void;
 }) {
+  // 按 symbol 合并：同一只股票买入+卖出合并为一行
+  const mergedMap = new Map<string, {
+    name: string; symbol: string;
+    buys: WatchlistItem[];  // 买入记录
+    sells: WatchlistItem[]; // 卖出记录
+  }>();
+  for (const w of items) {
+    const key = w.symbol;
+    if (!mergedMap.has(key)) {
+      mergedMap.set(key, { name: w.name, symbol: w.symbol, buys: [], sells: [] });
+    }
+    const entry = mergedMap.get(key)!;
+    if (w.status === "active") {
+      entry.buys.push(w);
+    } else {
+      entry.sells.push(w);
+    }
+  }
+  const mergedRows = Array.from(mergedMap.values());
+
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
-      <table className="w-full text-left data-table min-w-[600px]">
+      <table className="w-full text-left data-table min-w-[700px]">
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
-          <col className="w-[11%]" />
+          <col className="w-[18%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
           <col className="w-[12%]" />
+          <col className="w-[10%]" />
+          <col className="w-[10%]" />
         </colgroup>
         <thead>
           <tr className="text-[11px] uppercase tracking-wider text-text-disabled">
             <th className="px-3 py-2.5 font-medium text-left">股票</th>
-            <th className="px-3 py-2.5 font-medium text-right">入场</th>
+            <th className="px-3 py-2.5 font-medium text-right">买入价</th>
+            <th className="px-3 py-2.5 font-medium text-right">卖出价</th>
+            <th className="px-3 py-2.5 font-medium text-right">收益</th>
+            <th className="px-3 py-2.5 font-medium text-right">收益率</th>
             <th className="px-3 py-2.5 font-medium text-right">T+1</th>
-            <th className="px-3 py-2.5 font-medium text-right">T+2</th>
-            <th className="px-3 py-2.5 font-medium text-right">T+3</th>
-            <th className="px-3 py-2.5 font-medium text-right">总收益</th>
-            <th className="px-3 py-2.5 font-medium text-left">结果</th>
+            <th className="px-3 py-2.5 font-medium text-right">T+2/3</th>
+            <th className="px-3 py-2.5 font-medium text-right">结果</th>
             <th className="px-3 py-2.5 font-medium text-center">操作</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((w) => {
-            const isRemoving = removing === w.symbol;
-            const isRetracking = retracking === w.symbol;
-            const tr = totalReturn(w);
-            const rl = resultLabel(w.day1_change);
+          {mergedRows.map((row) => {
+            const all = [...row.buys, ...row.sells];
+            const lastSell = row.sells.length > 0 ? row.sells[row.sells.length - 1] : null;
+            const firstBuy = row.buys.length > 0 ? row.buys[0] : (row.sells.length > 0 ? row.sells[0] : null);
+            if (!firstBuy) return null;
+            
+            const entryPrice = firstBuy.entry_price || 0;
+            const exitPrice = lastSell?.current_price || lastSell?.day3_price || lastSell?.day2_price || lastSell?.day1_price || entryPrice;
+            const profitAmt = exitPrice - entryPrice;
+            const profitPct = entryPrice > 0 ? ((exitPrice - entryPrice) / entryPrice * 100) : 0;
+            const d1 = firstBuy.day1_change;
+            const d2 = firstBuy.day2_change;
+            const d3 = firstBuy.day3_change;
+            const hasSell = row.sells.length > 0;
+            
+            const isRemoving = removing === row.symbol;
+            const rl = resultLabel(d1);
+            
             return (
-            <tr key={w.id} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
+            <tr key={row.symbol} className="border-b border-border-subtle/30 text-[13px] hover:bg-primary/4 transition-colors">
               <td className="px-3 py-3">
                 <div className="flex items-center gap-2">
                   <div>
-                    <div className="text-[14px] font-semibold text-text-primary">{w.name}</div>
-                    <div className="text-[10px] text-text-disabled">{w.symbol}</div>
+                    <div className="text-[14px] font-semibold text-text-primary">{row.name}</div>
+                    <div className="text-[10px] text-text-disabled font-mono">{row.symbol}</div>
                   </div>
                 </div>
               </td>
               <td className="px-3 py-3 text-right font-mono text-status-warning">
-                <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...w, symbol: w.symbol, name: w.name, entry_price: w.entry_price || 0 } as any)}>
-                  ¥{(w.entry_price || 0).toFixed(2)}
+                <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...firstBuy, symbol: row.symbol, name: row.name, entry_price: entryPrice } as any)}>
+                  ¥{entryPrice.toFixed(2)}
                 </span>
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${w.day1_change != null ? (w.day1_change >= 3 ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-                {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%` : "—"}
+              <td className={`px-3 py-3 text-right font-mono ${hasSell ? "text-status-success" : "text-text-disabled"}`}>
+                {hasSell ? `¥${exitPrice.toFixed(2)}` : "—"}
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-                {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
+              <td className={`px-3 py-3 text-right font-mono font-semibold ${profitPct >= 0 ? "text-status-success" : "text-status-danger"}`}>
+                {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
               </td>
-              <td className={`px-3 py-3 text-right font-mono ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-                {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
+              <td className={`px-3 py-3 text-right font-mono font-semibold ${profitPct >= 3 ? "text-status-success" : profitPct >= 0 ? "text-text-secondary" : "text-status-danger"}`}>
+                {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(2)}%
               </td>
-              <td className={`px-3 py-3 text-right font-mono font-semibold ${tr != null ? (tr >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled"}`}>
-                {tr != null ? `${tr > 0 ? "+" : ""}${tr.toFixed(2)}%` : "—"}
+              <td className={`px-3 py-3 text-right font-mono ${d1 != null ? (d1 >= 3 ? "text-status-success font-semibold" : d1 >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
+                {d1 != null ? `${d1 > 0 ? "+" : ""}${d1}%` : "—"}
+              </td>
+              <td className={`px-3 py-3 text-right font-mono ${d2 != null || d3 != null ? "text-text-secondary" : "text-text-disabled"}`}>
+                {d2 != null ? `${d2 > 0 ? "+" : ""}${d2}%` : d3 != null ? `${d3 > 0 ? "+" : ""}${d3}%` : "—"}
               </td>
               <td className="px-3 py-3">
                 <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
@@ -407,11 +445,14 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
               </td>
               <td className="px-3 py-3">
                 <div className="flex items-center justify-center gap-1.5">
-                  <button onClick={() => onRetrack(w)} disabled={isRetracking}
+                  <button onClick={() => {
+                    const w = row.buys.length > 0 ? row.buys[0] : row.sells[0];
+                    if (w) onRetrack(w);
+                  }} disabled={isRemoving}
                     className="rounded-lg px-2 py-1.5 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
-                    {isRetracking ? "..." : "再追踪"}
+                    再追踪
                   </button>
-                  <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
+                  <button onClick={() => onRemove(row.symbol)} disabled={isRemoving}
                     className="rounded-lg px-2 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
                     {isRemoving ? "..." : "删除"}
                   </button>
