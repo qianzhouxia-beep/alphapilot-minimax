@@ -120,11 +120,11 @@ export default function PaperTradingPage() {
             交易记录
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-left data-table" style={{ tableLayout: "fixed" }}>
+            <table className="w-full text-left data-table">
               <colgroup>
-                <col className="w-[22%]" />
-                <col className="w-[25%]" />
-                <col className="w-[13%]" />
+                <col className="w-[20%]" />
+                <col className="w-[28%]" />
+                <col className="w-[12%]" />
                 <col className="w-[20%]" />
                 <col className="w-[20%]" />
               </colgroup>
@@ -208,13 +208,13 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
 
       {strategy.positions.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-left data-table" style={{ tableLayout: "fixed" }}>
+          <table className="w-full text-left data-table">
             <colgroup>
-              <col className="w-[30%]" />
-              <col className="w-[17.5%]" />
-              <col className="w-[17.5%]" />
-              <col className="w-[17.5%]" />
-              <col className="w-[17.5%]" />
+              <col className="w-[28%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
