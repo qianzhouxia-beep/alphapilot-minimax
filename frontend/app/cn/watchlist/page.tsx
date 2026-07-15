@@ -12,9 +12,9 @@ import {
 
 function resultLabel(chg: number | null): { text: string; color: string; bg: string } {
   if (chg == null) return { text: "待定", color: "#9FB0C7", bg: "rgba(159,176,199,0.15)" };
-  if (chg >= 3) return { text: "达标", color: "#3EE6A8", bg: "rgba(62,230,168,0.15)" };
-  if (chg > 0) return { text: "微盈", color: "#F5C451", bg: "rgba(245,196,81,0.15)" };
-  return { text: "亏损", color: "#FF5D5D", bg: "rgba(255,93,93,0.15)" };
+  if (chg >= 3) return { text: "达标", color: "#FF5D5D", bg: "rgba(255,93,93,0.15)" };
+  if (chg > 0) return { text: "微盈", color: "#FF5D5D", bg: "rgba(255,93,93,0.10)" };
+  return { text: "亏损", color: "#3EE6A8", bg: "rgba(62,230,168,0.15)" };
 }
 
 function totalReturn(w: WatchlistItem): number | null {
@@ -295,13 +295,13 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
             {chg != null ? (chg > 0 ? "+" : "") + chg + "%" : "—"}
           </div>
           <div className="px-2 py-3 text-right font-mono text-text-secondary whitespace-nowrap">{(w.model_score * 100).toFixed(0)}%</div>
-          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day1_change != null ? (d1Hit ? "text-status-danger font-semibold" : w.day1_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
             {w.day1_change != null ? (w.day1_change > 0 ? "+" : "") + w.day1_change + "%" + (d1Hit ? " 🎯" : "") : "—"}
           </div>
-          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day2_change != null ? (w.day2_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
             {w.day2_change != null ? (w.day2_change > 0 ? "+" : "") + w.day2_change + "%" : "—"}
           </div>
-          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day3_change != null ? (w.day3_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
             {w.day3_change != null ? (w.day3_change > 0 ? "+" : "") + w.day3_change + "%" : "—"}
           </div>
           <div className="px-2 py-3 text-center">
@@ -455,11 +455,11 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
                 )}
               </div>
               {/* 盈余 */}
-              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitAmt >= 0 ? "text-status-success" : "text-status-danger")}>
+              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitAmt >= 0 ? "text-status-danger" : "text-status-success")}>
                 {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
               </div>
               {/* 盈亏% */}
-              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitPct >= 3 ? "text-status-success" : profitPct >= 0 ? "text-text-secondary" : "text-status-danger")}>
+              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitPct >= 3 ? "text-status-danger" : profitPct >= 0 ? "text-text-secondary" : "text-status-success")}>
                 {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(2)}%
               </div>
               {/* 结果 */}

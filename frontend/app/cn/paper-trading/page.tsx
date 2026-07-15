@@ -374,11 +374,11 @@ function TradeLogTable({ tradeLog }: { tradeLog: TradeLogEntry[] }) {
               {qty > 0 ? qty.toLocaleString() : "—"}
             </div>
             {/* 盈余 */}
-            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitAmt >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled")}>
+            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitAmt >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
               {hasBuy && hasSell ? (profitAmt >= 0 ? "+" : "") + "￥" + profitAmt.toFixed(2) : "—"}
             </div>
             {/* 盈亏% */}
-            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitPct >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled")}>
+            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitPct >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
               {hasBuy && hasSell ? (profitPct >= 0 ? "+" : "") + profitPct.toFixed(2) + "%" : "—"}
             </div>
             {/* 操作类型 */}
