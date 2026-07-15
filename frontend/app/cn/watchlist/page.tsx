@@ -316,7 +316,22 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
   );
 }
 
-// ═══ 历史记录表格（合并买入卖出）═══
+// ═══ 历史记录表格（合并买入卖出，含数量/盈余）═══
+const DEFAULT_QTY = 100; // 默认买入数量（股）
+
+// 从 localStorage 读取每只股票的自定义数量
+function loadQtyMap(): Record<string, number> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem("watchlist_qty_map");
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+function saveQtyMap(map: Record<string, number>) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("watchlist_qty_map", JSON.stringify(map));
+}
+
 function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
@@ -325,11 +340,29 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
   retracking: string | null;
   onPriceClick?: (w: WatchlistItem) => void;
 }) {
+  // 数量编辑状态
+  const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
+  const [editingQty, setEditingQty] = useState<string | null>(null);
+  const [qtyInput, setQtyInput] = useState("");
+
+  useEffect(() => { setQtyMap(loadQtyMap()); }, []);
+
+  const getQty = (symbol: string) => qtyMap[symbol] ?? DEFAULT_QTY;
+  const handleQtySave = (symbol: string) => {
+    const q = parseInt(qtyInput, 10);
+    if (!isNaN(q) && q > 0) {
+      const next = { ...qtyMap, [symbol]: q };
+      setQtyMap(next);
+      saveQtyMap(next);
+    }
+    setEditingQty(null);
+  };
+
   // 按 symbol 合并：同一只股票买入+卖出合并为一行
   const mergedMap = new Map<string, {
     name: string; symbol: string;
-    buys: WatchlistItem[];  // 买入记录
-    sells: WatchlistItem[]; // 卖出记录
+    buys: WatchlistItem[];
+    sells: WatchlistItem[];
   }>();
   for (const w of items) {
     const key = w.symbol;
@@ -345,78 +378,97 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
   }
   const mergedRows = Array.from(mergedMap.values());
 
+  // 8 列：股票 | 买入价 | 卖出价 | 数量 | 盈余 | 盈亏% | 结果 | 操作
+  const gridCols = "grid-cols-[12fr_5fr_5fr_4fr_5fr_5fr_4fr_5fr]";
+
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
       {/* Header */}
-      <div className="grid grid-cols-[10fr_6fr_5fr_5fr_4fr_4fr_4fr_4fr_4fr_4fr] gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle">
+      <div className={"grid " + gridCols + " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"}>
         <div className="px-2 py-2.5 font-medium text-left">股票</div>
-        <div className="px-2 py-2.5 font-medium text-left whitespace-nowrap">时间</div>
         <div className="px-2 py-2.5 font-medium text-right">买入价</div>
         <div className="px-2 py-2.5 font-medium text-right">卖出价</div>
-        <div className="px-2 py-2.5 font-medium text-right">收益</div>
-        <div className="px-2 py-2.5 font-medium text-right">收益率</div>
-        <div className="px-2 py-2.5 font-medium text-right">T+1</div>
-        <div className="px-2 py-2.5 font-medium text-right">T+2/3</div>
+        <div className="px-2 py-2.5 font-medium text-right">数量</div>
+        <div className="px-2 py-2.5 font-medium text-right">盈余</div>
+        <div className="px-2 py-2.5 font-medium text-right">盈亏%</div>
         <div className="px-2 py-2.5 font-medium text-right">结果</div>
         <div className="px-2 py-2.5 font-medium text-center">操作</div>
       </div>
       {mergedRows.map((row) => {
-            const all = [...row.buys, ...row.sells];
             const lastSell = row.sells.length > 0 ? row.sells[row.sells.length - 1] : null;
             const firstBuy = row.buys.length > 0 ? row.buys[0] : (row.sells.length > 0 ? row.sells[0] : null);
             if (!firstBuy) return null;
-            
+
             const entryPrice = firstBuy.entry_price || 0;
             const exitPrice = lastSell?.current_price || lastSell?.day3_price || lastSell?.day2_price || lastSell?.day1_price || entryPrice;
-            const profitAmt = exitPrice - entryPrice;
-            const profitPct = entryPrice > 0 ? ((exitPrice - entryPrice) / entryPrice * 100) : 0;
-            const d1 = firstBuy.day1_change;
-            const d2 = firstBuy.day2_change;
-            const d3 = firstBuy.day3_change;
             const hasSell = row.sells.length > 0;
-            
+            const qty = getQty(row.symbol);
+            const costTotal = entryPrice * qty;       // 买入总成本
+            const exitTotal = exitPrice * qty;         // 卖出总额
+            const profitAmt = exitTotal - costTotal;   // 盈余（绝对金额）
+            const profitPct = costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : 0;
+            const d1 = firstBuy.day1_change;
+
             const isRemoving = removing === row.symbol;
             const rl = resultLabel(d1);
-            
+            const isEditingQty = editingQty === row.symbol;
+
             return (
-            <div key={row.symbol} className="grid grid-cols-[10fr_6fr_5fr_5fr_4fr_4fr_4fr_4fr_4fr_4fr] gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors">
+            <div key={row.symbol} className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}>
+              {/* 股票 */}
               <div className="px-2 py-3 flex items-center gap-2">
                 <div>
                   <div className="text-[14px] font-semibold text-text-primary">{row.name}</div>
                   <div className="text-[10px] text-text-disabled font-mono">{row.symbol}</div>
+                  <div className="text-[10px] text-text-disabled">
+                    {firstBuy.added_at ? (() => {
+                      const d = new Date(firstBuy.added_at);
+                      return String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0");
+                    })() : ""}
+                  </div>
                 </div>
               </div>
-              <div className="px-2 py-3 text-[11px] text-text-disabled whitespace-nowrap">
-                {firstBuy.added_at ? (() => {
-                  const d = new Date(firstBuy.added_at);
-                  return String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0") + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
-                })() : "—"}
-              </div>
+              {/* 买入价 */}
               <div className="px-2 py-3 text-right font-mono text-status-warning">
                 <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...firstBuy, symbol: row.symbol, name: row.name, entry_price: entryPrice } as any)}>
                   ¥{entryPrice.toFixed(2)}
                 </span>
               </div>
+              {/* 卖出价 */}
               <div className={"px-2 py-3 text-right font-mono " + (hasSell ? "text-text-primary" : "text-text-disabled")}>
                 {hasSell ? "¥" + exitPrice.toFixed(2) : "—"}
               </div>
+              {/* 数量 */}
+              <div className="px-2 py-3 text-right font-mono whitespace-nowrap">
+                {isEditingQty ? (
+                  <input type="number" min="1" step="1" value={qtyInput}
+                    onChange={e => setQtyInput(e.target.value)}
+                    onBlur={() => handleQtySave(row.symbol)}
+                    onKeyDown={e => { if (e.key === "Enter") handleQtySave(row.symbol); if (e.key === "Escape") setEditingQty(null); }}
+                    className="w-[60px] rounded border border-border-subtle bg-background px-1 py-0.5 text-right text-[12px] font-mono outline-none focus:border-status-info"
+                    autoFocus />
+                ) : (
+                  <span className="cursor-pointer hover:text-status-info transition-colors"
+                    onClick={() => { setEditingQty(row.symbol); setQtyInput(String(qty)); }}>
+                    {qty.toLocaleString()}股
+                  </span>
+                )}
+              </div>
+              {/* 盈余 */}
               <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitAmt >= 0 ? "text-status-success" : "text-status-danger")}>
                 {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
               </div>
+              {/* 盈亏% */}
               <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitPct >= 3 ? "text-status-success" : profitPct >= 0 ? "text-text-secondary" : "text-status-danger")}>
                 {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(2)}%
               </div>
-              <div className={"px-2 py-3 text-right font-mono " + (d1 != null ? (d1 >= 3 ? "text-status-success font-semibold" : d1 >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
-                {d1 != null ? (d1 > 0 ? "+" : "") + d1 + "%" : "—"}
-              </div>
-              <div className={"px-2 py-3 text-right font-mono " + (d2 != null || d3 != null ? "text-text-secondary" : "text-text-disabled")}>
-                {d2 != null ? (d2 > 0 ? "+" : "") + d2 + "%" : d3 != null ? (d3 > 0 ? "+" : "") + d3 + "%" : "—"}
-              </div>
+              {/* 结果 */}
               <div className="px-2 py-3 text-right">
                 <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
                   {rl.text}
                 </span>
               </div>
+              {/* 操作 */}
               <div className="px-2 py-3 text-center">
                 <div className="flex items-center justify-center gap-1.5">
                   <button onClick={() => {
