@@ -413,12 +413,12 @@ export default function CNDashboard() {
                       const mainPrice = item.live_price || item.buy_price || 0;
                       return (
                         <>
-                          <div className="text-[15px] font-bold font-display-numeric text-text-primary leading-tight mt-0.5">
+                          <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-tight mt-0.5">
                             ¥{mainPrice > 0 ? mainPrice.toFixed(2) : "—"}
-                            <span className="text-[9px] text-text-disabled ml-1 font-normal">{pl.label} {pl.date}</span>
                           </div>
+                          <div className="text-[10px] text-text-disabled">{pl.label} ¥{mainPrice > 0 ? mainPrice.toFixed(2) : "—"}</div>
                           {item.buy_price > 0 && (
-                            <div className="text-[9px] text-text-disabled">推荐价 ¥{item.buy_price.toFixed(2)}</div>
+                            <div className="text-[9px] text-text-disabled mt-0.5">推荐价 ¥{item.buy_price.toFixed(2)}</div>
                           )}
                         </>
                       );
