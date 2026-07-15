@@ -174,7 +174,7 @@ function KPICard({ label, value, sub, color }: { label: string; value: string; s
 }
 
 function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData["strategies"][0]; nextExecution: Record<string, string> }) {
-  const pnlColor = strategy.pnl_pct >= 0 ? "text-status-danger" : "text-status-success";
+  const pnlColor = (strategy.pnl_pct ?? 0) >= 0 ? "text-status-danger" : "text-status-success";
   return (
     <section className="glass card-lift rounded-2xl p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
@@ -193,7 +193,7 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
         </div>
         <div className="text-right">
           <div className={`font-display-numeric text-[20px] ${pnlColor}`}>
-            {strategy.pnl_pct >= 0 ? "+" : ""}{strategy.pnl_pct.toFixed(2)}%
+            {(strategy.pnl_pct ?? 0) >= 0 ? "+" : ""}{(strategy.pnl_pct ?? 0).toFixed(2)}%
           </div>
           <div className="text-[11px] text-text-disabled">策略收益</div>
         </div>
