@@ -1,7 +1,7 @@
-﻿﻿"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse } from "@/lib/cn-api";
+import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse, type TradeLogEntry } from "@/lib/cn-api";
 
 export default function PaperTradingPage() {
   const [data, setData] = useState<PaperTradingData | null>(null);
@@ -97,10 +97,10 @@ export default function PaperTradingPage() {
 
       {/* 账户总览 */}
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-        <KPICard label="总资产" value={`¥${(acc.total_assets / 10000).toFixed(2)}万`} sub={`持仓市值 ${(acc.market_value / 10000).toFixed(2)}万`} color="#A78BFA" />
-        <KPICard label="可用现金" value={`¥${(acc.cash / 10000).toFixed(2)}万`} sub={`剩余资金`} color="#3EE6A8" />
+        <KPICard label="总资产" value={`￥${(acc.total_assets / 10000).toFixed(2)}万`} sub={`持仓市值 ${(acc.market_value / 10000).toFixed(2)}万`} color="#A78BFA" />
+        <KPICard label="可用现金" value={`￥${(acc.cash / 10000).toFixed(2)}万`} sub={`剩余资金`} color="#3EE6A8" />
         <KPICard label="当日收益" value={`${acc.daily_pnl_pct >= 0 ? "+" : ""}${acc.daily_pnl_pct.toFixed(2)}%`} sub={`今日浮盈`} color={acc.daily_pnl_pct >= 0 ? "#FF5D5D" : "#3EE6A8"} />
-        <KPICard label="累计收益" value={`${acc.total_pnl_pct >= 0 ? "+" : ""}${acc.total_pnl_pct.toFixed(2)}%`} sub={`总盈亏 ¥${acc.total_pnl_amount.toFixed(0)}`} color={acc.total_pnl_pct >= 0 ? "#FF5D5D" : "#3EE6A8"} />
+        <KPICard label="累计收益" value={`${acc.total_pnl_pct >= 0 ? "+" : ""}${acc.total_pnl_pct.toFixed(2)}%`} sub={`总盈亏 ￥${acc.total_pnl_amount.toFixed(0)}`} color={acc.total_pnl_pct >= 0 ? "#FF5D5D" : "#3EE6A8"} />
         <KPICard label="交易次数" value={`${acc.trade_count}`} sub={`胜率 ${acc.win_rate.toFixed(0)}%`} color="#F5C451" />
         <KPICard label="最大回撤" value={`${acc.max_drawdown.toFixed(2)}%`} sub="风险指标" color={acc.max_drawdown < -10 ? "#FF5D5D" : "#3EE6A8"} />
       </section>
@@ -119,31 +119,7 @@ export default function PaperTradingPage() {
             <span className="w-1 h-5 rounded-full bg-status-warning"></span>
             交易记录
           </h2>
-          <div className="overflow-x-auto">
-            <div className="grid grid-cols-[1.5fr_2.5fr_1fr_1.5fr_1.5fr] gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle">
-              <div className="px-3 py-2.5 font-medium text-left">时间</div>
-              <div className="px-3 py-2.5 font-medium text-left">股票</div>
-              <div className="px-3 py-2.5 font-medium text-center">操作</div>
-              <div className="px-3 py-2.5 font-medium text-right">价格</div>
-              <div className="px-3 py-2.5 font-medium text-right">数量</div>
-            </div>
-              {data.trade_log.slice(0, 20).map((log, i) => (
-                <div key={i} className="grid grid-cols-[1.5fr_2.5fr_1fr_1.5fr_1.5fr] gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors">
-                  <div className="px-3 py-2.5 text-text-secondary font-mono text-[11px]">{log.time}</div>
-                  <div className="px-3 py-2.5">
-                    <span className="font-semibold text-text-primary">{log.name}</span>
-                    <span className="ml-2 text-text-disabled text-[11px]">{log.symbol}</span>
-                  </div>
-                  <div className="px-3 py-2.5 text-center">
-                    <span className={`tag-badge tag-badge ${
-                      log.action === "买入" ? "bg-[rgba(255,93,93,0.15)] text-status-danger" : "bg-[rgba(62,230,168,0.15)] text-status-success"
-                    }`}>{log.action}</span>
-                  </div>
-                    <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">¥{log.price.toFixed(2)}</div>
-                    <div className="px-3 py-2.5 text-right font-display-numeric text-text-secondary">{log.quantity}</div>
-                  </div>
-                ))}
-          </div>
+          <TradeLogTable tradeLog={data.trade_log} />
         </section>
       )}
 
@@ -182,7 +158,7 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
             </span>
           </div>
           <p className="mt-1 text-[12px] text-text-disabled">
-            分配 ¥{(strategy.allocated / 10000).toFixed(0)}万 · 已用 ¥{(strategy.used / 10000).toFixed(2)}万 · 可用 ¥{((strategy.allocated - strategy.used) / 10000).toFixed(2)}万
+            分配 ￥{(strategy.allocated / 10000).toFixed(0)}万 · 已用 ￥{(strategy.used / 10000).toFixed(2)}万 · 可用 ￥{((strategy.allocated - strategy.used) / 10000).toFixed(2)}万
           </p>
         </div>
         <div className="text-right">
@@ -211,15 +187,15 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
                   <span className="font-semibold text-text-primary">{p.name}</span>
                   <span className="text-text-disabled text-[11px]">{p.symbol}</span>
                 </div>
-                <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">¥{p.entry_price.toFixed(2)}</div>
-                <div className="px-3 py-2.5 text-right font-display-numeric text-status-warning">¥{(p.current_price || p.entry_price).toFixed(2)}</div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">￥{p.entry_price.toFixed(2)}</div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-status-warning">￥{(p.current_price || p.entry_price).toFixed(2)}</div>
                 <div className={`px-3 py-2.5 text-right font-display-numeric ${pColor}`}>
                   {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
                   <div className="text-[10px] text-text-disabled mt-0.5">
-                    ¥{p.pnl_amount >= 0 ? "+" : ""}{p.pnl_amount.toFixed(0)}
+                    ￥{p.pnl_amount >= 0 ? "+" : ""}{p.pnl_amount.toFixed(0)}
                   </div>
                 </div>
-                <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">¥{p.stop_loss.toFixed(2)}</div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">￥{p.stop_loss.toFixed(2)}</div>
               </div>
             );
           })}
@@ -247,7 +223,7 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-text-disabled text-[10px] truncate max-w-[240px]">{s.reason}</span>
-                  <span className="text-status-success font-display-numeric">¥{s.price.toFixed(2)}</span>
+                  <span className="text-status-success font-display-numeric">￥{s.price.toFixed(2)}</span>
                   <span className="text-text-secondary text-[11px]">×{s.quantity}</span>
                 </div>
               </div>
@@ -256,5 +232,164 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
         </div>
       )}
     </section>
+  );
+}
+
+
+// ═══ 交易记录表格（合并买入卖出，含盈余/盈亏%）═══
+function TradeLogTable({ tradeLog }: { tradeLog: TradeLogEntry[] }) {
+  // 按 symbol 分组，同一只股票的买入和卖出配对
+  type MergedRow = {
+    symbol: string;
+    name: string;
+    buyLog: TradeLogEntry | null;
+    sellLog: TradeLogEntry | null;
+    strategyId: string;
+  };
+
+  const grouped = new Map<string, MergedRow>();
+  // 倒序遍历（最新的在前面）
+  for (const log of tradeLog) {
+    const key = log.symbol + "|" + log.strategy_id;
+    if (!grouped.has(key)) {
+      grouped.set(key, { symbol: log.symbol, name: log.name, buyLog: null, sellLog: null, strategyId: log.strategy_id });
+    }
+    const row = grouped.get(key)!;
+    if (log.action === "买入") {
+      // 如果已经有 buyLog，说明是新一轮买入，创建新行
+      if (row.buyLog) {
+        // 已有买入记录，这条作为新行
+        const newKey = log.symbol + "|" + log.strategy_id + "|" + log.time;
+        grouped.set(newKey, { symbol: log.symbol, name: log.name, buyLog: log, sellLog: null, strategyId: log.strategy_id });
+      } else {
+        row.buyLog = log;
+      }
+    } else {
+      // 卖出/止损/止盈 — 找到对应的买入行
+      if (row.buyLog && !row.sellLog) {
+        row.sellLog = log;
+      } else {
+        // 没有对应买入，单独记录
+        const newKey = log.symbol + "|" + log.strategy_id + "|" + log.time;
+        grouped.set(newKey, { symbol: log.symbol, name: log.name, buyLog: null, sellLog: log, strategyId: log.strategy_id });
+      }
+    }
+  }
+
+  // 按时间倒序排列（用卖出时间或买入时间）
+  const rows = Array.from(grouped.values()).sort((a, b) => {
+    const ta = a.sellLog?.time || a.buyLog?.time || "";
+    const tb = b.sellLog?.time || b.buyLog?.time || "";
+    return tb.localeCompare(ta);
+  });
+
+  // 7 列：股票 | 买入价 | 卖出价 | 数量 | 盈余 | 盈亏% | 操作类型
+  const gridCols = "grid-cols-[3fr_3fr_3fr_3fr_4fr_4fr_3fr]";
+
+  const fmtTime = (t: string) => {
+    if (!t) return "";
+    // 取 MM/DD HH:MM
+    const parts = t.split(/[ -]/);
+    if (parts.length >= 3) return parts[1] + "/" + parts[2] + " " + (parts[3] || "").slice(0, 5);
+    return t;
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      {/* Header */}
+      <div className={"grid " + gridCols + " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"}>
+        <div className="px-3 py-2.5 font-medium text-left">股票</div>
+        <div className="px-3 py-2.5 font-medium text-right">买入价</div>
+        <div className="px-3 py-2.5 font-medium text-right">卖出价</div>
+        <div className="px-3 py-2.5 font-medium text-right">数量</div>
+        <div className="px-3 py-2.5 font-medium text-right">盈余</div>
+        <div className="px-3 py-2.5 font-medium text-right">盈亏%</div>
+        <div className="px-3 py-2.5 font-medium text-center">操作</div>
+      </div>
+      {rows.map((row, idx) => {
+        const buy = row.buyLog;
+        const sell = row.sellLog;
+        const hasBuy = !!buy;
+        const hasSell = !!sell;
+        const buyPrice = buy?.price ?? 0;
+        const sellPrice = sell?.price ?? 0;
+        const qty = sell?.quantity ?? buy?.quantity ?? 0;
+        const costTotal = buyPrice * qty;
+        const exitTotal = sellPrice * qty;
+        const profitAmt = hasBuy && hasSell ? exitTotal - costTotal : 0;
+        const profitPct = hasBuy && hasSell && costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : (sell?.pnl_pct ?? 0);
+
+        // 操作类型标签
+        let actionLabel = "—";
+        let actionBg = "rgba(148,163,184,0.15)";
+        let actionColor = "#94A3B8";
+        if (hasBuy && hasSell) {
+          if (sell!.action === "止损") {
+            actionLabel = "止损卖出";
+            actionBg = "rgba(255,93,93,0.15)";
+            actionColor = "#FF5D5D";
+          } else if (sell!.action === "止盈") {
+            actionLabel = "止盈卖出";
+            actionBg = "rgba(62,230,168,0.15)";
+            actionColor = "#3EE6A8";
+          } else {
+            actionLabel = "已卖出";
+            actionBg = "rgba(62,230,168,0.15)";
+            actionColor = "#3EE6A8";
+          }
+        } else if (hasBuy && !hasSell) {
+          actionLabel = "持仓中";
+          actionBg = "rgba(245,196,81,0.15)";
+          actionColor = "#F5C451";
+        } else if (!hasBuy && hasSell) {
+          actionLabel = sell!.action;
+          actionBg = "rgba(148,163,184,0.15)";
+          actionColor = "#94A3B8";
+        }
+
+        return (
+          <div key={idx} className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}>
+            {/* 股票 */}
+            <div className="px-3 py-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-text-primary">{row.name}</span>
+                <span className="text-text-disabled text-[11px]">{row.symbol}</span>
+              </div>
+              <div className="text-[10px] text-text-disabled mt-0.5">
+                {buy && <span>买入 {fmtTime(buy.time)}</span>}
+                {buy && sell && <span className="mx-1">→</span>}
+                {sell && <span>卖出 {fmtTime(sell.time)}</span>}
+              </div>
+            </div>
+            {/* 买入价 */}
+            <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">
+              {hasBuy ? "￥" + buyPrice.toFixed(2) : "—"}
+            </div>
+            {/* 卖出价 */}
+            <div className={"px-3 py-2.5 text-right font-display-numeric " + (hasSell ? "text-status-success" : "text-text-disabled")}>
+              {hasSell ? "￥" + sellPrice.toFixed(2) : "—"}
+            </div>
+            {/* 数量 */}
+            <div className="px-3 py-2.5 text-right font-display-numeric text-text-secondary">
+              {qty > 0 ? qty.toLocaleString() : "—"}
+            </div>
+            {/* 盈余 */}
+            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitAmt >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled")}>
+              {hasBuy && hasSell ? (profitAmt >= 0 ? "+" : "") + "￥" + profitAmt.toFixed(2) : "—"}
+            </div>
+            {/* 盈亏% */}
+            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitPct >= 0 ? "text-status-success" : "text-status-danger") : "text-text-disabled")}>
+              {hasBuy && hasSell ? (profitPct >= 0 ? "+" : "") + profitPct.toFixed(2) + "%" : "—"}
+            </div>
+            {/* 操作类型 */}
+            <div className="px-3 py-2.5 text-center">
+              <span className="tag-badge" style={{ backgroundColor: actionBg, color: actionColor }}>
+                {actionLabel}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
