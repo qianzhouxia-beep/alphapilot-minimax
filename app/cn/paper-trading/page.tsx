@@ -128,6 +128,7 @@ export default function PaperTradingPage() {
                 <col className="w-[20%]" />
                 <col className="w-[20%]" />
               </colgroup>
+              <thead>
                 <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
                   <th className="px-3 py-2.5 font-medium text-left">时间</th>
                   <th className="px-3 py-2.5 font-medium text-left">股票</th>
