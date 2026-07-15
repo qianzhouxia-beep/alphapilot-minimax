@@ -402,11 +402,27 @@ export default function CNDashboard() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-col items-end shrink-0">
                     {/* Change % badge */}
                     <span className={`text-[13px] font-bold font-display-numeric ${isUp ? "text-status-danger" : "text-status-success"}`}>
                       {changePct > 0 ? "+" : ""}{changePct.toFixed(2)}%
                     </span>
+                    {/* Price below change % */}
+                    {(() => {
+                      const pl = getPriceLabel();
+                      const mainPrice = item.live_price || item.buy_price || 0;
+                      return (
+                        <>
+                          <div className="text-[15px] font-bold font-display-numeric text-text-primary leading-tight mt-0.5">
+                            ¥{mainPrice > 0 ? mainPrice.toFixed(2) : "—"}
+                            <span className="text-[9px] text-text-disabled ml-1 font-normal">{pl.label} {pl.date}</span>
+                          </div>
+                          {item.buy_price > 0 && (
+                            <div className="text-[9px] text-text-disabled">推荐价 ¥{item.buy_price.toFixed(2)}</div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -448,23 +464,8 @@ export default function CNDashboard() {
                     </div>
                   </div>
 
-                  {/* Right: Price + Actions */}
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    {(() => {
-                      const pl = getPriceLabel();
-                      const mainPrice = item.live_price || item.buy_price || 0;
-                      return (
-                    <div className="text-right">
-                      <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-none">
-                        ¥{mainPrice > 0 ? mainPrice.toFixed(2) : "—"}
-                        <span className="text-[10px] text-text-disabled ml-1 font-normal">{pl.label} {pl.date}</span>
-                      </div>
-                      {item.buy_price > 0 && (
-                        <div className="text-[10px] text-text-disabled mt-0.5">推荐价 ¥{item.buy_price.toFixed(2)}</div>
-                      )}
-                    </div>
-                      );
-                    })()}
+                  {/* Right: Actions only */}
+                  <div className="flex flex-col items-end justify-end gap-2 shrink-0">
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleToggleWatchlist(item)}
@@ -876,6 +877,9 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                         <span className={`text-[10px] font-bold font-display-numeric w-[24px] text-center ${
                           displayScore(s.score_raw || s.score) > 85 ? "text-status-success" : displayScore(s.score_raw || s.score) > 80 ? "text-primary" : "text-text-secondary"
                         }`}>{displayScore(s.score_raw || s.score)}</span>
+                        <span className="text-[10px] font-display-numeric text-text-secondary w-[52px] text-right shrink-0">
+                          ¥{(s.live_price || s.price || s.buy_price || 0).toFixed(2)}
+                        </span>
                         <span className={`font-display-numeric text-[11px] font-medium w-[48px] text-right shrink-0 ${chgColor}`}>{chgStr}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); onToggleWatchlist(s); }}
