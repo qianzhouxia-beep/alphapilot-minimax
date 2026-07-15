@@ -149,9 +149,9 @@ export default function WatchlistPage() {
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-8">
           <StatCard label="追踪中" value={activeItems.length} accent="#3EE6A8" />
           <StatCard label="历史记录" value={totalCompleted} accent="#A78BFA" />
-          <StatCard label="T+1" value={totalTracked > 0 ? `胜率 ${winRate.toFixed(0)}%` : "—"} sub={totalTracked > 0 ? `均收益 ${avgReturn > 0 ? "+" : ""}${avgReturn.toFixed(2)}%` : ""} accent="#F5C451" />
-          <StatCard label="T+2" value={totalTracked > 0 ? `胜率 ${winRate2.toFixed(0)}%` : "—"} sub={totalTracked > 0 ? `均收益 ${avgReturn2 > 0 ? "+" : ""}${avgReturn2.toFixed(2)}%` : ""} accent="#A78BFA" />
-          <StatCard label="T+3" value={totalTracked > 0 ? `胜率 ${winRate3.toFixed(0)}%` : "—"} sub={totalTracked > 0 ? `均收益 ${avgReturn3 > 0 ? "+" : ""}${avgReturn3.toFixed(2)}%` : ""} accent="#9FB0C7" />
+          <StatCard label="T+1" value={totalTracked > 0 ? "胜率 " + winRate.toFixed(0) + "%" : "—"} sub={totalTracked > 0 ? "均收益 " + (avgReturn > 0 ? "+" : "") + avgReturn.toFixed(2) + "%" : ""} accent="#F5C451" />
+          <StatCard label="T+2" value={totalTracked > 0 ? "胜率 " + winRate2.toFixed(0) + "%" : "—"} sub={totalTracked > 0 ? "均收益 " + (avgReturn2 > 0 ? "+" : "") + avgReturn2.toFixed(2) + "%" : ""} accent="#A78BFA" />
+          <StatCard label="T+3" value={totalTracked > 0 ? "胜率 " + winRate3.toFixed(0) + "%" : "—"} sub={totalTracked > 0 ? "均收益 " + (avgReturn3 > 0 ? "+" : "") + avgReturn3.toFixed(2) + "%" : ""} accent="#9FB0C7" />
           <StatCard label="总收录" value={items.length} accent="#9FB0C7" />
         </div>
 
@@ -272,7 +272,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
         const fmtTime = (t?: string) => {
           if (!t) return "—";
           const d = new Date(t);
-          return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+          return String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0") + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
         };
         return (
         <div key={w.id} className="grid grid-cols-[2fr_1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors">
@@ -288,21 +288,21 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
               ¥{(w.entry_price || 0).toFixed(2)}
             </span>
           </div>
-          <div className={`px-2 py-3 text-right font-mono whitespace-nowrap ${w.current_price != null ? "text-text-primary" : "text-text-disabled"}`}>
-            {w.current_price != null ? `¥${w.current_price.toFixed(2)}` : "—"}
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.current_price != null ? "text-text-primary" : "text-text-disabled")}>
+            {w.current_price != null ? "¥" + w.current_price.toFixed(2) : "—"}
           </div>
-          <div className={`px-2 py-3 text-right font-mono font-semibold whitespace-nowrap ${chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled"}`}>
-            {chg != null ? `${chg > 0 ? "+" : ""}${chg}%` : "—"}
+          <div className={"px-2 py-3 text-right font-mono font-semibold whitespace-nowrap " + (chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
+            {chg != null ? (chg > 0 ? "+" : "") + chg + "%" : "—"}
           </div>
           <div className="px-2 py-3 text-right font-mono text-text-secondary whitespace-nowrap">{(w.model_score * 100).toFixed(0)}%</div>
-          <div className={`px-2 py-3 text-right font-mono whitespace-nowrap ${w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-            {w.day1_change != null ? `${w.day1_change > 0 ? "+" : ""}${w.day1_change}%${d1Hit ? " 🎯" : ""}` : "—"}
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day1_change != null ? (d1Hit ? "text-status-success font-semibold" : w.day1_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
+            {w.day1_change != null ? (w.day1_change > 0 ? "+" : "") + w.day1_change + "%" + (d1Hit ? " 🎯" : "") : "—"}
           </div>
-          <div className={`px-2 py-3 text-right font-mono whitespace-nowrap ${w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-            {w.day2_change != null ? `${w.day2_change > 0 ? "+" : ""}${w.day2_change}%` : "—"}
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day2_change != null ? (w.day2_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
+            {w.day2_change != null ? (w.day2_change > 0 ? "+" : "") + w.day2_change + "%" : "—"}
           </div>
-          <div className={`px-2 py-3 text-right font-mono whitespace-nowrap ${w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-            {w.day3_change != null ? `${w.day3_change > 0 ? "+" : ""}${w.day3_change}%` : "—"}
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day3_change != null ? (w.day3_change >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
+            {w.day3_change != null ? (w.day3_change > 0 ? "+" : "") + w.day3_change + "%" : "—"}
           </div>
           <div className="px-2 py-3 text-center">
             <button onClick={() => onRemove(w.symbol)} disabled={isRemoving}
@@ -389,7 +389,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
               <div className="px-2 py-3 text-[11px] text-text-disabled whitespace-nowrap">
                 {firstBuy.added_at ? (() => {
                   const d = new Date(firstBuy.added_at);
-                  return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+                  return String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0") + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
                 })() : "—"}
               </div>
               <div className="px-2 py-3 text-right font-mono text-status-warning">
@@ -397,20 +397,20 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
                   ¥{entryPrice.toFixed(2)}
                 </span>
               </div>
-              <div className={`px-2 py-3 text-right font-mono ${hasSell ? "text-text-primary" : "text-text-disabled"}`}>
-                {hasSell ? `¥${exitPrice.toFixed(2)}` : "—"}
+              <div className={"px-2 py-3 text-right font-mono " + (hasSell ? "text-text-primary" : "text-text-disabled")}>
+                {hasSell ? "¥" + exitPrice.toFixed(2) : "—"}
               </div>
-              <div className={`px-2 py-3 text-right font-mono font-semibold ${profitAmt >= 0 ? "text-status-success" : "text-status-danger"}`}>
+              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitAmt >= 0 ? "text-status-success" : "text-status-danger")}>
                 {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
               </div>
-              <div className={`px-2 py-3 text-right font-mono font-semibold ${profitPct >= 3 ? "text-status-success" : profitPct >= 0 ? "text-text-secondary" : "text-status-danger"}`}>
+              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitPct >= 3 ? "text-status-success" : profitPct >= 0 ? "text-text-secondary" : "text-status-danger")}>
                 {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(2)}%
               </div>
-              <div className={`px-2 py-3 text-right font-mono ${d1 != null ? (d1 >= 3 ? "text-status-success font-semibold" : d1 >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled"}`}>
-                {d1 != null ? `${d1 > 0 ? "+" : ""}${d1}%` : "—"}
+              <div className={"px-2 py-3 text-right font-mono " + (d1 != null ? (d1 >= 3 ? "text-status-success font-semibold" : d1 >= 0 ? "text-text-secondary" : "text-status-danger") : "text-text-disabled")}>
+                {d1 != null ? (d1 > 0 ? "+" : "") + d1 + "%" : "—"}
               </div>
-              <div className={`px-2 py-3 text-right font-mono ${d2 != null || d3 != null ? "text-text-secondary" : "text-text-disabled"}`}>
-                {d2 != null ? `${d2 > 0 ? "+" : ""}${d2}%` : d3 != null ? `${d3 > 0 ? "+" : ""}${d3}%` : "—"}
+              <div className={"px-2 py-3 text-right font-mono " + (d2 != null || d3 != null ? "text-text-secondary" : "text-text-disabled")}>
+                {d2 != null ? (d2 > 0 ? "+" : "") + d2 + "%" : d3 != null ? (d3 > 0 ? "+" : "") + d3 + "%" : "—"}
               </div>
               <div className="px-2 py-3">
                 <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
