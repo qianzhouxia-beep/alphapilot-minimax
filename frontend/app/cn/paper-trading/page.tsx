@@ -123,28 +123,28 @@ export default function PaperTradingPage() {
             <table className="w-full text-left data-table">
               <thead>
                 <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                  <th className="px-3 py-2 font-medium">时间</th>
-                  <th className="px-3 py-2 font-medium">股票</th>
-                  <th className="px-3 py-2 font-medium">操作</th>
-                  <th className="px-3 py-2 font-medium text-right">价格</th>
-                  <th className="px-3 py-2 font-medium text-right">数量</th>
+                  <th className="px-3 py-2.5 font-medium text-left">时间</th>
+                  <th className="px-3 py-2.5 font-medium text-left">股票</th>
+                  <th className="px-3 py-2.5 font-medium text-center">操作</th>
+                  <th className="px-3 py-2.5 font-medium text-right">价格</th>
+                  <th className="px-3 py-2.5 font-medium text-right">数量</th>
                 </tr>
               </thead>
               <tbody>
                 {data.trade_log.slice(0, 20).map((log, i) => (
                   <tr key={i} className="border-b border-border-subtle/30 text-[13px]">
-                    <td className="px-3 py-2 text-text-secondary font-mono text-[11px]">{log.time}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5 align-middle text-text-secondary font-mono text-[11px]">{log.time}</td>
+                    <td className="px-3 py-2.5 align-middle">
                       <span className="font-semibold text-text-primary">{log.name}</span>
                       <span className="ml-2 text-text-disabled text-[11px]">{log.symbol}</span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5 align-middle text-center">
                       <span className={`tag-badge tag-badge ${
                         log.action === "买入" ? "bg-[rgba(255,93,93,0.15)] text-status-danger" : "bg-[rgba(62,230,168,0.15)] text-status-success"
                       }`}>{log.action}</span>
                     </td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-text-primary">¥{log.price.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-text-secondary">{log.quantity}</td>
+                    <td className="px-3 py-2.5 align-middle text-right font-display-numeric text-text-primary">¥{log.price.toFixed(2)}</td>
+                    <td className="px-3 py-2.5 align-middle text-right font-display-numeric text-text-secondary">{log.quantity}</td>
                   </tr>
                 ))}
               </tbody>
@@ -204,11 +204,11 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
           <table className="w-full text-left data-table">
             <thead>
               <tr className="border-b border-border-subtle text-[11px] uppercase tracking-wider text-text-disabled">
-                <th className="px-3 py-2 font-medium">股票</th>
-                <th className="px-3 py-2 font-medium text-right">入场价</th>
-                <th className="px-3 py-2 font-medium text-right">现价</th>
-                <th className="px-3 py-2 font-medium text-right">盈亏</th>
-                <th className="px-3 py-2 font-medium text-right">止损</th>
+                <th className="px-3 py-2.5 font-medium text-left">股票</th>
+                <th className="px-3 py-2.5 font-medium text-right">入场价</th>
+                <th className="px-3 py-2.5 font-medium text-right">现价</th>
+                <th className="px-3 py-2.5 font-medium text-right">盈亏</th>
+                <th className="px-3 py-2.5 font-medium text-right">止损</th>
               </tr>
             </thead>
             <tbody>
@@ -217,21 +217,21 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
                 const pColor = pnl >= 0 ? "text-status-danger" : "text-status-success";
                 return (
                   <tr key={p.symbol} className="border-b border-border-subtle/30 text-[13px]">
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2.5 align-middle">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold text-text-primary">{p.name}</span>
                         <span className="text-text-disabled text-[11px]">{p.symbol}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-text-primary">¥{p.entry_price.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-status-warning">¥{(p.current_price || p.entry_price).toFixed(2)}</td>
-                    <td className={`px-3 py-2 text-right font-display-numeric ${pColor}`}>
+                    <td className="px-3 py-2.5 align-middle text-right font-display-numeric text-text-primary">¥{p.entry_price.toFixed(2)}</td>
+                    <td className="px-3 py-2.5 align-middle text-right font-display-numeric text-status-warning">¥{(p.current_price || p.entry_price).toFixed(2)}</td>
+                    <td className={`px-3 py-2.5 align-middle text-right font-display-numeric ${pColor}`}>
                       {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
-                      <div className="text-[10px] text-text-disabled">
+                      <div className="text-[10px] text-text-disabled mt-0.5">
                         ¥{p.pnl_amount >= 0 ? "+" : ""}{p.pnl_amount.toFixed(0)}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-right font-display-numeric text-status-danger">¥{p.stop_loss.toFixed(2)}</td>
+                    <td className="px-3 py-2.5 align-middle text-right font-display-numeric text-status-danger">¥{p.stop_loss.toFixed(2)}</td>
                   </tr>
                 );
               })}
