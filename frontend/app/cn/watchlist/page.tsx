@@ -240,7 +240,6 @@ export default function WatchlistPage() {
 }
 
 // ═══ 追踪中表格（CSS Grid 替代 table，完全避免对齐问题）═══
-const GRID_COLS = "grid-cols-[2fr_1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr]";
 
 function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
   items: WatchlistItem[];
@@ -253,7 +252,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
       {/* Header */}
-      <div className={`grid ${GRID_COLS} gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle`}>
+      <div className={`grid grid grid-cols-[2fr_1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle`}>
         <div className="px-2 py-2.5 font-medium text-left">股票</div>
         <div className="px-2 py-2.5 font-medium text-left whitespace-nowrap">添加时间</div>
         <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">入场</div>
@@ -276,7 +275,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
           return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
         };
         return (
-        <div key={w.id} className={`grid ${GRID_COLS} gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors`}>
+        <div key={w.id} className={`grid grid grid-cols-[2fr_1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors`}>
           <div className="px-2 py-3 flex items-center gap-2">
             <div>
               <div className="text-[14px] font-semibold text-text-primary">{w.name}</div>
@@ -349,7 +348,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
       {/* Header */}
-      <div className={`grid ${GRID_COLS} gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle`}>
+      <div className={`grid grid grid-cols-[2fr_1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle`}>
         <div className="px-2 py-2.5 font-medium text-left">股票</div>
         <div className="px-2 py-2.5 font-medium text-left whitespace-nowrap">时间</div>
         <div className="px-2 py-2.5 font-medium text-right">买入价</div>
@@ -380,7 +379,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
             const rl = resultLabel(d1);
             
             return (
-            <div key={row.symbol} className={`grid ${GRID_COLS} gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors`}>
+            <div key={row.symbol} className={`grid grid grid-cols-[2fr_1.2fr_1fr_1fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors`}>
               <div className="px-2 py-3 flex items-center gap-2">
                 <div>
                   <div className="text-[14px] font-semibold text-text-primary">{row.name}</div>
