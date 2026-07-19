@@ -1,4 +1,4 @@
-﻿﻿"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse } from "@/lib/cn-api";
@@ -231,7 +231,7 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
             <line x1="9" y1="9" x2="15" y2="9"/>
           </svg>
           暂无可信仓
-          <p className="text-[11px] mt-1">下次执行时间: {nextExecution?.[strategy.id] || strategy.id === "v16_daily" ? "每日 14:55 尾盘" : "等待调度"}</p>
+          <p className="text-[11px] mt-1">下次执行时间: {nextExecution?.[strategy.id] || strategy.id === "v16_daily" ? "每日 14:45 尾盘" : "等待调度"}</p>
         </div>
       )}
 

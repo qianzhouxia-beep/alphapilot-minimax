@@ -616,7 +616,7 @@ export default function CNDashboard() {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-[17px] font-semibold text-text-primary">尾盘狙击</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/30">14:50</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/30">14:45</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/30">一夜持股</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/25">S2 规则引擎</span>
             </div>
@@ -666,7 +666,7 @@ export default function CNDashboard() {
         ) : (
           <div className="flex items-center gap-2 rounded-lg bg-surface-container-low px-3 py-2 border border-border-subtle">
             <p className="text-[12px] text-text-disabled">
-              {s2Data ? "今日无符合 S2最优版 条件的标的" : "14:50 自动生成 · S2规则引擎尾盘狙击"}
+              {s2Data ? "今日无符合 S2最优版 条件的标的" : "14:45 自动生成 · S2规则引擎尾盘狙击"}
             </p>
           </div>
         )}

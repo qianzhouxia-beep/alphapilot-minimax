@@ -299,7 +299,7 @@ function StrategyGroupCard({
     nextMap["eod_sniper"] ||
     nextMap[strategies[0]?.id] ||
     (typeof nextExecution === "string" ? nextExecution : null) ||
-    "每日 14:50 尾盘";
+    "每日 14:45 尾盘";
 
   const gridCols =
     "grid-cols-[2.2fr_1fr_1fr_1fr_1.3fr_1.3fr_1.4fr_1.1fr]";
