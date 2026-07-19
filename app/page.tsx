@@ -116,26 +116,34 @@ function Navbar() {
           AlphaPilot
         </div>
         <div className="hidden md:flex gap-8">
-          {["首页", "信号", "策略", "数据"].map((item, i) => (
+          {[
+            { name: "首页", href: "/" },
+            { name: "选股", href: "/cn/screener" },
+            { name: "回测", href: "/cn/backtest" },
+            { name: "资讯", href: "/cn/news" },
+          ].map((item, i) => (
             <a
-              key={item}
-              href="#"
+              key={item.name}
+              href={item.href}
               className={`text-[13px] font-medium transition-colors relative ${
                 i === 0
                   ? "text-purple-primary"
                   : "text-text-secondary hover:text-text-primary"
               }`}
             >
-              {item}
+              {item.name}
               {i === 0 && (
                 <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-purple-primary" />
               )}
             </a>
           ))}
         </div>
-        <button className="bg-text-primary text-white border-none px-[18px] py-[7px] rounded-full text-[13px] font-semibold hover:scale-[1.03] hover:opacity-90 transition-all cursor-pointer">
+        <a
+          href="/cn/"
+          className="bg-text-primary text-white border-none px-[18px] py-[7px] rounded-full text-[13px] font-semibold hover:scale-[1.03] hover:opacity-90 transition-all cursor-pointer inline-block"
+        >
           进入终端
-        </button>
+        </a>
       </div>
     </nav>
   );
@@ -147,7 +155,7 @@ function Hero() {
     <section className="pt-[140px] pb-20 px-6 text-center max-w-[1200px] mx-auto">
       <div className="badge-purple mb-6">
         <span className="w-1.5 h-1.5 rounded-full bg-purple-primary animate-pulse-dot" />
-        V3 漏斗管线已就绪
+        V2.2 评分引擎在线
       </div>
       <h1 className="text-[56px] font-bold tracking-tight leading-[1.1] mb-5 text-gradient max-md:text-[40px] max-sm:text-[32px]">
         用 AI 穿透
@@ -155,12 +163,12 @@ function Hero() {
         市场迷雾
       </h1>
       <p className="text-xl text-text-secondary font-normal max-w-[560px] mx-auto mb-10 leading-relaxed max-sm:text-base">
-        AlphaPilot V3 融合 61 维全特征引擎，从量价行为到资金流向，
+        AlphaPilot V2.2 融合 43 维特征，从量价行为到资金流向，
         用机构级视角锁定每一个建仓信号。
       </p>
       <div className="flex gap-4 justify-center">
-        <button className="btn-primary hover:btn-primary-hover">查看今日信号</button>
-        <button className="btn-secondary hover:btn-secondary-hover">了解策略原理</button>
+        <a href="/cn/screener" className="btn-primary hover:btn-primary-hover inline-block text-center">查看今日信号</a>
+        <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center">了解策略原理</a>
       </div>
     </section>
   );
@@ -230,7 +238,7 @@ function FeaturesSection() {
           全维度决策分析
         </h2>
         <p className="text-lg text-text-secondary">
-          V3 管线 · 61 维特征 · 多模型集成 · 动态风控
+          V2.2 · 43 维特征 · XGBoost 集成 · 动态风控
         </p>
       </div>
       <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
@@ -323,10 +331,10 @@ function SignalSection() {
           <div>
             <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
             <div className="text-sm text-text-secondary mt-1">
-              每日凌晨 5:00 全量扫描 · V3 漏斗管线
+              每日凌晨 5:00 全量扫描 · V2.2 评分管线
             </div>
           </div>
-          <div className="badge-purple">VM2.5 评分引擎</div>
+          <div className="badge-purple">V2.2 评分引擎</div>
         </div>
 
         <div className="overflow-x-auto">
@@ -352,9 +360,9 @@ function SignalSection() {
                   className="group hover:bg-[rgba(124,92,252,0.02)] transition-colors"
                 >
                   <td className="py-4 px-4 border-b border-border-light">
-                    <span className="font-semibold text-text-primary">
+                    <a href={`/cn/stock?symbol=${sig.code}`} className="font-semibold text-text-primary hover:text-purple-primary transition-colors">
                       {sig.name}
-                    </span>
+                    </a>
                     <span className="text-xs text-text-tertiary ml-1">
                       {sig.code}
                     </span>
@@ -416,7 +424,7 @@ function Footer() {
           AlphaPilot
         </div>
         <div className="text-[13px] text-text-tertiary">
-          AlphaPilot V3 · AI 股票智能决策平台
+          AlphaPilot V2.2 · AI 股票智能评分
         </div>
       </div>
     </footer>
