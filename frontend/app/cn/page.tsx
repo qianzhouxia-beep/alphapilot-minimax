@@ -748,10 +748,14 @@ export default function CNDashboard() {
 function KPI({ label, value, sub, accent }: { label: string; value: string; sub: string; accent: string }) {
   const isBest = label === "今日最佳";
   return (
-    <div className={`glass card-lift rounded-2xl p-4 ${isBest ? "border border-[rgba(62,230,168,0.2)]" : ""}`}>
+    <div
+      className={`card-lift rounded-2xl border bg-surface-card p-4 shadow-sm ${
+        isBest ? "border-status-success/30" : "border-border-subtle"
+      }`}
+    >
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wider text-text-disabled">{label}</span>
-        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent, boxShadow: `0 0 8px ${accent}` }}></span>
+        <span className="text-[10px] uppercase tracking-wider text-text-tertiary">{label}</span>
+        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent }} />
       </div>
       <div className="font-display-numeric text-[20px] sm:text-[26px] truncate" style={{ color: accent }}>
         {value}
