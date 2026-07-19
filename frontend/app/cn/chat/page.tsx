@@ -5,11 +5,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { HeaderBar } from "@/components/HeaderBar";
 import {
-  searchCNStocks,
+  searchStocksPinyin,
   startDeepReport,
   getDeepReport,
   listDeepReports,
-  type SearchResult,
+  type StockSearchResult,
   type DeepReportJob,
   type DeepReportListItem,
 } from "@/lib/cn-api";
@@ -97,7 +97,7 @@ function renderMarkdown(md: string): string {
 export default function DeepReportPage() {
   const [query, setQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<StockSearchResult[]>([]);
   const [symbol, setSymbol] = useState("");
   const [name, setName] = useState("");
   const [job, setJob] = useState<DeepReportJob | null>(null);
@@ -144,7 +144,8 @@ export default function DeepReportPage() {
       return;
     }
     try {
-      const list = await searchCNStocks(kw.trim());
+      const res = await searchStocksPinyin(kw.trim());
+      const list = res.results || [];
       setResults(list.slice(0, 8));
       setShowSearch(list.length > 0);
     } catch {
@@ -153,7 +154,7 @@ export default function DeepReportPage() {
     }
   };
 
-  const pickStock = (s: SearchResult) => {
+  const pickStock = (s: StockSearchResult) => {
     const code = s.symbol.replace(/^(sh|sz)/i, "");
     setSymbol(code);
     setName(s.name);
