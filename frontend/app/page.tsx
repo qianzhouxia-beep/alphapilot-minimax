@@ -25,12 +25,32 @@ const stats = [
   { value: "5ms", label: "行情延迟", highlight: false },
 ];
 
-// Sparkline SVG 组件
-function Sparkline({ isUp }: { isUp: boolean }) {
+// 从价格数组构建 SVG 分时线路径
+function buildSparklinePath(prices: number[], w: number, h: number): string {
+  if (!prices || prices.length < 2) return "";
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+  const stepX = w / (prices.length - 1);
+  return prices
+    .map((p, i) => {
+      const x = i * stepX;
+      const y = h - ((p - min) / range) * h;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+// Sparkline SVG 组件（支持真实分时数据）
+function Sparkline({ isUp, prices }: { isUp: boolean; prices?: number[] }) {
   const color = isUp ? "#FF3B30" : "#34C759";
-  const path = isUp
-    ? "M0 35 L10 32 L20 28 L30 30 L40 25 L50 22 L60 18 L70 15 L80 10"
-    : "M0 10 L10 15 L20 12 L30 18 L40 20 L50 22 L60 25 L70 28 L80 30";
+  // 有真实数据则绘制实际路径，否则回退到模拟折线
+  const path =
+    prices && prices.length >= 2
+      ? buildSparklinePath(prices, 80, 40)
+      : isUp
+        ? "M0 35 L10 32 L20 28 L30 30 L40 25 L50 22 L60 18 L70 15 L80 10"
+        : "M0 10 L10 15 L20 12 L30 18 L40 20 L50 22 L60 25 L70 28 L80 30";
   return (
     <svg
       className="absolute right-5 top-1/2 -translate-y-1/2 w-20 h-10 opacity-30"
@@ -126,6 +146,7 @@ function Hero() {
 // 指数卡片（实时拉取）
 function TickerSection() {
   const [indices, setIndices] = useState<IndexData[]>(PLACEHOLDER_INDICES);
+  const [intraday, setIntraday] = useState<Record<string, number[]>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -149,6 +170,21 @@ function TickerSection() {
     return () => { cancelled = true; };
   }, []);
 
+  // 异步拉取日内分时数据用于真实分时线
+  useEffect(() => {
+    fetch("/api/v1/cn/indices/intraday")
+      .then((r) => r.json())
+      .then((d) => {
+        const parsed: Record<string, number[]> = {};
+        for (const [name, data] of Object.entries(d)) {
+          const points = (data as any).points || [];
+          parsed[name] = points.map((p: any) => p.price);
+        }
+        setIntraday(parsed);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="max-w-[1200px] mx-auto mb-[60px] px-6">
       <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
@@ -167,7 +203,7 @@ function TickerSection() {
             <span className={idx.isUp ? "ticker-up" : "ticker-down"}>
               {idx.change}
             </span>
-            <Sparkline isUp={idx.isUp} />
+            <Sparkline isUp={idx.isUp} prices={intraday[idx.name]} />
           </div>
         ))}
       </div>
