@@ -282,6 +282,108 @@ function StatsBar() {
   );
 }
 
+/** 资金硬门控大卡插图：浅色金融风漏斗，填满空白区域 */
+function MoneyGateArt() {
+  return (
+    <div
+      className="relative mt-5 mb-2 flex-1 min-h-[200px] rounded-2xl overflow-hidden border border-border-subtle bg-gradient-to-br from-[#F8F7FF] via-bg-secondary to-[#EEF8F3]"
+      aria-hidden
+    >
+      <svg
+        className="absolute inset-0 w-full h-full"
+        viewBox="0 0 560 280"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <defs>
+          <linearGradient id="mgBar" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#7C5CFC" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#7C5CFC" stopOpacity="0.55" />
+          </linearGradient>
+          <linearGradient id="mgGate" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#7C5CFC" />
+            <stop offset="100%" stopColor="#34C759" />
+          </linearGradient>
+          <linearGradient id="mgFunnel" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stopColor="#7C5CFC" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#7C5CFC" stopOpacity="0.04" />
+          </linearGradient>
+          <filter id="mgSoft" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="8" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* soft orbs */}
+        <circle cx="80" cy="60" r="56" fill="#7C5CFC" opacity="0.07" />
+        <circle cx="480" cy="200" r="70" fill="#34C759" opacity="0.08" />
+
+        {/* inflow bars (left) */}
+        {[
+          [48, 150, 72],
+          [78, 120, 102],
+          [108, 95, 127],
+          [138, 135, 87],
+          [168, 110, 112],
+          [198, 160, 62],
+        ].map(([x, y, h], i) => (
+          <rect
+            key={i}
+            x={x}
+            y={y}
+            width="18"
+            height={h}
+            rx="6"
+            fill="url(#mgBar)"
+            className="origin-bottom transition-transform duration-500 group-hover:scale-y-105"
+          />
+        ))}
+
+        {/* funnel gate */}
+        <path
+          d="M250 48 H420 L360 210 H310 Z"
+          fill="url(#mgFunnel)"
+          stroke="#7C5CFC"
+          strokeOpacity="0.35"
+          strokeWidth="1.5"
+        />
+        <rect x="288" y="118" width="84" height="28" rx="14" fill="url(#mgGate)" opacity="0.92" filter="url(#mgSoft)" />
+        <text x="330" y="137" textAnchor="middle" fill="white" fontSize="12" fontWeight="700" fontFamily="Inter, system-ui, sans-serif">
+          PASS
+        </text>
+
+        {/* output chips */}
+        <rect x="390" y="198" width="120" height="36" rx="12" fill="white" stroke="rgba(124,92,252,0.2)" />
+        <circle cx="410" cy="216" r="5" fill="#34C759" />
+        <text x="424" y="221" fill="#1D1D1F" fontSize="12" fontWeight="600" fontFamily="Inter, system-ui, sans-serif">
+          可执行名单
+        </text>
+
+        {/* flow arrows */}
+        <path d="M220 170 H242" stroke="#7C5CFC" strokeWidth="2" strokeLinecap="round" opacity="0.45" />
+        <path d="M242 170 L250 166 L250 174 Z" fill="#7C5CFC" opacity="0.55" />
+        <path d="M360 170 H382" stroke="#34C759" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
+        <path d="M382 170 L390 166 L390 174 Z" fill="#34C759" opacity="0.65" />
+      </svg>
+
+      <div className="absolute left-4 bottom-3 flex flex-wrap gap-2">
+        {["主动买入", "换手过滤", "量比带", "资金流"].map((t) => (
+          <span
+            key={t}
+            className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-white/90 text-text-secondary border border-border-subtle shadow-sm"
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Bento 功能网格
 function FeaturesSection() {
   return (
@@ -296,14 +398,18 @@ function FeaturesSection() {
       </div>
       <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
         <div className="card p-7 col-span-2 row-span-2 flex flex-col group hover:card-hover relative overflow-hidden max-md:col-span-2 max-sm:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-purple-light flex items-center justify-center mb-4">
+          <div className="w-11 h-11 rounded-xl bg-purple-light flex items-center justify-center mb-4 shrink-0">
             <IconShield />
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">资金硬门控</div>
-          <div className="text-sm text-text-secondary leading-relaxed flex-1">
+          <p className="text-sm text-text-secondary leading-relaxed">
             用主动买入、换手、量比与资金流信号过滤弱资金票，让名单先过「钱在不在」这一关，再谈评分高低。
-          </div>
-          <div className="text-xs font-semibold text-purple-primary mt-auto pt-3">
+          </p>
+          <p className="text-sm text-text-secondary leading-relaxed mt-2">
+            盘中还会结合实时买盘强弱做软加权：资金退潮的票往下排，真正有承接的票才会留在可执行清单里。
+          </p>
+          <MoneyGateArt />
+          <div className="text-xs font-semibold text-purple-primary pt-1 shrink-0">
             先看资金 <span className="opacity-50">·</span> 再看分数
           </div>
         </div>
