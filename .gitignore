@@ -4,3 +4,5 @@ out/
 *.log
 .env
 .env.local
+frontend/public/logo_with_text_backup.png
+public/logo_with_text_backup.png
