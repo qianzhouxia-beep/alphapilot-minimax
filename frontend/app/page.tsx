@@ -1,478 +1,373 @@
+// AlphaPilot Landing Page — AI 驱动智能决策终端
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
+import { fetchCNIndices, type IndexData } from "@/lib/cn-api";
 
-// 指数数据类型
-interface IndexData {
-  name: string;
-  value: string;
-  change: string;
-  isUp: boolean;
-}
+export default function LandingPage() {
+  const [indices, setIndices] = useState<IndexData[] | null>(null);
+  const [indicesLoading, setIndicesLoading] = useState(true);
+  const shaderRef = useRef<HTMLCanvasElement>(null);
+  const threeRef = useRef<HTMLDivElement>(null);
 
-// 指数默认占位（API 失败时显示）
-const PLACEHOLDER_INDICES: IndexData[] = [
-  { name: "上证指数", value: "—", change: "—", isUp: true },
-  { name: "深证成指", value: "—", change: "—", isUp: true },
-  { name: "创业板指", value: "—", change: "—", isUp: true },
-];
-
-const stats = [
-  { value: "84%", label: "波段胜率", highlight: true },
-  { value: "3.2:1", label: "平均盈亏比", highlight: false },
-  { value: "500+", label: "每日信号", highlight: false },
-  { value: "5ms", label: "行情延迟", highlight: false },
-];
-
-// 从价格数组构建 SVG 分时线路径
-function buildSparklinePath(prices: number[], w: number, h: number): string {
-  if (!prices || prices.length < 2) return "";
-  const min = Math.min(...prices);
-  const max = Math.max(...prices);
-  const range = max - min || 1;
-  const stepX = w / (prices.length - 1);
-  return prices
-    .map((p, i) => {
-      const x = i * stepX;
-      const y = h - ((p - min) / range) * h;
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-}
-
-// Sparkline SVG 组件（支持真实分时数据）
-function Sparkline({ isUp, prices }: { isUp: boolean; prices?: number[] }) {
-  const color = isUp ? "#FF3B30" : "#34C759";
-  // 有真实数据则绘制实际路径，否则回退到模拟折线
-  const path =
-    prices && prices.length >= 2
-      ? buildSparklinePath(prices, 80, 40)
-      : isUp
-        ? "M0 35 L10 32 L20 28 L30 30 L40 25 L50 22 L60 18 L70 15 L80 10"
-        : "M0 10 L10 15 L20 12 L30 18 L40 20 L50 22 L60 25 L70 28 L80 30";
-  return (
-    <svg
-      className="absolute right-5 top-1/2 -translate-y-1/2 w-20 h-10 opacity-30"
-      viewBox="0 0 80 40"
-      fill="none"
-      stroke={color}
-      strokeWidth="1.5"
-    >
-      <path d={path} />
-    </svg>
-  );
-}
-
-// 导航栏
-function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "glass-nav shadow-sm" : "bg-transparent"
-      }`}
-    >
-      <div className="max-w-[1200px] mx-auto flex items-center justify-between px-6 h-[52px]">
-        <a href="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight text-text-primary">
-          <Image src="/logo.png" alt="AlphaPilot" width={321} height={264} className="h-8 w-auto" priority />
-        </a>
-        <div className="hidden md:flex gap-8">
-          {[
-            { name: "首页", href: "/" },
-            { name: "选股", href: "/cn/screener" },
-            { name: "回测", href: "/cn/backtest" },
-            { name: "资讯", href: "/cn/news" },
-          ].map((item, i) => (
-            <a
-              key={item.name}
-              href={item.href}
-              className={`text-[13px] font-medium transition-colors relative ${
-                i === 0
-                  ? "text-purple-primary"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              {item.name}
-              {i === 0 && (
-                <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-purple-primary" />
-              )}
-            </a>
-          ))}
-        </div>
-        <a
-          href="/cn/"
-          className="bg-text-primary text-white border-none px-[18px] py-[7px] rounded-full text-[13px] font-semibold hover:scale-[1.03] hover:opacity-90 transition-all cursor-pointer inline-block"
-        >
-          进入终端
-        </a>
-      </div>
-    </nav>
-  );
-}
-
-// Hero 区域
-function Hero() {
-  return (
-    <section className="pt-[140px] pb-20 px-6 text-center max-w-[1200px] mx-auto">
-      <div className="badge-purple mb-6">
-        <span className="w-1.5 h-1.5 rounded-full bg-purple-primary animate-pulse-dot" />
-        V2.2 评分引擎在线
-      </div>
-      <h1 className="text-[56px] font-bold tracking-tight leading-[1.1] mb-5 text-gradient max-md:text-[40px] max-sm:text-[32px]">
-        用 AI 穿透
-        <br />
-        市场迷雾
-      </h1>
-      <p className="text-xl text-text-secondary font-normal max-w-[560px] mx-auto mb-10 leading-relaxed max-sm:text-base">
-        AlphaPilot V2.2 融合 43 维特征，从量价行为到资金流向，
-        用机构级视角锁定每一个建仓信号。
-      </p>
-      <div className="flex gap-4 justify-center">
-        <a href="/cn/screener" className="btn-primary hover:btn-primary-hover inline-block text-center">查看今日信号</a>
-        <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center">了解策略原理</a>
-      </div>
-    </section>
-  );
-}
-
-// 指数卡片（实时拉取）
-function TickerSection() {
-  const [indices, setIndices] = useState<IndexData[]>(PLACEHOLDER_INDICES);
-  const [intraday, setIntraday] = useState<Record<string, number[]>>({});
-
+  // ── 实时指数行情 ──
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/v1/cn/indices")
-      .then((r) => r.json())
-      .then((d) => {
-        if (cancelled) return;
-        const list = d?.indices || [];
-        const mapped: IndexData[] = list.slice(0, 3).map((it: any) => {
-          const pct = Number(it.change_pct) || 0;
-          return {
-            name: it.name,
-            value: Number(it.price).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            change: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-            isUp: pct >= 0,
-          };
-        });
-        if (mapped.length) setIndices(mapped);
-      })
-      .catch(() => { /* keep placeholder */ });
+    const fetch = async () => {
+      try {
+        const res = await fetchCNIndices();
+        if (!cancelled) setIndices(res.indices);
+      } catch { /* fallback to hardcoded */ }
+      if (!cancelled) setIndicesLoading(false);
+    };
+    fetch();
     return () => { cancelled = true; };
   }, []);
 
-  // 异步拉取日内分时数据用于真实分时线
+  // ── Shader Background ──
   useEffect(() => {
-    fetch("/api/v1/cn/indices/intraday")
-      .then((r) => r.json())
-      .then((d) => {
-        const parsed: Record<string, number[]> = {};
-        for (const [name, data] of Object.entries(d)) {
-          const points = (data as any).points || [];
-          parsed[name] = points.map((p: any) => p.price);
-        }
-        setIntraday(parsed);
-      })
-      .catch(() => {});
+    const canvas = shaderRef.current;
+    if (!canvas) return;
+    function syncSize() {
+      const w = canvas.clientWidth || window.innerWidth;
+      const h = canvas.clientHeight || window.innerHeight;
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    }
+    if (typeof ResizeObserver !== "undefined") { new ResizeObserver(syncSize).observe(canvas); }
+    syncSize();
+    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (!gl) return;
+    const vs = `attribute vec2 a_position; varying vec2 v_texCoord; void main() { v_texCoord = a_position * 0.5 + 0.5; gl_Position = vec4(a_position, 0.0, 1.0); }`;
+    const fs = `precision highp float; uniform float u_time; uniform vec2 u_resolution; uniform vec2 u_mouse; varying vec2 v_texCoord; void main() { vec2 uv = v_texCoord; vec3 color_bg = vec3(0.027,0.067,0.122); vec3 color_accent = vec3(0.176,0.639,1.0); vec3 color_primary = vec3(0.302,0.639,1.0); float noise = 0.0; vec2 p = uv*2.0-1.0; p.x *= u_resolution.x/u_resolution.y; for(float i=1.0; i<4.0; i++) { p.x += 0.3/i*sin(i*3.0*p.y+u_time*0.5+i); p.y += 0.3/i*cos(i*3.0*p.x+u_time*0.3+i); noise += 0.1/length(p); } vec2 mouse_norm = u_mouse/u_resolution; float dist_to_mouse = distance(uv,mouse_norm); float glow = smoothstep(0.4,0.0,dist_to_mouse)*0.2; vec3 final_color = mix(color_bg,color_accent,noise*0.2); final_color += color_primary*glow; float grid = (step(0.98,fract(uv.x*20.0))+step(0.98,fract(uv.y*20.0)))*0.03; final_color += vec3(grid); gl_FragColor = vec4(final_color,1.0); }`;
+    function cs(t: number, s: string) { const sh = gl.createShader(t)!; gl.shaderSource(sh, s); gl.compileShader(sh); return sh; }
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+    gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(prog); gl.useProgram(prog);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+    const pos = gl.getAttribLocation(prog, "a_position");
+    gl.enableVertexAttribArray(pos); gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+    const uTime = gl.getUniformLocation(prog, "u_time");
+    const uRes = gl.getUniformLocation(prog, "u_resolution");
+    const uMouse = gl.getUniformLocation(prog, "u_mouse");
+    let mouse = { x: canvas.width/2, y: canvas.height/2 };
+    const onMouse = (e: MouseEvent) => { const r = canvas.getBoundingClientRect(); if (r.width && r.height) { mouse.x = ((e.clientX-r.left)/r.width)*canvas.width; mouse.y = (1.0-(e.clientY-r.top)/r.height)*canvas.height; } };
+    window.addEventListener("mousemove", onMouse);
+    let anim = 0;
+    function render(t: number) { syncSize(); gl.viewport(0,0,canvas.width,canvas.height); if (uTime) gl.uniform1f(uTime, t*0.001); if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height); if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); anim = requestAnimationFrame(render); }
+    render(0);
+    return () => { cancelAnimationFrame(anim); window.removeEventListener("mousemove", onMouse); };
+  }, []);
+
+  // ── Three.js AI Core ──
+  useEffect(() => {
+    const container = threeRef.current;
+    if (!container) return;
+    let anim = 0, renderer: any, scene: any, camera: any, coreGroup: any, rings: any[] = [];
+    import("three").then((THREE) => {
+      const w = container.clientWidth, h = container.clientHeight;
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, w/h, 0.1, 1000);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio); renderer.setSize(w, h);
+      container.appendChild(renderer.domElement);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      const pl = new THREE.PointLight(0x4da3ff, 2); pl.position.set(5,5,5); scene.add(pl);
+      coreGroup = new THREE.Group();
+      coreGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.8,32,32), new THREE.MeshPhongMaterial({ color: 0x2dd4ff, emissive: 0x0a1422, shininess: 100, transparent: true, opacity: 0.8 })));
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x4da3ff, transparent: true, opacity: 0.4 });
+      [1.5,1.8,2.1].forEach((r) => { const ring = new THREE.Mesh(new THREE.TorusGeometry(r,0.02,16,100), ringMat); ring.rotation.x = Math.random()*Math.PI; ring.rotation.y = Math.random()*Math.PI; coreGroup.add(ring); rings.push(ring); });
+      scene.add(coreGroup); camera.position.z = 5;
+      let mx = 0, my = 0;
+      window.addEventListener("mousemove", (e) => { mx = (e.clientX/window.innerWidth)*2-1; my = -(e.clientY/window.innerHeight)*2+1; });
+      window.addEventListener("resize", () => { const nw = container.clientWidth, nh = container.clientHeight; camera.aspect = nw/nh; camera.updateProjectionMatrix(); renderer.setSize(nw, nh); });
+      function animate() { anim = requestAnimationFrame(animate); coreGroup.rotation.y += 0.005; coreGroup.rotation.x += 0.002; rings.forEach((r: any,i) => { r.rotation.z += 0.01*(i+1); r.rotation.x += 0.005*(i+1); }); coreGroup.position.x += (mx*0.5-coreGroup.position.x)*0.05; coreGroup.position.y += (my*0.5-coreGroup.position.y)*0.05; renderer.render(scene, camera); }
+      animate();
+    });
+    return () => { cancelAnimationFrame(anim); if (renderer && renderer.domElement) renderer.domElement.remove(); };
   }, []);
 
   return (
-    <section className="max-w-[1200px] mx-auto mb-[60px] px-6">
-      <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
-        {indices.map((idx) => (
-          <div
-            key={idx.name}
-            className="card-glass p-6 relative overflow-hidden group hover:card-hover"
-          >
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-purple-primary to-[#A78BFA] opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="text-[13px] text-text-tertiary font-medium mb-2 tracking-wide">
-              {idx.name}
-            </div>
-            <div className="text-[32px] font-bold tracking-tight mb-2">
-              {idx.value}
-            </div>
-            <span className={idx.isUp ? "ticker-up" : "ticker-down"}>
-              {idx.change}
-            </span>
-            <Sparkline isUp={idx.isUp} prices={intraday[idx.name]} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+    <div className="relative min-h-screen bg-[#0a1422] text-[#EAF2FF] font-['Inter','Microsoft_YaHei',sans-serif] overflow-x-hidden">
+      <style jsx>{`
+        @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes float { 0%{transform:translateY(0px)} 50%{transform:translateY(-10px)} 100%{transform:translateY(0px)} }
+        .animate-fade-in-up { animation:fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .glass-panel { background:rgba(16,28,48,0.6); backdrop-filter:blur(16px); border:1px solid rgba(29,42,66,0.5); }
+        .no-scrollbar::-webkit-scrollbar { display:none; }
+        .no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
+      `}</style>
 
-// 统计栏
-function StatsBar() {
-  return (
-    <section className="max-w-[1200px] mx-auto mb-[60px] px-6">
-      <div className="card-glass p-8 px-12 flex justify-around items-center max-md:flex-col max-md:gap-6">
-        {stats.map((stat, i) => (
-          <div key={stat.label} className="text-center">
-            <div
-              className={`text-4xl font-bold tracking-tight mb-1 ${
-                stat.highlight ? "text-purple-primary" : "text-text-primary"
-              }`}
-            >
-              {stat.value}
-            </div>
-            <div className="text-[13px] text-text-secondary font-medium">
-              {stat.label}
-            </div>
-            {i < stats.length - 1 && (
-              <div className="hidden md:block absolute w-px h-10 bg-border-light" />
-            )}
+      {/* Top Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-[#0a1422]/80 backdrop-blur-xl border-b border-[#1D2A42]/50 shadow-sm">
+        <div className="flex justify-between items-center h-16 px-8 max-w-[1440px] mx-auto">
+          <div className="flex items-center gap-4">
+            <Link href="/"><Image src="/brand-logo.png" alt="AlphaPilot" className="h-8 w-auto" width={140} height={32} priority /></Link>
           </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-// Bento 功能网格
-function FeaturesSection() {
-  return (
-    <section className="max-w-[1200px] mx-auto mb-20 px-6">
-      <div className="text-center mb-12">
-        <h2 className="text-4xl font-bold tracking-tight mb-3 max-sm:text-[28px]">
-          全维度决策分析
-        </h2>
-        <p className="text-lg text-text-secondary">
-          V2.2 · 43 维特征 · XGBoost 集成 · 动态风控
-        </p>
-      </div>
-      <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
-        {/* 大卡片 - 主力行为雷达 */}
-        <div className="card-glass p-7 col-span-2 row-span-2 flex flex-col group hover:card-hover relative overflow-hidden max-md:col-span-2 max-sm:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-purple-light flex items-center justify-center mb-4">
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/cn" className="text-[#a2c9ff] font-bold border-b-2 border-[#a2c9ff] pb-1 text-[13px]">智能决策终端</Link>
+            <Link href="/cn" className="text-[#c0c7d4] hover:text-[#EAF2FF] transition-colors text-[13px]">A 股选股</Link>
+            <Link href="/cn/watchlist" className="text-[#c0c7d4] hover:text-[#EAF2FF] transition-colors text-[13px]">收藏追踪</Link>
+            <Link href="/cn/paper-trading" className="text-[#c0c7d4] hover:text-[#EAF2FF] transition-colors text-[13px]">量化模拟盘</Link>
+            <Link href="/cn/news" className="text-[#c0c7d4] hover:text-[#EAF2FF] transition-colors text-[13px]">投资资讯</Link>
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            主力行为雷达
-          </div>
-          <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            实时追踪 61 维融合特征穿透式监控主力资金动向，结合多模型集成数据验证持仓分布。识别机构持续流入、短期过热等关键信号。
-          </div>
-          <div className="text-xs font-semibold text-purple-primary mt-auto pt-3">
-            机构持续流入 <span className="opacity-50">·</span> 极高
+          <div className="flex items-center gap-4">
+            <Link href="/cn" className="bg-[#4da3ff] text-[#003866] px-6 py-2 rounded-lg text-[13px] font-medium active:scale-95 duration-200 transition-all hover:brightness-110">立即体验</Link>
           </div>
         </div>
+      </nav>
 
-        {/* 量化信号 */}
-        <div className="card-glass p-7 flex flex-col group hover:card-hover">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(52,199,89,0.1)] flex items-center justify-center mb-4">
-          </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            量化信号筛选
-          </div>
-          <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            基于 XGBoost 集成模型，对全市场 5000+ 标的进行多维度穿透评分。
-          </div>
-          <div className="text-xs font-semibold text-green-positive mt-auto pt-3">
-            Top 1%
-          </div>
-        </div>
-
-        {/* 资金阶段 */}
-        <div className="card-glass p-7 flex flex-col group hover:card-hover">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(255,149,0,0.1)] flex items-center justify-center mb-4">
-          </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            资金阶段识别
-          </div>
-          <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            智能识别吸筹、拉升、出货等 9 种资金运作阶段。
-          </div>
-          <div className="text-xs font-semibold text-[#FF9500] mt-auto pt-3">
-            拉升期
-          </div>
-        </div>
-
-        {/* 风控引擎 - 宽卡片 */}
-        <div className="card-glass p-7 col-span-2 flex flex-col group hover:card-hover max-md:col-span-2 max-sm:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(0,122,255,0.1)] flex items-center justify-center mb-4">
-          </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            动态风控引擎
-          </div>
-          <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            动态追踪止盈 · 自动硬止损 · 单票仓位上限 30% · 最大回撤 -8% 暂停交易。
-          </div>
-          <div className="text-xs font-semibold text-[#007AFF] mt-auto pt-3">
-            硬止损 -3% / -5%
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// 信号表格
-function getPhaseColor(phase: string): string {
-  switch (phase) {
-    case "拉升": case "主升":   return "#FF9500";
-    case "吸筹": case "潜伏":  return "var(--color-purple-primary)";
-    case "出货": case "派发":  return "#FF3B30";
-    default:                  return "var(--color-text-tertiary)";
-  }
-}
-
-function SignalSection() {
-  const [signals, setSignals] = useState<any[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [runAt, setRunAt] = useState("");
-
-  useEffect(() => {
-    fetch("/api/v1/cn/recommend")
-      .then((r) => r.json())
-      .then((d) => {
-        setSignals(d.recommendations || []);
-        setRunAt(d.generated_at || d.run_at || "");
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  // 加载中骨架屏
-  if (loading) {
-    return (
-      <section className="max-w-[1200px] mx-auto mb-20 px-6">
-        <div className="card-glass p-10">
-          <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
-            <div>
-              <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
-              <div className="text-sm text-text-secondary mt-1">正在加载信号数据…</div>
-            </div>
-            <div className="badge-purple">V2.2 评分引擎</div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // 无信号
-  if (!signals || signals.length === 0) {
-    return (
-      <section className="max-w-[1200px] mx-auto mb-20 px-6">
-        <div className="card-glass p-10 relative overflow-hidden max-sm:p-6 text-center">
-          <div className="absolute -top-[100px] -right-[100px] w-[300px] h-[300px] bg-purple-glow rounded-full pointer-events-none" />
-          <div className="flex justify-between items-start mb-4 max-sm:flex-col max-sm:gap-4">
-            <div>
-              <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
-              <div className="text-sm text-text-secondary mt-1">基于 V2.2 全量扫描</div>
-            </div>
-            <div className="badge-purple">V2.2 评分引擎</div>
-          </div>
-          <div className="py-16">
-            <div className="text-lg font-semibold text-text-secondary mb-2">暂无信号</div>
-            <div className="text-sm text-text-tertiary max-w-sm mx-auto">
-              上一个交易日未生成符合条件的信号，下一个交易日凌晨 5:00 重新扫描
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // 有信号 → 显示
-  return (
-    <section className="max-w-[1200px] mx-auto mb-20 px-6">
-      <div className="card-glass p-10 relative overflow-hidden max-sm:p-6">
-        <div className="absolute -top-[100px] -right-[100px] w-[300px] h-[300px] bg-purple-glow rounded-full pointer-events-none" />
-
-        <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
-          <div>
-            <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
-            <div className="text-sm text-text-secondary mt-1">
-              {runAt ? `更新于 ${runAt}` : '基于 V2.2 全量扫描'}
-            </div>
-          </div>
-          <div className="badge-purple">V2.2 评分引擎</div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                {["股票", "评分", "资金阶段", "建议操作"].map((h) => (
-                  <th key={h} className="text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider py-3 px-4 border-b border-border-light">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {signals.slice(0, 10).map((sig: any) => (
-                <tr key={sig.symbol} className="group hover:bg-[rgba(124,92,252,0.02)] transition-colors">
-                  <td className="py-4 px-4 border-b border-border-light">
-                    <a href={`/cn/stock?symbol=${sig.symbol}`} className="font-semibold text-text-primary hover:text-purple-primary transition-colors">
-                      {sig.name}
-                    </a>
-                    <span className="text-xs text-text-tertiary ml-1">{sig.symbol}</span>
-                  </td>
-                  <td className="py-4 px-4 border-b border-border-light">
-                    <div className="flex items-center gap-2.5">
-                      <span className="score-pill">{sig.score?.toFixed(1)}</span>
-                      <div className="w-[60px] h-1 rounded bg-border-light overflow-hidden">
-                        <div className="h-full rounded bg-gradient-to-r from-purple-primary to-[#A78BFA]" style={{ width: `${sig.score || 0}%` }} />
-                      </div>
+      <main className="relative pt-16">
+        {/* HERO */}
+        <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+          <div className="absolute inset-0 z-0 opacity-40"><canvas ref={shaderRef} className="w-full h-full" /></div>
+          <div className="relative z-10 w-full max-w-[1440px] mx-auto px-8 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
+            <div className="animate-fade-in-up" style={{ animationDelay:"0.2s" }}>
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#a2c9ff]/10 border border-[#a2c9ff]/20 text-[#a2c9ff] text-[12px] font-medium mb-4">
+                <span className="w-2 h-2 rounded-full bg-[#a2c9ff] mr-2 animate-pulse" />V18 Fusion 决策系统已就绪
+              </span>
+              <h1 className="text-[32px] md:text-[56px] md:leading-[64px] font-bold text-[#EAF2FF] tracking-tight mb-4">
+                AI 驱动量价穿透 <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a2c9ff] to-[#7ddeff]">洞察主力意图的决策终端</span>
+              </h1>
+              {/* Market Indices */}
+              <div className="flex gap-4 mb-6 overflow-x-auto pb-2 no-scrollbar">
+                {(indices || [
+                  { name:"上证指数", price:3052.81, change_pct:0.45, change:13.68 } as any,
+                  { name:"深证成指", price:9432.55, change_pct:-0.12, change:-11.32 } as any,
+                  { name:"创业板指", price:1826.44, change_pct:0.68, change:12.36 } as any,
+                ]).map((idx) => {
+                  const chg = idx.change_pct ?? 0;
+                  const isUp = chg >= 0;
+                  // A 股惯例：涨→红(#FF5D5D) 跌→绿(#35e0a3)
+                  const color = isUp ? "#FF5D5D" : "#35e0a3";
+                  return (
+                  <div key={idx.name} className="glass-panel px-4 py-2 rounded-lg flex flex-col min-w-[120px]">
+                    <span className="text-[12px] text-[#9FB0C7]">{idx.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold" style={{ color }}>{idx.price.toFixed(2)}</span>
+                      <span className="text-[10px]" style={{ color }}>{isUp ? "+" : ""}{chg.toFixed(2)}%</span>
                     </div>
-                  </td>
-                  <td className="py-4 px-4 border-b border-border-light">
-                    <span className="font-semibold" style={{ color: getPhaseColor(sig.money_phase_label || sig.money_phase || "") }}>
-                      {sig.money_phase_label || sig.money_phase || "—"}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 border-b border-border-light">
-                    <span className="font-semibold" style={{ color: sig.score && sig.score >= 85 ? "var(--color-purple-primary)" : "var(--color-text-tertiary)" }}>
-                      {sig.score && sig.score >= 85 ? "关注" : sig.score && sig.score >= 75 ? "观察" : "—"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-  );
-}
+                    {indicesLoading && <div className="h-3 w-16 bg-[#1D2A42] rounded mt-1 animate-pulse" />}
+                  </div>
+                )})}
+              </div>
+              <p className="text-[16px] text-[#9FB0C7] max-w-lg mb-6 leading-relaxed">
+                融合深度神经网络与量价行为分析，精准锁定机构建仓信号。
+                30维融合特征 + 5模型集成数据，用机构级的视角穿透市场迷雾。
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link href="/cn" className="bg-[#4da3ff] text-[#003866] px-8 py-4 rounded-xl text-[20px] font-semibold hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#4da3ff]/20 text-center">立即体验智能决策</Link>
+                <Link href="/cn/watchlist" className="glass-panel text-[#EAF2FF] px-8 py-4 rounded-xl text-[20px] font-semibold hover:bg-[#212a39] transition-all flex items-center justify-center gap-2">⭐ 收藏追踪</Link>
+              </div>
+            </div>
+            <div className="hidden lg:block relative h-[600px] animate-fade-in-up" style={{ animationDelay:"0.4s" }}>
+              <div ref={threeRef} className="w-full h-full" />
+              <div className="absolute top-10 right-0 glass-panel p-4 rounded-xl border-[#a2c9ff]/30">
+                <div className="flex items-center gap-2 text-[#a2c9ff]"><span className="text-[13px] font-bold uppercase tracking-widest">⚡ 主力意图：积极吸筹</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-// 页脚
-function Footer() {
-  return (
-    <footer className="bg-bg-secondary border-t border-border-light py-12 px-6 mt-[60px]">
-      <div className="max-w-[1200px] mx-auto flex justify-between items-center max-sm:flex-col max-sm:gap-4">
-        <a href="/" className="flex items-center gap-2.5 font-bold text-base text-text-primary">
-          <Image src="/logo.png" alt="AlphaPilot" width={321} height={264} className="h-7 w-auto" />
-        </a>
-        <div className="text-[13px] text-text-tertiary">
-          AlphaPilot V2.2 · AI 股票智能评分
-        </div>
-      </div>
-    </footer>
-  );
-}
+        {/* Trust Stats */}
+        <section className="py-6 border-y border-[#1D2A42] bg-[#050e1c]/50 backdrop-blur-md">
+          <div className="max-w-[1440px] mx-auto px-8 grid grid-cols-2 md:grid-cols-4 gap-5 text-center">
+            {[{ label:"波段胜率", value:"84%", color:"#35e0a3" },{ label:"平均盈亏比", value:"3.2:1", color:"#a2c9ff" },{ label:"每日决策信号", value:"500+", color:"#EAF2FF" },{ label:"行情响应延迟", value:"5ms", color:"#7ddeff" }].map((s) => (
+              <div key={s.label} className="space-y-1">
+                <p className="text-[#9FB0C7] text-[12px] uppercase tracking-widest font-medium">{s.label}</p>
+                <p className="text-[36px] font-bold leading-[44px] tracking-tight" style={{ color: s.color }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-// 主页面
-export default function Home() {
-  return (
-    <main className="min-h-screen bg-bg-primary">
-      <Navbar />
-      <Hero />
-      <TickerSection />
-      <StatsBar />
-      <FeaturesSection />
-      <SignalSection />
-      <Footer />
-    </main>
+        {/* Feature Highlights */}
+        <section className="py-16 px-8 max-w-[1200px] mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-[30px] font-semibold mb-3 text-[#EAF2FF]">全维度决策分析矩阵</h2>
+            <p className="text-[#9FB0C7] text-[15px] max-w-2xl mx-auto">V18 Fusion 决策系统 · 30维融合特征 · 5模型集成 · 动态止盈止损</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Card 1: 主力行为雷达 */}
+            <div className="glass-panel rounded-2xl p-5 flex flex-col h-full hover:border-[#4DA3FF]/40 transition-all">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(77,163,255,0.12)] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#4DA3FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 6a6 6 0 0 1 6 6"/><path d="M12 10a2 2 0 0 1 2 2"/>
+                      <path d="M12 22a10 10 0 0 1-10-10"/><path d="M12 18a6 6 0 0 1-6-6"/><path d="M12 14a2 2 0 0 1-2-2"/>
+                      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-[#4DA3FF] font-medium">监测</span>
+                    <h3 className="text-[17px] font-semibold text-[#EAF2FF]">主力行为雷达</h3>
+                  </div>
+                </div>
+                <span className="text-[11px] text-[#3EE6A8] bg-[rgba(62,230,168,0.1)] px-2 py-0.5 rounded-full border border-[rgba(62,230,168,0.25)]">实时追踪</span>
+              </div>
+              <p className="text-[13px] text-[#9FB0C7] mb-4 leading-relaxed">30维融合特征穿透式监控主力资金动向，结合5模型集成数据验证持仓分布。</p>
+              <div className="mt-auto grid grid-cols-2 gap-3">
+                <div className="bg-[#121c2a] p-3 rounded-xl border border-[#1D2A42]">
+                  <div className="flex justify-between mb-2"><span className="text-[11px] text-[#9FB0C7]">机构持续流入</span><span className="text-[11px] font-semibold text-[#3EE6A8]">极高</span></div>
+                  <div className="h-1.5 bg-[#2c3545] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#3EE6A8]" style={{width:"88%"}} /></div>
+                </div>
+                <div className="bg-[#121c2a] p-3 rounded-xl border border-[#1D2A42]">
+                  <div className="flex justify-between mb-2"><span className="text-[11px] text-[#9FB0C7]">短期过热预警</span><span className="text-[11px] font-semibold text-[#F5C451]">中风险</span></div>
+                  <div className="h-1.5 bg-[#2c3545] rounded-full overflow-hidden"><div className="h-full rounded-full bg-[#F5C451]" style={{width:"45%"}} /></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: 量化信号筛选 */}
+            <div className="glass-panel rounded-2xl p-5 flex flex-col h-full hover:border-[#3EE6A8]/40 transition-all">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(62,230,168,0.12)] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#3EE6A8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="4" y1="6" x2="20" y2="6"/><line x1="6" y1="10" x2="18" y2="10"/>
+                      <line x1="8" y1="14" x2="16" y2="14"/><line x1="10" y1="18" x2="14" y2="18"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-[#3EE6A8] font-medium">选股</span>
+                    <h3 className="text-[17px] font-semibold text-[#EAF2FF]">量化信号筛选</h3>
+                  </div>
+                </div>
+                <span className="text-[11px] text-[#F5C451] bg-[rgba(245,196,81,0.1)] px-2 py-0.5 rounded-full border border-[rgba(245,196,81,0.25)]">Top 1%</span>
+              </div>
+              <p className="text-[13px] text-[#9FB0C7] mb-4 leading-relaxed">基于XGBoost集成模型，对全市场5000+标的进行多维度穿透评分，精选明日涨幅≥3%标的。</p>
+              <div className="mt-auto bg-[#121c2a] rounded-xl p-3 border border-[#1D2A42]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] text-[#9FB0C7]">V18 Fusion 评分</span>
+                  <span className="text-[18px] font-bold text-[#3EE6A8]">96.8</span>
+                </div>
+                <div className="flex gap-2 text-[11px] text-[#9FB0C7]">
+                  <span>30维融合特征深度扫描</span>
+                  <span className="text-[#6E7C93]">·</span>
+                  <span>门控过滤通过</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: 资金阶段识别 */}
+            <div className="glass-panel rounded-2xl p-5 flex flex-col h-full hover:border-[#F5C451]/40 transition-all">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(245,196,81,0.12)] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#F5C451]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-[#F5C451] font-medium">阶段</span>
+                    <h3 className="text-[17px] font-semibold text-[#EAF2FF]">资金阶段识别</h3>
+                  </div>
+                </div>
+                <span className="text-[11px] text-[#A78BFA] bg-[rgba(139,92,246,0.1)] px-2 py-0.5 rounded-full border border-[rgba(139,92,246,0.25)]">9大阶段</span>
+              </div>
+              <p className="text-[13px] text-[#9FB0C7] mb-4 leading-relaxed">智能识别吸筹、拉升、出货、诱多等9种资金运作阶段，只参与拉升和右侧潜伏交易。</p>
+              <div className="mt-auto grid grid-cols-3 gap-2">
+                <div className="bg-[#121c2a] p-2.5 rounded-xl border border-[#1D2A42] text-center">
+                    <svg className="mx-auto mb-1" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5D5D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+                    </svg>
+                    <div className="text-[11px] font-medium text-[#FF5D5D]">拉升</div>
+                    <div className="h-1 bg-[#2c3545] rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-[#FF5D5D]" style={{width:"78%"}} /></div>
+                  </div>
+                  <div className="bg-[#121c2a] p-2.5 rounded-xl border border-[#1D2A42] text-center">
+                    <svg className="mx-auto mb-1" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" fill="#F59E0B" stroke="none"/>
+                    </svg>
+                    <div className="text-[11px] font-medium text-[#F59E0B]">潜伏</div>
+                    <div className="h-1 bg-[#2c3545] rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-[#F59E0B]" style={{width:"62%"}} /></div>
+                  </div>
+                  <div className="bg-[#121c2a] p-2.5 rounded-xl border border-[#1D2A42] text-center">
+                    <svg className="mx-auto mb-1" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="2" x2="12" y2="15"/><polyline points="5 8 12 15 19 8"/><line x1="4" y1="20" x2="20" y2="20"/>
+                    </svg>
+                    <div className="text-[11px] font-medium text-[#3B82F6]">吸筹</div>
+                    <div className="h-1 bg-[#2c3545] rounded-full overflow-hidden mt-1"><div className="h-full rounded-full bg-[#3B82F6]" style={{width:"70%"}} /></div>
+                  </div>
+              </div>
+            </div>
+
+            {/* Card 4: 动态风控引擎 */}
+            <div className="glass-panel rounded-2xl p-5 flex flex-col h-full hover:border-[#FF5D5D]/40 transition-all">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[rgba(255,93,93,0.12)] flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#FF5D5D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-[#FF5D5D] font-medium">风控</span>
+                    <h3 className="text-[17px] font-semibold text-[#EAF2FF]">动态风控引擎</h3>
+                  </div>
+                </div>
+                <span className="text-[11px] text-[#3EE6A8] bg-[rgba(62,230,168,0.1)] px-2 py-0.5 rounded-full border border-[rgba(62,230,168,0.25)]">自动止损</span>
+              </div>
+              <p className="text-[13px] text-[#9FB0C7] mb-4 leading-relaxed">动态追踪止盈 · 自动硬止损 · 单票仓位上限30% · 最大回撤-8%暂停交易，护航每一笔交易。</p>
+              <div className="mt-auto flex flex-col gap-2">
+                <div className="flex items-center justify-between bg-[#121c2a] px-3 py-2 rounded-lg border border-[#1D2A42]">
+                  <span className="text-[12px] text-[#9FB0C7]">追涨止盈</span>
+                  <span className="text-[12px] text-[#3EE6A8] font-mono">+3%/+5%/+8%/+12%</span>
+                </div>
+                <div className="flex items-center justify-between bg-[#121c2a] px-3 py-2 rounded-lg border border-[#1D2A42]">
+                  <span className="text-[12px] text-[#9FB0C7]">硬止损线</span>
+                  <span className="text-[12px] text-[#FF5D5D] font-mono">-3%减半 / -5%清仓</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom CTA bar */}
+          <div className="mt-6 glass-panel rounded-2xl p-4 flex items-center justify-between border-l-4 border-l-[#4DA3FF]">
+            <div className="flex items-center gap-3">
+              <svg className="w-8 h-8 text-[#4DA3FF] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <div>
+                <p className="text-[14px] font-semibold text-[#EAF2FF]">V18 Fusion 决策系统已就绪</p>
+                <p className="text-[12px] text-[#9FB0C7]">每日凌晨5:00全量扫描 · 今日已有更新数据</p>
+              </div>
+            </div>
+            <Link href="/cn" className="bg-[#4DA3FF] text-[#003866] px-5 py-2.5 rounded-lg text-[13px] font-semibold hover:brightness-110 transition-all shrink-0">进入智能决策终端</Link>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="relative py-24 overflow-hidden">
+          <div className="absolute inset-0 bg-[#a2c9ff]/5 -skew-y-3 scale-y-110" />
+          <div className="relative z-10 max-w-[1440px] mx-auto px-8 text-center">
+            <h2 className="text-[32px] font-semibold mb-4">准备好开启智能交易时代了吗？</h2>
+            <p className="text-[#9FB0C7] text-[16px] max-w-xl mx-auto mb-6">V18 Fusion 决策系统 · 30维融合特征 · 5模型集成</p>
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+              <Link href="/cn" className="bg-[#4da3ff] text-[#003866] px-10 py-5 rounded-xl text-[20px] font-semibold shadow-2xl shadow-[#4da3ff]/40 hover:scale-105 active:scale-95 transition-all">立即体验</Link>
+              <p className="text-[#6E7C93] text-[12px]">无需注册 · 即享全功能访问</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-[#050e1c] border-t border-[#1D2A42] w-full py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-8 max-w-[1440px] mx-auto items-center">
+          <div className="space-y-2">
+            <Image src="/brand-logo.png" alt="AlphaPilot" className="h-6 w-auto opacity-80" width={120} height={24} />
+            <p className="text-[12px] text-[#9FB0C7] max-w-xs">© 2026 AlphaPilot AI. 专为现代投资者打造的机构级智能决策终端。</p>
+          </div>
+          <div className="flex flex-wrap md:justify-end gap-x-6 gap-y-2">
+            {["服务协议","隐私政策","风险揭示","技术支持"].map((t) => (<a key={t} href="#" className="text-[12px] text-[#9FB0C7] hover:text-[#EAF2FF] transition-colors">{t}</a>))}
+          </div>
+        </div>
+        <div className="max-w-[1440px] mx-auto px-8 mt-4 pt-4 border-t border-[#1D2A42]/30 text-[10px] text-[#6E7C93] leading-relaxed">市场有风险，投资需谨慎。AlphaPilot 提供的 AI 模型分析仅供参考，不构成任何投资建议或决策依据。</div>
+      </footer>
+    </div>
   );
 }
