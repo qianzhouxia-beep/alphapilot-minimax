@@ -112,7 +112,6 @@ function Navbar() {
       <div className="max-w-[1200px] mx-auto flex items-center justify-between px-6 h-[52px]">
         <a href="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight text-text-primary">
           <Image src="/logo.png" alt="AlphaPilot" width={321} height={264} className="h-8 w-auto" priority />
-          AlphaPilot
         </a>
         <div className="hidden md:flex gap-8">
           {[
@@ -442,7 +441,6 @@ function Footer() {
       <div className="max-w-[1200px] mx-auto flex justify-between items-center max-sm:flex-col max-sm:gap-4">
         <a href="/" className="flex items-center gap-2.5 font-bold text-base text-text-primary">
           <Image src="/logo.png" alt="AlphaPilot" width={321} height={264} className="h-7 w-auto" />
-          AlphaPilot
         </a>
         <div className="text-[13px] text-text-tertiary">
           AlphaPilot V2.2 · AI 股票智能评分
