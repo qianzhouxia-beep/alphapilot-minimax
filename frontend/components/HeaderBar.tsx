@@ -95,7 +95,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
   return (
     <header className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-3">
       <Link href="/" className="flex items-center gap-3">
-        <Image src="/logo.png" alt="AlphaPilot" className="h-9 sm:h-10 w-auto" width={180} height={40} priority />
+        <Image src="/logo.png?v=20260719" alt="AlphaPilot" className="h-9 sm:h-10 w-auto" width={180} height={40} priority />
         <p className="text-[12px] text-text-secondary hidden md:block">
           {t("site.subtitle")}
         </p>
