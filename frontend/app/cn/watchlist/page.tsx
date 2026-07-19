@@ -208,7 +208,7 @@ export default function WatchlistPage() {
 
       {/* ═══ 价格修改弹窗 ═══ */}
       {priceDialog && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-bg-primary/50 backdrop-blur-sm"
           onClick={() => !priceLoading && setPriceDialog(null)}>
           <div className="w-[90vw] max-w-[360px] rounded-2xl border border-border-subtle bg-surface-panel p-6 shadow-2xl mx-4"
             onClick={e => e.stopPropagation()}>

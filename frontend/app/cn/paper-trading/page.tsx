@@ -49,7 +49,7 @@ export default function PaperTradingPage() {
         <div className="glass rounded-2xl border border-status-danger p-6">
           <p className="text-sm text-status-danger font-semibold">加载失败</p>
           <p className="mt-2 text-[12px] text-text-secondary">{error}</p>
-          <button onClick={load} className="mt-4 rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white">
+          <button onClick={load} className="mt-4 rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-text-primary">
             重试
           </button>
         </div>
