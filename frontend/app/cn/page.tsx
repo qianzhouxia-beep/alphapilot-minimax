@@ -352,8 +352,7 @@ export default function CNDashboard() {
             </p>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0">
-            <Link href="/cn/watchlist" className="rounded-lg border border-border-subtle bg-surface-card px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-[12px] text-status-warning hover:border-status-warning transition-colors flex items-center gap-1 whitespace-nowrap">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <Link href="/cn/watchlist" className="rounded-lg border border-border-subtle bg-surface-card px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-[12px] text-status-warning hover:border-status-warning transition-colors whitespace-nowrap">
               收藏追踪
             </Link>
             <button
@@ -463,10 +462,10 @@ export default function CNDashboard() {
                       )}
                       {/* Multi-source signal badges */}
                       {item._signals?.includes("ths_hot") && (
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-status-info/15 px-1.5 py-0.5 text-[9px] font-medium text-status-info border border-status-info/25">📊 热点</span>
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-status-info/15 px-1.5 py-0.5 text-[9px] font-medium text-status-info border border-status-info/25">热点</span>
                       )}
                       {item._signals?.includes("margin_up") && (
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-status-success/15 px-1.5 py-0.5 text-[9px] font-medium text-status-success border border-status-success/25">🧲 融资</span>
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-status-success/15 px-1.5 py-0.5 text-[9px] font-medium text-status-success border border-status-success/25">融资</span>
                       )}
                     </div>
                   </div>
@@ -482,7 +481,7 @@ export default function CNDashboard() {
                             ? "bg-status-warning/15 text-status-warning hover:bg-status-warning/25"
                             : "border border-border-subtle bg-surface-card text-text-disabled hover:border-status-warning hover:text-status-warning"
                         }`}>
-                        {isWlLoading ? "..." : isFav ? "★已收藏" : "☆收藏"}
+                        {isWlLoading ? "..." : isFav ? "已收藏" : "收藏"}
                       </button>
                       <Link href={`/cn/stock?symbol=${item.symbol}`} className="rounded-lg bg-surface-container-high px-2.5 py-1.5 text-[11px] font-medium text-text-secondary hover:text-text-primary transition-colors">
                         详情
@@ -531,7 +530,7 @@ export default function CNDashboard() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <svg className="w-5 h-5 text-status-warning" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <div className="w-1 h-6 rounded-full bg-status-warning"></div>
                 <h2 className="text-[18px] font-semibold text-text-primary">收藏追踪</h2>
               </div>
               <p className="text-[12px] text-text-disabled">记录入场价 · 自动追踪 T+1/T+2/T+3 涨跌</p>
@@ -583,9 +582,6 @@ export default function CNDashboard() {
           <div className="w-1 h-12 rounded-full bg-primary shrink-0 mt-1"></div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <svg className="w-5 h-5 text-status-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
               <h2 className="text-[17px] font-semibold text-text-primary">尾盘狙击</h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/30">14:50</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/30">一夜持股</span>
@@ -636,7 +632,6 @@ export default function CNDashboard() {
           </div>
         ) : (
           <div className="flex items-center gap-2 rounded-lg bg-surface-container-low px-3 py-2 border border-border-subtle">
-            <svg className="w-4 h-4 text-text-disabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <p className="text-[12px] text-text-disabled">
               {s2Data ? "今日无符合 S2最优版 条件的标的" : "14:50 自动生成 · S2规则引擎尾盘狙击"}
             </p>
@@ -652,21 +647,18 @@ export default function CNDashboard() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
           <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#A78BFA]">
-            <svg className="w-6 h-6 mb-1 text-status-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">自动历史回撤</h3>
             <p className="text-[11px] text-text-disabled leading-relaxed">
               每日 Top 5 推荐自动记录，T+1/T+3 涨跌幅自动追踪，生成完整回测数据库
             </p>
           </div>
           <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#3EE6A8]">
-            <div className="text-[24px] mb-1">📊</div>
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">胜率自动统计</h3>
             <p className="text-[11px] text-text-disabled leading-relaxed">
               收藏夹自动计算胜率/平均收益，数据驱动而非感觉驱动
             </p>
           </div>
           <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#F5C451]">
-            <svg className="w-6 h-6 mb-1 text-status-warning" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">门控参数优化</h3>
             <p className="text-[11px] text-text-disabled leading-relaxed">
               基于历史数据自动调整首板洗盘/量比换手门控参数，持续提升准确率
@@ -686,7 +678,7 @@ export default function CNDashboard() {
           onClick={() => !priceDialogLoading && setPriceDialog(null)}>
           <div className="w-[90vw] max-w-[380px] rounded-2xl border border-border-subtle bg-surface-card p-6 shadow-2xl mx-4"
             onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-2 mb-1"><svg className="w-5 h-5 text-status-warning" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><h3 className="text-[18px] font-semibold text-text-primary">添加收藏</h3></div>
+            <div className="flex items-center gap-2 mb-1"><h3 className="text-[18px] font-semibold text-text-primary">添加收藏</h3></div>
             <p className="text-[13px] text-text-secondary mb-4">
               {priceDialog.item.name} · {priceDialog.item.symbol?.replace(/^(sh|sz)/, "")}
             </p>
@@ -736,22 +728,6 @@ function KPI({ label, value, sub, accent }: { label: string; value: string; sub:
   );
 }
 
-function PhaseIcon({ phaseKey, color, size = 24 }: { phaseKey: string; color: string; size?: number }) {
-  const s: any = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
-  switch (phaseKey) {
-    case "markup": return <svg {...s}><path d="M12 21V5"/><polyline points="5 12 12 5 19 12"/><line x1="12" y1="5" x2="12" y2="7"/></svg>;
-    case "rightside_ambush": return <svg {...s}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1.5" fill={color}/><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/></svg>;
-    case "accumulation_end": return <svg {...s}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
-    case "bear_trap": return <svg {...s}><polyline points="4 20 12 6 20 20"/><circle cx="12" cy="4" r="2.5" fill={color} stroke="none"/><line x1="12" y1="20" x2="12" y2="12"/></svg>;
-    case "accumulation": return <svg {...s}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 9 12 14 17 9"/><line x1="12" y1="14" x2="12" y2="2"/></svg>;
-    case "suspicious": return <svg {...s}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><circle cx="12" cy="16" r="0.5" fill={color}/><line x1="12" y1="9" x2="12" y2="13"/></svg>;
-    case "distribution": return <svg {...s}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="14"/></svg>;
-    case "pullback": return <svg {...s}><path d="M21 17c-4 5-11 5-15 2S2 10 3 6"/><polyline points="7 13 3 10 7 7"/></svg>;
-    case "sideways": return <svg {...s}><polyline points="3 10 7 14 12 10 17 14 21 10"/><polyline points="3 14 7 10 12 14 17 10 21 14"/></svg>;
-    default: return <svg {...s}><circle cx="12" cy="12" r="8"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
-  }
-}
-
 const PHASE_COLORS: Record<string, string> = {
   bear_trap: "#8B5CF6",
   rightside_ambush: "#F59E0B",
@@ -791,7 +767,6 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
       style={{ borderLeftColor: group.color, borderLeftWidth: 3 }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <PhaseIcon phaseKey={group.phases[0]} color={group.color} size={22} />
           <div>
             <h3 className="text-[16px] font-semibold text-text-primary">{group.label}</h3>
             <p className="text-[11px] text-text-disabled">{group.desc} · {totalCount} 只</p>
@@ -811,7 +786,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
           return (
             <div key={pk}>
               <div className="flex items-center gap-1.5 mb-1.5 px-1">
-                <PhaseIcon phaseKey={pk} color={subColor} size={16} />
+                <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: subColor }} />
                 <span className="text-[12px] font-medium" style={{ color: subColor }}>
                   {phaseLabels[pk] || pk}
                 </span>
@@ -852,7 +827,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                           className={`text-[13px] w-[20px] text-center shrink-0 transition-colors disabled:opacity-50 ${
                             isFav ? "text-status-warning" : "text-text-disabled hover:text-status-warning"
                           }`}>
-                          {isWlLoading ? "..." : isFav ? "★" : "☆"}
+                          {isWlLoading ? "..." : isFav ? "已收藏" : "收藏"}
                         </button>
                       </div>
                     );

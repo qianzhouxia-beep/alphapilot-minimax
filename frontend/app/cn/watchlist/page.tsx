@@ -135,7 +135,7 @@ export default function WatchlistPage() {
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-[28px] font-semibold">⭐ 收藏追踪</h1>
+            <h1 className="text-[28px] font-semibold">收藏追踪</h1>
             <p className="mt-2 text-[13px] text-text-secondary">
               自动追踪 T+1/T+2/T+3 涨跌 · 历史记录永久保存
             </p>
@@ -164,10 +164,10 @@ export default function WatchlistPage() {
 
         {!loading && items.length === 0 && (
           <div className="glass rounded-2xl p-12 text-center">
-            <p className="text-[48px]">⭐</p>
+            <p className="text-lg font-semibold text-text-disabled">暂无收藏股票</p>
             <p className="mt-4 text-[16px] text-text-primary">还没有收藏任何股票</p>
             <p className="mt-2 text-[13px] text-text-secondary">
-              在 Dashboard 点击 ☆ 按钮添加收藏，系统会自动追踪后续涨跌
+              在 Dashboard 点击收藏按钮添加，系统会自动追踪后续涨跌
             </p>
             <Link href="/cn" className="mt-6 inline-block rounded-lg bg-status-info px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:bg-status-info/70">
               去选股
@@ -296,7 +296,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
           </div>
           <div className="px-2 py-3 text-right font-mono text-text-secondary whitespace-nowrap">{(w.model_score * 100).toFixed(0)}%</div>
           <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day1_change != null ? (d1Hit ? "text-status-danger font-semibold" : w.day1_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
-            {w.day1_change != null ? (w.day1_change > 0 ? "+" : "") + w.day1_change + "%" + (d1Hit ? " 🎯" : "") : "—"}
+            {w.day1_change != null ? (w.day1_change > 0 ? "+" : "") + w.day1_change + "%" + (d1Hit ? " 达标" : "") : "—"}
           </div>
           <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day2_change != null ? (w.day2_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
             {w.day2_change != null ? (w.day2_change > 0 ? "+" : "") + w.day2_change + "%" : "—"}

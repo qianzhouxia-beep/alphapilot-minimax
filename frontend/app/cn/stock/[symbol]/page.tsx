@@ -182,7 +182,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
             isWatched ? "bg-[rgba(245,196,81,0.15)] text-[#F5C451] hover:bg-[rgba(245,196,81,0.25)]"
             : "border border-border-subtle text-text-disabled hover:border-[#F5C451] hover:text-[#F5C451]"
           }`}>
-          {isWatched ? "★ 收藏中" : "☆ 添加收藏"}
+          {isWatched ? "收藏中" : "添加收藏"}
         </button>
       </header>
 

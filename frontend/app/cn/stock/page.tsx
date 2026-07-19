@@ -188,7 +188,7 @@ export default function CNStockDetail() {
               )}
               {region && (
                 <span className="tag-badge text-status-success">
-                  📍 {region}
+                  {region}
                 </span>
               )}
               <span className="text-[11px] text-text-disabled">数据源: {stock?.source ?? "—"}</span>
@@ -214,7 +214,7 @@ export default function CNStockDetail() {
                 isWatched ? "bg-[rgba(245,196,81,0.15)] text-status-warning hover:bg-[rgba(245,196,81,0.25)]"
                 : "border border-border-subtle text-text-disabled hover:border-[#F5C451] hover:text-status-warning"
               }`}>
-              {isWatched ? "★ 收藏中" : "☆ 添加收藏"}
+              {isWatched ? "收藏中" : "添加收藏"}
             </button>
           </div>
         </div>
@@ -245,7 +245,7 @@ export default function CNStockDetail() {
           {/* AI Score Card */}
           <section className="glass-strong info-card card-lift rounded-2xl p-5">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-[11px] uppercase tracking-wider text-text-disabled">🤖 AI 评分决策卡</span>
+              <span className="text-[11px] uppercase tracking-wider text-text-disabled">AI 评分决策卡</span>
               <span className="rounded-full bg-[rgba(77,163,255,0.12)] px-2 py-0.5 text-[10px] font-semibold text-status-info border border-[rgba(77,163,255,0.3)]">
                 V1.9 Fusion
               </span>
@@ -270,7 +270,7 @@ export default function CNStockDetail() {
             </div>
 
             <div className="rounded-xl border border-border-subtle bg-surface-panel p-3">
-              <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">🎯 ATR 价格目标</div>
+              <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">ATR 价格目标</div>
               <div className="space-y-1 text-[13px]">
                 <div className="flex items-center justify-between">
                   <span className="text-text-disabled">买入价</span>
@@ -304,7 +304,7 @@ export default function CNStockDetail() {
           {/* Sector Card */}
           <section className="glass rounded-2xl p-5">
             <h3 className="mb-3 text-[14px] font-semibold flex items-center gap-2">
-              🏭 主力板块
+              主力板块
             </h3>
             {sector ? (
               <div>
@@ -349,7 +349,7 @@ export default function CNStockDetail() {
 
           {/* Strategy Performance */}
           <section className="glass rounded-2xl p-5">
-            <h3 className="mb-3 text-[14px] font-semibold">📊 策略表现</h3>
+            <h3 className="mb-3 text-[14px] font-semibold">策略表现</h3>
             <div className="space-y-2 text-[12px] text-text-secondary">
               <div className="flex items-center justify-between"><span>Sharpe</span><span className="text-status-success font-semibold">5.16</span></div>
               <div className="flex items-center justify-between"><span>累计收益</span><span className="text-status-success font-semibold">+164.4%</span></div>
@@ -365,7 +365,7 @@ export default function CNStockDetail() {
           {/* News Card */}
           <section className="glass rounded-2xl p-5">
             <h3 className="mb-3 text-[14px] font-semibold flex items-center gap-2">
-              📰 相关新闻
+              相关新闻
             </h3>
             {newsLoading ? (
               <div className="flex items-center justify-center py-8">

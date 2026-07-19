@@ -85,7 +85,7 @@ export default function CNScreener() {
         <h1 className="text-[28px] font-semibold tracking-tight">A 股智能选股</h1>
         <p className="mt-1 text-[13px] text-text-secondary">
           {items.length} 只 A 股 AI 评分排序 · 数据源: {data?.source ?? "—"} · 60s 自动刷新
-          {error && <span className="ml-3 text-status-danger">⚠ {error}</span>}
+          {error && <span className="ml-3 text-status-danger font-medium">错误: {error}</span>}
         </p>
       </header>
 

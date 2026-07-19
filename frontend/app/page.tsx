@@ -253,8 +253,7 @@ function FeaturesSection() {
       <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
         {/* 大卡片 - 主力行为雷达 */}
         <div className="card-glass p-7 col-span-2 row-span-2 flex flex-col group hover:card-hover relative overflow-hidden max-md:col-span-2 max-sm:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-purple-light text-purple-primary flex items-center justify-center text-xl mb-4">
-            &#9679;
+          <div className="w-11 h-11 rounded-xl bg-purple-light flex items-center justify-center mb-4">
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">
             主力行为雷达
@@ -265,21 +264,11 @@ function FeaturesSection() {
           <div className="text-xs font-semibold text-purple-primary mt-auto pt-3">
             机构持续流入 <span className="opacity-50">·</span> 极高
           </div>
-          <svg
-            className="absolute bottom-0 right-0 w-[180px] h-[100px] opacity-[0.06] pointer-events-none"
-            viewBox="0 0 180 100"
-            fill="none"
-            stroke="#7C5CFC"
-            strokeWidth="2"
-          >
-            <path d="M0 80 Q30 60 60 70 T120 40 T180 20" />
-          </svg>
         </div>
 
         {/* 量化信号 */}
         <div className="card-glass p-7 flex flex-col group hover:card-hover">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(52,199,89,0.1)] text-green-positive flex items-center justify-center text-xl mb-4">
-            &#9670;
+          <div className="w-11 h-11 rounded-xl bg-[rgba(52,199,89,0.1)] flex items-center justify-center mb-4">
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">
             量化信号筛选
@@ -294,8 +283,7 @@ function FeaturesSection() {
 
         {/* 资金阶段 */}
         <div className="card-glass p-7 flex flex-col group hover:card-hover">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(255,149,0,0.1)] text-[#FF9500] flex items-center justify-center text-xl mb-4">
-            &#9671;
+          <div className="w-11 h-11 rounded-xl bg-[rgba(255,149,0,0.1)] flex items-center justify-center mb-4">
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">
             资金阶段识别
@@ -310,8 +298,7 @@ function FeaturesSection() {
 
         {/* 风控引擎 - 宽卡片 */}
         <div className="card-glass p-7 col-span-2 flex flex-col group hover:card-hover max-md:col-span-2 max-sm:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(0,122,255,0.1)] text-[#007AFF] flex items-center justify-center text-xl mb-4">
-            &#9632;
+          <div className="w-11 h-11 rounded-xl bg-[rgba(0,122,255,0.1)] flex items-center justify-center mb-4">
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">
             动态风控引擎
@@ -385,7 +372,6 @@ function SignalSection() {
             <div className="badge-purple">V2.2 评分引擎</div>
           </div>
           <div className="py-16">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[rgba(124,92,252,0.08)] flex items-center justify-center text-2xl text-purple-primary">◇</div>
             <div className="text-lg font-semibold text-text-secondary mb-2">暂无信号</div>
             <div className="text-sm text-text-tertiary max-w-sm mx-auto">
               上一个交易日未生成符合条件的信号，下一个交易日凌晨 5:00 重新扫描

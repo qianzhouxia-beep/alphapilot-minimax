@@ -161,7 +161,7 @@ export default function BacktestPage() {
       <HeaderBar market="cn" />
 
       <div className="mb-6">
-        <h1 className="text-[28px] font-bold text-text-primary">📊 选股回测工具</h1>
+        <h1 className="text-[28px] font-bold text-text-primary">选股回测工具</h1>
         <p className="mt-1 text-[13px] text-text-secondary">基于真实历史 K 线模拟持有期收益</p>
       </div>
 
@@ -174,7 +174,7 @@ export default function BacktestPage() {
       {ran && result?.method === "Top N 回测" && (
         <div className="mb-6 rounded-2xl border border-[#F5C451] bg-[rgba(245,196,81,0.08)] p-4">
           <div className="flex items-start gap-3">
-            <span className="text-status-warning text-[18px]">⚠️</span>
+            <span className="text-status-warning text-[16px] font-bold">!</span>
             <div>
               <p className="text-[13px] font-semibold text-status-warning">前视偏差提醒</p>
               <p className="mt-1 text-[12px] text-text-secondary">
@@ -199,13 +199,13 @@ export default function BacktestPage() {
                   mode === "topn"
                     ? "bg-status-info text-on-primary"
                     : "bg-surface-panel text-text-disabled hover:text-text-primary"
-                }`}>📋 Top N</button>
+                }`}>Top N</button>
               <button onClick={() => { setMode("stock"); setRan(false); }}
                 className={`flex-1 py-2 text-[12px] font-medium transition-colors ${
                   mode === "stock"
                     ? "bg-status-info text-on-primary"
                     : "bg-surface-panel text-text-disabled hover:text-text-primary"
-                }`}>🎯 指定股票</button>
+                }`}>指定股票</button>
             </div>
 
             {/* Top N 配置 */}
@@ -236,7 +236,7 @@ export default function BacktestPage() {
                 </div>
                 <div className="rounded-xl bg-[rgba(245,196,81,0.08)] border border-[#F5C451]/30 p-3">
                   <p className="text-[11px] text-status-warning">
-                    ⚠️ 此模式使用今日评分筛选后回溯历史，存在前视偏差，结果仅供参考
+                    此模式使用今日评分筛选后回溯历史，存在前视偏差，结果仅供参考
                   </p>
                 </div>
               </>
@@ -420,7 +420,7 @@ export default function BacktestPage() {
                                   : item.win === false ? "bg-[rgba(255,93,93,0.12)] text-status-danger"
                                   : "bg-[rgba(159,176,199,0.12)] text-text-secondary"
                               }`}>
-                                {item.win ? "✅ 盈利" : item.win === false ? "❌ 亏损" : "—"}
+                                {item.win ? "盈利" : item.win === false ? "亏损" : "—"}
                               </span>
                             </td>
                           </>

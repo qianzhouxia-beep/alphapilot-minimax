@@ -12,41 +12,34 @@ import { useAuth } from "@/lib/auth";
 type NavItem = {
   href: string;
   label: string;
-  icon: JSX.Element;
   colorClass: string;
   hoverClass: string;
   badge?: string;
   badgeClass?: string;
 };
 
-const StarIcon = (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-);
-const MonitorIcon = (
-  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
-  </svg>
-);
-
 const NAV_ITEMS: NavItem[] = [
+  {
+    href: "/cn/screener",
+    label: "智能选股",
+    colorClass: "text-text-secondary",
+    hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
+  },
   {
     href: "/cn/watchlist",
     label: "收藏追踪",
-    icon: StarIcon,
     colorClass: "text-[#F5C451]",
     hoverClass: "hover:bg-[rgba(245,196,81,0.15)]",
   },
   {
     href: "/cn/backtest",
     label: "选股回测",
-    icon: <span className="w-4 h-4 inline-block text-center text-[14px] leading-4">📊</span>,
     colorClass: "text-text-secondary",
     hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
   },
   {
     href: "/cn/paper-trading",
     label: "量化模拟盘",
-    icon: MonitorIcon,
     colorClass: "text-status-info",
     hoverClass: "hover:bg-[rgba(139,92,246,0.15)]",
     badge: "量化",
@@ -55,14 +48,12 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: "/cn/chat",
     label: "AI 问股",
-    icon: <span className="w-4 h-4 inline-block text-center text-[14px] leading-4">🤖</span>,
     colorClass: "text-text-secondary",
     hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
   },
   {
     href: "/cn/news",
     label: "投资资讯",
-    icon: <span className="w-4 h-4 inline-block text-center text-[14px] leading-4">📰</span>,
     colorClass: "text-text-secondary",
     hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
   },
@@ -127,9 +118,8 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
             <Link
               key={item.href}
               href={item.href}
-              className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${item.colorClass} hover:text-text-primary ${item.hoverClass}`}
+              className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${item.colorClass} hover:text-text-primary ${item.hoverClass}`}
             >
-              {item.icon}
               {item.label}
               {item.badge && (
                 <span className={`text-[8px] px-1 py-0.5 rounded-sm ${item.badgeClass} font-medium`}>
@@ -160,17 +150,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
               menuOpen ? "bg-[rgba(167,139,250,0.15)]" : ""
             }`}
           >
-            <svg
-              className={`w-4 h-4 transition-transform ${menuOpen ? "rotate-90" : ""}`}
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            >
-              {menuOpen ? (
-                <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
-              ) : (
-                <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>
-              )}
-            </svg>
-            <span className="text-[10px]">菜单</span>
+            <span className="text-[11px]">{menuOpen ? "关闭" : "菜单"}</span>
           </button>
 
           {/* 下拉菜单面板 */}
@@ -192,7 +172,6 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
                       isActive(item.href) ? "bg-[rgba(167,139,250,0.1)] text-text-primary" : ""
                     }`}
                   >
-                    <span className="opacity-80">{item.icon}</span>
                     <span className="flex-1">{item.label}</span>
                     {item.badge && (
                       <span className={`text-[8px] px-1.5 py-0.5 rounded ${item.badgeClass}`}>{item.badge}</span>
@@ -215,13 +194,10 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
         {/* Auth state */}
         {session ? (
           <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-card px-2 sm:px-3 py-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#A78BFA] to-[#C084FC] text-[11px] font-semibold text-on-primary">
-              {session.user.full_name.charAt(0).toUpperCase()}
-            </div>
-            <div className="text-left hidden sm:block">
-              <div className="text-[12px] text-text-primary">{session.user.full_name}</div>
+            <div className="text-left">
+              <div className="text-[12px] text-text-primary font-medium">{session.user.full_name}</div>
               <div className="text-[10px] uppercase tracking-wider text-text-disabled">
-                {session.user.plan} · {session.user.credits || 0} credits
+                {session.user.plan}
               </div>
             </div>
             <button

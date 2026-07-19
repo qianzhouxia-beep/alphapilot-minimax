@@ -119,7 +119,7 @@ export default function ChatPage() {
       const errMsg: Message = {
         id: Date.now().toString() + "_e",
         role: "assistant",
-        content: `⚠️ 调用分析服务失败：${e instanceof Error ? e.message : String(e)}。请稍后重试。`,
+        content: `调用分析服务失败：${e instanceof Error ? e.message : String(e)}。请稍后重试。`,
       };
       setMessages((prev) => [...prev, errMsg]);
     } finally {
@@ -239,9 +239,9 @@ export default function ChatPage() {
                           const neutral = msg.agentResults.length - approve - oppose;
                           return (
                             <div className="flex items-center gap-3 text-[11px] text-text-disabled pt-1">
-                              <span>✅ {approve} 赞同</span>
-                              <span>❌ {oppose} 反对</span>
-                              <span>➖ {neutral} 中性</span>
+                              <span>{approve} 赞同</span>
+                              <span>{oppose} 反对</span>
+                              <span>{neutral} 中性</span>
                             </div>
                           );
                         })()}
@@ -362,7 +362,7 @@ export default function ChatPage() {
           {/* 提示 */}
           <div className="glass card-lift rounded-2xl p-5">
             <p className="text-[11px] text-text-disabled leading-relaxed">
-              💡 输入任意 A 股代码（如 603123）即可查看实时分析 + 8 Agent 辩论。
+              输入任意 A 股代码（如 603123）即可查看实时分析 + 8 Agent 辩论。
               支持全市场 5000+ 只股票的按需评分与 ML 推理。也支持名称搜索（如"贵州茅台"）。
             </p>
           </div>
