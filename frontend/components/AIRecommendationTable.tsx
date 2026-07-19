@@ -26,25 +26,20 @@ export default function AIRecommendationTable({ stocks, onRefresh, loading }: AI
   const [filter, setFilter] = useState<'all' | 'us' | 'cn'>('all');
   const [sortBy, setSortBy] = useState<'score' | 'probability' | 'risk'>('score');
 
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'low': return 'text-[#3EE6A8]';
-      case 'medium': return 'text-[#F5C451]';
-      case 'high': return 'text-[#FF5D5D]';
-      default: return 'text-[#9FB0C7]';
-    }
-  };
-
   const getRiskBadge = (risk: string) => {
     switch (risk) {
-      case 'low': return 'bg-[#3EE6A8]/10 text-[#3EE6A8] border-[#3EE6A8]/30';
-      case 'medium': return 'bg-[#F5C451]/10 text-[#F5C451] border-[#F5C451]/30';
-      case 'high': return 'bg-[#FF5D5D]/10 text-[#FF5D5D] border-[#FF5D5D]/30';
-      default: return 'bg-[#9FB0C7]/10 text-[#9FB0C7] border-[#9FB0C7]/30';
+      case 'low':
+        return 'bg-status-success/10 text-status-success border-status-success/30';
+      case 'medium':
+        return 'bg-status-warning/10 text-status-warning border-status-warning/30';
+      case 'high':
+        return 'bg-status-danger/10 text-status-danger border-status-danger/30';
+      default:
+        return 'bg-border-subtle text-text-tertiary border-border-subtle';
     }
   };
 
-  const filteredStocks = stocks.filter(stock => {
+  const filteredStocks = stocks.filter((stock) => {
     if (filter === 'all') return true;
     if (filter === 'us') return /^[A-Z]+$/.test(stock.symbol);
     if (filter === 'cn') return /^\d+$/.test(stock.symbol);
@@ -53,28 +48,26 @@ export default function AIRecommendationTable({ stocks, onRefresh, loading }: AI
 
   const sortedStocks = [...filteredStocks].sort((a, b) => {
     switch (sortBy) {
-      case 'score': return b.score - a.score;
-      case 'probability': return b.upProbability - a.upProbability;
+      case 'score':
+        return b.score - a.score;
+      case 'probability':
+        return b.upProbability - a.upProbability;
       case 'risk': {
         const riskOrder = { low: 1, medium: 2, high: 3 };
         return riskOrder[a.risk] - riskOrder[b.risk];
       }
-      default: return 0;
+      default:
+        return 0;
     }
   });
 
   return (
     <div className="space-y-4">
-      {/* Header with filters */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="material-symbols-outlined text-[#4DA3FF]" style={{ fontSize: 28 }}>track_changes</span>
-          <h2 className="text-2xl font-bold">AI 推荐股票 Top 20</h2>
-        </div>
+        <h2 className="text-2xl font-bold text-text-primary tracking-tight">AI 推荐股票 Top 20</h2>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Market filter */}
-          <div className="flex items-center gap-2 p-1 rounded-lg glass border border-[#1D2A42]">
+          <div className="flex items-center gap-1 p-1 rounded-xl border border-border-subtle bg-surface-card shadow-sm">
             {[
               { value: 'all', label: '全部' },
               { value: 'us', label: '美股' },
@@ -82,11 +75,12 @@ export default function AIRecommendationTable({ stocks, onRefresh, loading }: AI
             ].map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => setFilter(value as any)}
-                className={`px-3 py-1.5 text-sm rounded transition-all ${
+                type="button"
+                onClick={() => setFilter(value as typeof filter)}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-primary/40 ${
                   filter === value
-                    ? 'bg-gradient-to-r from-[#4DA3FF] to-[#35e0a3] text-[#0a1422] font-bold'
-                    : 'text-[#9FB0C7] hover:text-[#EAF2FF]'
+                    ? 'bg-purple-light text-purple-primary font-semibold'
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
                 {label}
@@ -94,114 +88,97 @@ export default function AIRecommendationTable({ stocks, onRefresh, loading }: AI
             ))}
           </div>
 
-          {/* Sort by */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-1.5 rounded-lg glass border border-[#1D2A42] text-sm text-[#EAF2FF] cursor-pointer hover:border-[#4DA3FF]/50 transition-all bg-[#0C1728]"
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="px-3 py-1.5 rounded-xl border border-border-subtle bg-surface-card text-sm text-text-primary cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-primary/40"
           >
             <option value="score">按评分排序</option>
             <option value="probability">按涨概率排序</option>
             <option value="risk">按风险排序</option>
           </select>
 
-          {/* Refresh button */}
           {onRefresh && (
             <button
+              type="button"
               onClick={onRefresh}
               disabled={loading}
-              className="px-3 py-1.5 rounded-lg glass border border-[#1D2A42] text-[#4DA3FF] hover:border-[#4DA3FF] transition-all disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl border border-border-subtle bg-surface-card text-purple-primary hover:bg-purple-light transition-colors disabled:opacity-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-purple-primary/40"
             >
-              <span className="material-icons text-sm">refresh</span>
+              刷新
             </button>
           )}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-[#1D2A42]">
+      <div className="overflow-x-auto rounded-2xl border border-border-subtle bg-surface-card shadow-sm">
         <table className="w-full">
-          <thead className="glass border-b border-[#1D2A42]">
+          <thead className="border-b border-border-subtle bg-bg-tertiary/80">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">排名</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">股票代码</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">名称</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">评分</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">涨概率</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">主力意图</th>
-              <th className="px-4 py-3 text-center text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">风险</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">价格</th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">涨跌幅</th>
-              <th className="px-4 py-3 text-center text-xs font-bold text-[#9FB0C7] uppercase tracking-wider">操作</th>
+              {['排名', '股票代码', '名称', '信心分', '涨概率', '主力意图', '风险', '价格', '涨跌幅', '操作'].map(
+                (h) => (
+                  <th
+                    key={h}
+                    className={`px-4 py-3 text-xs font-semibold text-text-tertiary uppercase tracking-wider ${
+                      ['信心分', '涨概率', '价格', '涨跌幅'].includes(h) ? 'text-right' : h === '风险' || h === '操作' ? 'text-center' : 'text-left'
+                    }`}
+                  >
+                    {h}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
-          <tbody className="bg-[#0C1728]/50 divide-y divide-[#1D2A42]">
+          <tbody className="divide-y divide-border-subtle">
             {loading ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="material-icons animate-spin text-[#4DA3FF]">autorenew</span>
-                    <span className="text-[#9FB0C7]">加载中...</span>
-                  </div>
+                <td colSpan={10} className="px-4 py-8 text-center text-text-secondary">
+                  加载中...
                 </td>
               </tr>
             ) : sortedStocks.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-[#9FB0C7]">
+                <td colSpan={10} className="px-4 py-8 text-center text-text-tertiary">
                   暂无推荐股票
                 </td>
               </tr>
             ) : (
               sortedStocks.map((stock) => (
-                <tr key={stock.symbol} className="hover:bg-[#101C30] transition-colors">
+                <tr key={stock.symbol} className="hover:bg-purple-light/40 transition-colors">
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full glass border border-[#1D2A42] font-bold text-sm text-[#4DA3FF]">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full border border-border-subtle bg-bg-tertiary font-bold text-sm text-purple-primary">
                       {stock.rank}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="font-mono font-bold text-[#4DA3FF]">{stock.symbol}</span>
+                  <td className="px-4 py-3 text-sm font-mono text-text-secondary">{stock.symbol}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-text-primary">{stock.name}</td>
+                  <td className="px-4 py-3 text-right text-sm font-semibold text-purple-primary">
+                    {Math.min(99, Math.max(75, Math.round(stock.score * 45 + 75)))}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm">{stock.name}</span>
+                  <td className="px-4 py-3 text-right text-sm text-text-secondary">
+                    {(stock.upProbability * 100).toFixed(0)}%
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="inline-flex items-center gap-2">
-                      <div className="w-12 h-2 bg-[#0a1422] rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-800"
-                          style={{ 
-                            width: `${stock.score}%`,
-                            background: 'linear-gradient(90deg, #4DA3FF, #35e0a3)'
-                          }}
-                        />
-                      </div>
-                      <span className="font-bold text-[#4DA3FF]">{stock.score}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="font-bold text-[#35e0a3]">{stock.upProbability}%</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-sm text-[#9FB0C7]">{stock.mainForceIntent}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 text-xs rounded-full border ${getRiskBadge(stock.risk)}`}>
-                      {stock.risk === 'low' ? '低' : stock.risk === 'medium' ? '中' : '高'}
+                  <td className="px-4 py-3 text-sm text-text-secondary">{stock.mainForceIntent}</td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] border ${getRiskBadge(stock.risk)}`}>
+                      {stock.risk}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="font-mono">${stock.price.toFixed(2)}</span>
+                  <td className="px-4 py-3 text-right text-sm font-mono text-text-primary">
+                    {stock.price.toFixed(2)}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={stock.changePercent >= 0 ? 'text-[#3EE6A8]' : 'text-[#FF5D5D]'}>
-                      {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                    </span>
+                  <td
+                    className={`px-4 py-3 text-right text-sm font-semibold ${
+                      stock.changePercent >= 0 ? 'text-red-negative' : 'text-green-positive'
+                    }`}
+                  >
+                    {stock.changePercent >= 0 ? '+' : ''}
+                    {stock.changePercent.toFixed(2)}%
                   </td>
                   <td className="px-4 py-3 text-center">
                     <Link
-                      href={`/stock/${stock.symbol}`}
-                      className="px-3 py-1.5 text-sm rounded-lg glass border border-[#4DA3FF]/30 text-[#4DA3FF] hover:border-[#4DA3FF] transition-all"
+                      href={`/cn/stock?symbol=${stock.symbol}`}
+                      className="text-[12px] font-medium text-purple-primary hover:underline cursor-pointer"
                     >
                       详情
                     </Link>

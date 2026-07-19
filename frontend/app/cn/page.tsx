@@ -1,7 +1,6 @@
-// AlphaPilot A 股 Dashboard — V15 真实筹码模型 (2026-07-09)
+// AlphaPilot A 股 Dashboard — V3.1 硬门控 + VM2.5
 // Zeabur HTTPS -> cn_proxy.py -> 腾讯云 150.158.100.236
-// 2026-07-13: 60秒轮询 /recommend/live 实时资金流（盘中阶段标签实时刷新）
-// 2026-07-16: 价格标注带日期（交易时间=实时，非交易时间=最新收盘）
+// 2026-07-19: 浅色 UI 统一 · 信心分展示 · 版本文案对齐
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -16,7 +15,8 @@ import {
 
 const scoreColor = (s: number) =>
   s >= 0.50 ? "text-status-success" : s >= 0.40 ? "text-status-info" : s >= 0.30 ? "text-status-warning" : "text-text-secondary";
-const displayScore = (s: number) => Math.min(99, Math.max(75, Math.round(s * 45 + 75)));
+const displayScore = (s: number) => Math.min(99, Math.max(75, Math.round(Number(s || 0) * 45 + 75)));
+const formatModelProba = (s: number) => Number(s || 0).toFixed(2);
 
 // ─── 价格日期标注工具 ───
 function isTradingHours(): boolean {
@@ -296,7 +296,7 @@ export default function CNDashboard() {
       )}
 
       {error && (
-        <div className="glass card-lift mb-6 rounded-2xl border border-status-danger p-4">
+        <div className="card-lift mb-6 rounded-2xl border border-status-danger bg-surface-card p-4 shadow-sm">
           <div className="flex items-start gap-3">
             <svg className="w-6 h-6 shrink-0 text-status-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -316,39 +316,72 @@ export default function CNDashboard() {
 
       {data && (
         <>
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-[#A78BFA]/30 to-transparent mb-6"></div>
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-purple-primary/25 to-transparent mb-6" />
         <section className="mb-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          <KPI label="今日最佳" value={top ? top.name : "—"} sub={top ? `${top.symbol.replace(/^(sh|sz)/,"")} · ${displayScore(top.score)}信心${isMarkupTop ? " · 拉升确认" : top.money_phase_label ? " · " + top.money_phase_label : ""}` : ""} accent="#3EE6A8" />
-          <KPI label="实时资金" value={livePolling ? "拉取中" : (liveAgo != null ? "✓" : "—")} sub={`资金流 ${liveStatusText} · 60秒刷新`} accent="#F5C451" />
-          <KPI label="今日推荐" value={`${returnedCount}`} sub={`${items.length} 只通过门控 · 排名前${Math.round(items.length / (data?.stats?.total_scanned || 1) * 100)}%`} accent="#3EE6A8" />
-          <KPI label="平均信心" value={`${displayScore(avgScore)}`} sub={`信心分${(avgScore * 100).toFixed(0)}% 原始`} accent="#A78BFA" />
-          <KPI label="全量扫描" value={`${data.stats.valid_scored}`} sub={`${data.stats.total_scanned} 只 · ${(data.stats.elapsed_seconds / 60).toFixed(0)}m · 自我学习`} accent="#F5C451" />
+          <KPI
+            label="今日最佳"
+            value={top ? top.name : "—"}
+            sub={
+              top
+                ? `${top.symbol.replace(/^(sh|sz)/, "")} · 信心${displayScore(top.score)}${
+                    isMarkupTop ? " · 拉升确认" : top.money_phase_label ? " · " + top.money_phase_label : ""
+                  }`
+                : ""
+            }
+            accent="var(--color-status-success)"
+          />
+          <KPI
+            label="实时资金"
+            value={livePolling ? "拉取中" : liveAgo != null ? "已同步" : "—"}
+            sub={`资金流 ${liveStatusText} · 60秒刷新`}
+            accent="var(--color-status-warning)"
+          />
+          <KPI
+            label="今日推荐"
+            value={`${returnedCount}`}
+            sub={`${items.length} 只通过门控`}
+            accent="var(--color-status-success)"
+          />
+          <KPI
+            label="平均信心"
+            value={`${displayScore(avgScore)}`}
+            sub={`模型概率 ${formatModelProba(avgScore)} · 非百分制`}
+            accent="var(--color-purple-primary)"
+          />
+          <KPI
+            label="全量扫描"
+            value={`${data.stats.valid_scored}`}
+            sub={`${data.stats.total_scanned} 只 · ${((data.stats.elapsed_seconds || 0) / 60).toFixed(0)}m`}
+            accent="var(--color-status-info)"
+          />
         </section>
         </>
       )}
 
-      <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+      <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 scan-line">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1 h-6 rounded-full bg-status-info"></div>
               <h2 className="text-[18px] font-semibold text-text-primary">A 股 Top 10 机会</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(167,139,250,0.12)] text-status-info border border-[rgba(167,139,250,0.25)]">V18</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/20">
+                V3.1 · VM2.5
+              </span>
               {items[0]?._reranked && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-[rgba(62,230,168,0.3)]">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-success animate-pulse"></span>
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-status-success/25">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-success animate-pulse" />
                   5分钟动态重排
                 </span>
               )}
               {liveTs > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-[rgba(245,196,81,0.3)]">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-warning animate-pulse"></span>
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/25">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-warning animate-pulse" />
                   实时 {liveStatusText}
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-[12px] text-text-disabled">
-              V1.9 Fusion 决策系统 · 35维融合特征 · 5模型集成 · 凌晨 5:00 选股 · 含隔夜美股影响因子 · 量比换手门控 · 自我提升学习 · 盘中60秒实时资金刷新 · 每5分钟动态重排 · Top 10 完整榜单
+            <p className="mt-0.5 text-[12px] text-text-secondary max-w-2xl">
+              V3.1 硬门控漏斗 · VM2.5 打分 · 资金门控 · 大盘暴露 · 盘中 60 秒刷新
             </p>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0">
@@ -372,7 +405,7 @@ export default function CNDashboard() {
 
         {loading && (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-[#A78BFA]"></div>
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-purple-primary"></div>
             <p className="mt-4 text-[14px] text-text-secondary">加载中...</p>
           </div>
         )}
@@ -386,7 +419,7 @@ export default function CNDashboard() {
               const changePct = item.change_pct ?? 0;
               const isUp = changePct >= 0;
               return (
-              <div key={item.symbol} className="glass card-lift rounded-xl p-4">
+              <div key={item.symbol} className="card-lift rounded-xl border border-border-subtle bg-surface-card p-4 shadow-sm">
                 {/* Row 1: Rank + Symbol + Name + Sector + Change% */}
                 <div className="flex items-center justify-between gap-2 mb-2.5">
                   <div className="flex items-center gap-2 min-w-0">
@@ -510,7 +543,7 @@ export default function CNDashboard() {
           </div>
           {catLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-8 w-8 animate-spin rounded-full border-3 border-border-subtle border-t-[#A78BFA]"></div>
+              <div className="h-8 w-8 animate-spin rounded-full border-3 border-border-subtle border-t-purple-primary"></div>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -526,7 +559,7 @@ export default function CNDashboard() {
       )}
 
       {wlData.length > 0 && (
-        <section className="glass rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+        <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -577,7 +610,7 @@ export default function CNDashboard() {
         </section>
       )}
 
-      <section className="glass rounded-2xl p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+      <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="flex items-start gap-3 mb-3">
           <div className="w-1 h-12 rounded-full bg-primary shrink-0 mt-1"></div>
           <div className="flex-1">
@@ -585,7 +618,7 @@ export default function CNDashboard() {
               <h2 className="text-[17px] font-semibold text-text-primary">尾盘狙击</h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/30">14:50</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/30">一夜持股</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(162,102,255,0.15)] text-[#A266FF] border border-[rgba(162,102,255,0.3)]">S2 规则引擎</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/25">S2 规则引擎</span>
             </div>
             <p className="text-[11px] text-text-disabled">
               S2最优版 8步法 · 涨幅1~7% · 均线多头 · 量比&gt;1.5 · 收盘近最高 · 波动率排序 Top1 · +筹码峰加分
@@ -646,19 +679,19 @@ export default function CNDashboard() {
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-[rgba(62,230,168,0.25)]">AI 驱动</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-          <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#A78BFA]">
+          <div className="rounded-2xl border border-border-subtle bg-surface-card p-4 card-lift shadow-sm border-t-2 border-t-purple-primary">
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">自动历史回撤</h3>
             <p className="text-[11px] text-text-disabled leading-relaxed">
               每日 Top 5 推荐自动记录，T+1/T+3 涨跌幅自动追踪，生成完整回测数据库
             </p>
           </div>
-          <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#3EE6A8]">
+          <div className="rounded-2xl border border-border-subtle bg-surface-card p-4 card-lift shadow-sm border-t-2 border-t-status-success">
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">胜率自动统计</h3>
             <p className="text-[11px] text-text-disabled leading-relaxed">
               收藏夹自动计算胜率/平均收益，数据驱动而非感觉驱动
             </p>
           </div>
-          <div className="glass rounded-2xl p-4 card-lift border-t-2 border-t-[#F5C451]">
+          <div className="rounded-2xl border border-border-subtle bg-surface-card p-4 card-lift shadow-sm border-t-2 border-t-status-warning">
             <h3 className="text-[14px] font-semibold text-text-primary mb-1">门控参数优化</h3>
             <p className="text-[11px] text-text-disabled leading-relaxed">
               基于历史数据自动调整首板洗盘/量比换手门控参数，持续提升准确率
@@ -763,7 +796,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
   };
   const totalCount = group.phases.reduce((sum, pk) => sum + ((categories[pk]?.stocks?.length) || 0), 0);
   return (
-    <div className="glass rounded-2xl p-4 card-lift flex flex-col transition-all min-h-[320px]"
+    <div className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-4 card-lift flex flex-col transition-all min-h-[320px]"
       style={{ borderLeftColor: group.color, borderLeftWidth: 3 }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -900,7 +933,7 @@ function DataStatusCard() {
             </span>
             <span className="text-text-disabled">|</span>
             <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#F5C451]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-status-warning" />
               推荐: {dataStatus.daily_recommend?.updated_at || "无"}
             </span>
           </>

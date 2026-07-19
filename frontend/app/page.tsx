@@ -118,10 +118,51 @@ function Navbar() {
   );
 }
 
-// Hero 区域
+function IconShield() {
+  return (
+    <svg className="w-5 h-5 text-purple-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+function IconGauge() {
+  return (
+    <svg className="w-5 h-5 text-green-positive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+      <path d="M19.4 15a8 8 0 1 0-14.8 0" />
+      <path d="M12 9V4" />
+    </svg>
+  );
+}
+function IconLayers() {
+  return (
+    <svg className="w-5 h-5 text-status-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 2 2 7l10 5 10-5-10-5z" />
+      <path d="m2 17 10 5 10-5" />
+      <path d="m2 12 10 5 10-5" />
+    </svg>
+  );
+}
+function IconSliders() {
+  return (
+    <svg className="w-5 h-5 text-status-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <line x1="4" y1="21" x2="4" y2="14" />
+      <line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" />
+      <line x1="20" y1="12" x2="20" y2="3" />
+      <line x1="1" y1="14" x2="7" y2="14" />
+      <line x1="9" y1="8" x2="15" y2="8" />
+      <line x1="17" y1="16" x2="23" y2="16" />
+    </svg>
+  );
+}
+
+// Hero 区域 — 首屏只保留品牌叙事 + CTA
 function Hero() {
   return (
-    <section className="pt-[140px] pb-20 px-6 text-center max-w-[1200px] mx-auto">
+    <section className="pt-[120px] pb-16 px-6 text-center max-w-[1200px] mx-auto">
       <div className="badge-purple mb-6">
         <span className="w-1.5 h-1.5 rounded-full bg-purple-primary animate-pulse-dot" />
         V3.1 漏斗 · VM2.5 在线
@@ -134,9 +175,13 @@ function Hero() {
       <p className="text-xl text-text-secondary font-normal max-w-[560px] mx-auto mb-10 leading-relaxed max-sm:text-base">
         从全 A 出发，经量价金叉、资金门控与大盘环境过滤，再用 VM2.5 打分，留下当日值得关注的票。
       </p>
-      <div className="flex gap-4 justify-center">
-        <a href="/cn/" className="btn-primary hover:btn-primary-hover inline-block text-center">查看今日信号</a>
-        <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center">看漏斗怎么筛</a>
+      <div className="flex gap-4 justify-center flex-wrap">
+        <a href="/cn/" className="btn-primary hover:btn-primary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/40">
+          查看今日信号
+        </a>
+        <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/30">
+          看漏斗怎么筛
+        </a>
       </div>
     </section>
   );
@@ -185,12 +230,12 @@ function TickerSection() {
   }, []);
 
   return (
-    <section className="max-w-[1200px] mx-auto mb-[60px] px-6">
+    <section className="max-w-[1200px] mx-auto mb-10 mt-4 px-6">
       <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
         {indices.map((idx) => (
           <div
             key={idx.name}
-            className="card-glass p-6 relative overflow-hidden group hover:card-hover"
+            className="card p-6 relative overflow-hidden group hover:card-hover"
           >
             <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-purple-primary to-[#A78BFA] opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="text-[13px] text-text-tertiary font-medium mb-2 tracking-wide">
@@ -213,8 +258,8 @@ function TickerSection() {
 // 统计栏
 function StatsBar() {
   return (
-    <section className="max-w-[1200px] mx-auto mb-[60px] px-6">
-      <div className="card-glass p-8 px-12 flex justify-around items-center max-md:flex-col max-md:gap-6">
+    <section className="max-w-[1200px] mx-auto mb-16 px-6">
+      <div className="card p-8 px-12 flex justify-around items-center max-md:flex-col max-md:gap-6">
         {stats.map((stat, i) => (
           <div key={stat.label} className="text-center">
             <div
@@ -250,13 +295,11 @@ function FeaturesSection() {
         </p>
       </div>
       <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
-        {/* 大卡片 - 主力行为雷达 */}
-        <div className="card-glass p-7 col-span-2 row-span-2 flex flex-col group hover:card-hover relative overflow-hidden max-md:col-span-2 max-sm:col-span-1">
+        <div className="card p-7 col-span-2 row-span-2 flex flex-col group hover:card-hover relative overflow-hidden max-md:col-span-2 max-sm:col-span-1">
           <div className="w-11 h-11 rounded-xl bg-purple-light flex items-center justify-center mb-4">
+            <IconShield />
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            资金硬门控
-          </div>
+          <div className="text-[17px] font-semibold mb-2 tracking-tight">资金硬门控</div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
             用主动买入、换手、量比与资金流信号过滤弱资金票，让名单先过「钱在不在」这一关，再谈评分高低。
           </div>
@@ -265,49 +308,37 @@ function FeaturesSection() {
           </div>
         </div>
 
-        {/* 量化信号 */}
-        <div className="card-glass p-7 flex flex-col group hover:card-hover">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(52,199,89,0.1)] flex items-center justify-center mb-4">
+        <div className="card p-7 flex flex-col group hover:card-hover">
+          <div className="w-11 h-11 rounded-xl bg-status-success/10 flex items-center justify-center mb-4">
+            <IconGauge />
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            VM2.5 三模型打分
-          </div>
+          <div className="text-[17px] font-semibold mb-2 tracking-tight">VM2.5 三模型打分</div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
             对漏斗内候选做概率打分，输出信心分与排名，方便横向比较。
           </div>
-          <div className="text-xs font-semibold text-green-positive mt-auto pt-3">
-            信心分 75–99
-          </div>
+          <div className="text-xs font-semibold text-status-success mt-auto pt-3">信心分 75–99</div>
         </div>
 
-        {/* 资金阶段 */}
-        <div className="card-glass p-7 flex flex-col group hover:card-hover">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(255,149,0,0.1)] flex items-center justify-center mb-4">
+        <div className="card p-7 flex flex-col group hover:card-hover">
+          <div className="w-11 h-11 rounded-xl bg-status-warning/10 flex items-center justify-center mb-4">
+            <IconLayers />
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            资金阶段识别
-          </div>
+          <div className="text-[17px] font-semibold mb-2 tracking-tight">资金阶段识别</div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
             区分吸筹、拉升、诱多等阶段，帮你判断现在更像潜伏还是追高。
           </div>
-          <div className="text-xs font-semibold text-[#FF9500] mt-auto pt-3">
-            阶段标签
-          </div>
+          <div className="text-xs font-semibold text-status-warning mt-auto pt-3">阶段标签</div>
         </div>
 
-        {/* 风控引擎 - 宽卡片 */}
-        <div className="card-glass p-7 col-span-2 flex flex-col group hover:card-hover max-md:col-span-2 max-sm:col-span-1">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(0,122,255,0.1)] flex items-center justify-center mb-4">
+        <div className="card p-7 col-span-2 flex flex-col group hover:card-hover max-md:col-span-2 max-sm:col-span-1">
+          <div className="w-11 h-11 rounded-xl bg-status-info/10 flex items-center justify-center mb-4">
+            <IconSliders />
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            大盘环境门控
-          </div>
+          <div className="text-[17px] font-semibold mb-2 tracking-tight">大盘环境门控</div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
             弱市自动降仓或空仓：仓位暴露在 0 / 0.5 / 1 之间切换，避免行情不配合时硬推满仓名单。
           </div>
-          <div className="text-xs font-semibold text-[#007AFF] mt-auto pt-3">
-            暴露 0 · 0.5 · 1
-          </div>
+          <div className="text-xs font-semibold text-status-info mt-auto pt-3">暴露 0 · 0.5 · 1</div>
         </div>
       </div>
     </section>
@@ -344,7 +375,7 @@ function SignalSection() {
   if (loading) {
     return (
       <section className="max-w-[1200px] mx-auto mb-20 px-6">
-        <div className="card-glass p-10">
+        <div className="card p-10">
           <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
             <div>
               <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
@@ -361,7 +392,7 @@ function SignalSection() {
   if (!signals || signals.length === 0) {
     return (
       <section className="max-w-[1200px] mx-auto mb-20 px-6">
-        <div className="card-glass p-10 relative overflow-hidden max-sm:p-6 text-center">
+        <div className="card p-10 relative overflow-hidden max-sm:p-6 text-center">
           <div className="absolute -top-[100px] -right-[100px] w-[300px] h-[300px] bg-purple-glow rounded-full pointer-events-none" />
           <div className="flex justify-between items-start mb-4 max-sm:flex-col max-sm:gap-4">
             <div>
@@ -384,7 +415,7 @@ function SignalSection() {
   // 有信号 → 显示
   return (
     <section className="max-w-[1200px] mx-auto mb-20 px-6">
-      <div className="card-glass p-10 relative overflow-hidden max-sm:p-6">
+      <div className="card p-10 relative overflow-hidden max-sm:p-6">
         <div className="absolute -top-[100px] -right-[100px] w-[300px] h-[300px] bg-purple-glow rounded-full pointer-events-none" />
 
         <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
