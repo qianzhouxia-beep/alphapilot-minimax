@@ -87,7 +87,7 @@ export default function PaperTradingPage() {
             </span>
           </h1>
           <p className="mt-1 text-[12px] text-text-disabled">
-            V19 日频 + 尾盘狙击 / S2 并行 · 盘中动态止损止盈
+            VM2.5 Top2 日频（可交易闭环）+ 尾盘狙击 · 盘中动态止损止盈
           </p>
         </div>
         </div>
@@ -96,6 +96,8 @@ export default function PaperTradingPage() {
           自动刷新 60s · 最近 {lastUpdate.toLocaleTimeString()}
         </div>
       </div>
+
+      <LoopStatusBar data={data} />
 
       {/* 账户总览 */}
       <section className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -142,6 +144,77 @@ function KPICard({ label, value, sub, color }: { label: string; value: string; s
       <div className="font-display-numeric text-[18px] sm:text-[22px] truncate" style={{ color }}>{value}</div>
       <div className="mt-1 text-[11px] text-text-secondary">{sub}</div>
     </div>
+  );
+}
+
+function LoopStatusBar({ data }: { data: PaperTradingData }) {
+  const expo = data.position_exposure ?? data.account?.position_exposure;
+  const protocol = data.protocol?.name || "tradable_top2";
+  const loop = data.loop;
+  const verdict = loop?.oos?.verdict || "—";
+  const verdictColor =
+    verdict === "PASS"
+      ? "text-status-success"
+      : verdict === "FAIL"
+        ? "text-status-danger"
+        : "text-status-warning";
+  const audit = loop?.audit;
+  const ref = loop?.oos?.reference_window;
+  const hit = audit?.kpi?.hit_3pct_rate;
+  const fillNote =
+    expo === 0 || data.empty_reason === "position_exposure_zero"
+      ? "今日 expo=0 空仓保护"
+      : `expo=${expo == null ? "—" : Number(expo).toFixed(2)}`;
+
+  return (
+    <section className="glass rounded-2xl p-4 mb-6 border border-border-subtle">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-[13px] font-semibold text-text-primary">可交易闭环</div>
+          <div className="mt-1 text-[11px] text-text-disabled">
+            {protocol} · {data.protocol?.entry || "T+1开"} · {data.protocol?.exit || "T+2收"} · Top
+            {data.protocol?.top_n ?? 2}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-4 text-[12px]">
+          <div>
+            <div className="text-text-disabled text-[10px]">仓位曝光</div>
+            <div className="font-display-numeric text-text-primary">{fillNote}</div>
+          </div>
+          <div>
+            <div className="text-text-disabled text-[10px]">OOS 验收</div>
+            <div className={`font-semibold ${verdictColor}`}>{verdict}</div>
+          </div>
+          <div>
+            <div className="text-text-disabled text-[10px]">模拟盘 hit≥3%</div>
+            <div className="font-display-numeric text-text-primary">
+              {hit == null ? "—" : `${(Number(hit) * 100).toFixed(1)}%`}
+            </div>
+          </div>
+          <div>
+            <div className="text-text-disabled text-[10px]">调度</div>
+            <div className="text-text-secondary text-[11px]">
+              {loop?.cron?.signals || "09:36"} / {loop?.cron?.audit || "16:10审计"} /{" "}
+              {loop?.cron?.oos || "周六OOS"}
+            </div>
+          </div>
+        </div>
+      </div>
+      {verdict === "INSUFFICIENT_OOS" && ref?.kpi ? (
+        <p className="mt-2 text-[11px] text-text-disabled">
+          样本外交易日不足；参考窗{" "}
+          {ref.window?.start}~{ref.window?.end} fill=
+          {ref.kpi.fill_rate == null ? "—" : `${(Number(ref.kpi.fill_rate) * 100).toFixed(0)}%`} hit3%=
+          {ref.kpi.hit_3pct_rate == null
+            ? "—"
+            : `${(Number(ref.kpi.hit_3pct_rate) * 100).toFixed(1)}%`}
+          {ref.in_sample_risk ? "（含训练窗，仅观察）" : ""}
+        </p>
+      ) : null}
+      {loop?.oos?.reason ? (
+        <p className="mt-1 text-[11px] text-text-disabled">{loop.oos.reason}</p>
+      ) : null}
+    </section>
   );
 }
 
@@ -197,7 +270,7 @@ function StrategyGroupCard({
   nextExecution,
 }: {
   group: StrategyGroup;
-  nextExecution: Record<string, string>;
+  nextExecution: Record<string, string> | string;
 }) {
   const strategies = group.strategies;
   const allocated = strategies.reduce((a, s) => a + (s.allocated || 0), 0);
@@ -220,10 +293,12 @@ function StrategyGroupCard({
     return withUsed.reduce((a, s) => a + (s.pnl_pct ?? 0) * s.used, 0) / sumUsed;
   })();
   const pnlColor = weightedPnl >= 0 ? "text-status-danger" : "text-status-success";
+  const nextMap = typeof nextExecution === "string" ? {} : nextExecution || {};
   const nextHint =
-    nextExecution?.["s2_eod"] ||
-    nextExecution?.["eod_sniper"] ||
-    nextExecution?.[strategies[0]?.id] ||
+    nextMap["s2_eod"] ||
+    nextMap["eod_sniper"] ||
+    nextMap[strategies[0]?.id] ||
+    (typeof nextExecution === "string" ? nextExecution : null) ||
     "每日 14:50 尾盘";
 
   const gridCols =

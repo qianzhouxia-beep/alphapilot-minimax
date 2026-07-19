@@ -583,18 +583,44 @@ export type PaperTradingAccount = {
   trade_count: number;
   win_count: number;
   win_rate: number;
+  position_exposure?: number;
 };
 
 export type TradeLogEntry = {
   time: string;
   symbol: string;
   name: string;
-  action: "买入" | "卖出" | "止损" | "止盈";
+  action: string;
   price: number;
   quantity: number;
   amount: number;
   strategy_id: string;
   pnl_pct?: number;
+  skip?: string;
+};
+
+export type PaperLoopSummary = {
+  audit?: {
+    generated_at?: string;
+    counts?: Record<string, number>;
+    kpi?: Record<string, number | null>;
+    checklist?: Record<string, boolean>;
+    position_exposure_today?: number;
+  } | null;
+  oos?: {
+    generated_at?: string;
+    verdict?: string;
+    reason?: string;
+    oos_window?: { n_days?: number; start?: string; end?: string };
+    kpi?: Record<string, number | null>;
+    reference_window?: {
+      window?: { start?: string; end?: string; n_days?: number };
+      in_sample_risk?: boolean;
+      kpi?: Record<string, number | null>;
+    } | null;
+  } | null;
+  empty_reason?: string | null;
+  cron?: Record<string, string>;
 };
 
 export type PaperTradingData = {
@@ -602,7 +628,12 @@ export type PaperTradingData = {
   strategies: PaperTradingStrategy[];
   trade_log: TradeLogEntry[];
   updated_at: string;
-  next_execution: Record<string, string>;
+  next_execution: Record<string, string> | string;
+  position_exposure?: number;
+  protocol?: { name?: string; entry?: string; exit?: string; top_n?: number };
+  market_env_flags?: Record<string, boolean>;
+  empty_reason?: string | null;
+  loop?: PaperLoopSummary;
 };
 
 export async function fetchPaperTrading(): Promise<PaperTradingData> {
