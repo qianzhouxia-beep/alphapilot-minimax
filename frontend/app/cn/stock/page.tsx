@@ -163,7 +163,7 @@ export default function CNStockDetail() {
       {/* Back button + refresh */}
       <div className="mb-4 flex items-center justify-between">
         <Link href="/cn" className="inline-flex items-center gap-1 text-[12px] text-text-secondary hover:text-status-info">
-          ← 返回 Dashboard
+          ← 返回工作台
         </Link>
         <button onClick={handleRefresh} className="rounded-lg border border-border-subtle bg-surface-panel px-3 py-1.5 text-[12px] text-text-secondary hover:border-[#4DA3FF] hover:text-text-primary transition-colors">
           刷新

@@ -141,7 +141,7 @@ export default function WatchlistPage() {
             </p>
           </div>
           <Link href="/cn" className="rounded-lg border border-border-subtle bg-surface-panel px-4 py-2 text-[13px] text-text-secondary hover:border-status-info hover:text-text-primary">
-            ← 返回 Dashboard
+            ← 返回工作台
           </Link>
         </div>
 
@@ -167,7 +167,7 @@ export default function WatchlistPage() {
             <p className="text-lg font-semibold text-text-disabled">暂无收藏股票</p>
             <p className="mt-4 text-[16px] text-text-primary">还没有收藏任何股票</p>
             <p className="mt-2 text-[13px] text-text-secondary">
-              在 Dashboard 点击收藏按钮添加，系统会自动追踪后续涨跌
+              在工作台点击收藏按钮添加，系统会自动追踪后续涨跌
             </p>
             <Link href="/cn" className="mt-6 inline-block rounded-lg bg-status-info px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:bg-status-info/70">
               去选股
@@ -267,7 +267,6 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
       {/* Data rows */}
       {items.map((w) => {
         const isRemoving = removing === w.symbol;
-        const d1Hit = (w.day1_change ?? 0) >= 3;
         const chg = w.current_change_pct;
         const fmtTime = (t?: string) => {
           if (!t) return "—";
@@ -295,8 +294,8 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
             {chg != null ? (chg > 0 ? "+" : "") + chg + "%" : "—"}
           </div>
           <div className="px-2 py-3 text-right font-mono text-text-secondary whitespace-nowrap">{(w.model_score * 100).toFixed(0)}%</div>
-          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day1_change != null ? (d1Hit ? "text-status-danger font-semibold" : w.day1_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
-            {w.day1_change != null ? (w.day1_change > 0 ? "+" : "") + w.day1_change + "%" + (d1Hit ? " 达标" : "") : "—"}
+          <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day1_change != null ? (w.day1_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
+            {w.day1_change != null ? (w.day1_change > 0 ? "+" : "") + w.day1_change + "%" : "—"}
           </div>
           <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day2_change != null ? (w.day2_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
             {w.day2_change != null ? (w.day2_change > 0 ? "+" : "") + w.day2_change + "%" : "—"}
