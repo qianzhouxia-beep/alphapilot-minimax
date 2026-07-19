@@ -16,6 +16,33 @@
   --color-green-positive: #34C759;
   --color-red-negative: #FF3B30;
 
+  /* === 旧暗黑主题→新浅色的别名映射（兼容老页面） === */
+  --color-background: #F5F5F7;
+  --color-surface-panel: #FFFFFF;
+  --color-surface-card: #FFFFFF;
+  --color-surface-container-low: #FFFFFF;
+  --color-surface-container: #FFFFFF;
+  --color-surface-container-high: #FFFFFF;
+  --color-surface-bright: #FFFFFF;
+  --color-primary: #7C5CFC;
+  --color-primary-container: #7C5CFC;
+  --color-on-primary: #FFFFFF;
+  --color-on-primary-container: #FFFFFF;
+  --color-secondary: #EDE9FE;
+  --color-secondary-container: #7C5CFC;
+  --color-tertiary: #EDE9FE;
+  --color-tertiary-container: #7C5CFC;
+  --color-border-subtle: rgba(0, 0, 0, 0.06);
+  --color-outline: #A1A1A6;
+  --color-outline-variant: rgba(0, 0, 0, 0.08);
+  --color-text-disabled: #A1A1A6;
+
+  /* 状态色（保持原语义） */
+  --color-status-info: #5AC8FA;
+  --color-status-success: #34C759;
+  --color-status-danger: #FF3B30;
+  --color-status-warning: #FF9500;
+
   /* 阴影 */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
