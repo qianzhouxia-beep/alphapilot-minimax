@@ -21,7 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/cn/backtest", label: "选股回测" },
   { href: "/cn/paper-trading", label: "量化模拟盘", badge: "模拟" },
   { href: "/cn/chat", label: "深度研报" },
-  { href: "/cn/news", label: "投资资讯" },
+  { href: "/cn/sectors", label: "板块研报" },
 ];
 
 const navIdle =

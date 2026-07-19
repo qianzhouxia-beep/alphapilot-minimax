@@ -24,6 +24,7 @@ export const CN_ENDPOINTS = {
   deepReport: endpoint(`/api/v1/cn/deep-report`),
   backtest: endpoint(`/api/v1/cn/backtest`),
   news: endpoint(`/api/v1/cn/news`),
+  sectors: endpoint(`/api/v1/cn/sectors`),
   watchlist: endpoint(`/api/v1/cn/watchlist`),
   recommendCategorized: endpoint(`/api/v1/cn/recommend/categorized`),
   recommendEOD: endpoint(`/api/v1/cn/recommend/eod`),
@@ -283,6 +284,45 @@ export async function getDeepReport(jobId: string): Promise<DeepReportJob> {
 
 export async function listDeepReports(limit = 20): Promise<{ items: DeepReportListItem[] }> {
   return apiFetch(`${CN_ENDPOINTS.deepReport}?limit=${limit}`);
+}
+
+/** A 股板块看板 */
+export type SectorFlowItem = {
+  name: string;
+  net_yi: number;
+  change_pct?: number | null;
+  net3_yi?: number | null;
+  rank?: number;
+  status?: "allow" | "deny" | "neutral" | string;
+};
+
+export type SectorDashboard = {
+  ts?: string;
+  generated_at?: string;
+  has_3day?: boolean;
+  has_concept?: boolean;
+  summary: {
+    industry_count: number;
+    allow: number;
+    deny: number;
+    neutral: number;
+    inflow_yi: number;
+    outflow_yi: number;
+    net_yi: number;
+  };
+  flow_bars: SectorFlowItem[];
+  scatter: SectorFlowItem[];
+  today_top10: SectorFlowItem[];
+  today_bottom10: SectorFlowItem[];
+  concept_top10: SectorFlowItem[];
+  allow: SectorFlowItem[];
+  deny: SectorFlowItem[];
+  industries: SectorFlowItem[];
+};
+
+export async function fetchSectorDashboard(refresh = false): Promise<SectorDashboard> {
+  const q = refresh ? "?refresh=true" : "";
+  return apiFetch<SectorDashboard>(`${CN_ENDPOINTS.sectors}${q}`);
 }
 
 export async function postCNBacktest(cfg: {
