@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 // 指数数据类型
 interface IndexData {
@@ -23,11 +24,11 @@ interface Signal {
   actionColor: string;
 }
 
-// 模拟数据（实际使用时替换为 API 调用）
-const indices: IndexData[] = [
-  { name: "上证指数", value: "3,052.81", change: "+0.45%", isUp: true },
-  { name: "深证成指", value: "9,432.55", change: "-0.12%", isUp: false },
-  { name: "创业板指", value: "1,826.44", change: "+0.68%", isUp: true },
+// 指数默认占位（API 失败时显示）
+const PLACEHOLDER_INDICES: IndexData[] = [
+  { name: "上证指数", value: "—", change: "—", isUp: true },
+  { name: "深证成指", value: "—", change: "—", isUp: true },
+  { name: "创业板指", value: "—", change: "—", isUp: true },
 ];
 
 const stats = [
@@ -109,12 +110,10 @@ function Navbar() {
       }`}
     >
       <div className="max-w-[1200px] mx-auto flex items-center justify-between px-6 h-[52px]">
-        <div className="flex items-center gap-2.5 font-bold text-lg tracking-tight text-text-primary">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-primary to-[#A78BFA] flex items-center justify-center text-white text-sm font-bold">
-            A
-          </div>
+        <a href="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight text-text-primary">
+          <Image src="/logo.png" alt="AlphaPilot" width={32} height={32} className="h-8 w-8" priority />
           AlphaPilot
-        </div>
+        </a>
         <div className="hidden md:flex gap-8">
           {[
             { name: "首页", href: "/" },
@@ -174,8 +173,32 @@ function Hero() {
   );
 }
 
-// 指数卡片
+// 指数卡片（实时拉取）
 function TickerSection() {
+  const [indices, setIndices] = useState<IndexData[]>(PLACEHOLDER_INDICES);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/v1/cn/indices")
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        const list = d?.indices || [];
+        const mapped: IndexData[] = list.slice(0, 3).map((it: any) => {
+          const pct = Number(it.change_pct) || 0;
+          return {
+            name: it.name,
+            value: Number(it.price).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            change: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
+            isUp: pct >= 0,
+          };
+        });
+        if (mapped.length) setIndices(mapped);
+      })
+      .catch(() => { /* keep placeholder */ });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <section className="max-w-[1200px] mx-auto mb-[60px] px-6">
       <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
@@ -417,12 +440,10 @@ function Footer() {
   return (
     <footer className="bg-bg-secondary border-t border-border-light py-12 px-6 mt-[60px]">
       <div className="max-w-[1200px] mx-auto flex justify-between items-center max-sm:flex-col max-sm:gap-4">
-        <div className="flex items-center gap-2.5 font-bold text-base">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-primary to-[#A78BFA] flex items-center justify-center text-white text-xs font-bold">
-            A
-          </div>
+        <a href="/" className="flex items-center gap-2.5 font-bold text-base text-text-primary">
+          <Image src="/logo.png" alt="AlphaPilot" width={28} height={28} className="h-7 w-7" />
           AlphaPilot
-        </div>
+        </a>
         <div className="text-[13px] text-text-tertiary">
           AlphaPilot V2.2 · AI 股票智能评分
         </div>
