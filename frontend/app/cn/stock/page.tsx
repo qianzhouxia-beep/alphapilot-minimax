@@ -185,12 +185,14 @@ export default function CNStockDetail() {
   const sector = stock?.sector || stock?.industry || null;
   const region = stock?.region || stock?.industry_l1 || null;
   const series = stock?.fund_series_5d || [];
-  const maxAbs = Math.max(...series.map(s => Math.abs(s.main_net || 0)), 1);
-  const demoteList = Array.isArray(stock?.soft_demote_reasons)
-    ? stock!.soft_demote_reasons!
-    : stock?.soft_demote_reasons
-      ? [String(stock.soft_demote_reasons)]
-      : [];
+  const maxAbs = Math.max(...series.map((s) => Math.abs(s.main_net || 0)), 1);
+  const rawDemote = stock?.soft_demote_reasons;
+  let demoteList: string[] = [];
+  if (Array.isArray(rawDemote)) {
+    demoteList = rawDemote.map(String);
+  } else if (rawDemote) {
+    demoteList = [String(rawDemote)];
+  }
   const expo = stock?.position_exposure ?? stock?.exposure;
 
   return (
@@ -295,7 +297,10 @@ export default function CNStockDetail() {
                 LGB <span className="text-text-primary">{((stock?.lgb_score ?? 0) * 100).toFixed(0)}</span>
                 {" · "}板块热度 <span className="text-text-primary">{((stock?.sector_heat ?? 0.5) * 100).toFixed(0)}</span>
                 {expo != null && (
-                  <>{" · "}仓位敞口 <span className="text-text-primary">{(Number(expo).toFixed(2)}</span></>
+                  <>
+                    {" · "}仓位敞口{" "}
+                    <span className="text-text-primary">{Number(expo).toFixed(2)}</span>
+                  </>
                 )}
               </div>
             </div>
