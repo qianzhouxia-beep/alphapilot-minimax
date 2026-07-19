@@ -10,11 +10,18 @@ import {
   type WatchlistItem,
 } from "@/lib/cn-api";
 
-function resultLabel(chg: number | null): { text: string; color: string; bg: string } {
-  if (chg == null) return { text: "待定", color: "#9FB0C7", bg: "rgba(159,176,199,0.15)" };
-  if (chg >= 3) return { text: "达标", color: "#FF5D5D", bg: "rgba(255,93,93,0.15)" };
-  if (chg > 0) return { text: "微盈", color: "#FF5D5D", bg: "rgba(255,93,93,0.10)" };
-  return { text: "亏损", color: "#3EE6A8", bg: "rgba(62,230,168,0.15)" };
+/** 按实际实现盈亏%打标（不是 T+1 中间涨跌） */
+function resultLabel(profitPct: number | null): { text: string; color: string; bg: string } {
+  if (profitPct == null) {
+    return { text: "待定", color: "var(--color-text-tertiary)", bg: "rgba(0,0,0,0.06)" };
+  }
+  if (profitPct > 0) {
+    return { text: "盈利", color: "var(--color-red-negative)", bg: "rgba(255,59,48,0.10)" };
+  }
+  if (profitPct < 0) {
+    return { text: "亏损", color: "var(--color-green-positive)", bg: "rgba(52,199,89,0.12)" };
+  }
+  return { text: "持平", color: "var(--color-text-tertiary)", bg: "rgba(0,0,0,0.06)" };
 }
 
 function totalReturn(w: WatchlistItem): number | null {
@@ -406,10 +413,10 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
             const exitTotal = exitPrice * qty;         // 卖出总额
             const profitAmt = exitTotal - costTotal;   // 盈余（绝对金额）
             const profitPct = costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : 0;
-            const d1 = firstBuy.day1_change;
 
             const isRemoving = removing === row.symbol;
-            const rl = resultLabel(d1);
+            // 结果必须跟「盈余 / 盈亏%」一致：用实际买卖价差，不用 day1_change
+            const rl = resultLabel(hasSell ? profitPct : null);
             const isEditingQty = editingQty === row.symbol;
 
             return (
