@@ -1,9 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" width="160" height="40">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#A78BFA"/>
-      <stop offset="100%" stop-color="#C084FC"/>
+    <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C5CFC"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
     </linearGradient>
   </defs>
-  <text x="0" y="30" font-family="system-ui,-apple-system,sans-serif" font-size="24" font-weight="700" fill="url(#grad)" letter-spacing="1">AlphaPilot</text>
+  <!-- 三角图标（AlphaPilot 新 logo 的 SVG 版） -->
+  <path d="M16 3 L29 27 L3 27 Z" fill="url(#lg)"/>
+  <path d="M16 9 L24 24 L8 24 Z" fill="white" opacity="0.85"/>
+  <path d="M16 14 L21 22 L11 22 Z" fill="url(#lg)"/>
 </svg>
