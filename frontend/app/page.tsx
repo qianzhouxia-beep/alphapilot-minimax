@@ -11,19 +11,6 @@ interface IndexData {
   isUp: boolean;
 }
 
-// 信号数据类型
-interface Signal {
-  name: string;
-  code: string;
-  score: number;
-  stage: string;
-  stageColor: string;
-  fundFlow: string;
-  fundFlowColor: string;
-  action: string;
-  actionColor: string;
-}
-
 // 指数默认占位（API 失败时显示）
 const PLACEHOLDER_INDICES: IndexData[] = [
   { name: "上证指数", value: "—", change: "—", isUp: true },
@@ -36,42 +23,6 @@ const stats = [
   { value: "3.2:1", label: "平均盈亏比", highlight: false },
   { value: "500+", label: "每日信号", highlight: false },
   { value: "5ms", label: "行情延迟", highlight: false },
-];
-
-const signals: Signal[] = [
-  {
-    name: "贵州茅台",
-    code: "600519",
-    score: 96.8,
-    stage: "拉升",
-    stageColor: "#FF9500",
-    fundFlow: "+2.4亿",
-    fundFlowColor: "var(--color-green-positive)",
-    action: "关注",
-    actionColor: "var(--color-purple-primary)",
-  },
-  {
-    name: "宁德时代",
-    code: "300750",
-    score: 94.2,
-    stage: "潜伏",
-    stageColor: "var(--color-green-positive)",
-    fundFlow: "+1.8亿",
-    fundFlowColor: "var(--color-green-positive)",
-    action: "关注",
-    actionColor: "var(--color-purple-primary)",
-  },
-  {
-    name: "比亚迪",
-    code: "002594",
-    score: 91.5,
-    stage: "吸筹",
-    stageColor: "var(--color-purple-primary)",
-    fundFlow: "-0.3亿",
-    fundFlowColor: "var(--color-text-tertiary)",
-    action: "观察",
-    actionColor: "var(--color-text-tertiary)",
-  },
 ];
 
 // Sparkline SVG 组件
@@ -342,18 +293,84 @@ function FeaturesSection() {
 }
 
 // 信号表格
+function getPhaseColor(phase: string): string {
+  switch (phase) {
+    case "拉升": case "主升":   return "#FF9500";
+    case "吸筹": case "潜伏":  return "var(--color-purple-primary)";
+    case "出货": case "派发":  return "#FF3B30";
+    default:                  return "var(--color-text-tertiary)";
+  }
+}
+
 function SignalSection() {
+  const [signals, setSignals] = useState<any[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [runAt, setRunAt] = useState("");
+
+  useEffect(() => {
+    fetch("/api/v1/cn/recommend")
+      .then((r) => r.json())
+      .then((d) => {
+        setSignals(d.recommendations || []);
+        setRunAt(d.generated_at || d.run_at || "");
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // 加载中骨架屏
+  if (loading) {
+    return (
+      <section className="max-w-[1200px] mx-auto mb-20 px-6">
+        <div className="card-glass p-10">
+          <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
+            <div>
+              <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
+              <div className="text-sm text-text-secondary mt-1">正在加载信号数据…</div>
+            </div>
+            <div className="badge-purple">V2.2 评分引擎</div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 无信号
+  if (!signals || signals.length === 0) {
+    return (
+      <section className="max-w-[1200px] mx-auto mb-20 px-6">
+        <div className="card-glass p-10 relative overflow-hidden max-sm:p-6 text-center">
+          <div className="absolute -top-[100px] -right-[100px] w-[300px] h-[300px] bg-purple-glow rounded-full pointer-events-none" />
+          <div className="flex justify-between items-start mb-4 max-sm:flex-col max-sm:gap-4">
+            <div>
+              <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
+              <div className="text-sm text-text-secondary mt-1">基于 V2.2 全量扫描</div>
+            </div>
+            <div className="badge-purple">V2.2 评分引擎</div>
+          </div>
+          <div className="py-16">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[rgba(124,92,252,0.08)] flex items-center justify-center text-2xl text-purple-primary">◇</div>
+            <div className="text-lg font-semibold text-text-secondary mb-2">暂无信号</div>
+            <div className="text-sm text-text-tertiary max-w-sm mx-auto">
+              上一个交易日未生成符合条件的信号，下一个交易日凌晨 5:00 重新扫描
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 有信号 → 显示
   return (
     <section className="max-w-[1200px] mx-auto mb-20 px-6">
       <div className="card-glass p-10 relative overflow-hidden max-sm:p-6">
-        {/* 背景光晕 */}
         <div className="absolute -top-[100px] -right-[100px] w-[300px] h-[300px] bg-purple-glow rounded-full pointer-events-none" />
 
         <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
           <div>
             <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
             <div className="text-sm text-text-secondary mt-1">
-              每日凌晨 5:00 全量扫描 · V2.2 评分管线
+              {runAt ? `更新于 ${runAt}` : '基于 V2.2 全量扫描'}
             </div>
           </div>
           <div className="badge-purple">V2.2 评分引擎</div>
@@ -363,65 +380,38 @@ function SignalSection() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["股票", "评分", "资金阶段", "主力流向", "建议操作"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider py-3 px-4 border-b border-border-light"
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
+                {["股票", "评分", "资金阶段", "建议操作"].map((h) => (
+                  <th key={h} className="text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider py-3 px-4 border-b border-border-light">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {signals.map((sig) => (
-                <tr
-                  key={sig.code}
-                  className="group hover:bg-[rgba(124,92,252,0.02)] transition-colors"
-                >
+              {signals.slice(0, 10).map((sig: any) => (
+                <tr key={sig.symbol} className="group hover:bg-[rgba(124,92,252,0.02)] transition-colors">
                   <td className="py-4 px-4 border-b border-border-light">
-                    <a href={`/cn/stock?symbol=${sig.code}`} className="font-semibold text-text-primary hover:text-purple-primary transition-colors">
+                    <a href={`/cn/stock?symbol=${sig.symbol}`} className="font-semibold text-text-primary hover:text-purple-primary transition-colors">
                       {sig.name}
                     </a>
-                    <span className="text-xs text-text-tertiary ml-1">
-                      {sig.code}
-                    </span>
+                    <span className="text-xs text-text-tertiary ml-1">{sig.symbol}</span>
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
                     <div className="flex items-center gap-2.5">
-                      <span className="score-pill">{sig.score}</span>
+                      <span className="score-pill">{sig.score?.toFixed(1)}</span>
                       <div className="w-[60px] h-1 rounded bg-border-light overflow-hidden">
-                        <div
-                          className="h-full rounded bg-gradient-to-r from-purple-primary to-[#A78BFA]"
-                          style={{ width: `${sig.score}%` }}
-                        />
+                        <div className="h-full rounded bg-gradient-to-r from-purple-primary to-[#A78BFA]" style={{ width: `${sig.score || 0}%` }} />
                       </div>
                     </div>
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
-                    <span
-                      className="font-semibold"
-                      style={{ color: sig.stageColor }}
-                    >
-                      {sig.stage}
+                    <span className="font-semibold" style={{ color: getPhaseColor(sig.money_phase_label || sig.money_phase || "") }}>
+                      {sig.money_phase_label || sig.money_phase || "—"}
                     </span>
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
-                    <span
-                      className="font-semibold"
-                      style={{ color: sig.fundFlowColor }}
-                    >
-                      {sig.fundFlow}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 border-b border-border-light">
-                    <span
-                      className="font-semibold"
-                      style={{ color: sig.actionColor }}
-                    >
-                      {sig.action}
+                    <span className="font-semibold" style={{ color: sig.score && sig.score >= 85 ? "var(--color-purple-primary)" : "var(--color-text-tertiary)" }}>
+                      {sig.score && sig.score >= 85 ? "关注" : sig.score && sig.score >= 75 ? "观察" : "—"}
                     </span>
                   </td>
                 </tr>
