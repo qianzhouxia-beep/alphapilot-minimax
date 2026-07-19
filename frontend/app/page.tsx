@@ -19,10 +19,10 @@ const PLACEHOLDER_INDICES: IndexData[] = [
 ];
 
 const stats = [
-  { value: "84%", label: "波段胜率", highlight: true },
-  { value: "3.2:1", label: "平均盈亏比", highlight: false },
-  { value: "500+", label: "每日信号", highlight: false },
-  { value: "5ms", label: "行情延迟", highlight: false },
+  { value: "全 A", label: "每日扫描覆盖", highlight: true },
+  { value: "V3.1", label: "硬门控漏斗", highlight: false },
+  { value: "VM2.5", label: "三模型打分", highlight: false },
+  { value: "Top N", label: "可执行精选", highlight: false },
 ];
 
 // 从价格数组构建 SVG 分时线路径
@@ -111,7 +111,7 @@ function Navbar() {
           href="/cn/"
           className="bg-text-primary text-white border-none px-[18px] py-[7px] rounded-full text-[13px] font-semibold hover:scale-[1.03] hover:opacity-90 transition-all cursor-pointer inline-block"
         >
-          进入终端
+          打开终端
         </a>
       </div>
     </nav>
@@ -124,20 +124,19 @@ function Hero() {
     <section className="pt-[140px] pb-20 px-6 text-center max-w-[1200px] mx-auto">
       <div className="badge-purple mb-6">
         <span className="w-1.5 h-1.5 rounded-full bg-purple-primary animate-pulse-dot" />
-        V2.2 评分引擎在线
+        V3.1 漏斗 · VM2.5 在线
       </div>
       <h1 className="text-[56px] font-bold tracking-tight leading-[1.1] mb-5 text-gradient max-md:text-[40px] max-sm:text-[32px]">
-        用 AI 穿透
+        把建仓信号
         <br />
-        市场迷雾
+        收成可执行清单
       </h1>
       <p className="text-xl text-text-secondary font-normal max-w-[560px] mx-auto mb-10 leading-relaxed max-sm:text-base">
-        AlphaPilot V2.2 融合 43 维特征，从量价行为到资金流向，
-        用机构级视角锁定每一个建仓信号。
+        从全 A 出发，经量价金叉、资金门控与大盘环境过滤，再用 VM2.5 打分，留下当日值得关注的票。
       </p>
       <div className="flex gap-4 justify-center">
-        <a href="/cn/screener" className="btn-primary hover:btn-primary-hover inline-block text-center">查看今日信号</a>
-        <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center">了解策略原理</a>
+        <a href="/cn/" className="btn-primary hover:btn-primary-hover inline-block text-center">查看今日信号</a>
+        <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center">看漏斗怎么筛</a>
       </div>
     </section>
   );
@@ -244,10 +243,10 @@ function FeaturesSection() {
     <section className="max-w-[1200px] mx-auto mb-20 px-6">
       <div className="text-center mb-12">
         <h2 className="text-4xl font-bold tracking-tight mb-3 max-sm:text-[28px]">
-          全维度决策分析
+          一层层收窄，再给出名单
         </h2>
         <p className="text-lg text-text-secondary">
-          V2.2 · 43 维特征 · XGBoost 集成 · 动态风控
+          V3.1 硬门控 · VM2.5 打分 · 仓位暴露随大盘调整
         </p>
       </div>
       <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
@@ -256,13 +255,13 @@ function FeaturesSection() {
           <div className="w-11 h-11 rounded-xl bg-purple-light flex items-center justify-center mb-4">
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            主力行为雷达
+            资金硬门控
           </div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            实时追踪 61 维融合特征穿透式监控主力资金动向，结合多模型集成数据验证持仓分布。识别机构持续流入、短期过热等关键信号。
+            用主动买入、换手、量比与资金流信号过滤弱资金票，让名单先过「钱在不在」这一关，再谈评分高低。
           </div>
           <div className="text-xs font-semibold text-purple-primary mt-auto pt-3">
-            机构持续流入 <span className="opacity-50">·</span> 极高
+            先看资金 <span className="opacity-50">·</span> 再看分数
           </div>
         </div>
 
@@ -271,13 +270,13 @@ function FeaturesSection() {
           <div className="w-11 h-11 rounded-xl bg-[rgba(52,199,89,0.1)] flex items-center justify-center mb-4">
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            量化信号筛选
+            VM2.5 三模型打分
           </div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            基于 XGBoost 集成模型，对全市场 5000+ 标的进行多维度穿透评分。
+            对漏斗内候选做概率打分，输出信心分与排名，方便横向比较。
           </div>
           <div className="text-xs font-semibold text-green-positive mt-auto pt-3">
-            Top 1%
+            信心分 75–99
           </div>
         </div>
 
@@ -289,10 +288,10 @@ function FeaturesSection() {
             资金阶段识别
           </div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            智能识别吸筹、拉升、出货等 9 种资金运作阶段。
+            区分吸筹、拉升、诱多等阶段，帮你判断现在更像潜伏还是追高。
           </div>
           <div className="text-xs font-semibold text-[#FF9500] mt-auto pt-3">
-            拉升期
+            阶段标签
           </div>
         </div>
 
@@ -301,13 +300,13 @@ function FeaturesSection() {
           <div className="w-11 h-11 rounded-xl bg-[rgba(0,122,255,0.1)] flex items-center justify-center mb-4">
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">
-            动态风控引擎
+            大盘环境门控
           </div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            动态追踪止盈 · 自动硬止损 · 单票仓位上限 30% · 最大回撤 -8% 暂停交易。
+            弱市自动降仓或空仓：仓位暴露在 0 / 0.5 / 1 之间切换，避免行情不配合时硬推满仓名单。
           </div>
           <div className="text-xs font-semibold text-[#007AFF] mt-auto pt-3">
-            硬止损 -3% / -5%
+            暴露 0 · 0.5 · 1
           </div>
         </div>
       </div>
@@ -349,9 +348,9 @@ function SignalSection() {
           <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
             <div>
               <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
-              <div className="text-sm text-text-secondary mt-1">正在加载信号数据…</div>
+              <div className="text-sm text-text-secondary mt-1">正在加载漏斗结果…</div>
             </div>
-            <div className="badge-purple">V2.2 评分引擎</div>
+            <div className="badge-purple">V3.1 · VM2.5</div>
           </div>
         </div>
       </section>
@@ -367,14 +366,14 @@ function SignalSection() {
           <div className="flex justify-between items-start mb-4 max-sm:flex-col max-sm:gap-4">
             <div>
               <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
-              <div className="text-sm text-text-secondary mt-1">基于 V2.2 全量扫描</div>
+              <div className="text-sm text-text-secondary mt-1">V3.1 漏斗 · 经门控后的名单</div>
             </div>
-            <div className="badge-purple">V2.2 评分引擎</div>
+            <div className="badge-purple">V3.1 · VM2.5</div>
           </div>
           <div className="py-16">
-            <div className="text-lg font-semibold text-text-secondary mb-2">暂无信号</div>
+            <div className="text-lg font-semibold text-text-secondary mb-2">今日空仓 / 暂无信号</div>
             <div className="text-sm text-text-tertiary max-w-sm mx-auto">
-              上一个交易日未生成符合条件的信号，下一个交易日凌晨 5:00 重新扫描
+              大盘环境偏弱或未通过硬门控时，系统会主动留空，而不是硬凑名单。下一交易日开盘后重新扫描。
             </div>
           </div>
         </div>
@@ -392,17 +391,17 @@ function SignalSection() {
           <div>
             <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
             <div className="text-sm text-text-secondary mt-1">
-              {runAt ? `更新于 ${runAt}` : '基于 V2.2 全量扫描'}
+              {runAt ? `更新于 ${runAt}` : "V3.1 漏斗 · 经门控后的名单"}
             </div>
           </div>
-          <div className="badge-purple">V2.2 评分引擎</div>
+          <div className="badge-purple">V3.1 · VM2.5</div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["股票", "评分", "资金阶段", "建议操作"].map((h) => (
+                {["股票", "信心分", "资金阶段", "建议操作"].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider py-3 px-4 border-b border-border-light">
                     {h}
                   </th>
@@ -419,12 +418,23 @@ function SignalSection() {
                     <span className="text-xs text-text-tertiary ml-1">{sig.symbol}</span>
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
-                    <div className="flex items-center gap-2.5">
-                      <span className="score-pill">{sig.score?.toFixed(1)}</span>
-                      <div className="w-[60px] h-1 rounded bg-border-light overflow-hidden">
-                        <div className="h-full rounded bg-gradient-to-r from-purple-primary to-[#A78BFA]" style={{ width: `${sig.score || 0}%` }} />
-                      </div>
-                    </div>
+                    {(() => {
+                      const conf =
+                        typeof sig.confidence_score === "number"
+                          ? sig.confidence_score
+                          : Math.min(99, Math.max(75, Math.round(Number(sig.score || 0) * 45 + 75)));
+                      return (
+                        <div className="flex items-center gap-2.5">
+                          <span className="score-pill">{conf}</span>
+                          <div className="w-[60px] h-1 rounded bg-border-light overflow-hidden">
+                            <div
+                              className="h-full rounded bg-gradient-to-r from-purple-primary to-[#A78BFA]"
+                              style={{ width: `${((conf - 75) / 24) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
                     <span className="font-semibold" style={{ color: getPhaseColor(sig.money_phase_label || sig.money_phase || "") }}>
@@ -432,9 +442,25 @@ function SignalSection() {
                     </span>
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
-                    <span className="font-semibold" style={{ color: sig.score && sig.score >= 85 ? "var(--color-purple-primary)" : "var(--color-text-tertiary)" }}>
-                      {sig.score && sig.score >= 85 ? "关注" : sig.score && sig.score >= 75 ? "观察" : "—"}
-                    </span>
+                    {(() => {
+                      const conf =
+                        typeof sig.confidence_score === "number"
+                          ? sig.confidence_score
+                          : Math.min(99, Math.max(75, Math.round(Number(sig.score || 0) * 45 + 75)));
+                      return (
+                        <span
+                          className="font-semibold"
+                          style={{
+                            color:
+                              conf >= 90
+                                ? "var(--color-purple-primary)"
+                                : "var(--color-text-tertiary)",
+                          }}
+                        >
+                          {conf >= 90 ? "关注" : conf >= 82 ? "观察" : "—"}
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}
@@ -455,7 +481,7 @@ function Footer() {
           <Image src="/logo.png?v=20260719" alt="AlphaPilot" width={180} height={40} className="h-7 w-auto" />
         </a>
         <div className="text-[13px] text-text-tertiary">
-          AlphaPilot V2.2 · AI 股票智能评分
+          AlphaPilot V3.1 · A 股智能决策 · 非投资建议
         </div>
       </div>
     </footer>

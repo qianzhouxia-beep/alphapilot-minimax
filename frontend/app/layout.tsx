@@ -3,8 +3,9 @@ import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AlphaPilot — AI 股票智能决策",
-  description: "AlphaPilot V3 融合 61 维全特征引擎，用机构级视角锁定建仓信号",
+  title: "AlphaPilot — 把建仓信号收成可执行清单",
+  description:
+    "AlphaPilot V3.1 硬门控漏斗 + VM2.5 三模型打分，从全 A 收窄到当日可关注标的。",
 };
 
 export default function RootLayout({
