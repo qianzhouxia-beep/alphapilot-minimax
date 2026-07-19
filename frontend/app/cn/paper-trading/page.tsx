@@ -82,10 +82,12 @@ export default function PaperTradingPage() {
               <line x1="12" y1="17" x2="12" y2="21"/>
             </svg>
             量化模拟盘
-            <span className="tag-badge tag-badge bg-status-info/10 text-status-info border border-status-info/30">Beta</span>
+            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide bg-status-info/10 text-status-info border border-status-info/25">
+              Beta
+            </span>
           </h1>
           <p className="mt-1 text-[12px] text-text-disabled">
-            V19 Fusion 日频量化 · 尾盘狙击+双策略并行 · 动态止损止盈
+            V19 日频 + 尾盘狙击 / S2 并行 · 盘中动态止损止盈
           </p>
         </div>
         </div>
