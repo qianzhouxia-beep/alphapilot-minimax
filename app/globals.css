@@ -185,8 +185,8 @@ body {
 }
 
 @utility ticker-up {
-  color: var(--color-green-positive);
-  background: rgba(52, 199, 89, 0.08);
+  color: var(--color-red-negative);
+  background: rgba(255, 59, 48, 0.08);
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 14px;
@@ -194,8 +194,8 @@ body {
 }
 
 @utility ticker-down {
-  color: var(--color-red-negative);
-  background: rgba(255, 59, 48, 0.08);
+  color: var(--color-green-positive);
+  background: rgba(52, 199, 89, 0.08);
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 14px;

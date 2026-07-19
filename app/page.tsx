@@ -76,7 +76,7 @@ const signals: Signal[] = [
 
 // Sparkline SVG 组件
 function Sparkline({ isUp }: { isUp: boolean }) {
-  const color = isUp ? "#34C759" : "#FF3B30";
+  const color = isUp ? "#FF3B30" : "#34C759";
   const path = isUp
     ? "M0 35 L10 32 L20 28 L30 30 L40 25 L50 22 L60 18 L70 15 L80 10"
     : "M0 10 L10 15 L20 12 L30 18 L40 20 L50 22 L60 25 L70 28 L80 30";
@@ -111,7 +111,7 @@ function Navbar() {
     >
       <div className="max-w-[1200px] mx-auto flex items-center justify-between px-6 h-[52px]">
         <a href="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight text-text-primary">
-          <Image src="/logo.png" alt="AlphaPilot" width={32} height={32} className="h-8 w-8" priority />
+          <Image src="/logo.png" alt="AlphaPilot" width={321} height={264} className="h-8 w-auto" priority />
           AlphaPilot
         </a>
         <div className="hidden md:flex gap-8">
@@ -441,7 +441,7 @@ function Footer() {
     <footer className="bg-bg-secondary border-t border-border-light py-12 px-6 mt-[60px]">
       <div className="max-w-[1200px] mx-auto flex justify-between items-center max-sm:flex-col max-sm:gap-4">
         <a href="/" className="flex items-center gap-2.5 font-bold text-base text-text-primary">
-          <Image src="/logo.png" alt="AlphaPilot" width={28} height={28} className="h-7 w-7" />
+          <Image src="/logo.png" alt="AlphaPilot" width={321} height={264} className="h-7 w-auto" />
           AlphaPilot
         </a>
         <div className="text-[13px] text-text-tertiary">
