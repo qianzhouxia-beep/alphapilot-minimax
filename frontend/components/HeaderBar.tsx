@@ -1,208 +1,94 @@
 // HeaderBar — client component, auth + nav
-// 2026-07-15: 移动端导航优化 — 折叠为 Dashboard + 菜单按钮
+// 2026-07-09: 添加收藏追踪入口
+
 "use client";
 
-import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
-type NavItem = {
-  href: string;
-  label: string;
-  colorClass: string;
-  hoverClass: string;
-  badge?: string;
-  badgeClass?: string;
-};
-
-const NAV_ITEMS: NavItem[] = [
-  {
-    href: "/cn/screener",
-    label: "智能选股",
-    colorClass: "text-text-secondary",
-    hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
-  },
-  {
-    href: "/cn/watchlist",
-    label: "收藏追踪",
-    colorClass: "text-[#F5C451]",
-    hoverClass: "hover:bg-[rgba(245,196,81,0.15)]",
-  },
-  {
-    href: "/cn/backtest",
-    label: "选股回测",
-    colorClass: "text-text-secondary",
-    hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
-  },
-  {
-    href: "/cn/paper-trading",
-    label: "量化模拟盘",
-    colorClass: "text-status-info",
-    hoverClass: "hover:bg-[rgba(139,92,246,0.15)]",
-    badge: "量化",
-    badgeClass: "bg-[rgba(139,92,246,0.15)] text-status-info",
-  },
-  {
-    href: "/cn/chat",
-    label: "AI 问股",
-    colorClass: "text-text-secondary",
-    hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
-  },
-  {
-    href: "/cn/news",
-    label: "投资资讯",
-    colorClass: "text-text-secondary",
-    hoverClass: "hover:bg-[rgba(77,163,255,0.1)]",
-  },
-];
-
 export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
   const { t } = useI18n();
   const { session, logout } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
-
-  // 点击外部关闭
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    function handleEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleEsc);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleEsc);
-    };
-  }, [menuOpen]);
-
-  // 路由变化时关闭菜单
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
-
-  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + "/");
 
   return (
     <header className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-3">
       <Link href="/" className="flex items-center gap-3">
-        <Image src="/logo.png" alt="AlphaPilot" className="h-10 w-auto" width={120} height={40} priority />
-        <p className="text-[12px] text-text-secondary hidden md:block">
+        <Image src="/logo.png" alt="AlphaPilot" className="h-9 sm:h-10 w-auto" width={180} height={40} priority />
+        <p className="text-[12px] text-[#9FB0C7] hidden lg:block">
           {t("site.subtitle")}
         </p>
       </Link>
 
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-        {/* ============ Desktop nav (md+) ============ */}
-        <div className="hidden md:flex items-center gap-1 rounded-lg border border-border-subtle/50 bg-surface-card p-0.5">
+        {/* Navigation */}
+        <div className="flex items-center gap-1 rounded-lg border border-[#1D2A42] bg-[#0C1728] p-0.5">
           <Link
             href="/cn"
-            className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${
-              pathname === "/cn"
-                ? "bg-[rgba(167,139,250,0.15)] text-text-primary"
-                : "text-text-secondary hover:text-text-primary hover:bg-[rgba(77,163,255,0.1)]"
-            }`}
+            className="rounded-md px-2.5 py-1.5 text-[11px] text-[#9FB0C7] hover:text-[#EAF2FF] hover:bg-[rgba(77,163,255,0.1)] transition-colors"
           >
             Dashboard
           </Link>
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${item.colorClass} hover:text-text-primary ${item.hoverClass}`}
-            >
-              {item.label}
-              {item.badge && (
-                <span className={`text-[8px] px-1 py-0.5 rounded-sm ${item.badgeClass} font-medium`}>
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
-        </div>
-
-        {/* ============ Mobile nav (<md) — Dashboard + 菜单按钮 ============ */}
-        <div ref={menuRef} className="md:hidden relative flex items-center gap-1 rounded-lg border border-border-subtle/50 bg-surface-card p-0.5">
           <Link
-            href="/cn"
-            className={`rounded-md px-2.5 py-1.5 text-[11px] transition-colors ${
-              pathname === "/cn"
-                ? "bg-[rgba(167,139,250,0.15)] text-text-primary"
-                : "text-text-secondary hover:text-text-primary hover:bg-[rgba(77,163,255,0.1)]"
-            }`}
+            href="/cn/watchlist"
+            className="rounded-md px-2.5 py-1.5 text-[11px] text-[#F5C451] hover:text-[#EAF2FF] hover:bg-[rgba(245,196,81,0.15)] transition-colors flex items-center gap-1"
           >
-            Dashboard
+            <span style={{ fontSize: 14 }}>⭐</span> 收藏追踪
           </Link>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="打开菜单"
-            aria-expanded={menuOpen}
-            className={`rounded-md px-2 py-1.5 text-text-secondary hover:text-text-primary hover:bg-[rgba(77,163,255,0.1)] transition-colors flex items-center gap-1 ${
-              menuOpen ? "bg-[rgba(167,139,250,0.15)]" : ""
-            }`}
+          <Link
+            href="/cn/backtest"
+            className="rounded-md px-2.5 py-1.5 text-[11px] text-[#9FB0C7] hover:text-[#EAF2FF] hover:bg-[rgba(77,163,255,0.1)] transition-colors"
           >
-            <span className="text-[11px]">{menuOpen ? "关闭" : "菜单"}</span>
-          </button>
-
-          {/* 下拉菜单面板 */}
-          {menuOpen && (
-            <div
-              className="absolute top-full left-0 right-0 mt-2 mx-3 z-50 rounded-xl border border-border-subtle bg-surface-card/95 backdrop-blur-md shadow-2xl shadow-black/40 overflow-hidden"
-              style={{ left: "auto", right: "12px", width: "max-content", minWidth: "180px" }}
-            >
-              <div className="px-3 py-2 border-b border-border-subtle/50">
-                <p className="text-[10px] uppercase tracking-wider text-text-disabled">导航菜单</p>
-              </div>
-              <div className="py-1">
-                {NAV_ITEMS.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={`flex items-center gap-2 px-3 py-2.5 text-[13px] transition-colors ${item.colorClass} hover:bg-[rgba(255,255,255,0.05)] hover:text-text-primary ${
-                      isActive(item.href) ? "bg-[rgba(167,139,250,0.1)] text-text-primary" : ""
-                    }`}
-                  >
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <span className={`text-[8px] px-1.5 py-0.5 rounded ${item.badgeClass}`}>{item.badge}</span>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
+            选股回测
+          </Link>
+          <Link
+            href="/cn/paper-trading"
+            className="rounded-md px-2.5 py-1.5 text-[11px] text-[#A78BFA] hover:text-[#EAF2FF] hover:bg-[rgba(139,92,246,0.15)] transition-colors flex items-center gap-1"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+            量化模拟盘
+            <span className="text-[8px] px-1 py-0.5 rounded-sm bg-[rgba(139,92,246,0.15)] text-[#A78BFA] font-medium">量化</span>
+          </Link>
+          <Link
+            href="/cn/chat"
+            className="rounded-md px-2.5 py-1.5 text-[11px] text-[#9FB0C7] hover:text-[#EAF2FF] hover:bg-[rgba(77,163,255,0.1)] transition-colors"
+          >
+            AI 问股
+          </Link>
+          <Link
+            href="/cn/news"
+            className="rounded-md px-2.5 py-1.5 text-[11px] text-[#9FB0C7] hover:text-[#EAF2FF] hover:bg-[rgba(77,163,255,0.1)] transition-colors"
+          >
+            投资资讯
+          </Link>
         </div>
 
         {/* Market status pill */}
-        <div className="hidden items-center gap-2 rounded-lg border border-border-subtle bg-surface-card px-3 py-2 md:flex">
+        <div className="hidden items-center gap-2 rounded-lg border border-[#1D2A42] bg-[#0C1728] px-3 py-2 md:flex">
           <span className="h-2 w-2 rounded-full bg-[#3EE6A8]"></span>
-          <span className="text-[11px] text-text-secondary">
+          <span className="text-[11px] text-[#9FB0C7]">
             A 股交易中
           </span>
         </div>
 
         {/* Auth state */}
         {session ? (
-          <div className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface-card px-2 sm:px-3 py-2">
-            <div className="text-left">
-              <div className="text-[12px] text-text-primary font-medium">{session.user.full_name}</div>
-              <div className="text-[10px] uppercase tracking-wider text-text-disabled">
-                {session.user.plan}
+          <div className="flex items-center gap-2 rounded-lg border border-[#1D2A42] bg-[#0C1728] px-2 sm:px-3 py-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#4DA3FF] to-[#7ddeff] text-[11px] font-semibold text-[#00315b]">
+              {session.user.full_name.charAt(0).toUpperCase()}
+            </div>
+            <div className="text-left hidden sm:block">
+              <div className="text-[12px] text-[#EAF2FF]">{session.user.full_name}</div>
+              <div className="text-[10px] uppercase tracking-wider text-[#6E7C93]">
+                {session.user.plan} · {session.user.credits || 0} credits
               </div>
             </div>
             <button
               onClick={logout}
-              className="ml-2 text-[11px] text-text-disabled hover:text-[#FF5D5D] hidden sm:inline"
+              className="ml-2 text-[11px] text-[#6E7C93] hover:text-[#FF5D5D] hidden sm:inline"
             >
               {t("auth.signout")}
             </button>
@@ -211,13 +97,13 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
           <>
             <Link
               href="/login"
-              className="rounded-lg border border-border-subtle bg-surface-card px-2 sm:px-3 py-2 text-[12px] text-text-secondary hover:border-status-info hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/50 transition-colors"
+              className="rounded-lg border border-[#1D2A42] bg-[#0C1728] px-2 sm:px-3 py-2 text-[12px] text-[#9FB0C7] hover:border-[#4DA3FF] hover:text-[#EAF2FF] focus:outline-none focus:ring-2 focus:ring-[#4DA3FF]/50 transition-colors"
             >
               {t("auth.signin")}
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg bg-status-info px-2 sm:px-3 py-2 text-[12px] font-semibold text-on-primary hover:bg-[#C084FC] focus:outline-none focus:ring-2 focus:ring-[#A78BFA]/50 transition-colors"
+              className="rounded-lg bg-[#4DA3FF] px-2 sm:px-3 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff] focus:outline-none focus:ring-2 focus:ring-[#4DA3FF]/50 transition-colors"
             >
               {t("auth.signup")}
             </Link>
