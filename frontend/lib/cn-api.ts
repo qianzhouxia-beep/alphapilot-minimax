@@ -272,7 +272,7 @@ export async function startDeepReport(
     body: JSON.stringify({
       symbol,
       trade_date: opts?.trade_date,
-      engine: opts?.engine || "auto",
+      engine: opts?.engine || "deepseek",
     }),
   });
 }

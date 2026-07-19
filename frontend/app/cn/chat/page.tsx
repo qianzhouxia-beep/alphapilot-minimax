@@ -1,5 +1,4 @@
-﻿// AlphaPilot 深度研报 — 输入股票 → 详细买卖研究报告
-// 2026-07-19: 由问股聊天改为研报生成（TradingAgents / DeepSeek 多角色）
+﻿// AlphaPilot 深度研报 — 输入股票 → 详细买卖研究报告（确定 Agent）
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,6 +12,20 @@ import {
   type DeepReportJob,
   type DeepReportListItem,
 } from "@/lib/cn-api";
+
+function engineLabel(engine?: string | null) {
+  if (!engine) return "确定 Agent";
+  if (/确定|deepseek|tradingagents/i.test(engine)) return "确定 Agent";
+  return engine;
+}
+
+function friendlyProgress(progress?: string | null, status?: string) {
+  if (!progress) return status === "queued" ? "已排队，即将开始…" : status || "";
+  if (/TradingAgents|DeepSeek|ChatAgent|不可用|切换/i.test(progress)) {
+    return "确定 Agent 正在撰写研报…";
+  }
+  return progress;
+}
 
 function decisionTone(decision?: string | null) {
   if (!decision) return "text-text-secondary bg-bg-tertiary";
@@ -196,19 +209,25 @@ export default function DeepReportPage() {
       <HeaderBar market="cn" />
 
       <section className="mt-4 card p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
-          <div>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5 mb-6">
+          <div className="min-w-0">
             <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-text-primary">
               深度研报
             </h1>
             <p className="mt-2 text-[14px] text-text-secondary max-w-xl">
-              输入一只 A 股，生成多角色详细研究报告，明确给出买 / 不买 / 观望结论。
-              非闲聊问答；单次通常需要 1–3 分钟。
+              输入一只 A 股，由 <span className="text-text-primary font-medium">确定 Agent</span>{" "}
+              生成多角色详细研究报告，明确给出买 / 不买 / 观望结论。非闲聊；通常 1–3 分钟。
             </p>
           </div>
-          <span className="text-[11px] px-2.5 py-1 rounded-full bg-purple-light text-purple-primary border border-purple-primary/20 self-start">
-            TradingAgents 风格 · DeepSeek
-          </span>
+          <div className="shrink-0 rounded-2xl border border-purple-primary/20 bg-purple-light/50 px-4 py-3 max-w-sm">
+            <div className="text-[12px] font-semibold text-purple-primary tracking-wide">
+              确定 Agent
+            </div>
+            <p className="mt-1.5 text-[12px] leading-relaxed text-text-secondary">
+              买方投研协作引擎：基本面 → 技术面 → 资金面 → 多空辩论 → 风控 → 投资经理定级。
+              结合本地行情与资金上下文，输出可阅读的完整研报，而不是一问一答。
+            </p>
+          </div>
         </div>
 
         <div className="relative">
@@ -264,7 +283,9 @@ export default function DeepReportPage() {
               <span className="font-mono text-text-tertiary">{job.symbol || symbol}</span>
             </span>
             <span className="text-text-tertiary">·</span>
-            <span className="text-text-secondary">{job.progress || job.status}</span>
+            <span className="text-text-secondary">
+              {friendlyProgress(job.progress, job.status)}
+            </span>
             {job.decision && (
               <span className={`ml-auto text-[12px] font-semibold px-2.5 py-1 rounded-full ${decisionTone(job.decision)}`}>
                 {job.decision}
@@ -291,7 +312,7 @@ export default function DeepReportPage() {
                 {job.name}（{job.symbol}）研报
               </h2>
               <p className="mt-1 text-[12px] text-text-tertiary">
-                引擎 {job.engine || "—"} · 耗时 {job.elapsed_seconds ?? "—"}s · 仅供研究，非投资建议
+                {engineLabel(job.engine)} · 耗时 {job.elapsed_seconds ?? "—"}s · 仅供研究，非投资建议
               </p>
             </div>
             {job.decision && (
