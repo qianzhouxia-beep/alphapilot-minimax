@@ -174,7 +174,7 @@ function TickerSection() {
         {indices.map((idx) => (
           <div
             key={idx.name}
-            className="card p-6 relative overflow-hidden group hover:card-hover"
+            className="card-glass p-6 relative overflow-hidden group hover:card-hover"
           >
             <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-purple-primary to-[#A78BFA] opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="text-[13px] text-text-tertiary font-medium mb-2 tracking-wide">
@@ -198,7 +198,7 @@ function TickerSection() {
 function StatsBar() {
   return (
     <section className="max-w-[1200px] mx-auto mb-[60px] px-6">
-      <div className="card p-8 px-12 flex justify-around items-center max-md:flex-col max-md:gap-6">
+      <div className="card-glass p-8 px-12 flex justify-around items-center max-md:flex-col max-md:gap-6">
         {stats.map((stat, i) => (
           <div key={stat.label} className="text-center">
             <div
@@ -235,7 +235,7 @@ function FeaturesSection() {
       </div>
       <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
         {/* 大卡片 - 主力行为雷达 */}
-        <div className="card p-7 col-span-2 row-span-2 flex flex-col group hover:card-hover relative overflow-hidden max-md:col-span-2 max-sm:col-span-1">
+        <div className="card-glass p-7 col-span-2 row-span-2 flex flex-col group hover:card-hover relative overflow-hidden max-md:col-span-2 max-sm:col-span-1">
           <div className="w-11 h-11 rounded-xl bg-purple-light text-purple-primary flex items-center justify-center text-xl mb-4">
             &#9679;
           </div>
@@ -260,7 +260,7 @@ function FeaturesSection() {
         </div>
 
         {/* 量化信号 */}
-        <div className="card p-7 flex flex-col group hover:card-hover">
+        <div className="card-glass p-7 flex flex-col group hover:card-hover">
           <div className="w-11 h-11 rounded-xl bg-[rgba(52,199,89,0.1)] text-green-positive flex items-center justify-center text-xl mb-4">
             &#9670;
           </div>
@@ -276,7 +276,7 @@ function FeaturesSection() {
         </div>
 
         {/* 资金阶段 */}
-        <div className="card p-7 flex flex-col group hover:card-hover">
+        <div className="card-glass p-7 flex flex-col group hover:card-hover">
           <div className="w-11 h-11 rounded-xl bg-[rgba(255,149,0,0.1)] text-[#FF9500] flex items-center justify-center text-xl mb-4">
             &#9671;
           </div>
@@ -292,7 +292,7 @@ function FeaturesSection() {
         </div>
 
         {/* 风控引擎 - 宽卡片 */}
-        <div className="card p-7 col-span-2 flex flex-col group hover:card-hover max-md:col-span-2 max-sm:col-span-1">
+        <div className="card-glass p-7 col-span-2 flex flex-col group hover:card-hover max-md:col-span-2 max-sm:col-span-1">
           <div className="w-11 h-11 rounded-xl bg-[rgba(0,122,255,0.1)] text-[#007AFF] flex items-center justify-center text-xl mb-4">
             &#9632;
           </div>
@@ -315,7 +315,7 @@ function FeaturesSection() {
 function SignalSection() {
   return (
     <section className="max-w-[1200px] mx-auto mb-20 px-6">
-      <div className="card p-10 relative overflow-hidden max-sm:p-6">
+      <div className="card-glass p-10 relative overflow-hidden max-sm:p-6">
         {/* 背景光晕 */}
         <div className="absolute -top-[100px] -right-[100px] w-[300px] h-[300px] bg-purple-glow rounded-full pointer-events-none" />
 
