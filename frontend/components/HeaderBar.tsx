@@ -99,7 +99,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
             >
               {item.label}
               {item.badge && (
-                <span className="text-[8px] px-1 py-0.5 rounded-sm bg-purple-light text-purple-primary font-medium">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-light text-purple-primary font-medium leading-none">
                   {item.badge}
                 </span>
               )}
@@ -152,7 +152,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
                   >
                     <span className="flex-1">{item.label}</span>
                     {item.badge && (
-                      <span className="text-[8px] px-1.5 py-0.5 rounded bg-purple-light text-purple-primary">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-light text-purple-primary font-medium leading-none">
                         {item.badge}
                       </span>
                     )}
