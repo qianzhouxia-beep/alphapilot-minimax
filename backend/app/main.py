@@ -21,7 +21,8 @@ FRONTEND_DIR = Path("/app/frontend/out")
 async def proxy_api(path: str, request: Request):
     url = f"{BACKEND_URL}/api/{path}"
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        # 深度研报轮询/拉全文可能偏大；创建任务本身很快
+        async with httpx.AsyncClient(timeout=120.0) as client:
             body = await request.body() if request.method in ("POST", "PUT", "PATCH") else None
             resp = await client.request(
                 method=request.method,

@@ -20,7 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/cn/watchlist", label: "收藏追踪" },
   { href: "/cn/backtest", label: "选股回测" },
   { href: "/cn/paper-trading", label: "量化模拟盘", badge: "模拟" },
-  { href: "/cn/chat", label: "AI 问股" },
+  { href: "/cn/chat", label: "深度研报" },
   { href: "/cn/news", label: "投资资讯" },
 ];
 

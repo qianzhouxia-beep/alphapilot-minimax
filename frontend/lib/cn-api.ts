@@ -21,6 +21,7 @@ export const CN_ENDPOINTS = {
   indices: endpoint(`/api/v1/cn/indices`),
   pipelineRun: endpoint(`/api/v1/cn/pipeline/run`),
   chat: endpoint(`/api/v1/cn/chat`),
+  deepReport: endpoint(`/api/v1/cn/deep-report`),
   backtest: endpoint(`/api/v1/cn/backtest`),
   news: endpoint(`/api/v1/cn/news`),
   watchlist: endpoint(`/api/v1/cn/watchlist`),
@@ -232,6 +233,56 @@ export async function triggerCNPipeline(): Promise<{ status: string; [k: string]
 
 export async function postCNChat(question: string): Promise<ChatResponse> {
   return apiFetch<ChatResponse>(`${CN_ENDPOINTS.chat}?question=${encodeURIComponent(question)}`);
+}
+
+/** 深度研报：异步任务 */
+export type DeepReportJob = {
+  job_id: string;
+  symbol: string;
+  name?: string;
+  status: "queued" | "running" | "done" | "error" | string;
+  progress?: string;
+  decision?: string | null;
+  report_markdown?: string | null;
+  engine?: string;
+  error?: string;
+  created_at?: string;
+  finished_at?: string;
+  elapsed_seconds?: number;
+  trade_date?: string | null;
+};
+
+export type DeepReportListItem = {
+  job_id: string;
+  symbol?: string;
+  name?: string;
+  status?: string;
+  decision?: string | null;
+  created_at?: string;
+  finished_at?: string;
+  engine?: string;
+};
+
+export async function startDeepReport(
+  symbol: string,
+  opts?: { trade_date?: string; engine?: string }
+): Promise<{ job_id: string; symbol: string; name?: string; status: string }> {
+  return apiFetch(CN_ENDPOINTS.deepReport, {
+    method: "POST",
+    body: JSON.stringify({
+      symbol,
+      trade_date: opts?.trade_date,
+      engine: opts?.engine || "auto",
+    }),
+  });
+}
+
+export async function getDeepReport(jobId: string): Promise<DeepReportJob> {
+  return apiFetch<DeepReportJob>(`${CN_ENDPOINTS.deepReport}/${encodeURIComponent(jobId)}`);
+}
+
+export async function listDeepReports(limit = 20): Promise<{ items: DeepReportListItem[] }> {
+  return apiFetch(`${CN_ENDPOINTS.deepReport}?limit=${limit}`);
 }
 
 export async function postCNBacktest(cfg: {
