@@ -1,4 +1,4 @@
-﻿// AlphaPilot 收藏追踪页面 — V2 历史记录版
+// AlphaPilot 收藏追踪页面 — V2 历史记录版
 // 永久保存模型选股战绩，自动追踪 T+1/T+2/T+3
 "use client";
 
