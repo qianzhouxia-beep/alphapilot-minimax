@@ -294,11 +294,16 @@ export type SectorFlowItem = {
   net3_yi?: number | null;
   rank?: number;
   status?: "allow" | "deny" | "neutral" | string;
+  stock_count?: number;
+  rank_score?: number;
 };
 
 export type SectorDashboard = {
   ts?: string;
   generated_at?: string;
+  period?: string;
+  period_label?: string;
+  periods?: { id: string; label: string }[];
   has_3day?: boolean;
   has_concept?: boolean;
   summary: {
@@ -312,17 +317,39 @@ export type SectorDashboard = {
   };
   flow_bars: SectorFlowItem[];
   scatter: SectorFlowItem[];
+  analysis?: {
+    headline: string;
+    bullets: string[];
+    watch: SectorFlowItem[];
+    avoid: SectorFlowItem[];
+  };
   today_top10: SectorFlowItem[];
   today_bottom10: SectorFlowItem[];
   concept_top10: SectorFlowItem[];
   allow: SectorFlowItem[];
   deny: SectorFlowItem[];
   industries: SectorFlowItem[];
+  meta?: {
+    period?: string;
+    data_source?: string;
+    snapshot_ts?: string;
+    sector_flow_mtime?: string | null;
+    fund_flow_mtime?: string | null;
+    update_cadence?: string;
+    ports?: Record<string, string>;
+    refresh_effect?: string;
+  };
 };
 
-export async function fetchSectorDashboard(refresh = false): Promise<SectorDashboard> {
-  const q = refresh ? "?refresh=true" : "";
-  return apiFetch<SectorDashboard>(`${CN_ENDPOINTS.sectors}${q}`);
+export async function fetchSectorDashboard(
+  refresh = false,
+  period = "today"
+): Promise<SectorDashboard> {
+  const qs = new URLSearchParams();
+  if (refresh) qs.set("refresh", "true");
+  if (period) qs.set("period", period);
+  const q = qs.toString();
+  return apiFetch<SectorDashboard>(`${CN_ENDPOINTS.sectors}${q ? `?${q}` : ""}`);
 }
 
 export async function postCNBacktest(cfg: {
