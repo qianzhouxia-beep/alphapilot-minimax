@@ -107,10 +107,10 @@ export default function PaperTradingPage() {
         <KPICard label="最大回撤" value={`${acc.max_drawdown.toFixed(2)}%`} sub="风险指标" color={acc.max_drawdown < -10 ? "#FF5D5D" : "#3EE6A8"} />
       </section>
 
-      {/* 策略详情 */}
+      {/* 策略详情：日频独立；尾盘狙击策略 + S2 合并同一板块 */}
       <div className="space-y-6">
-        {data.strategies.map((strategy) => (
-          <StrategyCard key={strategy.id} strategy={strategy} nextExecution={data.next_execution} />
+        {groupStrategies(data.strategies).map((group) => (
+          <StrategyGroupCard key={group.key} group={group} nextExecution={data.next_execution} />
         ))}
       </div>
 
@@ -145,59 +145,191 @@ function KPICard({ label, value, sub, color }: { label: string; value: string; s
   );
 }
 
-function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData["strategies"][0]; nextExecution: Record<string, string> }) {
-  const pnlColor = (strategy.pnl_pct ?? 0) >= 0 ? "text-status-danger" : "text-status-success";
+/** 尾盘相关策略合并展示（eod_sniper / s2_eod） */
+const EOD_STRATEGY_IDS = new Set(["eod_sniper", "s2_eod", "eod_s2"]);
+
+type StrategyGroup = {
+  key: string;
+  title: string;
+  subtitle: string;
+  strategies: PaperTradingData["strategies"];
+  merged: boolean;
+};
+
+function groupStrategies(strategies: PaperTradingData["strategies"]): StrategyGroup[] {
+  const eod: PaperTradingData["strategies"] = [];
+  const others: PaperTradingData["strategies"] = [];
+  for (const s of strategies) {
+    const id = (s.id || "").toLowerCase();
+    const name = s.name || "";
+    if (
+      EOD_STRATEGY_IDS.has(id) ||
+      name.includes("尾盘狙击") ||
+      name.includes("S2尾盘") ||
+      name.includes("S2 尾盘")
+    ) {
+      eod.push(s);
+    } else {
+      others.push(s);
+    }
+  }
+  const groups: StrategyGroup[] = others.map((s) => ({
+    key: s.id,
+    title: s.name,
+    subtitle: "",
+    strategies: [s],
+    merged: false,
+  }));
+  if (eod.length > 0) {
+    groups.push({
+      key: "eod_group",
+      title: "尾盘狙击",
+      subtitle: eod.map((s) => s.name).join(" · "),
+      strategies: eod,
+      merged: true,
+    });
+  }
+  return groups;
+}
+
+function StrategyGroupCard({
+  group,
+  nextExecution,
+}: {
+  group: StrategyGroup;
+  nextExecution: Record<string, string>;
+}) {
+  const strategies = group.strategies;
+  const allocated = strategies.reduce((a, s) => a + (s.allocated || 0), 0);
+  const used = strategies.reduce((a, s) => a + (s.used || 0), 0);
+  const positions = strategies.flatMap((s) =>
+    (s.positions || []).map((p) => ({ ...p, _strategyId: s.id, _strategyName: s.name }))
+  );
+  const signals = strategies.flatMap((s) =>
+    (s.signals || []).map((sig) => ({ ...sig, _strategyName: s.name }))
+  );
+  const active = strategies.some((s) => s.status === "active");
+  // 按已用资金加权策略收益；无持仓时取均值
+  const weightedPnl = (() => {
+    const withUsed = strategies.filter((s) => (s.used || 0) > 0);
+    if (withUsed.length === 0) {
+      const vals = strategies.map((s) => s.pnl_pct ?? 0);
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    }
+    const sumUsed = withUsed.reduce((a, s) => a + s.used, 0);
+    return withUsed.reduce((a, s) => a + (s.pnl_pct ?? 0) * s.used, 0) / sumUsed;
+  })();
+  const pnlColor = weightedPnl >= 0 ? "text-status-danger" : "text-status-success";
+  const nextHint =
+    nextExecution?.["s2_eod"] ||
+    nextExecution?.["eod_sniper"] ||
+    nextExecution?.[strategies[0]?.id] ||
+    "每日 14:50 尾盘";
+
+  const gridCols =
+    "grid-cols-[2.2fr_1fr_1fr_1fr_1.3fr_1.3fr_1.4fr_1.1fr]";
+
   return (
     <section className="glass card-lift rounded-2xl p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-[18px] font-semibold text-text-primary">{strategy.name}</h2>
-            <span className={`tag-badge tag-badge ${
-              strategy.status === "active" ? "bg-[rgba(62,230,168,0.15)] text-status-success" : "bg-text-disabled/20 text-text-disabled"
-            }`}>
-              {strategy.status === "active" ? "运行中" : "已停止"}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-[18px] font-semibold text-text-primary">{group.title}</h2>
+            <span
+              className={`tag-badge ${
+                active
+                  ? "bg-[rgba(62,230,168,0.15)] text-status-success"
+                  : "bg-text-disabled/20 text-text-disabled"
+              }`}
+            >
+              {active ? "运行中" : "已停止"}
             </span>
+            {group.merged && (
+              <span className="text-[11px] text-text-disabled border border-border-subtle rounded-full px-2 py-0.5">
+                {strategies.length} 个子策略
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[12px] text-text-disabled">
-            分配 ￥{(strategy.allocated / 10000).toFixed(0)}万 · 已用 ￥{(strategy.used / 10000).toFixed(2)}万 · 可用 ￥{((strategy.allocated - strategy.used) / 10000).toFixed(2)}万
+            {group.merged && group.subtitle ? `${group.subtitle} · ` : ""}
+            分配 ￥{(allocated / 10000).toFixed(0)}万 · 已用 ￥{(used / 10000).toFixed(2)}万 · 可用 ￥
+            {((allocated - used) / 10000).toFixed(2)}万
           </p>
         </div>
         <div className="text-right">
           <div className={`font-display-numeric text-[20px] ${pnlColor}`}>
-            {(strategy.pnl_pct ?? 0) >= 0 ? "+" : ""}{(strategy.pnl_pct ?? 0).toFixed(2)}%
+            {weightedPnl >= 0 ? "+" : ""}
+            {weightedPnl.toFixed(2)}%
           </div>
           <div className="text-[11px] text-text-disabled">策略收益</div>
         </div>
       </div>
 
-      {strategy.positions.length > 0 ? (
+      {positions.length > 0 ? (
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-[2.5fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle">
+          <div
+            className={`grid ${gridCols} gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle min-w-[720px]`}
+          >
             <div className="px-3 py-2.5 font-medium text-left">股票</div>
+            <div className="px-3 py-2.5 font-medium text-right">股数</div>
             <div className="px-3 py-2.5 font-medium text-right">入场价</div>
             <div className="px-3 py-2.5 font-medium text-right">现价</div>
+            <div className="px-3 py-2.5 font-medium text-right">买入金额</div>
+            <div className="px-3 py-2.5 font-medium text-right">当前市值</div>
             <div className="px-3 py-2.5 font-medium text-right">盈亏</div>
             <div className="px-3 py-2.5 font-medium text-right">止损</div>
           </div>
-          {strategy.positions.map((p) => {
+          {positions.map((p) => {
             const pnl = p.pnl_pct || 0;
             const pColor = pnl >= 0 ? "text-status-danger" : "text-status-success";
+            const qty = p.quantity || 0;
+            const entry = p.entry_price || 0;
+            const cur = p.current_price || entry;
+            const costAmt = entry * qty;
+            const mktAmt = cur * qty;
+            const subTag = group.merged
+              ? (p._strategyName || "").replace(/策略$/, "")
+              : "";
             return (
-              <div key={p.symbol} className="grid grid-cols-[2.5fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors">
-                <div className="px-3 py-2.5 flex items-center gap-1.5">
-                  <span className="font-semibold text-text-primary">{p.name}</span>
-                  <span className="text-text-disabled text-[11px]">{p.symbol}</span>
+              <div
+                key={`${p._strategyId}-${p.symbol}`}
+                className={`grid ${gridCols} gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors min-w-[720px]`}
+              >
+                <div className="px-3 py-2.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-text-primary">{p.name}</span>
+                    <span className="text-text-disabled text-[11px]">{p.symbol}</span>
+                  </div>
+                  {subTag ? (
+                    <div className="text-[10px] text-text-disabled mt-0.5">{subTag}</div>
+                  ) : null}
                 </div>
-                <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">￥{p.entry_price.toFixed(2)}</div>
-                <div className="px-3 py-2.5 text-right font-display-numeric text-status-warning">￥{(p.current_price || p.entry_price).toFixed(2)}</div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">
+                  {qty > 0 ? qty.toLocaleString() : "—"}
+                </div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">
+                  ￥{entry.toFixed(2)}
+                </div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-status-warning">
+                  ￥{cur.toFixed(2)}
+                </div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-text-secondary">
+                  ￥{costAmt.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">
+                  ￥{mktAmt.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </div>
                 <div className={`px-3 py-2.5 text-right font-display-numeric ${pColor}`}>
-                  {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+                  {pnl >= 0 ? "+" : ""}
+                  {pnl.toFixed(2)}%
                   <div className="text-[10px] text-text-disabled mt-0.5">
-                    ￥{p.pnl_amount >= 0 ? "+" : ""}{p.pnl_amount.toFixed(0)}
+                    ￥{p.pnl_amount >= 0 ? "+" : ""}
+                    {(p.pnl_amount || 0).toFixed(0)}
                   </div>
                 </div>
-                <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">￥{p.stop_loss.toFixed(2)}</div>
+                <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">
+                  ￥{(p.stop_loss || 0).toFixed(2)}
+                </div>
               </div>
             );
           })}
@@ -205,23 +337,29 @@ function StrategyCard({ strategy, nextExecution }: { strategy: PaperTradingData[
       ) : (
         <div className="text-center py-8 text-text-disabled text-[13px]">
           <svg className="w-10 h-10 mx-auto mb-2 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <line x1="9" y1="9" x2="15" y2="9"/>
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="9" y1="9" x2="15" y2="9" />
           </svg>
-          暂无可信仓
-          <p className="text-[11px] mt-1">下次执行时间: {nextExecution?.[strategy.id] || strategy.id === "v16_daily" ? "每日 14:55 尾盘" : "等待调度"}</p>
+          暂无持仓
+          <p className="text-[11px] mt-1">下次执行时间: {nextHint}</p>
         </div>
       )}
 
-      {strategy.signals && strategy.signals.length > 0 && (
+      {signals.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border-subtle">
           <div className="text-[12px] text-text-disabled mb-2">今日买入信号</div>
           <div className="space-y-1.5">
-            {strategy.signals.slice(0, 3).map((s, i) => (
-              <div key={i} className="flex items-center justify-between text-[12px] bg-background rounded-lg p-2 border border-border-subtle">
+            {signals.slice(0, 6).map((s, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between text-[12px] bg-background rounded-lg p-2 border border-border-subtle"
+              >
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-status-danger font-semibold">{s.name}</span>
                   <span className="text-text-disabled">{s.symbol}</span>
+                  {group.merged && s._strategyName ? (
+                    <span className="text-[10px] text-text-disabled">{s._strategyName}</span>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-text-disabled text-[10px] truncate max-w-[240px]">{s.reason}</span>
