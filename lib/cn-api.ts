@@ -349,8 +349,8 @@ export async function fetchSectorDashboard(
   const qs = new URLSearchParams();
   if (refresh) qs.set("refresh", "true");
   if (period) qs.set("period", period);
-  const q = qs.toString();
-  return apiFetch<SectorDashboard>(`${CN_ENDPOINTS.sectors}${q ? `?${q}` : ""}`);
+  qs.set("_t", String(Date.now()));
+  return apiFetch<SectorDashboard>(`${CN_ENDPOINTS.sectors}?${qs.toString()}`);
 }
 
 export async function postCNBacktest(cfg: {

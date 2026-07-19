@@ -14,7 +14,7 @@ RUN npm run build
 
 # ===== Stage 2: python backend =====
 FROM python:3.11-slim
-ARG CACHEBUSTER=20260615-1124
+ARG CACHEBUSTER=20260719-tdx-sectors-v2
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

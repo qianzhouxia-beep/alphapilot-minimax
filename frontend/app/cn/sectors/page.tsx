@@ -266,6 +266,7 @@ export default function SectorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false, p = period) => {
     setLoading(true);
@@ -277,8 +278,17 @@ export default function SectorsPage() {
         if (prev && d.industries?.some((x) => x.name === prev)) return prev;
         return d.today_top10?.[0]?.name || d.industries?.[0]?.name || null;
       });
+      if (refresh) {
+        const asof = d.ts || d.meta?.asof || "—";
+        setToast(`已重算 ${d.period_label || p} · 资金截至 ${String(asof).slice(0, 10)}（通达信本地聚合）`);
+        window.setTimeout(() => setToast(null), 4000);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      if (refresh) {
+        setToast("刷新失败，请稍后重试");
+        window.setTimeout(() => setToast(null), 4000);
+      }
     } finally {
       setLoading(false);
     }
@@ -297,12 +307,19 @@ export default function SectorsPage() {
     <main className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
       <HeaderBar market="cn" />
 
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-text-primary text-white px-4 py-2.5 text-[13px] shadow-lg max-w-[90vw]">
+          {toast}
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-text-primary">板块研报</h1>
           <p className="mt-1 text-[13px] text-text-secondary">
             通达信一级行业资金 · {data?.period_label || "今日"}
-            {data?.ts ? ` · 数据截至 ${String(data.ts).slice(0, 10)}` : ""}
+            {data?.ts ? ` · 资金截至 ${String(data.ts).slice(0, 10)}` : ""}
+            {data?.generated_at ? ` · 页面重算 ${String(data.generated_at).replace("T", " ").slice(0, 19)}` : ""}
           </p>
         </div>
         <button
