@@ -28,6 +28,8 @@ export const CN_ENDPOINTS = {
   watchlist: endpoint(`/api/v1/cn/watchlist`),
   recommendCategorized: endpoint(`/api/v1/cn/recommend/categorized`),
   recommendEOD: endpoint(`/api/v1/cn/recommend/eod`),
+  recommendEODS2: endpoint(`/api/v1/cn/recommend/eod-s2`),
+  recommendEODS2History: endpoint(`/api/v1/cn/recommend/eod-s2/history`),
   recommendLive: endpoint(`/api/v1/cn/recommend/live`),
   scoreTop10: endpoint(`/api/v1/cn/score-top10`),
 } as const;
@@ -421,6 +423,69 @@ export async function fetchLiveRecommend(top_n: number = 50, rerank: boolean = f
 // 尾盘选股
 export async function fetchEODRecommend(): Promise<{ recommendations: any[]; note: string; run_at: string }> {
   return apiFetch(CN_ENDPOINTS.recommendEOD);
+}
+
+export type EODS2Pick = {
+  symbol?: string;
+  name?: string;
+  price?: number;
+  change_pct?: number;
+  volume_ratio?: number;
+  volatility_20d?: number;
+  chip_bonus?: number;
+  turnover?: number;
+};
+
+export type EODS2Response = {
+  date?: string;
+  generated_at?: string;
+  generated_time?: string;
+  strategy?: string;
+  picks?: EODS2Pick[];
+  total_screened?: number;
+  total_passed?: number;
+  note?: string;
+  found?: boolean;
+};
+
+export type EODS2HistoryDay = {
+  date: string;
+  generated_at?: string;
+  generated_time?: string;
+  total_passed?: number;
+  pick_count?: number;
+  top1?: { symbol?: string; name?: string; price?: number; change_pct?: number } | null;
+  note?: string;
+};
+
+export type EODS2HistoryList = {
+  dates: string[];
+  days: EODS2HistoryDay[];
+  count: number;
+  from?: string | null;
+  to?: string | null;
+};
+
+/** 当前尾盘狙击（S2）；可传 date 查历史某日 */
+export async function fetchEODS2(date?: string): Promise<EODS2Response> {
+  const q = date ? `?date=${encodeURIComponent(date)}` : "";
+  return apiFetch<EODS2Response>(`${CN_ENDPOINTS.recommendEODS2}${q}`);
+}
+
+/** 尾盘狙击历史：日期列表/区间摘要，或 ?date= 单日详情 */
+export async function fetchEODS2History(params?: {
+  date?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}): Promise<EODS2HistoryList | EODS2Response> {
+  const sp = new URLSearchParams();
+  if (params?.date) sp.set("date", params.date);
+  if (params?.from) sp.set("from", params.from);
+  if (params?.to) sp.set("to", params.to);
+  if (params?.limit) sp.set("limit", String(params.limit));
+  const q = sp.toString() ? `?${sp.toString()}` : "";
+  return apiFetch(`${CN_ENDPOINTS.recommendEODS2History}${q}`);
 }
 
 // 收藏追踪 API
