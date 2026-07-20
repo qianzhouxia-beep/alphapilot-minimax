@@ -329,7 +329,9 @@ export default function CNStockDetail() {
               </div>
             </div>
 
-            {stock?.target_price && stock?.buy_price && stock?.stop_price && stock.buy_price > stock.stop_price && (
+            {stock?.target_price && stock?.buy_price && stock?.stop_price
+              && stock.target_price > stock.buy_price
+              && stock.buy_price > stock.stop_price && (
               <div className="mt-3 rounded-xl border border-border-subtle bg-surface-panel p-3">
                 <div className="mb-1 text-[10px] uppercase tracking-wider text-text-disabled">盈亏比</div>
                 <div className="text-[22px] font-semibold text-status-success">
