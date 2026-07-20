@@ -424,8 +424,13 @@ export async function fetchEODRecommend(): Promise<{ recommendations: any[]; not
 }
 
 // 收藏追踪 API
-export async function fetchWatchlist(): Promise<WatchlistResponse> {
-  return apiFetch<WatchlistResponse>(CN_ENDPOINTS.watchlist);
+export async function fetchWatchlist(refresh = false): Promise<WatchlistResponse> {
+  const q = refresh ? "?refresh=true" : "";
+  return apiFetch<WatchlistResponse>(`${CN_ENDPOINTS.watchlist}${q}`);
+}
+
+export async function refreshWatchlistTracking(): Promise<any> {
+  return apiFetch(`${CN_ENDPOINTS.watchlist}/update?force=true`, { method: "POST" });
 }
 
 export async function addToWatchlist(symbol: string, name: string, entry_price: number, model_score: number): Promise<any> {

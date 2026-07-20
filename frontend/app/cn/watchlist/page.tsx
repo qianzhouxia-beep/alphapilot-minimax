@@ -42,9 +42,9 @@ export default function WatchlistPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [retracking, setRetracking] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (refresh = true) => {
     try {
-      const wl = await fetchWatchlist();
+      const wl = await fetchWatchlist(refresh);
       setItems(wl.watchlist || []);
       setError(null);
     } catch (e) {
@@ -54,7 +54,11 @@ export default function WatchlistPage() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load(true);
+    const id = setInterval(() => load(false), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleRemove = async (symbol: string) => {
     setRemoving(symbol);

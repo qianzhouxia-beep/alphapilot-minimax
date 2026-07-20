@@ -61,17 +61,17 @@ export default function CNDashboard() {
   const [overnightData, setOvernightData] = useState<any>(null);
   const [s2Data, setS2Data] = useState<any>(null);
 
-  const loadData = async () => {
+  const loadData = async (wlRefresh = false) => {
     try {
       const [d, wl, cat, s2] = await Promise.all([
         fetchCNScreener(),
-        fetchWatchlist(),
+        fetchWatchlist(wlRefresh),
         fetchCategorizedRecommend(),
         fetch("/api/v1/cn/recommend/eod-s2").then(r => r.json()).catch(() => null)
       ]);
       setData(d);
       setWlData(wl.watchlist || []);
-      setWatchlistSymbols(new Set((wl.watchlist || []).map((w: WatchlistItem) => w.symbol)));
+      setWatchlistSymbols(new Set((wl.watchlist || []).map((w: WatchlistItem) => String(w.symbol || "").replace(/\D/g, "").slice(-6))));
       setCatData(cat);
       setS2Data(s2);
       setError(null);
@@ -90,7 +90,7 @@ export default function CNDashboard() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    loadData().finally(() => {
+    loadData(true).finally(() => {
       if (!cancelled) { setLoading(false); setCatLoading(false); }
     });
     return () => { cancelled = true; };
@@ -99,7 +99,26 @@ export default function CNDashboard() {
   // 30 min auto refresh (全量评分+分类)
 
   useEffect(() => {
-    const id = setInterval(loadData, 30 * 60 * 1000);
+    const id = setInterval(() => loadData(false), 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // 收藏追踪与收藏页同源：交易时段每 60s 刷新一次
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchWatchlist(false)
+        .then((wl) => {
+          setWlData(wl.watchlist || []);
+          setWatchlistSymbols(
+            new Set(
+              (wl.watchlist || []).map((w: WatchlistItem) =>
+                String(w.symbol || "").replace(/\D/g, "").slice(-6)
+              )
+            )
+          );
+        })
+        .catch(() => {});
+    }, 60_000);
     return () => clearInterval(id);
   }, []);
 
@@ -193,12 +212,14 @@ export default function CNDashboard() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData(true);
     setRefreshing(false);
   };
 
+  const bareSym = (s?: string) => String(s || "").replace(/\D/g, "").slice(-6);
+
   const handleToggleWatchlist = async (item: ScreenerItem) => {
-    const sym = item.symbol.replace(/^(sh|sz)/, "");
+    const sym = bareSym(item.symbol);
     if (watchlistSymbols.has(sym)) {
       try {
         await removeFromWatchlist(sym);
@@ -208,7 +229,11 @@ export default function CNDashboard() {
         setWlMsg({ type: "error", text: e.message || "操作失败" });
       }
       setTimeout(() => setWlMsg(null), 3000);
-      try { const wl = await fetchWatchlist(); setWlData(wl.watchlist || []); } catch {}
+      try {
+        const wl = await fetchWatchlist(true);
+        setWlData(wl.watchlist || []);
+        setWatchlistSymbols(new Set((wl.watchlist || []).map((w) => bareSym(w.symbol))));
+      } catch {}
     } else {
       const defaultPrice = item.buy_price || 0;
       setPriceDialog({ item, price: (defaultPrice > 0 ? defaultPrice : "").toString() });
@@ -218,7 +243,7 @@ export default function CNDashboard() {
   const confirmAddWatchlist = async () => {
     if (!priceDialog) return;
     const item = priceDialog.item;
-    const sym = item.symbol.replace(/^(sh|sz)/, "");
+    const sym = bareSym(item.symbol);
     const price = parseFloat(priceDialog.price);
     if (isNaN(price) || price <= 0) {
       setWlMsg({ type: "error", text: "请输入有效的买入价格" });
@@ -236,7 +261,11 @@ export default function CNDashboard() {
     }
     setPriceDialogLoading(false);
     setTimeout(() => setWlMsg(null), 3000);
-    try { const wl = await fetchWatchlist(); setWlData(wl.watchlist || []); } catch {}
+    try {
+      const wl = await fetchWatchlist(true);
+      setWlData(wl.watchlist || []);
+      setWatchlistSymbols(new Set((wl.watchlist || []).map((w) => bareSym(w.symbol))));
+    } catch {}
   };
 
   const items = data?.recommendations ?? [];
@@ -413,7 +442,7 @@ export default function CNDashboard() {
         {data && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in">
             {items.map((item, i) => {
-              const sym = item.symbol.replace(/^(sh|sz)/, "");
+              const sym = bareSym(item.symbol);
               const isFav = watchlistSymbols.has(sym);
               const isWlLoading = wlLoading[sym] ?? false;
               const changePct = item.change_pct ?? 0;
@@ -558,7 +587,13 @@ export default function CNDashboard() {
         </section>
       )}
 
-      {wlData.length > 0 && (
+      {(() => {
+        const activeWl = wlData.filter((w) => w.status === "active");
+        const histWl = wlData.filter((w) => w.status !== "active");
+        // 与收藏页一致：优先展示追踪中，不足再用历史补齐预览
+        const wlPreview = [...activeWl, ...histWl].slice(0, 8);
+        if (wlPreview.length === 0) return null;
+        return (
         <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -566,12 +601,14 @@ export default function CNDashboard() {
                 <div className="w-1 h-6 rounded-full bg-status-warning"></div>
                 <h2 className="text-[18px] font-semibold text-text-primary">收藏追踪</h2>
               </div>
-              <p className="text-[12px] text-text-disabled">记录入场价 · 自动追踪 T+1/T+2/T+3 涨跌</p>
+              <p className="text-[12px] text-text-disabled">
+                与收藏页同源 · 追踪中 {activeWl.length} · 历史 {histWl.length} · T+1/T+2/T+3 自动更新
+              </p>
             </div>
             <Link href="/cn/watchlist" className="text-[12px] text-status-info hover:underline shrink-0">查看全部 →</Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {wlData.slice(0, 5).map((w) => {
+            {wlPreview.map((w) => {
               const day1 = w.day1_change;
               const day2 = w.day2_change;
               const day3 = w.day3_change;
@@ -608,7 +645,8 @@ export default function CNDashboard() {
             )})}
           </div>
         </section>
-      )}
+        );
+      })()}
 
       <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="flex items-start gap-3 mb-3">
@@ -837,7 +875,7 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
               ) : (
                 <div className="space-y-1">
                   {stocks.slice(0, 5).map((s: any, i: number) => {
-                    const sym = s.symbol.replace(/^(sh|sz)/, "");
+                    const sym = String(s.symbol || "").replace(/\D/g, "").slice(-6);
                     const isFav = watchlistSymbols.has(sym);
                     const isWlLoading = wlLoading[sym] ?? false;
                     const price = s.price || s.buy_price || 0;
