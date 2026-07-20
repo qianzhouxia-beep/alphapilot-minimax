@@ -75,7 +75,8 @@ export default function CNScreener() {
   const [top10, setTop10] = useState<ScoreTop10Response | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [peFilterOn, setPeFilterOn] = useState(true);
+  // 生产阀门在 VM2.5 money_flow_gate；此处仅作展示层二次过滤，默认关
+  const [peFilterOn, setPeFilterOn] = useState(false);
 
   const loadData = async () => {
     try {
@@ -158,10 +159,10 @@ export default function CNScreener() {
             onChange={(e) => setPeFilterOn(e.target.checked)}
             className="h-3.5 w-3.5 rounded border-border-subtle accent-[#4DA3FF]"
           />
-          市盈率 TTM ≤ {PE_TTM_MAX}
+          展示层再滤：市盈率 TTM ≤ {PE_TTM_MAX}
           <span className="text-[11px] text-text-disabled">
-            （亏损/无数据剔除
-            {peFilterOn && peFilteredOut > 0 ? ` · 已滤 ${peFilteredOut}` : ""}）
+            （生产已在 VM2.5 资金门硬淘
+            {peFilterOn && peFilteredOut > 0 ? ` · 本页再滤 ${peFilteredOut}` : ""}）
           </span>
         </label>
       </header>
