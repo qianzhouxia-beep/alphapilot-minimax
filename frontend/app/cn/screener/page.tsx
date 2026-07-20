@@ -1,6 +1,4 @@
-// AlphaPilot A 股 Screener (2026-06-30)
-// 替换 M2 mock 25 只, 调后端 /v1/cn/screener/top, 行业筛选, 60s 自动刷新
-
+// AlphaPilot A 股智能选股 — 展示每日推荐池（05:00 漏斗 + 09:35 盘中资金重排）
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,35 +6,37 @@ import Link from "next/link";
 import { HeaderBar } from "@/components/HeaderBar";
 import { fetchCNScreener, type ScreenerItem, type ScreenerResponse } from "@/lib/cn-api";
 
-const sectorStyles: Record<string, string> = {
-  "白酒": "text-status-warning", "银行": "text-status-success", "保险": "text-status-success",
-  "新能源": "text-status-info", "新能源车": "text-status-info", "光伏": "text-status-info",
-  "医药": "text-status-success", "医疗器械": "text-status-success", "家电": "text-status-info",
-  "食品饮料": "text-text-secondary", "旅游零售": "text-status-info", "AI": "text-status-info",
-  "消费电子": "text-status-info", "券商": "text-status-warning", "石油石化": "text-status-danger",
-  "农牧": "text-status-success",
+type Row = ScreenerItem & {
+  score_pct?: number;
+  confidence_score?: number;
+  industry?: string | null;
+  industry_l1?: string | null;
+  live_main_net?: number | null;
+  main_net?: number | null;
+  money_phase_label?: string | null;
+  change_pct?: number | null;
 };
 
-const RISK_ZH = { low: "低", medium: "中", high: "高" } as const;
-const MAIN_FORCE_ZH: Record<string, string> = {
-  accumulation: "吸筹", markup: "拉升", distribution: "出货",
-  washout: "洗盘", reaccumulation: "二次吸筹",
-  bull_trap: "诱多", bear_trap: "诱空",
-};
+function displayScore(item: Row): number {
+  if (item.confidence_score != null) return Number(item.confidence_score);
+  if (item.score_pct != null && item.score_pct > 1) return Number(item.score_pct);
+  const s = Number(item.score || 0);
+  return s <= 1.5 ? Math.round(s * 100) : Math.round(s);
+}
+
+function fmtYi(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(Number(v))) return "—";
+  const n = Number(v);
+  const yi = n / 1e8;
+  if (Math.abs(yi) >= 0.01) return `${yi > 0 ? "+" : ""}${yi.toFixed(2)}亿`;
+  return `${n > 0 ? "+" : ""}${(n / 1e4).toFixed(0)}万`;
+}
 
 const scoreColor = (s: number) =>
   s >= 90 ? "text-status-success" : s >= 80 ? "text-status-info" : s >= 70 ? "text-status-warning" : "text-text-secondary";
 
-const riskStyles = (r: ScreenerItem["risk"]) => {
-  switch (r) {
-    case "low":
-      return "bg-status-success/12 text-status-success border border-status-success/30";
-    case "medium":
-      return "bg-status-warning/12 text-status-warning border border-status-warning/30";
-    case "high":
-      return "bg-status-danger/12 text-status-danger border border-status-danger/30";
-  }
-};
+const chgColor = (v: number | null | undefined) =>
+  v == null ? "text-text-disabled" : v >= 0 ? "text-status-danger" : "text-status-success";
 
 export default function CNScreener() {
   const [data, setData] = useState<ScreenerResponse | null>(null);
@@ -46,7 +46,7 @@ export default function CNScreener() {
 
   const loadData = async () => {
     try {
-      const d = await fetchCNScreener(100);
+      const d = await fetchCNScreener();
       setData(d);
       setError(null);
     } catch (e) {
@@ -61,42 +61,78 @@ export default function CNScreener() {
       await loadData();
       if (!cancelled) setLoading(false);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // 60s 自动刷新
   useEffect(() => {
     const id = setInterval(loadData, 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const items = data?.items ?? [];
-  const sectors = Array.from(new Set(items.map((i) => i.sector ?? "其他"))).sort();
-  const filtered = activeSector ? items.filter((i) => (i.sector ?? "其他") === activeSector) : items;
+  // 后端字段是 recommendations，不是 items（此前读错导致一直显示 0 只）
+  const items = ((data as any)?.recommendations ?? (data as any)?.items ?? []) as Row[];
+  const sectors = Array.from(
+    new Set(items.map((i) => i.sector || i.industry || i.industry_l1 || "其他"))
+  ).sort();
+  const filtered = activeSector
+    ? items.filter((i) => (i.sector || i.industry || i.industry_l1 || "其他") === activeSector)
+    : items;
+
+  const sourceLabel =
+    (data as any)?.morning_live_mode ||
+    (data as any)?.pipeline_version ||
+    (data as any)?.source ||
+    "daily_recommend";
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
       <HeaderBar market="cn" />
 
       <header className="mb-6">
-        <Link href="/cn" className="mb-2 inline-flex items-center gap-1 text-[12px] text-text-secondary hover:text-status-info">
+        <Link
+          href="/cn"
+          className="mb-2 inline-flex items-center gap-1 text-[12px] text-text-secondary hover:text-status-info"
+        >
           ← 返回 A 股首页
         </Link>
         <h1 className="text-[28px] font-semibold tracking-tight">A 股智能选股</h1>
         <p className="mt-1 text-[13px] text-text-secondary">
-          {items.length} 只 A 股 AI 评分排序 · 数据源: {data?.source ?? "—"} · 60s 自动刷新
+          {items.length} 只 · 推荐池排序 · 数据源: {sourceLabel} · 60s 自动刷新
           {error && <span className="ml-3 text-status-danger font-medium">错误: {error}</span>}
+        </p>
+        <p className="mt-2 text-[12px] text-text-disabled leading-relaxed max-w-3xl">
+          这里展示的是每日漏斗产出的推荐池（凌晨 05:00 评分+门控；交易日 09:35
+          用实时资金对池子重排）。不是盘中全市场实时扫票。模拟盘 09:36
+          再从池中按资金流入取 Top2 下单。
         </p>
       </header>
 
       {loading && (
         <div className="flex flex-col items-center justify-center py-20">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#1D2A42] border-t-[#4DA3FF]"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#1D2A42] border-t-[#4DA3FF]" />
           <p className="mt-4 text-[14px] text-text-secondary">加载中...</p>
         </div>
       )}
 
-      {!loading && !error && data && (
+      {!loading && !error && data && items.length === 0 && (
+        <div className="glass rounded-2xl p-8 text-center">
+          <p className="text-[15px] text-text-primary font-medium mb-2">今日推荐池为空</p>
+          <p className="text-[12px] text-text-secondary leading-relaxed">
+            常见原因：nuclear 空仓（expo=0）、金叉/资金门后无幸存、或凌晨管线尚未跑完。
+            可先看工作台 / 量化模拟的仓位敞口说明。
+          </p>
+          <button
+            onClick={loadData}
+            className="mt-4 rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff]"
+          >
+            刷新
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && data && items.length > 0 && (
         <>
           <div className="glass rounded-2xl p-4 card-lift mb-6 flex flex-wrap items-center gap-2">
             <span className="text-[11px] uppercase tracking-wider text-text-disabled mr-2">行业</span>
@@ -120,55 +156,56 @@ export default function CNScreener() {
                     : "border-border-subtle bg-surface-panel text-text-secondary hover:border-status-info hover:text-text-primary"
                 }`}
               >
-                {s} ({items.filter((i) => (i.sector ?? "其他") === s).length})
+                {s} ({items.filter((i) => (i.sector || i.industry || i.industry_l1 || "其他") === s).length})
               </button>
             ))}
           </div>
 
           <section className="data-table grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((item) => (
-              <Link
-                key={item.symbol}
-                href={`/cn/stock/${item.symbol}`}
-                className={`glass card-lift block rounded-2xl p-5 transition-all hover:border-status-info/30 ${
-                  item.sector && sectorStyles[item.sector] ? "" : ""
-                }`}
-              >
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <div className="font-mono text-[18px] font-semibold text-status-info">
-                      {item.symbol.replace(/\..*/, "")}
+            {filtered.map((item, idx) => {
+              const sc = displayScore(item);
+              const sector = item.sector || item.industry || item.industry_l1 || "—";
+              const net = item.live_main_net ?? item.main_net;
+              const phase = item.money_phase_label || item.money_phase || "—";
+              return (
+                <Link
+                  key={item.symbol}
+                  href={`/cn/stock?symbol=${String(item.symbol).replace(/\D/g, "").slice(-6)}`}
+                  className="glass card-lift block rounded-2xl p-5 transition-all hover:border-status-info/30"
+                >
+                  <div className="mb-3 flex items-start justify-between">
+                    <div>
+                      <div className="text-[10px] text-text-disabled mb-0.5">#{idx + 1}</div>
+                      <div className="font-mono text-[18px] font-semibold text-status-info">
+                        {String(item.symbol).replace(/\D/g, "").slice(-6)}
+                      </div>
+                      <div className="mt-0.5 text-[12px] text-text-secondary">{item.name}</div>
                     </div>
-                    <div className="mt-0.5 text-[12px] text-text-secondary">{item.name}</div>
+                    <div className={`font-display-numeric text-[32px] leading-none ${scoreColor(sc)}`}>
+                      {sc}
+                    </div>
                   </div>
-                  <div className={`font-display-numeric text-[36px] ${scoreColor(item.score)}`}>
-                    {item.score}
+                  <div className="mb-3 flex items-center justify-between text-[11px]">
+                    <span className="text-text-secondary truncate max-w-[55%]">{sector}</span>
+                    <span className={`font-display-numeric font-medium ${chgColor(item.change_pct)}`}>
+                      {item.change_pct != null
+                        ? `${item.change_pct > 0 ? "+" : ""}${Number(item.change_pct).toFixed(2)}%`
+                        : "—"}
+                    </span>
                   </div>
-                </div>
-                <div className="mb-3 flex items-center justify-between text-[11px]">
-                  <span className={`uppercase tracking-wider ${sectorStyles[item.sector ?? ""] ?? "text-text-disabled"}`}>
-                    {item.sector}
-                  </span>
-                  <span className="text-text-secondary">
-                    上涨 <span className="text-text-primary font-display-numeric">{item.up_probability}%</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t border-border-subtle pt-3 text-[11px]">
-                  <span className="text-text-secondary">{MAIN_FORCE_ZH[item.main_force]}</span>
-                  <span
-                    className={
-                      item.risk === "low"
-                        ? "text-status-success"
-                        : item.risk === "medium"
-                          ? "text-status-warning"
-                          : "text-status-danger"
-                    }
-                  >
-                    {RISK_ZH[item.risk]} 风险
-                  </span>
-                </div>
-              </Link>
-            ))}
+                  <div className="flex items-center justify-between border-t border-border-subtle pt-3 text-[11px]">
+                    <span className="text-text-secondary truncate max-w-[50%]">{phase}</span>
+                    <span
+                      className={`font-mono ${
+                        net != null && Number(net) >= 0 ? "text-status-danger" : "text-status-success"
+                      }`}
+                    >
+                      {fmtYi(net)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </section>
         </>
       )}
@@ -177,7 +214,10 @@ export default function CNScreener() {
         <div className="glass rounded-2xl border border-status-danger p-8 text-center">
           <p className="text-status-danger font-semibold mb-2">后端未连接</p>
           <p className="text-[12px] text-text-secondary mb-4">{error}</p>
-          <button onClick={loadData} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff]">
+          <button
+            onClick={loadData}
+            className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-[#00315b] hover:bg-[#7ddeff]"
+          >
             重试
           </button>
         </div>

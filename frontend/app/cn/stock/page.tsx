@@ -370,24 +370,49 @@ export default function CNStockDetail() {
             )}
 
             {series.length > 0 ? (
-              <div className="flex items-end gap-1.5 h-20 mt-2">
-                {[...series].reverse().map((b) => {
-                  const h = Math.max(8, Math.round((Math.abs(b.main_net) / maxAbs) * 72));
-                  const up = b.main_net >= 0;
-                  return (
-                    <div key={b.date} className="flex-1 flex flex-col items-center justify-end gap-1" title={`${b.date} ${fmtYi(b.main_net)}`}>
+              <>
+                <div className="mb-2 flex items-center gap-3 text-[10px] text-text-disabled">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="inline-block h-2 w-2 rounded-sm bg-[rgba(255,93,93,0.85)]" />
+                    红=流入(+)
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="inline-block h-2 w-2 rounded-sm bg-[rgba(62,230,168,0.85)]" />
+                    绿=流出(-)
+                  </span>
+                </div>
+                <div className="flex items-end gap-1.5 h-28 mt-1">
+                  {[...series].reverse().map((b) => {
+                    const h = Math.max(10, Math.round((Math.abs(b.main_net) / maxAbs) * 64));
+                    const inflow = b.main_net >= 0;
+                    return (
                       <div
-                        className="w-full rounded-t-sm"
-                        style={{
-                          height: h,
-                          backgroundColor: up ? "rgba(255,93,93,0.75)" : "rgba(62,230,168,0.75)",
-                        }}
-                      />
-                      <span className="text-[9px] text-text-disabled">{b.date.slice(5)}</span>
-                    </div>
-                  );
-                })}
-              </div>
+                        key={b.date}
+                        className="flex-1 flex flex-col items-center justify-end gap-1"
+                        title={`${b.date} 主力净额 ${fmtYi(b.main_net)}`}
+                      >
+                        <span
+                          className={`text-[9px] font-mono leading-none ${
+                            inflow ? "text-status-danger" : "text-status-success"
+                          }`}
+                        >
+                          {fmtYi(b.main_net)}
+                        </span>
+                        <div
+                          className="w-full rounded-t-sm"
+                          style={{
+                            height: h,
+                            backgroundColor: inflow
+                              ? "rgba(255,93,93,0.75)"
+                              : "rgba(62,230,168,0.75)",
+                          }}
+                        />
+                        <span className="text-[9px] text-text-disabled">{b.date.slice(5)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <p className="text-[12px] text-text-disabled text-center py-4">暂无多日资金序列</p>
             )}
