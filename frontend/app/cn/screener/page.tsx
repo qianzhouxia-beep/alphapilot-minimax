@@ -20,6 +20,8 @@ type RecRow = {
   score_pct?: number;
   change_pct?: number | null;
   price?: number | null;
+  pe_ttm?: number | null;
+  pe?: number | null;
   sector?: string | null;
   industry?: string | null;
   industry_l1?: string | null;
@@ -28,6 +30,20 @@ type RecRow = {
   live_main_net?: number | null;
   main_net?: number | null;
 };
+
+const PE_TTM_MAX = 30;
+
+function peTtmOf(item: { pe_ttm?: number | null; pe?: number | null }): number | null {
+  const v = item.pe_ttm ?? item.pe;
+  if (v == null || Number.isNaN(Number(v))) return null;
+  return Number(v);
+}
+
+/** 市盈率 TTM：有值、为正、且 ≤ 阈值 */
+function passPeTtm(item: { pe_ttm?: number | null; pe?: number | null }, max = PE_TTM_MAX): boolean {
+  const pe = peTtmOf(item);
+  return pe != null && pe > 0 && pe <= max;
+}
 
 function displayScore(item: { score?: number; confidence_score?: number; score_pct?: number }): number {
   if (item.confidence_score != null) return Number(item.confidence_score);
@@ -59,6 +75,7 @@ export default function CNScreener() {
   const [top10, setTop10] = useState<ScoreTop10Response | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [peFilterOn, setPeFilterOn] = useState(true);
 
   const loadData = async () => {
     try {
@@ -93,12 +110,24 @@ export default function CNScreener() {
     return () => clearInterval(id);
   }, []);
 
-  const recommendations = ((recData as any)?.recommendations ?? []) as RecRow[];
-  const scoreItems = (top10?.items ?? []) as ScoreTop10Item[];
-  const recCompare = (top10?.recommend_compare?.length ? top10.recommend_compare : recommendations) as RecRow[];
+  const recommendationsRaw = ((recData as any)?.recommendations ?? []) as RecRow[];
+  const scoreItemsRaw = (top10?.items ?? []) as ScoreTop10Item[];
+  const recCompareRaw = (
+    top10?.recommend_compare?.length ? top10.recommend_compare : recommendationsRaw
+  ) as RecRow[];
+
+  const recommendations = peFilterOn
+    ? recommendationsRaw.filter((x) => passPeTtm(x))
+    : recommendationsRaw;
+  const scoreItems = peFilterOn ? scoreItemsRaw.filter((x) => passPeTtm(x)) : scoreItemsRaw;
+  const recCompare = peFilterOn ? recCompareRaw.filter((x) => passPeTtm(x)) : recCompareRaw;
 
   const scoreCodes = new Set(scoreItems.map((x) => symCode(x.symbol)));
   const overlap = recCompare.filter((x) => scoreCodes.has(symCode(x.symbol)));
+  const peFilteredOut =
+    recommendationsRaw.length +
+    scoreItemsRaw.length -
+    (recommendations.length + scoreItems.length);
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
@@ -122,6 +151,19 @@ export default function CNScreener() {
           <span className="text-text-secondary">评分 Top10</span>
           ：只按模型分数从高到低列第 1–10 名，不加资金/板块门槛。
         </p>
+        <label className="mt-3 inline-flex items-center gap-2 text-[13px] text-text-secondary cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={peFilterOn}
+            onChange={(e) => setPeFilterOn(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-border-subtle accent-[#4DA3FF]"
+          />
+          市盈率 TTM ≤ {PE_TTM_MAX}
+          <span className="text-[11px] text-text-disabled">
+            （亏损/无数据剔除
+            {peFilterOn && peFilteredOut > 0 ? ` · 已滤 ${peFilteredOut}` : ""}）
+          </span>
+        </label>
       </header>
 
       {loading && (
@@ -170,7 +212,13 @@ export default function CNScreener() {
               </button>
             </div>
             {recommendations.length === 0 ? (
-              <EmptyBox text="今日推荐池为空（nuclear / 门控后无幸存）" />
+              <EmptyBox
+                text={
+                  peFilterOn && recommendationsRaw.length > 0
+                    ? `今日推荐均未通过市盈率 TTM ≤ ${PE_TTM_MAX}`
+                    : "今日推荐池为空（nuclear / 门控后无幸存）"
+                }
+              />
             ) : (
               <StockGrid
                 items={recommendations.map((it, i) => ({
@@ -179,6 +227,7 @@ export default function CNScreener() {
                   sector: it.sector || it.industry || it.industry_l1,
                   money_phase_label: it.money_phase_label || it.money_phase,
                   main_net: it.live_main_net ?? it.main_net,
+                  pe_ttm: peTtmOf(it),
                 }))}
                 showRank
                 showFund
@@ -192,16 +241,24 @@ export default function CNScreener() {
               <h2 className="text-[18px] font-semibold">评分 Top10（无门槛）</h2>
               <p className="text-[12px] text-text-disabled mt-0.5">
                 按 score 降序第 1→10 · {top10?.mode || "score_only"}
+                {peFilterOn ? ` · 已套用 PE-TTM≤${PE_TTM_MAX}` : ""}
               </p>
             </div>
             {scoreItems.length === 0 ? (
-              <EmptyBox text="暂无评分榜（等待管线写入 score_top10）" />
+              <EmptyBox
+                text={
+                  peFilterOn && scoreItemsRaw.length > 0
+                    ? `评分 Top10 均未通过市盈率 TTM ≤ ${PE_TTM_MAX}`
+                    : "暂无评分榜（等待管线写入 score_top10）"
+                }
+              />
             ) : (
               <StockGrid
                 items={scoreItems.map((it, i) => ({
                   ...it,
                   rank: it.rank ?? i + 1,
                   sector: it.sector || it.industry || it.industry_l1,
+                  pe_ttm: peTtmOf(it),
                 }))}
                 showRank
               />
@@ -264,6 +321,7 @@ function StockGrid({
     confidence_score?: number;
     score_pct?: number;
     change_pct?: number | null;
+    pe_ttm?: number | null;
     sector?: string | null;
     money_phase_label?: string | null;
     main_net?: number | null;
@@ -276,6 +334,7 @@ function StockGrid({
       {items.map((item) => {
         const sc = displayScore(item);
         const code = symCode(item.symbol);
+        const pe = peTtmOf(item);
         return (
           <Link
             key={`${code}-${item.rank}`}
@@ -301,6 +360,9 @@ function StockGrid({
                   ? `${item.change_pct > 0 ? "+" : ""}${Number(item.change_pct).toFixed(2)}%`
                   : "—"}
               </span>
+            </div>
+            <div className="mt-1 text-[11px] text-text-disabled">
+              PE-TTM {pe != null ? pe.toFixed(1) : "—"}
             </div>
             {showFund && (
               <div className="mt-2 flex items-center justify-between border-t border-border-subtle pt-2 text-[11px]">

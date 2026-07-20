@@ -39,6 +39,8 @@ export type ScoreTop10Item = {
   score: number;
   price?: number | null;
   change_pct?: number | null;
+  pe_ttm?: number | null;
+  pe?: number | null;
   sector?: string | null;
   industry?: string | null;
   industry_l1?: string | null;
@@ -82,6 +84,8 @@ export type ScreenerItem = {
   score_label?: string | null;
   score_rank_pct?: number | null;
   change_pct?: number | null;
+  pe_ttm?: number | null;
+  pe?: number | null;
 };
 
 export type RecommendStats = {
