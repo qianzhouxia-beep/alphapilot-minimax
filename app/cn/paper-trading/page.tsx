@@ -136,7 +136,7 @@ export default function PaperTradingPage() {
                   </div>
                   <div className="px-3 py-2.5 text-center">
                     <span className={`tag-badge tag-badge ${
-                      log.action === "买入" ? "bg-[rgba(255,93,93,0.15)] text-status-danger" : "bg-[rgba(62,230,168,0.15)] text-status-success"
+                      (log.action || "").startsWith("买入") ? "bg-[rgba(255,93,93,0.15)] text-status-danger" : "bg-[rgba(62,230,168,0.15)] text-status-success"
                     }`}>{log.action}</span>
                   </div>
                     <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">¥{log.price.toFixed(2)}</div>

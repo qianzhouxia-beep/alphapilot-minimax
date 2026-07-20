@@ -121,7 +121,14 @@ export default function PaperTradingPage() {
             <span className="w-1 h-5 rounded-full bg-status-warning"></span>
             交易记录
           </h2>
-          <TradeLogTable tradeLog={data.trade_log} />
+          <TradeLogTable
+            tradeLog={data.trade_log}
+            heldSymbols={new Set(
+              (data.strategies || []).flatMap((s) =>
+                (s.positions || []).map((p) => p.symbol).filter(Boolean)
+              )
+            )}
+          />
         </section>
       )}
 
@@ -378,67 +385,230 @@ function StrategyGroupCard({
 }
 
 
-// ═══ 交易记录表格（合并买入卖出，含盈余/盈亏%）═══
-function TradeLogTable({ tradeLog }: { tradeLog: TradeLogEntry[] }) {
-  // 按 symbol 分组，同一只股票的买入和卖出配对
+// ═══ 交易记录：按股票 FIFO；整段清仓合并一行；持仓中只显示仍在持仓的标的 ═══
+function isBuyAction(action: string) {
+  return (action || "").startsWith("买入");
+}
+function isSellAction(action: string) {
+  const a = action || "";
+  // 勿用 includes("止盈")，避免误伤其它文案；只认卖出*/止损/止盈
+  return a.startsWith("卖出") || a === "止损" || a === "止盈";
+}
+
+function dedupeTrades(tradeLog: TradeLogEntry[]): TradeLogEntry[] {
+  const seen = new Set<string>();
+  const out: TradeLogEntry[] = [];
+  for (const t of tradeLog) {
+    const key = [t.time, t.symbol, t.action, t.price, t.quantity, t.strategy_id || ""].join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+  return out;
+}
+
+function TradeLogTable({
+  tradeLog,
+  heldSymbols,
+}: {
+  tradeLog: TradeLogEntry[];
+  heldSymbols: Set<string>;
+}) {
   type MergedRow = {
     symbol: string;
     name: string;
-    buyLog: TradeLogEntry | null;
-    sellLog: TradeLogEntry | null;
-    strategyId: string;
+    buyTime: string;
+    sellTime: string;
+    buyPrice: number;
+    sellPrice: number;
+    quantity: number;
+    sellAction: string;
+    buyActions: string[];
+    open: boolean;
+    legs?: number;
   };
 
-  const grouped = new Map<string, MergedRow>();
-  // 倒序遍历（最新的在前面）
-  for (const log of tradeLog) {
-    const key = log.symbol + "|" + log.strategy_id;
-    if (!grouped.has(key)) {
-      grouped.set(key, { symbol: log.symbol, name: log.name, buyLog: null, sellLog: null, strategyId: log.strategy_id });
+  type Lot = {
+    time: string;
+    price: number;
+    qtyLeft: number;
+    action: string;
+    name: string;
+  };
+
+  type Wave = {
+    buyTime: string;
+    buyActions: string[];
+    costSum: number;
+    buyQty: number;
+    sellSum: number;
+    sellQty: number;
+    sellTime: string;
+    sellActions: string[];
+  };
+
+  const chrono = dedupeTrades(tradeLog).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  // 只按股票配对（eod_sniper / s2_eod 历史策略 id 不一致）
+  const openLots = new Map<string, Lot[]>();
+  const waves = new Map<string, Wave>(); // 进行中的未完全平仓卖出波段
+  const closed: MergedRow[] = [];
+
+  const flushWave = (symbol: string, name: string) => {
+    const w = waves.get(symbol);
+    if (!w || w.sellQty <= 0) {
+      waves.delete(symbol);
+      return;
     }
-    const row = grouped.get(key)!;
-    if (log.action === "买入") {
-      // 如果已经有 buyLog，说明是新一轮买入，创建新行
-      if (row.buyLog) {
-        // 已有买入记录，这条作为新行
-        const newKey = log.symbol + "|" + log.strategy_id + "|" + log.time;
-        grouped.set(newKey, { symbol: log.symbol, name: log.name, buyLog: log, sellLog: null, strategyId: log.strategy_id });
-      } else {
-        row.buyLog = log;
-      }
-    } else {
-      // 卖出/止损/止盈 — 找到对应的买入行
-      if (row.buyLog && !row.sellLog) {
-        row.sellLog = log;
-      } else {
-        // 没有对应买入，单独记录
-        const newKey = log.symbol + "|" + log.strategy_id + "|" + log.time;
-        grouped.set(newKey, { symbol: log.symbol, name: log.name, buyLog: null, sellLog: log, strategyId: log.strategy_id });
-      }
+    closed.push({
+      symbol,
+      name,
+      buyTime: w.buyTime,
+      sellTime: w.sellTime,
+      buyPrice: w.buyQty > 0 ? w.costSum / w.buyQty : 0,
+      sellPrice: w.sellSum / w.sellQty,
+      quantity: w.sellQty,
+      sellAction:
+        w.sellActions.length === 1
+          ? w.sellActions[0]
+          : `已清仓(${w.sellActions.length}笔)`,
+      buyActions: w.buyActions,
+      open: false,
+      legs: w.sellActions.length,
+    });
+    waves.delete(symbol);
+  };
+
+  for (const log of chrono) {
+    const action = log.action || "";
+    if (!isBuyAction(action) && !isSellAction(action)) continue;
+    const symbol = log.symbol;
+    const name = log.name;
+
+    if (isBuyAction(action)) {
+      const q = Number(log.quantity) || 0;
+      if (q <= 0) continue;
+      const list = openLots.get(symbol) || [];
+      list.push({
+        time: log.time,
+        price: Number(log.price) || 0,
+        qtyLeft: q,
+        action,
+        name,
+      });
+      openLots.set(symbol, list);
+      continue;
+    }
+
+    let remain = Number(log.quantity) || 0;
+    if (remain <= 0) continue;
+    const list = openLots.get(symbol) || [];
+    let matchedQty = 0;
+    let costSum = 0;
+    let firstBuyTime = "";
+    const buyActions: string[] = [];
+    while (remain > 0 && list.length > 0) {
+      const lot = list[0];
+      const take = Math.min(lot.qtyLeft, remain);
+      matchedQty += take;
+      costSum += take * lot.price;
+      if (!firstBuyTime) firstBuyTime = lot.time;
+      if (!buyActions.includes(lot.action)) buyActions.push(lot.action);
+      lot.qtyLeft -= take;
+      remain -= take;
+      if (lot.qtyLeft <= 0) list.shift();
+    }
+    openLots.set(symbol, list);
+
+    if (matchedQty <= 0) continue; // 无买入对应的孤儿卖出不展示，避免重复脏行
+
+    let w = waves.get(symbol);
+    if (!w) {
+      w = {
+        buyTime: firstBuyTime,
+        buyActions: [...buyActions],
+        costSum: 0,
+        buyQty: 0,
+        sellSum: 0,
+        sellQty: 0,
+        sellTime: log.time,
+        sellActions: [],
+      };
+      waves.set(symbol, w);
+    }
+    w.costSum += costSum;
+    w.buyQty += matchedQty;
+    w.sellSum += matchedQty * (Number(log.price) || 0);
+    w.sellQty += matchedQty;
+    w.sellTime = log.time;
+    if (!w.sellActions.includes(action)) w.sellActions.push(action);
+    for (const ba of buyActions) {
+      if (!w.buyActions.includes(ba)) w.buyActions.push(ba);
+    }
+    if (!w.buyTime) w.buyTime = firstBuyTime;
+
+    const stillOpen = (openLots.get(symbol) || []).some((l) => l.qtyLeft > 0);
+    if (!stillOpen) flushWave(symbol, name);
+  }
+
+  // 若还有未 flush 的波段（半仓卖出后仍持仓）→ 作为已实现盈亏行
+  for (const [symbol] of [...waves.entries()]) {
+    const w = waves.get(symbol);
+    if (w && w.sellQty > 0) {
+      const name = (openLots.get(symbol) || [])[0]?.name || symbol;
+      flushWave(symbol, name);
     }
   }
 
-  // 按时间倒序排列（用卖出时间或买入时间）
-  const rows = Array.from(grouped.values()).sort((a, b) => {
-    const ta = a.sellLog?.time || a.buyLog?.time || "";
-    const tb = b.sellLog?.time || b.buyLog?.time || "";
+  // 持仓中：仅展示账户里仍有的标的，同票合并一行
+  const opens: MergedRow[] = [];
+  for (const [symbol, lots] of openLots) {
+    if (!heldSymbols.has(symbol)) continue;
+    const alive = lots.filter((l) => l.qtyLeft > 0);
+    if (!alive.length) continue;
+    const qty = alive.reduce((s, l) => s + l.qtyLeft, 0);
+    const costSum = alive.reduce((s, l) => s + l.qtyLeft * l.price, 0);
+    opens.push({
+      symbol,
+      name: alive[0].name,
+      buyTime: alive[0].time,
+      sellTime: "",
+      buyPrice: costSum / qty,
+      sellPrice: 0,
+      quantity: qty,
+      sellAction: "",
+      buyActions: [...new Set(alive.map((l) => l.action))],
+      open: true,
+    });
+  }
+
+  const rows = [...closed, ...opens].sort((a, b) => {
+    const ta = a.sellTime || a.buyTime || "";
+    const tb = b.sellTime || b.buyTime || "";
     return tb.localeCompare(ta);
   });
 
-  // 7 列：股票 | 买入价 | 卖出价 | 数量 | 盈余 | 盈亏% | 操作类型
   const gridCols = "grid-cols-[3fr_3fr_3fr_3fr_4fr_4fr_3fr]";
 
   const fmtTime = (t: string) => {
     if (!t) return "";
-    // 取 MM/DD HH:MM
     const parts = t.split(/[ -]/);
     if (parts.length >= 3) return parts[1] + "/" + parts[2] + " " + (parts[3] || "").slice(0, 5);
     return t;
   };
 
+  const sellLabel = (row: MergedRow) => {
+    if (row.open) return row.buyActions.some((a) => a.includes("补仓")) ? "持仓中·已补仓" : "持仓中";
+    if (row.legs && row.legs > 1) return row.sellAction;
+    const action = row.sellAction;
+    if (action === "止损" || action === "卖出(止损)") return "止损卖出";
+    if (action === "止盈" || action === "卖出(止盈)") return "止盈卖出";
+    if (action.startsWith("卖出(")) return action;
+    if (action.startsWith("卖出")) return "已卖出";
+    return action || "已卖出";
+  };
+
   return (
     <div className="overflow-x-auto">
-      {/* Header */}
       <div className={"grid " + gridCols + " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"}>
         <div className="px-3 py-2.5 font-medium text-left">股票</div>
         <div className="px-3 py-2.5 font-medium text-right">买入价</div>
@@ -449,81 +619,63 @@ function TradeLogTable({ tradeLog }: { tradeLog: TradeLogEntry[] }) {
         <div className="px-3 py-2.5 font-medium text-center">操作</div>
       </div>
       {rows.map((row, idx) => {
-        const buy = row.buyLog;
-        const sell = row.sellLog;
-        const hasBuy = !!buy;
-        const hasSell = !!sell;
-        const buyPrice = buy?.price ?? 0;
-        const sellPrice = sell?.price ?? 0;
-        const qty = sell?.quantity ?? buy?.quantity ?? 0;
-        const costTotal = buyPrice * qty;
-        const exitTotal = sellPrice * qty;
+        const hasBuy = row.buyPrice > 0;
+        const hasSell = !row.open && row.sellPrice > 0;
+        const qty = row.quantity;
+        const costTotal = row.buyPrice * qty;
+        const exitTotal = row.sellPrice * qty;
         const profitAmt = hasBuy && hasSell ? exitTotal - costTotal : 0;
-        const profitPct = hasBuy && hasSell && costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : (sell?.pnl_pct ?? 0);
-
-        // 操作类型标签
-        let actionLabel = "—";
+        const profitPct = hasBuy && hasSell && costTotal > 0 ? (profitAmt / costTotal) * 100 : 0;
+        const scaledIn = row.buyActions.some((a) => a.includes("补仓"));
+        const actionLabel = sellLabel(row);
         let actionBg = "rgba(148,163,184,0.15)";
         let actionColor = "#94A3B8";
-        if (hasBuy && hasSell) {
-          if (sell!.action === "止损") {
-            actionLabel = "止损卖出";
-            actionBg = "rgba(255,93,93,0.15)";
-            actionColor = "#FF5D5D";
-          } else if (sell!.action === "止盈") {
-            actionLabel = "止盈卖出";
-            actionBg = "rgba(62,230,168,0.15)";
-            actionColor = "#3EE6A8";
-          } else {
-            actionLabel = "已卖出";
-            actionBg = "rgba(62,230,168,0.15)";
-            actionColor = "#3EE6A8";
-          }
-        } else if (hasBuy && !hasSell) {
-          actionLabel = "持仓中";
+        if (row.open) {
           actionBg = "rgba(245,196,81,0.15)";
           actionColor = "#F5C451";
-        } else if (!hasBuy && hasSell) {
-          actionLabel = sell!.action;
-          actionBg = "rgba(148,163,184,0.15)";
-          actionColor = "#94A3B8";
+        } else if (row.sellAction.includes("止损")) {
+          actionBg = "rgba(255,93,93,0.15)";
+          actionColor = "#FF5D5D";
+        } else {
+          actionBg = "rgba(62,230,168,0.15)";
+          actionColor = "#3EE6A8";
         }
 
         return (
-          <div key={idx} className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}>
-            {/* 股票 */}
+          <div
+            key={`${row.symbol}-${row.buyTime}-${row.sellTime}-${row.open}-${idx}`}
+            className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}
+          >
             <div className="px-3 py-2.5">
               <div className="flex items-center gap-1.5">
                 <span className="font-semibold text-text-primary">{row.name}</span>
                 <span className="text-text-disabled text-[11px]">{row.symbol}</span>
               </div>
               <div className="text-[10px] text-text-disabled mt-0.5">
-                {buy && <span>买入 {fmtTime(buy.time)}</span>}
-                {buy && sell && <span className="mx-1">→</span>}
-                {sell && <span>卖出 {fmtTime(sell.time)}</span>}
+                {row.buyTime && <span>买入 {fmtTime(row.buyTime)}</span>}
+                {scaledIn && row.open && <span className="ml-1 text-status-warning">含补仓</span>}
+                {row.buyTime && hasSell && <span className="mx-1">→</span>}
+                {hasSell && <span>卖出 {fmtTime(row.sellTime)}</span>}
+                {row.legs && row.legs > 1 && (
+                  <span className="ml-1">· {row.sellAction.replace(/^已清仓/, "")}</span>
+                )}
               </div>
             </div>
-            {/* 买入价 */}
             <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">
-              {hasBuy ? "￥" + buyPrice.toFixed(2) : "—"}
+              {hasBuy ? "￥" + row.buyPrice.toFixed(2) : "—"}
             </div>
-            {/* 卖出价 */}
             <div className={"px-3 py-2.5 text-right font-display-numeric " + (hasSell ? "text-status-success" : "text-text-disabled")}>
-              {hasSell ? "￥" + sellPrice.toFixed(2) : "—"}
+              {hasSell ? "￥" + row.sellPrice.toFixed(2) : "—"}
             </div>
-            {/* 数量 */}
             <div className="px-3 py-2.5 text-right font-display-numeric text-text-secondary">
               {qty > 0 ? qty.toLocaleString() : "—"}
             </div>
-            {/* 盈余 */}
             <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitAmt >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
               {hasBuy && hasSell ? (profitAmt >= 0 ? "+" : "") + "￥" + profitAmt.toFixed(2) : "—"}
             </div>
-            {/* 盈亏% */}
             <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitPct >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
               {hasBuy && hasSell ? (profitPct >= 0 ? "+" : "") + profitPct.toFixed(2) + "%" : "—"}
             </div>
-            {/* 操作类型 */}
             <div className="px-3 py-2.5 text-center">
               <span className="tag-badge" style={{ backgroundColor: actionBg, color: actionColor }}>
                 {actionLabel}
