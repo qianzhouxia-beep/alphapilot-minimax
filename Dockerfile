@@ -14,7 +14,7 @@ RUN npm run build
 
 # ===== Stage 2: python backend =====
 FROM python:3.11-slim
-ARG CACHEBUSTER=20260719-tdx-sectors-v2
+ARG CACHEBUSTER=20260720-sector-research-proxy
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
