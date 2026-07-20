@@ -271,11 +271,9 @@ export default function SectorsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [archive, setArchive] = useState<SectorResearchEntry[]>([]);
-  const [archiveErr, setArchiveErr] = useState<string | null>(null);
-  const [archiveLoading, setArchiveLoading] = useState(false);
-  const [activeDate, setActiveDate] = useState<string | null>(null);
-  const [activeSession, setActiveSession] = useState<"morning" | "afternoon" | null>(null);
+  const [researchJumping, setResearchJumping] = useState(false);
+  const [researchErr, setResearchErr] = useState<string | null>(null);
+  const [researchArchive, setResearchArchive] = useState<SectorResearchEntry[]>([]);
 
   useEffect(() => {
     try {
@@ -312,36 +310,45 @@ export default function SectorsPage() {
     }
   }, [period]);
 
-  const loadArchive = useCallback(async () => {
-    setArchiveLoading(true);
-    setArchiveErr(null);
-    try {
-      const list = await fetchSectorResearchArchive();
-      setArchive(list);
-      if (list.length > 0) {
-        setActiveDate((prev) => prev || list[0].date);
-        setActiveSession((prev) => {
-          if (prev) return prev;
-          const first = list[0];
-          return first.sessions.includes("afternoon")
-            ? "afternoon"
-            : first.sessions[0] || null;
-        });
-      }
-    } catch (e) {
-      setArchiveErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setArchiveLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     load(false, period);
   }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 深度研报：整页打开最新报告，不再 iframe 内嵌
   useEffect(() => {
-    if (tab === "research") loadArchive();
-  }, [tab, loadArchive]);
+    if (tab !== "research") return;
+    let cancelled = false;
+    (async () => {
+      setResearchJumping(true);
+      setResearchErr(null);
+      try {
+        const list = await fetchSectorResearchArchive();
+        if (cancelled) return;
+        setResearchArchive(list);
+        if (list.length === 0) {
+          setResearchJumping(false);
+          return;
+        }
+        const first = list[0];
+        const session = first.sessions.includes("afternoon")
+          ? "afternoon"
+          : first.sessions[0];
+        if (!session) {
+          setResearchJumping(false);
+          return;
+        }
+        window.location.assign(sectorResearchUrl(first.date, session));
+      } catch (e) {
+        if (!cancelled) {
+          setResearchErr(e instanceof Error ? e.message : "研报打开失败");
+          setResearchJumping(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -354,14 +361,6 @@ export default function SectorsPage() {
     if (!data || !selected) return null;
     return data.industries?.find((x) => x.name === selected) || null;
   }, [data, selected]);
-
-  const activeSessions = useMemo(() => {
-    if (!activeDate) return [] as Array<"morning" | "afternoon">;
-    return archive.find((x) => x.date === activeDate)?.sessions || [];
-  }, [archive, activeDate]);
-
-  const reportSrc =
-    activeDate && activeSession ? sectorResearchUrl(activeDate, activeSession) : null;
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
@@ -384,11 +383,11 @@ export default function SectorsPage() {
                 {data?.generated_at ? ` · 页面重算 ${String(data.generated_at).replace("T", " ").slice(0, 19)}` : ""}
               </>
             ) : (
-              <>盘中/盘后深度研报（ECharts）· 与资金看板合并于本页</>
+              <>盘中/盘后深度研报 · 整页打开</>
             )}
           </p>
         </div>
-        {tab === "board" ? (
+        {tab === "board" && (
           <button
             type="button"
             onClick={() => load(true, period)}
@@ -396,15 +395,6 @@ export default function SectorsPage() {
             className="rounded-xl border border-border-subtle bg-bg-secondary px-4 py-2 text-[13px] font-medium text-text-primary hover:border-purple-primary/40 disabled:opacity-50 cursor-pointer"
           >
             {loading ? "重算中…" : "刷新数据"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => loadArchive()}
-            disabled={archiveLoading}
-            className="rounded-xl border border-border-subtle bg-bg-secondary px-4 py-2 text-[13px] font-medium text-text-primary hover:border-purple-primary/40 disabled:opacity-50 cursor-pointer"
-          >
-            {archiveLoading ? "加载中…" : "刷新研报列表"}
           </button>
         )}
       </div>
@@ -574,79 +564,45 @@ export default function SectorsPage() {
       )}
 
       {tab === "research" && (
-        <section className="mt-4 card p-4 sm:p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-[15px] font-semibold text-text-primary">深度研报</h2>
-              <p className="mt-1 text-[12px] text-text-tertiary">
-                上海机定时生成 · 上午/下午场 · 内嵌展示，不再单独开黑页入口
-              </p>
-            </div>
-          </div>
-
-          {archiveLoading && archive.length === 0 && (
-            <div className="py-12 flex justify-center">
+        <section className="mt-4 card p-6 sm:p-8">
+          {researchJumping && (
+            <div className="py-16 flex flex-col items-center gap-3">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-primary border-t-transparent" />
+              <p className="text-[13px] text-text-secondary">正在打开整页深度研报…</p>
             </div>
           )}
-          {archiveErr && (
-            <div className="rounded-xl bg-status-danger/5 px-4 py-3 text-[13px] text-status-danger">{archiveErr}</div>
+          {researchErr && (
+            <div className="rounded-xl bg-status-danger/5 px-4 py-3 text-[13px] text-status-danger">{researchErr}</div>
           )}
-          {!archiveLoading && !archiveErr && archive.length === 0 && (
-            <div className="py-10 text-center text-[13px] text-text-tertiary">暂无研报，等待盘后/盘中任务生成</div>
+          {!researchJumping && !researchErr && researchArchive.length === 0 && (
+            <div className="py-10 text-center text-[13px] text-text-tertiary">
+              暂无研报，等待盘中/盘后任务生成
+            </div>
           )}
-
-          {archive.length > 0 && (
-            <>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {archive.map((e) => (
-                  <button
-                    key={e.date}
-                    type="button"
-                    onClick={() => {
-                      setActiveDate(e.date);
-                      setActiveSession(
-                        e.sessions.includes("afternoon") ? "afternoon" : e.sessions[0] || null
-                      );
-                    }}
-                    className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium cursor-pointer transition-colors ${
-                      activeDate === e.date
-                        ? "bg-purple-primary text-white"
-                        : "bg-bg-tertiary text-text-secondary border border-border-subtle"
-                    }`}
-                  >
-                    {e.date}
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {activeSessions.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setActiveSession(s)}
-                    className={`rounded-xl px-3.5 py-1.5 text-[12px] font-medium cursor-pointer transition-colors ${
-                      activeSession === s
-                        ? "bg-purple-light text-purple-primary border border-purple-primary/30"
-                        : "bg-bg-secondary text-text-secondary border border-border-subtle"
-                    }`}
-                  >
-                    {s === "afternoon" ? "下午场" : "上午场"}
-                  </button>
-                ))}
-              </div>
-              {reportSrc ? (
-                <div className="rounded-2xl border border-border-subtle overflow-hidden bg-bg-tertiary">
-                  <iframe
-                    title={`板块深度研报 ${activeDate} ${activeSession}`}
-                    src={reportSrc}
-                    className="w-full min-h-[70vh] bg-white"
-                  />
-                </div>
-              ) : (
-                <div className="py-10 text-center text-[13px] text-text-tertiary">请选择日期与场次</div>
-              )}
-            </>
+          {!researchJumping && researchArchive.length > 0 && (
+            <div>
+              <h2 className="text-[15px] font-semibold text-text-primary mb-1">选择研报（整页打开）</h2>
+              <p className="text-[12px] text-text-tertiary mb-4">
+                若未自动跳转，请点下方链接全屏查看
+              </p>
+              <ul className="space-y-2">
+                {researchArchive.flatMap((e) =>
+                  e.sessions.map((s) => (
+                    <li key={`${e.date}-${s}`}>
+                      <a
+                        href={sectorResearchUrl(e.date, s)}
+                        className="flex items-center justify-between rounded-xl border border-border-subtle bg-bg-secondary px-4 py-3 text-[13px] text-text-primary no-underline hover:border-purple-primary/40 hover:bg-purple-light/40 transition-colors"
+                      >
+                        <span>
+                          {e.date} · {s === "afternoon" ? "下午场" : "上午场"}
+                        </span>
+                        <span className="text-purple-primary text-[12px] font-medium">打开 →</span>
+                      </a>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
           )}
         </section>
       )}
