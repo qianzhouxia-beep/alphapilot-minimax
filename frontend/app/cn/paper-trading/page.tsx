@@ -633,12 +633,28 @@ function TradeLogTable({
         if (row.open) {
           actionBg = "rgba(245,196,81,0.15)";
           actionColor = "#F5C451";
-        } else if (row.sellAction.includes("止损")) {
+        } else if (
+          row.sellAction.includes("止盈") ||
+          row.sellAction.includes("减半") ||
+          row.sellAction.includes("清仓") ||
+          row.sellAction === "已卖出"
+        ) {
+          // 止盈/动态止盈：红（盈利色）
           actionBg = "rgba(255,93,93,0.15)";
           actionColor = "#FF5D5D";
-        } else {
+        } else if (row.sellAction.includes("止损")) {
+          // 止损：绿（亏损色）
           actionBg = "rgba(62,230,168,0.15)";
           actionColor = "#3EE6A8";
+        } else if (hasSell) {
+          // 其它卖出（T+2/超期等）按盈亏：赚红亏绿
+          if (profitAmt >= 0) {
+            actionBg = "rgba(255,93,93,0.15)";
+            actionColor = "#FF5D5D";
+          } else {
+            actionBg = "rgba(62,230,168,0.15)";
+            actionColor = "#3EE6A8";
+          }
         }
 
         return (
