@@ -203,7 +203,7 @@ export default function WatchlistPage() {
                 <span className="h-2 w-2 rounded-full bg-text-secondary"></span>
                 历史记录 ({completedItems.length})
               </h2>
-              <span className="text-[11px] text-text-disabled">永久保存 · 模型选股战绩</span>
+              <span className="text-[11px] text-text-disabled">按周归类 · 每条记录单独保留</span>
             </div>
             <HistoryTable items={completedItems} onRemove={handleRemove} removing={removing}
               onRetrack={handleRetrack} retracking={retracking}
@@ -322,23 +322,75 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
   );
 }
 
-// ═══ 历史记录表格（合并买入卖出，含数量/盈余）═══
+// ═══ 历史记录表格（按周归类，每条 completed 单独一行，不按股票去重）═══
 const DEFAULT_QTY = 100; // 默认买入数量（股）
 
-// 从 localStorage 读取每只股票的自定义数量
 function loadQtyMap(): Record<string, number> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem("watchlist_qty_map");
     return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 }
 function saveQtyMap(map: Record<string, number>) {
   if (typeof window === "undefined") return;
   localStorage.setItem("watchlist_qty_map", JSON.stringify(map));
 }
 
-function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPriceClick }: {
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function fmtMd(d: Date) {
+  return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
+}
+
+/** 自然周（周一～周日），key=该周周一 YYYY-MM-DD */
+function weekMeta(iso?: string): { key: string; label: string; sortKey: string } {
+  const d = iso ? new Date(iso) : new Date();
+  const day = d.getDay(); // 0=Sun
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(d.getDate() + mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const y = monday.getFullYear();
+  // ISO 周序号（相对该年 1 月 4 日所在周）
+  const jan4 = new Date(y, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const week1Mon = new Date(jan4);
+  week1Mon.setDate(jan4.getDate() - (jan4Day - 1));
+  const weekNo = Math.floor((monday.getTime() - week1Mon.getTime()) / (7 * 86400000)) + 1;
+  const key = `${y}-${pad2(monday.getMonth() + 1)}-${pad2(monday.getDate())}`;
+  return {
+    key,
+    sortKey: key,
+    label: `${y} 第${weekNo}周 · ${fmtMd(monday)}–${fmtMd(sunday)}`,
+  };
+}
+
+function historyExitPrice(w: WatchlistItem): number {
+  return (
+    w.current_price ||
+    w.day3_price ||
+    w.day2_price ||
+    w.day1_price ||
+    w.entry_price ||
+    0
+  );
+}
+
+function HistoryTable({
+  items,
+  onRemove,
+  removing,
+  onRetrack,
+  retracking,
+  onPriceClick,
+}: {
   items: WatchlistItem[];
   onRemove: (symbol: string) => void;
   removing: string | null;
@@ -346,12 +398,14 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
   retracking: string | null;
   onPriceClick?: (w: WatchlistItem) => void;
 }) {
-  // 数量编辑状态
   const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
   const [editingQty, setEditingQty] = useState<string | null>(null);
   const [qtyInput, setQtyInput] = useState("");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  useEffect(() => { setQtyMap(loadQtyMap()); }, []);
+  useEffect(() => {
+    setQtyMap(loadQtyMap());
+  }, []);
 
   const getQty = (symbol: string) => qtyMap[symbol] ?? DEFAULT_QTY;
   const handleQtySave = (symbol: string) => {
@@ -364,135 +418,226 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
     setEditingQty(null);
   };
 
-  // 按 symbol 合并：同一只股票买入+卖出合并为一行
-  const mergedMap = new Map<string, {
-    name: string; symbol: string;
-    buys: WatchlistItem[];
-    sells: WatchlistItem[];
-  }>();
-  for (const w of items) {
-    const key = w.symbol;
-    if (!mergedMap.has(key)) {
-      mergedMap.set(key, { name: w.name, symbol: w.symbol, buys: [], sells: [] });
+  // 每条历史独立保留，按添加时间倒序，再按周归类
+  const sorted = [...items].sort((a, b) =>
+    String(b.added_at || "").localeCompare(String(a.added_at || ""))
+  );
+  const weekGroups: { key: string; label: string; rows: WatchlistItem[] }[] = [];
+  const weekIndex = new Map<string, number>();
+  for (const w of sorted) {
+    const meta = weekMeta(w.added_at);
+    let idx = weekIndex.get(meta.key);
+    if (idx == null) {
+      idx = weekGroups.length;
+      weekIndex.set(meta.key, idx);
+      weekGroups.push({ key: meta.key, label: meta.label, rows: [] });
     }
-    const entry = mergedMap.get(key)!;
-    if (w.status === "active") {
-      entry.buys.push(w);
-    } else {
-      entry.sells.push(w);
-    }
+    weekGroups[idx].rows.push(w);
   }
-  const mergedRows = Array.from(mergedMap.values());
 
-  // 8 列：股票 | 买入价 | 卖出价 | 数量 | 盈余 | 盈亏% | 结果 | 操作
   const gridCols = "grid-cols-[12fr_5fr_5fr_4fr_5fr_5fr_4fr_5fr]";
 
   return (
-    <div className="overflow-x-auto -mx-4 sm:mx-0">
-      {/* Header */}
-      <div className={"grid " + gridCols + " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"}>
-        <div className="px-2 py-2.5 font-medium text-left">股票</div>
-        <div className="px-2 py-2.5 font-medium text-right">买入价</div>
-        <div className="px-2 py-2.5 font-medium text-right">卖出价</div>
-        <div className="px-2 py-2.5 font-medium text-right">数量</div>
-        <div className="px-2 py-2.5 font-medium text-right">盈余</div>
-        <div className="px-2 py-2.5 font-medium text-right">盈亏%</div>
-        <div className="px-2 py-2.5 font-medium text-right">结果</div>
-        <div className="px-2 py-2.5 font-medium text-center">操作</div>
-      </div>
-      {mergedRows.map((row) => {
-            const lastSell = row.sells.length > 0 ? row.sells[row.sells.length - 1] : null;
-            const firstBuy = row.buys.length > 0 ? row.buys[0] : (row.sells.length > 0 ? row.sells[0] : null);
-            if (!firstBuy) return null;
+    <div className="space-y-4 -mx-4 sm:mx-0">
+      {weekGroups.map((group) => {
+        const isCollapsed = !!collapsed[group.key];
+        const pcts = group.rows.map((w) => {
+          const entry = w.entry_price || 0;
+          const exit = historyExitPrice(w);
+          return entry > 0 ? ((exit - entry) / entry) * 100 : 0;
+        });
+        const wins = pcts.filter((p) => p > 0).length;
+        const avg = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : 0;
 
-            const entryPrice = firstBuy.entry_price || 0;
-            const exitPrice = lastSell?.current_price || lastSell?.day3_price || lastSell?.day2_price || lastSell?.day1_price || entryPrice;
-            const hasSell = row.sells.length > 0;
-            const qty = getQty(row.symbol);
-            const costTotal = entryPrice * qty;       // 买入总成本
-            const exitTotal = exitPrice * qty;         // 卖出总额
-            const profitAmt = exitTotal - costTotal;   // 盈余（绝对金额）
-            const profitPct = costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : 0;
-
-            const isRemoving = removing === row.symbol;
-            // 结果必须跟「盈余 / 盈亏%」一致：用实际买卖价差，不用 day1_change
-            const rl = resultLabel(hasSell ? profitPct : null);
-            const isEditingQty = editingQty === row.symbol;
-
-            return (
-            <div key={row.symbol} className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}>
-              {/* 股票 */}
-              <div className="px-2 py-3 flex items-center gap-2">
-                <div>
-                  <div className="text-[14px] font-semibold text-text-primary">{row.name}</div>
-                  <div className="text-[10px] text-text-disabled font-mono">{row.symbol}</div>
-                  <div className="text-[10px] text-text-disabled">
-                    {firstBuy.added_at ? (() => {
-                      const d = new Date(firstBuy.added_at);
-                      return String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getDate()).padStart(2,"0");
-                    })() : ""}
-                  </div>
+        return (
+          <div key={group.key} className="rounded-xl border border-border-subtle/60 overflow-hidden">
+            <button
+              type="button"
+              onClick={() =>
+                setCollapsed((prev) => ({ ...prev, [group.key]: !prev[group.key] }))
+              }
+              className="w-full flex items-center justify-between gap-3 px-3 py-2.5 bg-surface-panel/60 hover:bg-surface-panel transition-colors text-left"
+            >
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold text-text-primary">{group.label}</div>
+                <div className="text-[11px] text-text-disabled mt-0.5">
+                  {group.rows.length} 条 · 盈利 {wins}/{group.rows.length}
+                  {pcts.length > 0
+                    ? ` · 均盈亏 ${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%`
+                    : ""}
                 </div>
               </div>
-              {/* 买入价 */}
-              <div className="px-2 py-3 text-right font-mono text-status-warning">
-                <span className="cursor-pointer hover:text-status-warning/80 transition-colors" onClick={() => onPriceClick?.({ ...firstBuy, symbol: row.symbol, name: row.name, entry_price: entryPrice } as any)}>
-                  ¥{entryPrice.toFixed(2)}
-                </span>
-              </div>
-              {/* 卖出价 */}
-              <div className={"px-2 py-3 text-right font-mono " + (hasSell ? "text-text-primary" : "text-text-disabled")}>
-                {hasSell ? "¥" + exitPrice.toFixed(2) : "—"}
-              </div>
-              {/* 数量 */}
-              <div className="px-2 py-3 text-right font-mono whitespace-nowrap">
-                {isEditingQty ? (
-                  <input type="number" min="1" step="1" value={qtyInput}
-                    onChange={e => setQtyInput(e.target.value)}
-                    onBlur={() => handleQtySave(row.symbol)}
-                    onKeyDown={e => { if (e.key === "Enter") handleQtySave(row.symbol); if (e.key === "Escape") setEditingQty(null); }}
-                    className="w-[60px] rounded border border-border-subtle bg-background px-1 py-0.5 text-right text-[12px] font-mono outline-none focus:border-status-info"
-                    autoFocus />
-                ) : (
-                  <span className="cursor-pointer hover:text-status-info transition-colors"
-                    onClick={() => { setEditingQty(row.symbol); setQtyInput(String(qty)); }}>
-                    {qty.toLocaleString()}股
-                  </span>
-                )}
-              </div>
-              {/* 盈余 */}
-              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitAmt >= 0 ? "text-status-danger" : "text-status-success")}>
-                {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
-              </div>
-              {/* 盈亏% */}
-              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitPct >= 3 ? "text-status-danger" : profitPct >= 0 ? "text-text-secondary" : "text-status-success")}>
-                {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(2)}%
-              </div>
-              {/* 结果 */}
-              <div className="px-2 py-3 text-right">
-                <span className="text-[11px] px-2 py-0.5 rounded-full inline-block" style={{ backgroundColor: rl.bg, color: rl.color }}>
-                  {rl.text}
-                </span>
-              </div>
-              {/* 操作 */}
-              <div className="px-2 py-3 text-center">
-                <div className="flex items-center justify-center gap-1.5">
-                  <button onClick={() => {
-                    const w = row.buys.length > 0 ? row.buys[0] : row.sells[0];
-                    if (w) onRetrack(w);
-                  }} disabled={isRemoving}
-                    className="rounded-lg px-2 py-1.5 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors">
-                    再追踪
-                  </button>
-                  <button onClick={() => onRemove(row.symbol)} disabled={isRemoving}
-                    className="rounded-lg px-2 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors">
-                    {isRemoving ? "..." : "删除"}
-                  </button>
+              <span className="text-[11px] text-text-disabled shrink-0">
+                {isCollapsed ? "展开 ▾" : "收起 ▴"}
+              </span>
+            </button>
+
+            {!isCollapsed && (
+              <div className="overflow-x-auto">
+                <div
+                  className={
+                    "grid " +
+                    gridCols +
+                    " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"
+                  }
+                >
+                  <div className="px-2 py-2.5 font-medium text-left">股票</div>
+                  <div className="px-2 py-2.5 font-medium text-right">买入价</div>
+                  <div className="px-2 py-2.5 font-medium text-right">卖出价</div>
+                  <div className="px-2 py-2.5 font-medium text-right">数量</div>
+                  <div className="px-2 py-2.5 font-medium text-right">盈余</div>
+                  <div className="px-2 py-2.5 font-medium text-right">盈亏%</div>
+                  <div className="px-2 py-2.5 font-medium text-right">结果</div>
+                  <div className="px-2 py-2.5 font-medium text-center">操作</div>
                 </div>
+
+                {group.rows.map((w) => {
+                  const entryPrice = w.entry_price || 0;
+                  const exitPrice = historyExitPrice(w);
+                  const hasExit =
+                    w.day1_price != null ||
+                    w.day2_price != null ||
+                    w.day3_price != null ||
+                    w.current_price != null;
+                  const qty = getQty(w.symbol);
+                  const costTotal = entryPrice * qty;
+                  const exitTotal = (hasExit ? exitPrice : entryPrice) * qty;
+                  const profitAmt = exitTotal - costTotal;
+                  const profitPct =
+                    costTotal > 0 ? ((exitTotal - costTotal) / costTotal) * 100 : 0;
+                  const rowKey = String(w.id ?? `${w.symbol}-${w.added_at}`);
+                  const isRemoving = removing === w.symbol;
+                  const isRetracking = retracking === w.symbol;
+                  const rl = resultLabel(hasExit ? profitPct : null);
+                  const isEditingQty = editingQty === rowKey;
+
+                  return (
+                    <div
+                      key={rowKey}
+                      className={
+                        "grid " +
+                        gridCols +
+                        " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"
+                      }
+                    >
+                      <div className="px-2 py-3 flex items-center gap-2">
+                        <div>
+                          <div className="text-[14px] font-semibold text-text-primary">
+                            {w.name}
+                          </div>
+                          <div className="text-[10px] text-text-disabled font-mono">
+                            {w.symbol}
+                          </div>
+                          <div className="text-[10px] text-text-disabled">
+                            {w.added_at
+                              ? (() => {
+                                  const d = new Date(w.added_at);
+                                  return `${fmtMd(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+                                })()
+                              : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="px-2 py-3 text-right font-mono text-status-warning">
+                        <span
+                          className="cursor-pointer hover:text-status-warning/80 transition-colors"
+                          onClick={() => onPriceClick?.(w)}
+                        >
+                          ¥{entryPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      <div
+                        className={
+                          "px-2 py-3 text-right font-mono " +
+                          (hasExit ? "text-text-primary" : "text-text-disabled")
+                        }
+                      >
+                        {hasExit ? "¥" + exitPrice.toFixed(2) : "—"}
+                      </div>
+                      <div className="px-2 py-3 text-right font-mono whitespace-nowrap">
+                        {isEditingQty ? (
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={qtyInput}
+                            onChange={(e) => setQtyInput(e.target.value)}
+                            onBlur={() => handleQtySave(w.symbol)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleQtySave(w.symbol);
+                              if (e.key === "Escape") setEditingQty(null);
+                            }}
+                            className="w-[60px] rounded border border-border-subtle bg-background px-1 py-0.5 text-right text-[12px] font-mono outline-none focus:border-status-info"
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className="cursor-pointer hover:text-status-info transition-colors"
+                            onClick={() => {
+                              setEditingQty(rowKey);
+                              setQtyInput(String(qty));
+                            }}
+                          >
+                            {qty.toLocaleString()}股
+                          </span>
+                        )}
+                      </div>
+                      <div
+                        className={
+                          "px-2 py-3 text-right font-mono font-semibold " +
+                          (profitAmt >= 0 ? "text-status-danger" : "text-status-success")
+                        }
+                      >
+                        {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
+                      </div>
+                      <div
+                        className={
+                          "px-2 py-3 text-right font-mono font-semibold " +
+                          (profitPct >= 3
+                            ? "text-status-danger"
+                            : profitPct >= 0
+                              ? "text-text-secondary"
+                              : "text-status-success")
+                        }
+                      >
+                        {profitPct >= 0 ? "+" : ""}
+                        {profitPct.toFixed(2)}%
+                      </div>
+                      <div className="px-2 py-3 text-right">
+                        <span
+                          className="text-[11px] px-2 py-0.5 rounded-full inline-block"
+                          style={{ backgroundColor: rl.bg, color: rl.color }}
+                        >
+                          {rl.text}
+                        </span>
+                      </div>
+                      <div className="px-2 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => onRetrack(w)}
+                            disabled={isRemoving || isRetracking}
+                            className="rounded-lg px-2 py-1.5 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50 transition-colors"
+                          >
+                            {isRetracking ? "..." : "再追踪"}
+                          </button>
+                          <button
+                            onClick={() => onRemove(w.symbol)}
+                            disabled={isRemoving}
+                            className="rounded-lg px-2 py-1.5 text-[11px] text-status-danger hover:bg-status-danger/10 disabled:opacity-50 transition-colors"
+                          >
+                            {isRemoving ? "..." : "删除"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          )})}
-        </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
