@@ -1,1 +1,1 @@
-# Trigger redeploy - See zbpack.json for build config
+rebuild 2026-07-20T16:12 sector-research-proxy
