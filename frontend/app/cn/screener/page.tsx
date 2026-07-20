@@ -1,4 +1,4 @@
-// AlphaPilot 智能选股：评分 Top10（无门槛）+ 今日推荐（门控）分栏对照
+// AlphaPilot 智能选股：今日推荐（门控）+ 评分 Top10（无门槛）分栏对照
 "use client";
 
 import { useEffect, useState } from "react";
@@ -117,10 +117,10 @@ export default function CNScreener() {
           {error && <span className="ml-3 text-status-danger font-medium">错误: {error}</span>}
         </p>
         <p className="mt-2 text-[12px] text-text-disabled leading-relaxed max-w-3xl">
-          <span className="text-text-secondary">评分 Top10</span>
-          ：只按模型分数从高到低列第 1–10 名，不加资金/板块门槛。{" "}
           <span className="text-text-secondary">今日推荐</span>
-          ：另一路漏斗门控 + 09:35 盘中资金重排后的交易候选（通常 Top2）。
+          ：漏斗门控 + 09:35 盘中资金重排后的交易候选（通常 Top2）。{" "}
+          <span className="text-text-secondary">评分 Top10</span>
+          ：只按模型分数从高到低列第 1–10 名，不加资金/板块门槛。
         </p>
       </header>
 
@@ -143,23 +143,23 @@ export default function CNScreener() {
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px]">
               <div>
-                <div className="text-text-disabled mb-1">评分 Top10 今日涨跌（均值）</div>
-                <AvgChg items={scoreItems} />
-              </div>
-              <div>
                 <div className="text-text-disabled mb-1">今日推荐 今日涨跌（均值）</div>
                 <AvgChg items={recCompare} />
+              </div>
+              <div>
+                <div className="text-text-disabled mb-1">评分 Top10 今日涨跌（均值）</div>
+                <AvgChg items={scoreItems} />
               </div>
             </div>
           </section>
 
-          {/* 评分 Top10 */}
+          {/* 今日推荐 */}
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
-                <h2 className="text-[18px] font-semibold">评分 Top10（无门槛）</h2>
+                <h2 className="text-[18px] font-semibold">今日推荐（门控后）</h2>
                 <p className="text-[12px] text-text-disabled mt-0.5">
-                  按 score 降序第 1→10 · {top10?.mode || "score_only"}
+                  漏斗 + 资金门 + 盘中流入排序 · 与评分榜独立
                 </p>
               </div>
               <button
@@ -168,28 +168,6 @@ export default function CNScreener() {
               >
                 刷新
               </button>
-            </div>
-            {scoreItems.length === 0 ? (
-              <EmptyBox text="暂无评分榜（等待管线写入 score_top10）" />
-            ) : (
-              <StockGrid
-                items={scoreItems.map((it, i) => ({
-                  ...it,
-                  rank: it.rank ?? i + 1,
-                  sector: it.sector || it.industry || it.industry_l1,
-                }))}
-                showRank
-              />
-            )}
-          </section>
-
-          {/* 今日推荐 */}
-          <section>
-            <div className="mb-3">
-              <h2 className="text-[18px] font-semibold">今日推荐（门控后）</h2>
-              <p className="text-[12px] text-text-disabled mt-0.5">
-                漏斗 + 资金门 + 盘中流入排序 · 与评分榜独立
-              </p>
             </div>
             {recommendations.length === 0 ? (
               <EmptyBox text="今日推荐池为空（nuclear / 门控后无幸存）" />
@@ -204,6 +182,28 @@ export default function CNScreener() {
                 }))}
                 showRank
                 showFund
+              />
+            )}
+          </section>
+
+          {/* 评分 Top10 */}
+          <section>
+            <div className="mb-3">
+              <h2 className="text-[18px] font-semibold">评分 Top10（无门槛）</h2>
+              <p className="text-[12px] text-text-disabled mt-0.5">
+                按 score 降序第 1→10 · {top10?.mode || "score_only"}
+              </p>
+            </div>
+            {scoreItems.length === 0 ? (
+              <EmptyBox text="暂无评分榜（等待管线写入 score_top10）" />
+            ) : (
+              <StockGrid
+                items={scoreItems.map((it, i) => ({
+                  ...it,
+                  rank: it.rank ?? i + 1,
+                  sector: it.sector || it.industry || it.industry_l1,
+                }))}
+                showRank
               />
             )}
           </section>
