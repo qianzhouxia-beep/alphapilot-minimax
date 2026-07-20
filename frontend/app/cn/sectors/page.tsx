@@ -322,14 +322,22 @@ export default function SectorsPage() {
             {data?.generated_at ? ` · 页面重算 ${String(data.generated_at).replace("T", " ").slice(0, 19)}` : ""}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => load(true, period)}
-          disabled={loading}
-          className="rounded-xl border border-border-subtle bg-bg-secondary px-4 py-2 text-[13px] font-medium text-text-primary hover:border-purple-primary/40 disabled:opacity-50 cursor-pointer"
-        >
-          {loading ? "重算中…" : "刷新数据"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href="/cn/sectors/research/"
+            className="rounded-xl border border-purple-primary/30 bg-purple-light px-4 py-2 text-[13px] font-medium text-purple-primary hover:border-purple-primary/60 cursor-pointer"
+          >
+            深度研报归档
+          </a>
+          <button
+            type="button"
+            onClick={() => load(true, period)}
+            disabled={loading}
+            className="rounded-xl border border-border-subtle bg-bg-secondary px-4 py-2 text-[13px] font-medium text-text-primary hover:border-purple-primary/40 disabled:opacity-50 cursor-pointer"
+          >
+            {loading ? "重算中…" : "刷新数据"}
+          </button>
+        </div>
       </div>
 
       {/* 周期切换 */}
