@@ -29,7 +29,30 @@ export const CN_ENDPOINTS = {
   recommendCategorized: endpoint(`/api/v1/cn/recommend/categorized`),
   recommendEOD: endpoint(`/api/v1/cn/recommend/eod`),
   recommendLive: endpoint(`/api/v1/cn/recommend/live`),
+  scoreTop10: endpoint(`/api/v1/cn/score-top10`),
 } as const;
+
+export type ScoreTop10Item = {
+  rank?: number;
+  symbol: string;
+  name?: string;
+  score: number;
+  price?: number | null;
+  change_pct?: number | null;
+  sector?: string | null;
+  industry?: string | null;
+  industry_l1?: string | null;
+  money_phase_label?: string | null;
+};
+
+export type ScoreTop10Response = {
+  asof?: string;
+  mode?: string;
+  note?: string;
+  n?: number;
+  items: ScoreTop10Item[];
+  recommend_compare?: ScoreTop10Item[];
+};
 
 // 类型定义
 export type ScreenerItem = {
@@ -214,6 +237,10 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 // 业务函数
 export async function fetchCNScreener(): Promise<ScreenerResponse> {
   return apiFetch<ScreenerResponse>(CN_ENDPOINTS.recommend);
+}
+
+export async function fetchScoreTop10(): Promise<ScoreTop10Response> {
+  return apiFetch<ScoreTop10Response>(CN_ENDPOINTS.scoreTop10);
 }
 
 export async function fetchCNMarketOverview(): Promise<MarketOverview> {
