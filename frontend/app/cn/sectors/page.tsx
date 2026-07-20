@@ -5,8 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { HeaderBar } from "@/components/HeaderBar";
 import {
   fetchSectorDashboard,
+  fetchSectorResearchArchive,
+  sectorResearchUrl,
   type SectorDashboard,
   type SectorFlowItem,
+  type SectorResearchEntry,
 } from "@/lib/cn-api";
 
 const PERIODS = [
@@ -261,12 +264,27 @@ function AnalysisBlock({ data }: { data: SectorDashboard }) {
 }
 
 export default function SectorsPage() {
+  const [tab, setTab] = useState<"board" | "research">("board");
   const [period, setPeriod] = useState<string>("today");
   const [data, setData] = useState<SectorDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [archive, setArchive] = useState<SectorResearchEntry[]>([]);
+  const [archiveErr, setArchiveErr] = useState<string | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [activeDate, setActiveDate] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<"morning" | "afternoon" | null>(null);
+
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("tab") === "research") setTab("research");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const load = useCallback(async (refresh = false, p = period) => {
     setLoading(true);
@@ -294,14 +312,56 @@ export default function SectorsPage() {
     }
   }, [period]);
 
+  const loadArchive = useCallback(async () => {
+    setArchiveLoading(true);
+    setArchiveErr(null);
+    try {
+      const list = await fetchSectorResearchArchive();
+      setArchive(list);
+      if (list.length > 0) {
+        setActiveDate((prev) => prev || list[0].date);
+        setActiveSession((prev) => {
+          if (prev) return prev;
+          const first = list[0];
+          return first.sessions.includes("afternoon")
+            ? "afternoon"
+            : first.sessions[0] || null;
+        });
+      }
+    } catch (e) {
+      setArchiveErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setArchiveLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     load(false, period);
   }, [period]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (tab === "research") loadArchive();
+  }, [tab, loadArchive]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (tab === "research") url.searchParams.set("tab", "research");
+    else url.searchParams.delete("tab");
+    window.history.replaceState({}, "", url.pathname + url.search);
+  }, [tab]);
 
   const selectedItem = useMemo(() => {
     if (!data || !selected) return null;
     return data.industries?.find((x) => x.name === selected) || null;
   }, [data, selected]);
+
+  const activeSessions = useMemo(() => {
+    if (!activeDate) return [] as Array<"morning" | "afternoon">;
+    return archive.find((x) => x.date === activeDate)?.sessions || [];
+  }, [archive, activeDate]);
+
+  const reportSrc =
+    activeDate && activeSession ? sectorResearchUrl(activeDate, activeSession) : null;
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
@@ -317,18 +377,18 @@ export default function SectorsPage() {
         <div>
           <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-text-primary">板块研报</h1>
           <p className="mt-1 text-[13px] text-text-secondary">
-            通达信一级行业资金 · {data?.period_label || "今日"}
-            {data?.ts ? ` · 资金截至 ${String(data.ts).slice(0, 10)}` : ""}
-            {data?.generated_at ? ` · 页面重算 ${String(data.generated_at).replace("T", " ").slice(0, 19)}` : ""}
+            {tab === "board" ? (
+              <>
+                通达信一级行业资金 · {data?.period_label || "今日"}
+                {data?.ts ? ` · 资金截至 ${String(data.ts).slice(0, 10)}` : ""}
+                {data?.generated_at ? ` · 页面重算 ${String(data.generated_at).replace("T", " ").slice(0, 19)}` : ""}
+              </>
+            ) : (
+              <>盘中/盘后深度研报（ECharts）· 与资金看板合并于本页</>
+            )}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <a
-            href="/cn/sectors/research/"
-            className="rounded-xl border border-purple-primary/30 bg-purple-light px-4 py-2 text-[13px] font-medium text-purple-primary hover:border-purple-primary/60 cursor-pointer"
-          >
-            深度研报归档
-          </a>
+        {tab === "board" ? (
           <button
             type="button"
             onClick={() => load(true, period)}
@@ -337,145 +397,258 @@ export default function SectorsPage() {
           >
             {loading ? "重算中…" : "刷新数据"}
           </button>
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => loadArchive()}
+            disabled={archiveLoading}
+            className="rounded-xl border border-border-subtle bg-bg-secondary px-4 py-2 text-[13px] font-medium text-text-primary hover:border-purple-primary/40 disabled:opacity-50 cursor-pointer"
+          >
+            {archiveLoading ? "加载中…" : "刷新研报列表"}
+          </button>
+        )}
       </div>
 
-      {/* 周期切换 */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {PERIODS.map((p) => (
+      {/* 资金看板 | 深度研报 */}
+      <div className="mt-4 inline-flex rounded-xl border border-border-subtle bg-bg-secondary p-0.5 shadow-sm">
+        {(
+          [
+            { id: "board", label: "资金看板" },
+            { id: "research", label: "深度研报" },
+          ] as const
+        ).map((t) => (
           <button
-            key={p.id}
+            key={t.id}
             type="button"
-            onClick={() => setPeriod(p.id)}
-            className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium cursor-pointer transition-colors ${
-              period === p.id
+            onClick={() => setTab(t.id)}
+            className={`rounded-lg px-4 py-2 text-[13px] font-medium cursor-pointer transition-colors ${
+              tab === t.id
                 ? "bg-purple-primary text-white"
-                : "bg-bg-secondary text-text-secondary border border-border-subtle"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
-            {p.label}
+            {t.label}
           </button>
         ))}
       </div>
 
-      {error && !data && (
-        <section className="card mt-6 p-8 text-center text-status-danger text-[14px]">{error}</section>
-      )}
-      {loading && !data && (
-        <div className="mt-16 flex justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-primary border-t-transparent" />
-        </div>
-      )}
-
-      {data && (
+      {tab === "board" && (
         <>
-          <section className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: `${data.period_label}流入`, value: fmtYi(data.summary.inflow_yi), tone: "text-red-negative" },
-              { label: `${data.period_label}流出`, value: fmtYi(data.summary.outflow_yi), tone: "text-green-positive" },
-              {
-                label: "净额",
-                value: fmtYi(data.summary.net_yi),
-                tone: data.summary.net_yi >= 0 ? "text-red-negative" : "text-green-positive",
-              },
-              { label: "锋面 / 回避", value: `${data.summary.allow} / ${data.summary.deny}`, tone: "text-text-primary" },
-            ].map((k) => (
-              <div key={k.label} className="card px-4 py-3">
-                <div className="text-[11px] text-text-tertiary">{k.label}</div>
-                <div className={`mt-1 text-[20px] font-bold tabular-nums ${k.tone}`}>{k.value}</div>
-              </div>
+          {/* 周期切换 */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {PERIODS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPeriod(p.id)}
+                className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium cursor-pointer transition-colors ${
+                  period === p.id
+                    ? "bg-purple-primary text-white"
+                    : "bg-bg-secondary text-text-secondary border border-border-subtle"
+                }`}
+              >
+                {p.label}
+              </button>
             ))}
-          </section>
-
-          <div className="mt-4 grid lg:grid-cols-2 gap-4">
-            <section className="card p-4 sm:p-5">
-              <div className="flex items-baseline justify-between mb-2">
-                <h2 className="text-[15px] font-semibold text-text-primary">主力净流入 / 流出</h2>
-                <span className="text-[11px] text-text-tertiary">通达信 · 红入绿出</span>
-              </div>
-              <FlowBarChart items={data.flow_bars} selected={selected} onSelect={setSelected} />
-            </section>
-
-            <section className="card p-4 sm:p-5 flex flex-col">
-              <div className="flex items-baseline justify-between mb-2">
-                <h2 className="text-[15px] font-semibold text-text-primary">资金强弱分布</h2>
-                <span className="text-[11px] text-text-tertiary">点选查看</span>
-              </div>
-              <ScatterChart items={data.scatter as any} selected={selected} onSelect={setSelected} />
-              <AnalysisBlock data={data} />
-            </section>
           </div>
 
-          <div className="mt-4 grid lg:grid-cols-[260px_1fr] gap-4">
-            <section className="card p-4 sm:p-5">
-              <h2 className="text-[15px] font-semibold text-text-primary mb-3">轮动结构</h2>
-              <StatusDonut allow={data.summary.allow} deny={data.summary.deny} neutral={data.summary.neutral} />
-            </section>
+          {error && !data && (
+            <section className="card mt-6 p-8 text-center text-status-danger text-[14px]">{error}</section>
+          )}
+          {loading && !data && (
+            <div className="mt-16 flex justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-primary border-t-transparent" />
+            </div>
+          )}
 
-            <section className="card p-4 sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-                <h2 className="text-[15px] font-semibold text-text-primary">{selectedItem?.name || "选择板块"}</h2>
-                {selectedItem && (
-                  <span
-                    className="text-[12px] px-2.5 py-1 rounded-full font-semibold"
-                    style={{
-                      background: `${statusColor(selectedItem.status)}22`,
-                      color: statusColor(selectedItem.status),
-                    }}
-                  >
-                    {selectedItem.status === "allow" ? "流入锋面" : selectedItem.status === "deny" ? "流出回避" : "中性"}
-                  </span>
-                )}
+          {data && (
+            <>
+              <section className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: `${data.period_label}流入`, value: fmtYi(data.summary.inflow_yi), tone: "text-red-negative" },
+                  { label: `${data.period_label}流出`, value: fmtYi(data.summary.outflow_yi), tone: "text-green-positive" },
+                  {
+                    label: "净额",
+                    value: fmtYi(data.summary.net_yi),
+                    tone: data.summary.net_yi >= 0 ? "text-red-negative" : "text-green-positive",
+                  },
+                  { label: "锋面 / 回避", value: `${data.summary.allow} / ${data.summary.deny}`, tone: "text-text-primary" },
+                ].map((k) => (
+                  <div key={k.label} className="card px-4 py-3">
+                    <div className="text-[11px] text-text-tertiary">{k.label}</div>
+                    <div className={`mt-1 text-[20px] font-bold tabular-nums ${k.tone}`}>{k.value}</div>
+                  </div>
+                ))}
+              </section>
+
+              <div className="mt-4 grid lg:grid-cols-2 gap-4">
+                <section className="card p-4 sm:p-5">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <h2 className="text-[15px] font-semibold text-text-primary">主力净流入 / 流出</h2>
+                    <span className="text-[11px] text-text-tertiary">通达信 · 红入绿出</span>
+                  </div>
+                  <FlowBarChart items={data.flow_bars} selected={selected} onSelect={setSelected} />
+                </section>
+
+                <section className="card p-4 sm:p-5 flex flex-col">
+                  <div className="flex items-baseline justify-between mb-2">
+                    <h2 className="text-[15px] font-semibold text-text-primary">资金强弱分布</h2>
+                    <span className="text-[11px] text-text-tertiary">点选查看</span>
+                  </div>
+                  <ScatterChart items={data.scatter as any} selected={selected} onSelect={setSelected} />
+                  <AnalysisBlock data={data} />
+                </section>
               </div>
-              {selectedItem ? (
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div className="rounded-xl bg-bg-tertiary px-4 py-3">
-                    <div className="text-[11px] text-text-tertiary">{data.period_label}净流入</div>
-                    <div className={`mt-1 text-[22px] font-bold tabular-nums ${selectedItem.net_yi >= 0 ? "text-red-negative" : "text-green-positive"}`}>
-                      {fmtYi(selectedItem.net_yi)}
-                    </div>
+
+              <div className="mt-4 grid lg:grid-cols-[260px_1fr] gap-4">
+                <section className="card p-4 sm:p-5">
+                  <h2 className="text-[15px] font-semibold text-text-primary mb-3">轮动结构</h2>
+                  <StatusDonut allow={data.summary.allow} deny={data.summary.deny} neutral={data.summary.neutral} />
+                </section>
+
+                <section className="card p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <h2 className="text-[15px] font-semibold text-text-primary">{selectedItem?.name || "选择板块"}</h2>
+                    {selectedItem && (
+                      <span
+                        className="text-[12px] px-2.5 py-1 rounded-full font-semibold"
+                        style={{
+                          background: `${statusColor(selectedItem.status)}22`,
+                          color: statusColor(selectedItem.status),
+                        }}
+                      >
+                        {selectedItem.status === "allow" ? "流入锋面" : selectedItem.status === "deny" ? "流出回避" : "中性"}
+                      </span>
+                    )}
                   </div>
-                  <div className="rounded-xl bg-bg-tertiary px-4 py-3">
-                    <div className="text-[11px] text-text-tertiary">行业内股票数</div>
-                    <div className="mt-1 text-[22px] font-bold tabular-nums text-text-primary">
-                      {(selectedItem as any).stock_count ?? "—"}
+                  {selectedItem ? (
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <div className="rounded-xl bg-bg-tertiary px-4 py-3">
+                        <div className="text-[11px] text-text-tertiary">{data.period_label}净流入</div>
+                        <div className={`mt-1 text-[22px] font-bold tabular-nums ${selectedItem.net_yi >= 0 ? "text-red-negative" : "text-green-positive"}`}>
+                          {fmtYi(selectedItem.net_yi)}
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-bg-tertiary px-4 py-3">
+                        <div className="text-[11px] text-text-tertiary">行业内股票数</div>
+                        <div className="mt-1 text-[22px] font-bold tabular-nums text-text-primary">
+                          {(selectedItem as any).stock_count ?? "—"}
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-bg-tertiary px-4 py-3">
+                        <div className="text-[11px] text-text-tertiary">资金排名</div>
+                        <div className="mt-1 text-[22px] font-bold tabular-nums text-text-primary">
+                          #{selectedItem.rank ?? "—"}
+                        </div>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="h-20 flex items-center justify-center text-[13px] text-text-tertiary">点击图表选择板块</div>
+                  )}
+                </section>
+              </div>
+
+              <section className="mt-4 rounded-2xl border border-border-subtle bg-bg-tertiary/50 px-4 py-3 text-[11px] text-text-tertiary leading-relaxed">
+                <div>
+                  <span className="font-medium text-text-secondary">数据源</span> 通达信 tdxhub 个股资金 × F10 一级行业 · 不经过东财
+                </div>
+                <div className="mt-1">
+                  <span className="font-medium text-text-secondary">更新频率</span>{" "}
+                  {data.meta?.update_cadence || "盘后 pull_fundflow_tdx 更新资金历史；看板刷新=本地重算"}
+                </div>
+                <div className="mt-1">
+                  <span className="font-medium text-text-secondary">手动刷新</span>{" "}
+                  {data.meta?.refresh_effect || "即时按当前周期重算聚合"}
+                  {data.meta?.fund_flow_mtime ? ` · 资金文件 ${data.meta.fund_flow_mtime}` : ""}
+                </div>
+                {data.meta?.ports && (
+                  <div className="mt-1">
+                    <span className="font-medium text-text-secondary">链路</span>{" "}
+                    {data.meta.ports.zeabur_proxy || ""} · API {data.meta.ports.api_uvicorn}
                   </div>
-                  <div className="rounded-xl bg-bg-tertiary px-4 py-3">
-                    <div className="text-[11px] text-text-tertiary">资金排名</div>
-                    <div className="mt-1 text-[22px] font-bold tabular-nums text-text-primary">
-                      #{selectedItem.rank ?? "—"}
-                    </div>
-                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </>
+      )}
+
+      {tab === "research" && (
+        <section className="mt-4 card p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-[15px] font-semibold text-text-primary">深度研报</h2>
+              <p className="mt-1 text-[12px] text-text-tertiary">
+                上海机定时生成 · 上午/下午场 · 内嵌展示，不再单独开黑页入口
+              </p>
+            </div>
+          </div>
+
+          {archiveLoading && archive.length === 0 && (
+            <div className="py-12 flex justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-primary border-t-transparent" />
+            </div>
+          )}
+          {archiveErr && (
+            <div className="rounded-xl bg-status-danger/5 px-4 py-3 text-[13px] text-status-danger">{archiveErr}</div>
+          )}
+          {!archiveLoading && !archiveErr && archive.length === 0 && (
+            <div className="py-10 text-center text-[13px] text-text-tertiary">暂无研报，等待盘后/盘中任务生成</div>
+          )}
+
+          {archive.length > 0 && (
+            <>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {archive.map((e) => (
+                  <button
+                    key={e.date}
+                    type="button"
+                    onClick={() => {
+                      setActiveDate(e.date);
+                      setActiveSession(
+                        e.sessions.includes("afternoon") ? "afternoon" : e.sessions[0] || null
+                      );
+                    }}
+                    className={`rounded-full px-3.5 py-1.5 text-[12px] font-medium cursor-pointer transition-colors ${
+                      activeDate === e.date
+                        ? "bg-purple-primary text-white"
+                        : "bg-bg-tertiary text-text-secondary border border-border-subtle"
+                    }`}
+                  >
+                    {e.date}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {activeSessions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setActiveSession(s)}
+                    className={`rounded-xl px-3.5 py-1.5 text-[12px] font-medium cursor-pointer transition-colors ${
+                      activeSession === s
+                        ? "bg-purple-light text-purple-primary border border-purple-primary/30"
+                        : "bg-bg-secondary text-text-secondary border border-border-subtle"
+                    }`}
+                  >
+                    {s === "afternoon" ? "下午场" : "上午场"}
+                  </button>
+                ))}
+              </div>
+              {reportSrc ? (
+                <div className="rounded-2xl border border-border-subtle overflow-hidden bg-bg-tertiary">
+                  <iframe
+                    title={`板块深度研报 ${activeDate} ${activeSession}`}
+                    src={reportSrc}
+                    className="w-full min-h-[70vh] bg-white"
+                  />
                 </div>
               ) : (
-                <div className="h-20 flex items-center justify-center text-[13px] text-text-tertiary">点击图表选择板块</div>
+                <div className="py-10 text-center text-[13px] text-text-tertiary">请选择日期与场次</div>
               )}
-            </section>
-          </div>
-
-          {/* 更新说明 */}
-          <section className="mt-4 rounded-2xl border border-border-subtle bg-bg-tertiary/50 px-4 py-3 text-[11px] text-text-tertiary leading-relaxed">
-            <div>
-              <span className="font-medium text-text-secondary">数据源</span> 通达信 tdxhub 个股资金 × F10 一级行业 · 不经过东财
-            </div>
-            <div className="mt-1">
-              <span className="font-medium text-text-secondary">更新频率</span>{" "}
-              {data.meta?.update_cadence || "盘后 pull_fundflow_tdx 更新资金历史；看板刷新=本地重算"}
-            </div>
-            <div className="mt-1">
-              <span className="font-medium text-text-secondary">手动刷新</span>{" "}
-              {data.meta?.refresh_effect || "即时按当前周期重算聚合"}
-              {data.meta?.fund_flow_mtime ? ` · 资金文件 ${data.meta.fund_flow_mtime}` : ""}
-            </div>
-            {data.meta?.ports && (
-              <div className="mt-1">
-                <span className="font-medium text-text-secondary">链路</span>{" "}
-                {data.meta.ports.zeabur_proxy || ""} · API {data.meta.ports.api_uvicorn}
-              </div>
-            )}
-          </section>
-        </>
+            </>
+          )}
+        </section>
       )}
 
       <p className="mt-8 text-center text-[11px] text-text-tertiary">通达信板块资金仅供研究，非投资建议</p>

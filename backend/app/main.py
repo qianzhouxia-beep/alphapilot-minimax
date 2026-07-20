@@ -99,9 +99,16 @@ async def proxy_api(path: str, request: Request):
 
 
 # Pretty URL for sector research HTML generated on Shanghai.
-# /cn/sectors/research/* → Shanghai /api/v1/cn/sectors/research/*
+# Index → merge into /cn/sectors/?tab=research
+# Report pages stay proxied for iframe embed.
 @app.api_route("/cn/sectors/research", methods=["GET", "HEAD"], include_in_schema=False)
 @app.api_route("/cn/sectors/research/", methods=["GET", "HEAD"], include_in_schema=False)
+async def redirect_sector_research_index():
+    from fastapi.responses import RedirectResponse
+
+    return RedirectResponse(url="/cn/sectors/?tab=research", status_code=302)
+
+
 @app.api_route(
     "/cn/sectors/research/{path:path}",
     methods=["GET", "HEAD"],
@@ -109,9 +116,12 @@ async def proxy_api(path: str, request: Request):
 )
 async def proxy_sector_research(request: Request, path: str = ""):
     suffix = (path or "").strip("/")
-    backend_path = "/api/v1/cn/sectors/research/"
-    if suffix:
-        backend_path = f"/api/v1/cn/sectors/research/{suffix}/"
+    # Bare index already handled above; remaining paths are date/session HTML.
+    if not suffix:
+        from fastapi.responses import RedirectResponse
+
+        return RedirectResponse(url="/cn/sectors/?tab=research", status_code=302)
+    backend_path = f"/api/v1/cn/sectors/research/{suffix}/"
     return await _proxy_to_backend(backend_path, request)
 
 

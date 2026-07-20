@@ -25,6 +25,7 @@ export const CN_ENDPOINTS = {
   backtest: endpoint(`/api/v1/cn/backtest`),
   news: endpoint(`/api/v1/cn/news`),
   sectors: endpoint(`/api/v1/cn/sectors`),
+  sectorResearchIndex: endpoint(`/api/v1/cn/sectors/research/`),
   watchlist: endpoint(`/api/v1/cn/watchlist`),
   recommendCategorized: endpoint(`/api/v1/cn/recommend/categorized`),
   recommendEOD: endpoint(`/api/v1/cn/recommend/eod`),
@@ -384,6 +385,38 @@ export async function fetchSectorDashboard(
   // 防 CDN/浏览器把看板 JSON 缓存住
   qs.set("_t", String(Date.now()));
   return apiFetch<SectorDashboard>(`${CN_ENDPOINTS.sectors}?${qs.toString()}`);
+}
+
+export type SectorResearchEntry = {
+  date: string;
+  sessions: Array<"morning" | "afternoon">;
+};
+
+/** 解析上海生成的研报归档 HTML，得到日期/session 列表（新在前） */
+export async function fetchSectorResearchArchive(): Promise<SectorResearchEntry[]> {
+  const url = `${CN_ENDPOINTS.sectorResearchIndex}?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`研报归档加载失败 (${res.status})`);
+  const html = await res.text();
+  const map = new Map<string, Set<"morning" | "afternoon">>();
+  const re = /(\d{4}-\d{2}-\d{2})\/(morning|afternoon)\//g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const date = m[1];
+    const session = m[2] as "morning" | "afternoon";
+    if (!map.has(date)) map.set(date, new Set());
+    map.get(date)!.add(session);
+  }
+  return [...map.entries()]
+    .map(([date, sessions]) => ({
+      date,
+      sessions: [...sessions].sort((a, b) => (a === "afternoon" ? -1 : b === "afternoon" ? 1 : 0)),
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export function sectorResearchUrl(date: string, session: string) {
+  return `/cn/sectors/research/${date}/${session}/`;
 }
 
 export async function postCNBacktest(cfg: {
