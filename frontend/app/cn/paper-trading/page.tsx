@@ -1,13 +1,11 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse, type TradeLogEntry } from "@/lib/cn-api";
 
 export default function PaperTradingPage() {
-  const { session, ready } = useAuth();
-  const router = useRouter();
+  const { session, ready, openAuth } = useAuth();
   const [data, setData] = useState<PaperTradingData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +25,7 @@ export default function PaperTradingPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (/\b401\b|未登录/.test(msg)) {
-        router.replace("/login?next=/cn/paper-trading");
+        openAuth("login", "/cn/paper-trading");
         return;
       }
       setError(msg);
@@ -39,13 +37,13 @@ export default function PaperTradingPage() {
   useEffect(() => {
     if (!ready) return;
     if (!session) {
-      router.replace("/login?next=/cn/paper-trading");
+      openAuth("login", "/cn/paper-trading");
       return;
     }
     load();
-    const id = setInterval(load, 60000); // refresh every 60s
+    const id = setInterval(load, 60000);
     return () => clearInterval(id);
-  }, [ready, session, router]);
+  }, [ready, session, openAuth]);
 
   if (loading && !data) {
     return (
@@ -68,9 +66,13 @@ export default function PaperTradingPage() {
           {!needLogin && <p className="mt-2 text-[12px] text-text-secondary">{error}</p>}
           <div className="mt-4 flex gap-2">
             {needLogin ? (
-              <Link href="/login?next=/cn/paper-trading" className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white">
+              <button
+                type="button"
+                onClick={() => openAuth("login", "/cn/paper-trading")}
+                className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white"
+              >
                 去登录
-              </Link>
+              </button>
             ) : (
               <button onClick={load} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-text-primary">
                 重试

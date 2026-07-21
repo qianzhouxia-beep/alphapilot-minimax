@@ -47,7 +47,7 @@ const scoreLabel = (s: number) =>
   s >= 0.50 ? "A+" : s >= 0.35 ? "A" : s >= 0.25 ? "B+" : "B";
 
 export default function CNDashboard() {
-  const { session, ready } = useAuth();
+  const { session, ready, openAuth } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<ScreenerResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -276,7 +276,7 @@ export default function CNDashboard() {
 
   const handleToggleWatchlist = async (item: ScreenerItem) => {
     if (!session) {
-      router.push("/login?next=/cn");
+      openAuth("login", "/cn");
       return;
     }
     const sym = bareSym(item.symbol);
@@ -302,7 +302,7 @@ export default function CNDashboard() {
 
   const confirmAddWatchlist = async () => {
     if (!session) {
-      router.push("/login?next=/cn");
+      openAuth("login", "/cn");
       return;
     }
     if (!priceDialog) return;
@@ -406,9 +406,16 @@ export default function CNDashboard() {
                   <p className="text-sm text-status-warning font-semibold">需要登录后查看个人数据</p>
                   <p className="mt-1 text-[12px] text-text-secondary">收藏夹与模拟盘已改为私有，公开行情仍可浏览。</p>
                   <div className="mt-3 flex gap-2">
-                    <Link href="/login?next=/cn" className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white hover:opacity-90">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null);
+                        openAuth("login", "/cn");
+                      }}
+                      className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white hover:opacity-90"
+                    >
                       去登录
-                    </Link>
+                    </button>
                     <button onClick={() => setError(null)} className="rounded-lg border border-border-subtle px-4 py-2 text-[12px] text-text-secondary hover:text-text-primary">
                       关闭
                     </button>

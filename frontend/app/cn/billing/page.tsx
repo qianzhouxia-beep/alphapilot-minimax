@@ -63,7 +63,7 @@ const PLANS_CN: Plan[] = [
 export default function BillingCN() {
   const router = useRouter();
   const { t } = useI18n();
-  const { session } = useAuth();
+  const { session, openAuth } = useAuth();
   const [paypalMode, setPaypalMode] = useState<"sandbox" | "live" | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +77,7 @@ export default function BillingCN() {
 
   async function subscribe(planId: string) {
     if (!session) {
-      router.push("/login?next=/cn/billing");
+      openAuth("login", "/cn/billing");
       return;
     }
     setLoading(planId);

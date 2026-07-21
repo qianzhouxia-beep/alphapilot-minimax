@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { HeaderBar } from "@/components/HeaderBar";
 import { useAuth } from "@/lib/auth";
 import {
@@ -34,8 +33,7 @@ function totalReturn(w: WatchlistItem): number | null {
 }
 
 export default function WatchlistPage() {
-  const { session, ready } = useAuth();
-  const router = useRouter();
+  const { session, ready, openAuth } = useAuth();
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +52,7 @@ export default function WatchlistPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (/\b401\b|未登录/.test(msg)) {
-        router.replace("/login?next=/cn/watchlist");
+        openAuth("login", "/cn/watchlist");
         return;
       }
       setError(msg);
@@ -66,13 +64,13 @@ export default function WatchlistPage() {
   useEffect(() => {
     if (!ready) return;
     if (!session) {
-      router.replace("/login?next=/cn/watchlist");
+      openAuth("login", "/cn/watchlist");
       return;
     }
     load(true);
     const id = setInterval(() => load(false), 60_000);
     return () => clearInterval(id);
-  }, [ready, session, router]);
+  }, [ready, session, openAuth]);
 
   const handleRemove = async (symbol: string) => {
     setRemoving(symbol);
@@ -159,9 +157,13 @@ export default function WatchlistPage() {
       {error && /401|未登录/.test(error) && (
         <div className="glass mb-6 rounded-2xl border border-status-warning p-4">
           <p className="text-[13px] text-status-warning font-semibold">请先登录后查看个人收藏</p>
-          <Link href="/login?next=/cn/watchlist" className="mt-3 inline-block rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white">
+          <button
+            type="button"
+            onClick={() => openAuth("login", "/cn/watchlist")}
+            className="mt-3 inline-block rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white"
+          >
             去登录
-          </Link>
+          </button>
         </div>
       )}
 

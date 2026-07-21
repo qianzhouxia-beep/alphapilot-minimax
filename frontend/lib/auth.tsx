@@ -2,9 +2,10 @@
 
 /**
  * 真实后端鉴权：POST /api/v1/auth/login|signup，JWT 存 localStorage
+ * 登录/注册以浅色弹框展示
  */
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 export type AuthUser = {
   id: number | string;
@@ -21,9 +22,21 @@ type Session = {
   user: AuthUser;
 };
 
+export type AuthModalMode = "login" | "signup";
+
+type AuthModalState = {
+  open: boolean;
+  mode: AuthModalMode;
+  next: string;
+};
+
 type AuthState = {
   session: Session | null;
   ready: boolean;
+  authModal: AuthModalState;
+  openAuth: (mode?: AuthModalMode, next?: string) => void;
+  closeAuth: () => void;
+  setAuthMode: (mode: AuthModalMode) => void;
   signup: (email: string, password: string, full_name: string) => Promise<{ ok: boolean; error?: string }>;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
@@ -46,7 +59,6 @@ function loadSession(): Session | null {
     if (!raw) return null;
     const s = JSON.parse(raw) as Session;
     if (!s?.token || !s?.user?.email) return null;
-    // 清掉旧 mock 会话，避免带着假 token 打私有接口刷 401
     if (
       s.token.includes("mock_signature") ||
       String(s.user.id).startsWith("mock_")
@@ -114,13 +126,17 @@ async function authRequest(
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [authModal, setAuthModal] = useState<AuthModalState>({
+    open: false,
+    mode: "login",
+    next: "/cn",
+  });
 
   useEffect(() => {
     const s = loadSession();
     setSession(s);
     setReady(true);
     if (!s?.token) return;
-    // 校验 token，失效则清会话
     fetch(`${apiBase()}/api/v1/auth/me`, {
       headers: { Authorization: `Bearer ${s.token}` },
       cache: "no-store",
@@ -139,6 +155,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {});
+  }, []);
+
+  const openAuth = useCallback((mode: AuthModalMode = "login", next = "/cn") => {
+    setAuthModal({ open: true, mode, next: next || "/cn" });
+  }, []);
+
+  const closeAuth = useCallback(() => {
+    setAuthModal((prev) => ({ ...prev, open: false }));
+  }, []);
+
+  const setAuthMode = useCallback((mode: AuthModalMode) => {
+    setAuthModal((prev) => ({ ...prev, mode }));
   }, []);
 
   const signup: AuthState["signup"] = async (email, password, full_name) => {
@@ -173,7 +201,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, ready, signup, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        ready,
+        authModal,
+        openAuth,
+        closeAuth,
+        setAuthMode,
+        signup,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

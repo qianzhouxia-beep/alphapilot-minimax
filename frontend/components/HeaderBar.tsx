@@ -32,7 +32,7 @@ const focusRing =
 
 export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
   const { t } = useI18n();
-  const { session, logout } = useAuth();
+  const { session, logout, openAuth } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -188,18 +188,20 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
           </div>
         ) : (
           <>
-            <Link
-              href="/login"
+            <button
+              type="button"
+              onClick={() => openAuth("login", pathname || "/cn")}
               className={`rounded-xl border border-border-subtle bg-surface-card px-2 sm:px-3 py-2 text-[12px] text-text-secondary hover:border-purple-primary/40 hover:text-text-primary transition-colors cursor-pointer ${focusRing}`}
             >
               {t("auth.signin")}
-            </Link>
-            <Link
-              href="/signup"
+            </button>
+            <button
+              type="button"
+              onClick={() => openAuth("signup", pathname || "/cn")}
               className={`rounded-xl bg-purple-primary px-2 sm:px-3 py-2 text-[12px] font-semibold text-on-primary hover:opacity-90 transition-opacity cursor-pointer ${focusRing}`}
             >
               {t("auth.signup")}
-            </Link>
+            </button>
           </>
         )}
       </div>
