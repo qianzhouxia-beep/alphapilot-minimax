@@ -438,7 +438,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
             const c3 = fmtChg(d3);
 
             const isRemoving = removing === row.symbol;
-            const rl = resultLabel(d1);
+            const rl = resultLabel(typeof profitPct === "number" ? profitPct : null);
             const isEditingQty = editingQty === row.symbol;
 
             return (
@@ -490,7 +490,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
                 {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
               </div>
               {/* 盈亏% */}
-              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitPct >= 3 ? "text-status-danger" : profitPct >= 0 ? "text-text-secondary" : "text-status-success")}>
+              <div className={"px-2 py-3 text-right font-mono font-semibold " + (profitPct >= 0 ? "text-status-danger" : "text-status-success")}>
                 {profitPct >= 0 ? "+" : ""}{profitPct.toFixed(2)}%
               </div>
               {/* 结果 */}

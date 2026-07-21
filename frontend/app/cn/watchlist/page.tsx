@@ -11,7 +11,7 @@ import {
   type WatchlistItem,
 } from "@/lib/cn-api";
 
-/** 按实际实现盈亏%打标（不是 T+1 中间涨跌） */
+/** 按 T+3 收盘盈亏%打标（历史记录唯一结算口径） */
 function resultLabel(profitPct: number | null): { text: string; color: string; bg: string } {
   if (profitPct == null) {
     return { text: "待定", color: "var(--color-text-tertiary)", bg: "rgba(0,0,0,0.06)" };
@@ -25,11 +25,38 @@ function resultLabel(profitPct: number | null): { text: string; color: string; b
   return { text: "持平", color: "var(--color-text-tertiary)", bg: "rgba(0,0,0,0.06)" };
 }
 
-function totalReturn(w: WatchlistItem): number | null {
-  if (w.day3_change != null) return w.day3_change;
-  if (w.day2_change != null) return w.day2_change;
-  if (w.day1_change != null) return w.day1_change;
-  return null;
+/**
+ * 历史结算：严格 T+3 收盘。
+ * 有 day3_change 则 % 以其为准；价优先 day3_price，否则由入场价反推。
+ * 无 T+3 则未结算（不回退实时价 / T+1 / T+2）。
+ */
+function settleAtT3(w: WatchlistItem): {
+  settled: boolean;
+  price: number | null;
+  pct: number | null;
+  date: string | null;
+} {
+  const entry = Number(w.entry_price) || 0;
+  if (w.day3_change == null && w.day3_price == null) {
+    return { settled: false, price: null, pct: null, date: w.day3_date ?? null };
+  }
+  let pct: number | null = w.day3_change != null ? Number(w.day3_change) : null;
+  let price: number | null = w.day3_price != null ? Number(w.day3_price) : null;
+  if (pct == null && price != null && entry > 0) {
+    pct = ((price - entry) / entry) * 100;
+  }
+  if (price == null && pct != null && entry > 0) {
+    price = entry * (1 + pct / 100);
+  }
+  if (pct == null || price == null || entry <= 0) {
+    return { settled: false, price: null, pct: null, date: w.day3_date ?? null };
+  }
+  return {
+    settled: true,
+    price: Math.round(price * 100) / 100,
+    pct: Math.round(pct * 100) / 100,
+    date: w.day3_date ?? null,
+  };
 }
 
 export default function WatchlistPage() {
@@ -172,7 +199,7 @@ export default function WatchlistPage() {
           <div>
             <h1 className="text-[28px] font-semibold">收藏追踪</h1>
             <p className="mt-2 text-[13px] text-text-secondary">
-              自动追踪 T+1/T+2/T+3 涨跌 · 历史记录永久保存
+              自动追踪 T+1/T+2/T+3 · 历史盈亏一律按 T+3 收盘结算
             </p>
           </div>
           <Link href="/cn" className="rounded-lg border border-border-subtle bg-surface-panel px-4 py-2 text-[13px] text-text-secondary hover:border-status-info hover:text-text-primary">
@@ -231,7 +258,7 @@ export default function WatchlistPage() {
                 <span className="h-2 w-2 rounded-full bg-text-secondary"></span>
                 历史记录 ({completedItems.length})
               </h2>
-              <span className="text-[11px] text-text-disabled">按周归类 · 含 T+1/T+2/T+3</span>
+              <span className="text-[11px] text-text-disabled">按周归类 · T+3收盘结算盈亏</span>
             </div>
             <HistoryTable items={completedItems} onRemove={handleRemove} removing={removing}
               onRetrack={handleRetrack} retracking={retracking}
@@ -400,24 +427,12 @@ function weekMeta(iso?: string): { key: string; label: string; sortKey: string }
   };
 }
 
-/** 历史结算价：优先 T+3/T+2/T+1 收盘，不用实时价（实时价会继续漂移，导致盈亏≠T+n） */
+/** @deprecated 保留别名，历史一律走 settleAtT3 */
 function historyExitPrice(w: WatchlistItem): number {
-  if (w.day3_price != null) return w.day3_price;
-  if (w.day2_price != null) return w.day2_price;
-  if (w.day1_price != null) return w.day1_price;
-  if (w.current_price != null) return w.current_price;
-  return w.entry_price || 0;
+  return settleAtT3(w).price ?? 0;
 }
-
-/** 历史盈亏%：与结算价同源，优先用已落库的 dayN_change */
 function historyProfitPct(w: WatchlistItem): number | null {
-  if (w.day3_change != null) return w.day3_change;
-  if (w.day2_change != null) return w.day2_change;
-  if (w.day1_change != null) return w.day1_change;
-  const entry = w.entry_price || 0;
-  const exit = historyExitPrice(w);
-  if (entry <= 0 || !exit) return null;
-  return ((exit - entry) / entry) * 100;
+  return settleAtT3(w).pct;
 }
 
 function HistoryTable({
@@ -472,7 +487,7 @@ function HistoryTable({
     weekGroups[idx].rows.push(w);
   }
 
-  // 股票 | 买入 | 卖出 | T+1 | T+2 | T+3 | 数量 | 盈余 | 盈亏% | 结果 | 操作
+  // 股票 | 买入 | T+3收盘 | T+1 | T+2 | T+3 | 数量 | 盈余 | 盈亏% | 结果 | 操作
   const gridCols = "grid-cols-[10fr_4fr_4fr_4fr_4fr_4fr_4fr_5fr_4fr_4fr_5fr]";
 
   const fmtDayChg = (v: number | null | undefined) => {
@@ -493,7 +508,8 @@ function HistoryTable({
     <div className="space-y-4 -mx-4 sm:mx-0">
       {weekGroups.map((group) => {
         const isCollapsed = !!collapsed[group.key];
-        const pcts = group.rows.map((w) => historyProfitPct(w) ?? 0);
+        const settles = group.rows.map((w) => settleAtT3(w));
+        const pcts = settles.filter((s) => s.settled && s.pct != null).map((s) => s.pct as number);
         const wins = pcts.filter((p) => p > 0).length;
         const avg = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : 0;
 
@@ -509,9 +525,9 @@ function HistoryTable({
               <div className="min-w-0">
                 <div className="text-[13px] font-semibold text-text-primary">{group.label}</div>
                 <div className="text-[11px] text-text-disabled mt-0.5">
-                  {group.rows.length} 条 · 盈利 {wins}/{group.rows.length}
+                  {group.rows.length} 条 · T+3已结算 {pcts.length}/{group.rows.length}
                   {pcts.length > 0
-                    ? ` · 均盈亏 ${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%`
+                    ? ` · 盈利 ${wins}/${pcts.length} · 均盈亏 ${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%`
                     : ""}
                 </div>
               </div>
@@ -531,7 +547,7 @@ function HistoryTable({
                 >
                   <div className="px-2 py-2.5 font-medium text-left">股票</div>
                   <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">买入价</div>
-                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">卖出价</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+3收盘</div>
                   <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+1</div>
                   <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+2</div>
                   <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+3</div>
@@ -544,20 +560,20 @@ function HistoryTable({
 
                 {group.rows.map((w) => {
                   const entryPrice = w.entry_price || 0;
-                  const exitPrice = historyExitPrice(w);
-                  const hasExit =
-                    w.day3_price != null ||
-                    w.day2_price != null ||
-                    w.day1_price != null;
+                  const settle = settleAtT3(w);
                   const qty = getQty(w.symbol);
                   const costTotal = entryPrice * qty;
-                  const exitTotal = (hasExit ? exitPrice : entryPrice) * qty;
-                  const profitAmt = exitTotal - costTotal;
-                  const profitPct = historyProfitPct(w) ?? 0;
+                  // 盈余严格跟 T+3%：避免价四舍五入与%不一致
+                  const profitPct = settle.pct;
+                  const profitAmt =
+                    settle.settled && profitPct != null
+                      ? (costTotal * profitPct) / 100
+                      : 0;
+                  const exitPrice = settle.price;
                   const rowKey = String(w.id ?? `${w.symbol}-${w.added_at}`);
                   const isRemoving = removing === w.symbol;
                   const isRetracking = retracking === w.symbol;
-                  const rl = resultLabel(hasExit ? profitPct : null);
+                  const rl = resultLabel(settle.settled ? profitPct : null);
                   const isEditingQty = editingQty === rowKey;
                   const d1 = fmtDayChg(w.day1_change);
                   const d2 = fmtDayChg(w.day2_change);
@@ -601,10 +617,10 @@ function HistoryTable({
                       <div
                         className={
                           "px-2 py-3 text-right font-mono " +
-                          (hasExit ? "text-text-primary" : "text-text-disabled")
+                          (settle.settled ? "text-text-primary" : "text-text-disabled")
                         }
                       >
-                        {hasExit ? "¥" + exitPrice.toFixed(2) : "—"}
+                        {settle.settled && exitPrice != null ? "¥" + exitPrice.toFixed(2) : "—"}
                       </div>
                       <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + d1.cls}>
                         <div>{d1.text}</div>
@@ -655,23 +671,30 @@ function HistoryTable({
                       <div
                         className={
                           "px-2 py-3 text-right font-mono font-semibold " +
-                          (profitAmt >= 0 ? "text-status-danger" : "text-status-success")
+                          (!settle.settled
+                            ? "text-text-disabled"
+                            : profitAmt >= 0
+                              ? "text-status-danger"
+                              : "text-status-success")
                         }
                       >
-                        {profitAmt >= 0 ? "+" : ""}¥{profitAmt.toFixed(2)}
+                        {settle.settled
+                          ? `${profitAmt >= 0 ? "+" : ""}¥${profitAmt.toFixed(2)}`
+                          : "—"}
                       </div>
                       <div
                         className={
                           "px-2 py-3 text-right font-mono font-semibold " +
-                          (profitPct >= 3
-                            ? "text-status-danger"
-                            : profitPct >= 0
-                              ? "text-text-secondary"
+                          (!settle.settled
+                            ? "text-text-disabled"
+                            : (profitPct ?? 0) >= 0
+                              ? "text-status-danger"
                               : "text-status-success")
                         }
                       >
-                        {profitPct >= 0 ? "+" : ""}
-                        {profitPct.toFixed(2)}%
+                        {settle.settled && profitPct != null
+                          ? `${profitPct >= 0 ? "+" : ""}${profitPct.toFixed(2)}%`
+                          : "—"}
                       </div>
                       <div className="px-2 py-3 text-right">
                         <span
