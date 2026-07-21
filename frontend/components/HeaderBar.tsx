@@ -69,7 +69,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
         <Image
           src="/logo.png?v=20260719"
           alt="AlphaPilot"
-          className="h-9 sm:h-10 w-auto"
+          className="h-8 w-auto"
           width={180}
           height={40}
           priority
