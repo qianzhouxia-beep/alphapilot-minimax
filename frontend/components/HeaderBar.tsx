@@ -1,5 +1,5 @@
 // HeaderBar — client component, auth + nav
-// 2026-07-19: 浅色 token 统一 · 中文导航 · 可见 focus
+// 2026-07-21: 公私分层主航 — 工作台 / 选股▾ / 研报▾ / 我的▾
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -9,19 +9,38 @@ import Image from "next/image";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
-type NavItem = {
+type NavLink = {
   href: string;
   label: string;
   badge?: string;
+  requireAuth?: boolean;
 };
 
-const NAV_ITEMS: NavItem[] = [
+type NavGroup = {
+  id: string;
+  label: string;
+  items: NavLink[];
+};
+
+const SELECT_ITEMS: NavLink[] = [
   { href: "/cn/screener", label: "智能选股" },
-  { href: "/cn/watchlist", label: "收藏追踪" },
   { href: "/cn/backtest", label: "选股回测" },
-  { href: "/cn/paper-trading", label: "量化模拟盘", badge: "模拟" },
+];
+
+const RESEARCH_ITEMS: NavLink[] = [
   { href: "/cn/chat", label: "深度研报" },
   { href: "/cn/sectors", label: "板块研报" },
+];
+
+const MINE_ITEMS: NavLink[] = [
+  { href: "/cn/watchlist", label: "收藏追踪", requireAuth: true },
+  { href: "/cn/paper-trading", label: "量化模拟盘", badge: "模拟", requireAuth: true },
+];
+
+const NAV_GROUPS: NavGroup[] = [
+  { id: "select", label: "选股", items: SELECT_ITEMS },
+  { id: "research", label: "研报", items: RESEARCH_ITEMS },
+  { id: "mine", label: "我的", items: MINE_ITEMS },
 ];
 
 const navIdle =
@@ -30,22 +49,46 @@ const navActive = "bg-purple-light text-purple-primary font-medium";
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary";
 
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 12 12"
+      className={`h-2.5 w-2.5 opacity-60 transition-transform ${open ? "rotate-180" : ""}`}
+    >
+      <path
+        d="M2.5 4.5 L6 8 L9.5 4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
   const { t } = useI18n();
   const { session, logout, openAuth } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const desktopRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !openGroup) return;
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      const t = e.target as Node;
+      if (menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false);
+      if (desktopRef.current && !desktopRef.current.contains(t)) setOpenGroup(null);
     }
     function handleEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setOpenGroup(null);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     document.addEventListener("keydown", handleEsc);
@@ -53,15 +96,74 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
       document.removeEventListener("mousedown", handleClick);
       document.removeEventListener("keydown", handleEsc);
     };
-  }, [menuOpen]);
+  }, [menuOpen, openGroup]);
 
   useEffect(() => {
     setMenuOpen(false);
+    setOpenGroup(null);
   }, [pathname]);
 
   const isActive = (href: string) =>
     pathname === href || pathname?.startsWith(href + "/");
   const isHome = pathname === "/cn" || pathname === "/cn/";
+  const isGroupActive = (items: NavLink[]) => items.some((it) => isActive(it.href));
+
+  function handleMineClick(item: NavLink, close?: () => void) {
+    if (item.requireAuth && !session) {
+      openAuth("login", item.href);
+      close?.();
+      return;
+    }
+    close?.();
+  }
+
+  function renderDropdownItem(
+    item: NavLink,
+    opts?: { onNavigate?: () => void; dense?: boolean }
+  ) {
+    const locked = Boolean(item.requireAuth && !session);
+    const active = isActive(item.href);
+    const className = `flex items-center gap-2 px-3 ${
+      opts?.dense ? "py-2 text-[12px]" : "py-2.5 text-[13px]"
+    } transition-colors cursor-pointer ${focusRing} ${
+      active ? navActive : navIdle
+    }`;
+
+    if (locked) {
+      return (
+        <button
+          key={item.href}
+          type="button"
+          onClick={() => handleMineClick(item, opts?.onNavigate)}
+          className={`${className} w-full text-left`}
+        >
+          <span className="flex-1">{item.label}</span>
+          {item.badge && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-light text-purple-primary font-medium leading-none">
+              {item.badge}
+            </span>
+          )}
+          <span className="text-[10px] text-text-tertiary">登录</span>
+        </button>
+      );
+    }
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={() => opts?.onNavigate?.()}
+        className={className}
+      >
+        <span className="flex-1">{item.label}</span>
+        {item.badge && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-light text-purple-primary font-medium leading-none">
+            {item.badge}
+          </span>
+        )}
+      </Link>
+    );
+  }
 
   return (
     <header className="mb-4 sm:mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -80,7 +182,11 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
       </Link>
 
       <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-        <div className="hidden md:flex items-center gap-0.5 rounded-xl border border-border-subtle bg-surface-card p-0.5 shadow-sm">
+        {/* Desktop: 工作台 + 三个下拉 */}
+        <div
+          ref={desktopRef}
+          className="hidden md:flex items-center gap-0.5 rounded-xl border border-border-subtle bg-surface-card p-0.5 shadow-sm"
+        >
           <Link
             href="/cn"
             className={`rounded-lg px-2.5 py-1.5 text-[11px] transition-colors cursor-pointer ${focusRing} ${
@@ -89,24 +195,52 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
           >
             工作台
           </Link>
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded-lg px-2.5 py-1.5 text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1 ${focusRing} ${
-                isActive(item.href) ? navActive : navIdle
-              }`}
-            >
-              {item.label}
-              {item.badge && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-light text-purple-primary font-medium leading-none">
-                  {item.badge}
-                </span>
-              )}
-            </Link>
-          ))}
+
+          {NAV_GROUPS.map((group) => {
+            const open = openGroup === group.id;
+            const active = isGroupActive(group.items);
+            return (
+              <div key={group.id} className="relative">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-haspopup="menu"
+                  onClick={() => setOpenGroup(open ? null : group.id)}
+                  className={`rounded-lg px-2.5 py-1.5 text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1 ${focusRing} ${
+                    active || open ? navActive : navIdle
+                  }`}
+                >
+                  {group.label}
+                  <Chevron open={open} />
+                </button>
+                {open && (
+                  <div
+                    role="menu"
+                    className="absolute top-full left-0 mt-2 z-50 min-w-[168px] rounded-xl border border-border-subtle bg-surface-card shadow-lg overflow-hidden"
+                  >
+                    {group.id === "mine" && !session && (
+                      <div className="px-3 py-2 border-b border-border-subtle">
+                        <p className="text-[10px] text-text-tertiary leading-snug">
+                          登录后同步个人数据
+                        </p>
+                      </div>
+                    )}
+                    <div className="py-1">
+                      {group.items.map((item) =>
+                        renderDropdownItem(item, {
+                          dense: true,
+                          onNavigate: () => setOpenGroup(null),
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
+        {/* Mobile: 工作台 + 菜单 */}
         <div
           ref={menuRef}
           className="md:hidden relative flex items-center gap-0.5 rounded-xl border border-border-subtle bg-surface-card p-0.5 shadow-sm"
@@ -124,41 +258,40 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="打开菜单"
             aria-expanded={menuOpen}
-            className={`rounded-lg px-2 py-1.5 text-[11px] transition-colors cursor-pointer ${focusRing} ${
+            className={`rounded-lg px-2 py-1.5 text-[11px] transition-colors cursor-pointer inline-flex items-center gap-1 ${focusRing} ${
               menuOpen ? navActive : navIdle
             }`}
           >
             {menuOpen ? "关闭" : "菜单"}
+            <Chevron open={menuOpen} />
           </button>
 
           {menuOpen && (
-            <div className="absolute top-full mt-2 z-50 rounded-xl border border-border-subtle bg-surface-card shadow-lg overflow-hidden"
-              style={{ right: 0, width: "max-content", minWidth: "180px" }}
+            <div
+              className="absolute top-full mt-2 z-50 rounded-xl border border-border-subtle bg-surface-card shadow-lg overflow-hidden"
+              style={{ right: 0, width: "max-content", minWidth: "200px" }}
             >
-              <div className="px-3 py-2 border-b border-border-subtle">
-                <p className="text-[10px] uppercase tracking-wider text-text-tertiary">
-                  导航
-                </p>
-              </div>
-              <div className="py-1">
-                {NAV_ITEMS.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className={`flex items-center gap-2 px-3 py-2.5 text-[13px] transition-colors cursor-pointer ${focusRing} ${
-                      isActive(item.href) ? navActive : navIdle
-                    }`}
-                  >
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-light text-purple-primary font-medium leading-none">
-                        {item.badge}
-                      </span>
+              {NAV_GROUPS.map((group) => (
+                <div key={group.id}>
+                  <div className="px-3 py-2 border-b border-border-subtle bg-surface-panel/60">
+                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                      {group.label}
+                    </p>
+                  </div>
+                  <div className="py-1">
+                    {group.id === "mine" && !session && (
+                      <p className="px-3 py-1.5 text-[10px] text-text-tertiary">
+                        登录后同步个人数据
+                      </p>
                     )}
-                  </Link>
-                ))}
-              </div>
+                    {group.items.map((item) =>
+                      renderDropdownItem(item, {
+                        onNavigate: () => setMenuOpen(false),
+                      })
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
