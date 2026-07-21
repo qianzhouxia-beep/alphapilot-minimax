@@ -82,7 +82,7 @@ export default function SectorsPage() {
             <ul className="space-y-2">
               {researchArchive.flatMap((e) =>
                 e.sessions.map((s) => (
-                  <li key={${e.date}-}>
+                  <li key={`${e.date}-${s}`}>
                     <a
                       href={sectorResearchUrl(e.date, s)}
                       className="flex items-center justify-between rounded-xl border border-border-subtle bg-bg-secondary px-4 py-3 text-[13px] text-text-primary no-underline hover:border-purple-primary/40 hover:bg-purple-light/40 transition-colors"
