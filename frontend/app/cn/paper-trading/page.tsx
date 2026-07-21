@@ -144,10 +144,13 @@ export default function PaperTradingPage() {
       {/* 交易记录 */}
       {data.trade_log && data.trade_log.length > 0 && (
         <section className="glass card-lift rounded-2xl p-4 sm:p-6 mt-6">
-          <h2 className="text-[18px] font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <span className="w-1 h-5 rounded-full bg-status-warning"></span>
-            交易记录
-          </h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-[18px] font-semibold text-text-primary flex items-center gap-2">
+              <span className="w-1 h-5 rounded-full bg-status-warning"></span>
+              交易记录
+            </h2>
+            <span className="text-[11px] text-text-disabled">按周归类 · 与收藏历史一致</span>
+          </div>
           <TradeLogTable
             tradeLog={data.trade_log}
             heldSymbols={new Set(
@@ -412,7 +415,7 @@ function StrategyGroupCard({
 }
 
 
-// ═══ 交易记录：按股票 FIFO；整段清仓合并一行；持仓中只显示仍在持仓的标的 ═══
+// ═══ 交易记录：按股票 FIFO；整段清仓合并一行；再按自然周归类（同收藏历史）═══
 function isBuyAction(action: string) {
   return (action || "").startsWith("买入");
 }
@@ -420,6 +423,43 @@ function isSellAction(action: string) {
   const a = action || "";
   // 勿用 includes("止盈")，避免误伤其它文案；只认卖出*/止损/止盈
   return a.startsWith("卖出") || a === "止损" || a === "止盈";
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function fmtMd(d: Date) {
+  return `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
+}
+
+/** 自然周（周一～周日），key=该周周一 YYYY-MM-DD */
+function weekMeta(iso?: string): { key: string; label: string; sortKey: string } {
+  const raw = (iso || "").trim();
+  // trade_log 常见 "2026-07-21 14:36" / ISO
+  const d = raw
+    ? new Date(raw.includes("T") ? raw : raw.replace(" ", "T"))
+    : new Date();
+  const safe = Number.isNaN(d.getTime()) ? new Date() : d;
+  const day = safe.getDay(); // 0=Sun
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const monday = new Date(safe);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(safe.getDate() + mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const y = monday.getFullYear();
+  const jan4 = new Date(y, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const week1Mon = new Date(jan4);
+  week1Mon.setDate(jan4.getDate() - (jan4Day - 1));
+  const weekNo = Math.floor((monday.getTime() - week1Mon.getTime()) / (7 * 86400000)) + 1;
+  const key = `${y}-${pad2(monday.getMonth() + 1)}-${pad2(monday.getDate())}`;
+  return {
+    key,
+    sortKey: key,
+    label: `${y} 第${weekNo}周 · ${fmtMd(monday)}–${fmtMd(sunday)}`,
+  };
 }
 
 function dedupeTrades(tradeLog: TradeLogEntry[]): TradeLogEntry[] {
@@ -473,6 +513,8 @@ function TradeLogTable({
     sellTime: string;
     sellActions: string[];
   };
+
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const chrono = dedupeTrades(tradeLog).sort((a, b) => (a.time || "").localeCompare(b.time || ""));
   // 只按股票配对（eod_sniper / s2_eod 历史策略 id 不一致）
@@ -614,6 +656,20 @@ function TradeLogTable({
     return tb.localeCompare(ta);
   });
 
+  // 按周归类：已平仓用卖出日，持仓中用买入日
+  const weekGroups: { key: string; label: string; rows: MergedRow[] }[] = [];
+  const weekIndex = new Map<string, number>();
+  for (const row of rows) {
+    const meta = weekMeta(row.sellTime || row.buyTime);
+    let idx = weekIndex.get(meta.key);
+    if (idx == null) {
+      idx = weekGroups.length;
+      weekIndex.set(meta.key, idx);
+      weekGroups.push({ key: meta.key, label: meta.label, rows: [] });
+    }
+    weekGroups[idx].rows.push(row);
+  }
+
   const gridCols = "grid-cols-[3fr_3fr_3fr_3fr_4fr_4fr_3fr]";
 
   const fmtTime = (t: string) => {
@@ -634,96 +690,157 @@ function TradeLogTable({
     return action || "已卖出";
   };
 
-  return (
-    <div className="overflow-x-auto">
-      <div className={"grid " + gridCols + " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"}>
-        <div className="px-3 py-2.5 font-medium text-left">股票</div>
-        <div className="px-3 py-2.5 font-medium text-right">买入价</div>
-        <div className="px-3 py-2.5 font-medium text-right">卖出价</div>
-        <div className="px-3 py-2.5 font-medium text-right">数量</div>
-        <div className="px-3 py-2.5 font-medium text-right">盈余</div>
-        <div className="px-3 py-2.5 font-medium text-right">盈亏%</div>
-        <div className="px-3 py-2.5 font-medium text-center">操作</div>
+  const rowProfit = (row: MergedRow) => {
+    const hasBuy = row.buyPrice > 0;
+    const hasSell = !row.open && row.sellPrice > 0;
+    const qty = row.quantity;
+    const costTotal = row.buyPrice * qty;
+    const exitTotal = row.sellPrice * qty;
+    const profitAmt = hasBuy && hasSell ? exitTotal - costTotal : 0;
+    const profitPct = hasBuy && hasSell && costTotal > 0 ? (profitAmt / costTotal) * 100 : 0;
+    return { hasBuy, hasSell, qty, costTotal, exitTotal, profitAmt, profitPct };
+  };
+
+  const renderRow = (row: MergedRow, idx: number) => {
+    const { hasBuy, hasSell, qty, profitAmt, profitPct } = rowProfit(row);
+    const scaledIn = row.buyActions.some((a) => a.includes("补仓"));
+    const actionLabel = sellLabel(row);
+    let actionBg = "rgba(148,163,184,0.15)";
+    let actionColor = "#94A3B8";
+    if (row.open) {
+      actionBg = "rgba(245,196,81,0.15)";
+      actionColor = "#F5C451";
+    } else if (
+      row.sellAction.includes("止盈") ||
+      row.sellAction.includes("减半") ||
+      row.sellAction.includes("清仓") ||
+      row.sellAction === "已卖出"
+    ) {
+      actionBg = "rgba(255,93,93,0.15)";
+      actionColor = "#FF5D5D";
+    } else if (row.sellAction.includes("止损")) {
+      actionBg = "rgba(62,230,168,0.15)";
+      actionColor = "#3EE6A8";
+    } else if (hasSell) {
+      if (profitAmt >= 0) {
+        actionBg = "rgba(255,93,93,0.15)";
+        actionColor = "#FF5D5D";
+      } else {
+        actionBg = "rgba(62,230,168,0.15)";
+        actionColor = "#3EE6A8";
+      }
+    }
+
+    return (
+      <div
+        key={`${row.symbol}-${row.buyTime}-${row.sellTime}-${row.open}-${idx}`}
+        className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}
+      >
+        <div className="px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-text-primary">{row.name}</span>
+            <span className="text-text-disabled text-[11px]">{row.symbol}</span>
+          </div>
+          <div className="text-[10px] text-text-disabled mt-0.5">
+            {row.buyTime && <span>买入 {fmtTime(row.buyTime)}</span>}
+            {scaledIn && row.open && <span className="ml-1 text-status-warning">含补仓</span>}
+            {row.buyTime && hasSell && <span className="mx-1">→</span>}
+            {hasSell && <span>卖出 {fmtTime(row.sellTime)}</span>}
+            {row.legs && row.legs > 1 && (
+              <span className="ml-1">· {row.sellAction.replace(/^已清仓/, "")}</span>
+            )}
+          </div>
+        </div>
+        <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">
+          {hasBuy ? "￥" + row.buyPrice.toFixed(2) : "—"}
+        </div>
+        <div className={"px-3 py-2.5 text-right font-display-numeric " + (hasSell ? "text-status-success" : "text-text-disabled")}>
+          {hasSell ? "￥" + row.sellPrice.toFixed(2) : "—"}
+        </div>
+        <div className="px-3 py-2.5 text-right font-display-numeric text-text-secondary">
+          {qty > 0 ? qty.toLocaleString() : "—"}
+        </div>
+        <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitAmt >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
+          {hasBuy && hasSell ? (profitAmt >= 0 ? "+" : "") + "￥" + profitAmt.toFixed(2) : "—"}
+        </div>
+        <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitPct >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
+          {hasBuy && hasSell ? (profitPct >= 0 ? "+" : "") + profitPct.toFixed(2) + "%" : "—"}
+        </div>
+        <div className="px-3 py-2.5 text-center">
+          <span className="tag-badge" style={{ backgroundColor: actionBg, color: actionColor }}>
+            {actionLabel}
+          </span>
+        </div>
       </div>
-      {rows.map((row, idx) => {
-        const hasBuy = row.buyPrice > 0;
-        const hasSell = !row.open && row.sellPrice > 0;
-        const qty = row.quantity;
-        const costTotal = row.buyPrice * qty;
-        const exitTotal = row.sellPrice * qty;
-        const profitAmt = hasBuy && hasSell ? exitTotal - costTotal : 0;
-        const profitPct = hasBuy && hasSell && costTotal > 0 ? (profitAmt / costTotal) * 100 : 0;
-        const scaledIn = row.buyActions.some((a) => a.includes("补仓"));
-        const actionLabel = sellLabel(row);
-        let actionBg = "rgba(148,163,184,0.15)";
-        let actionColor = "#94A3B8";
-        if (row.open) {
-          actionBg = "rgba(245,196,81,0.15)";
-          actionColor = "#F5C451";
-        } else if (
-          row.sellAction.includes("止盈") ||
-          row.sellAction.includes("减半") ||
-          row.sellAction.includes("清仓") ||
-          row.sellAction === "已卖出"
-        ) {
-          // 止盈/动态止盈：红（盈利色）
-          actionBg = "rgba(255,93,93,0.15)";
-          actionColor = "#FF5D5D";
-        } else if (row.sellAction.includes("止损")) {
-          // 止损：绿（亏损色）
-          actionBg = "rgba(62,230,168,0.15)";
-          actionColor = "#3EE6A8";
-        } else if (hasSell) {
-          // 其它卖出（T+2/超期等）按盈亏：赚红亏绿
-          if (profitAmt >= 0) {
-            actionBg = "rgba(255,93,93,0.15)";
-            actionColor = "#FF5D5D";
-          } else {
-            actionBg = "rgba(62,230,168,0.15)";
-            actionColor = "#3EE6A8";
-          }
-        }
+    );
+  };
+
+  if (weekGroups.length === 0) {
+    return (
+      <div className="py-8 text-center text-[13px] text-text-disabled">暂无交易记录</div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 -mx-4 sm:mx-0">
+      {weekGroups.map((group) => {
+        const isCollapsed = !!collapsed[group.key];
+        const closedRows = group.rows.filter((r) => !r.open);
+        const pcts = closedRows
+          .map((r) => rowProfit(r))
+          .filter((p) => p.hasBuy && p.hasSell)
+          .map((p) => p.profitPct);
+        const wins = pcts.filter((p) => p > 0).length;
+        const avg = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : 0;
+        const openCount = group.rows.filter((r) => r.open).length;
 
         return (
-          <div
-            key={`${row.symbol}-${row.buyTime}-${row.sellTime}-${row.open}-${idx}`}
-            className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}
-          >
-            <div className="px-3 py-2.5">
-              <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-text-primary">{row.name}</span>
-                <span className="text-text-disabled text-[11px]">{row.symbol}</span>
+          <div key={group.key} className="rounded-xl border border-border-subtle/60 overflow-hidden">
+            <button
+              type="button"
+              onClick={() =>
+                setCollapsed((prev) => ({ ...prev, [group.key]: !prev[group.key] }))
+              }
+              className="w-full flex items-center justify-between gap-3 px-3 py-2.5 bg-surface-panel/60 hover:bg-surface-panel transition-colors text-left"
+            >
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold text-text-primary">{group.label}</div>
+                <div className="text-[11px] text-text-disabled mt-0.5">
+                  {group.rows.length} 条
+                  {closedRows.length > 0
+                    ? ` · 已平 ${closedRows.length} · 盈利 ${wins}/${closedRows.length}`
+                    : ""}
+                  {pcts.length > 0
+                    ? ` · 均盈亏 ${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%`
+                    : ""}
+                  {openCount > 0 ? ` · 持仓中 ${openCount}` : ""}
+                </div>
               </div>
-              <div className="text-[10px] text-text-disabled mt-0.5">
-                {row.buyTime && <span>买入 {fmtTime(row.buyTime)}</span>}
-                {scaledIn && row.open && <span className="ml-1 text-status-warning">含补仓</span>}
-                {row.buyTime && hasSell && <span className="mx-1">→</span>}
-                {hasSell && <span>卖出 {fmtTime(row.sellTime)}</span>}
-                {row.legs && row.legs > 1 && (
-                  <span className="ml-1">· {row.sellAction.replace(/^已清仓/, "")}</span>
-                )}
-              </div>
-            </div>
-            <div className="px-3 py-2.5 text-right font-display-numeric text-status-danger">
-              {hasBuy ? "￥" + row.buyPrice.toFixed(2) : "—"}
-            </div>
-            <div className={"px-3 py-2.5 text-right font-display-numeric " + (hasSell ? "text-status-success" : "text-text-disabled")}>
-              {hasSell ? "￥" + row.sellPrice.toFixed(2) : "—"}
-            </div>
-            <div className="px-3 py-2.5 text-right font-display-numeric text-text-secondary">
-              {qty > 0 ? qty.toLocaleString() : "—"}
-            </div>
-            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitAmt >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
-              {hasBuy && hasSell ? (profitAmt >= 0 ? "+" : "") + "￥" + profitAmt.toFixed(2) : "—"}
-            </div>
-            <div className={"px-3 py-2.5 text-right font-display-numeric font-semibold " + (hasBuy && hasSell ? (profitPct >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
-              {hasBuy && hasSell ? (profitPct >= 0 ? "+" : "") + profitPct.toFixed(2) + "%" : "—"}
-            </div>
-            <div className="px-3 py-2.5 text-center">
-              <span className="tag-badge" style={{ backgroundColor: actionBg, color: actionColor }}>
-                {actionLabel}
+              <span className="text-[11px] text-text-disabled shrink-0">
+                {isCollapsed ? "展开 ▾" : "收起 ▴"}
               </span>
-            </div>
+            </button>
+
+            {!isCollapsed && (
+              <div className="overflow-x-auto">
+                <div
+                  className={
+                    "grid " +
+                    gridCols +
+                    " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"
+                  }
+                >
+                  <div className="px-3 py-2.5 font-medium text-left">股票</div>
+                  <div className="px-3 py-2.5 font-medium text-right">买入价</div>
+                  <div className="px-3 py-2.5 font-medium text-right">卖出价</div>
+                  <div className="px-3 py-2.5 font-medium text-right">数量</div>
+                  <div className="px-3 py-2.5 font-medium text-right">盈余</div>
+                  <div className="px-3 py-2.5 font-medium text-right">盈亏%</div>
+                  <div className="px-3 py-2.5 font-medium text-center">操作</div>
+                </div>
+                {group.rows.map((row, idx) => renderRow(row, idx))}
+              </div>
+            )}
           </div>
         );
       })}
