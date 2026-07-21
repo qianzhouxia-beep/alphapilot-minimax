@@ -224,18 +224,49 @@ export type WatchlistResponse = {
   count: number;
 };
 
-// 统一 fetch 封装
+// 统一 fetch 封装（自动带登录 JWT）
+function readSessionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("alphapilot_session");
+    if (!raw) return null;
+    const token = (JSON.parse(raw) as { token?: string }).token || null;
+    // 旧 mock JWT 无效，直接清掉，避免整页被 401 红框刷屏
+    if (token && (token.includes("mock_signature") || token.includes('"mock":true') || token.includes('"alg":"none"'))) {
+      localStorage.removeItem("alphapilot_session");
+      return null;
+    }
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+export function isUnauthorizedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || "");
+  return /\b401\b/.test(msg) || msg.includes("未登录");
+}
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = readSessionToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(url, {
     cache: "no-store",
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers,
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (res.status === 401 && typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("alphapilot_session");
+      } catch {}
+    }
     throw new Error(`Backend ${res.status}: ${body.slice(0, 200)}`);
   }
   return res.json();

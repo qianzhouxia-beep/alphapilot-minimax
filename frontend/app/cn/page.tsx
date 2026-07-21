@@ -5,7 +5,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { HeaderBar } from "@/components/HeaderBar";
+import { useAuth } from "@/lib/auth";
 import {
   fetchCNScreener, fetchWatchlist, addToWatchlist, removeFromWatchlist,
   fetchCategorizedRecommend, fetchLiveRecommend,
@@ -45,6 +47,8 @@ const scoreLabel = (s: number) =>
   s >= 0.50 ? "A+" : s >= 0.35 ? "A" : s >= 0.25 ? "B+" : "B";
 
 export default function CNDashboard() {
+  const { session, ready } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<ScreenerResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,15 +103,12 @@ export default function CNDashboard() {
 
   const loadData = async (wlRefresh = false) => {
     try {
-      const [d, wl, cat, s2] = await Promise.all([
+      const [d, cat, s2] = await Promise.all([
         fetchCNScreener(),
-        fetchWatchlist(wlRefresh),
         fetchCategorizedRecommend(),
         fetchEODS2().catch(() => null),
       ]);
       setData(d);
-      setWlData(wl.watchlist || []);
-      setWatchlistSymbols(new Set((wl.watchlist || []).map((w: WatchlistItem) => String(w.symbol || "").replace(/\D/g, "").slice(-6))));
       setCatData(cat);
       setS2Data(s2);
       if (s2?.date) {
@@ -115,6 +116,20 @@ export default function CNDashboard() {
         setS2ViewDate((prev) => prev || s2.date || "");
       }
       setError(null);
+      try {
+        const raw = typeof window !== "undefined" ? localStorage.getItem("alphapilot_session") : null;
+        if (raw) {
+          const wl = await fetchWatchlist(wlRefresh);
+          setWlData(wl.watchlist || []);
+          setWatchlistSymbols(new Set((wl.watchlist || []).map((w: WatchlistItem) => String(w.symbol || "").replace(/\D/g, "").slice(-6))));
+        } else {
+          setWlData([]);
+          setWatchlistSymbols(new Set());
+        }
+      } catch {
+        setWlData([]);
+        setWatchlistSymbols(new Set());
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -143,8 +158,9 @@ export default function CNDashboard() {
     return () => clearInterval(id);
   }, []);
 
-  // 收藏追踪与收藏页同源：交易时段每 60s 刷新一次
+  // 收藏追踪与收藏页同源：交易时段每 60s 刷新一次（仅已登录）
   useEffect(() => {
+    if (!ready || !session) return;
     const id = setInterval(() => {
       fetchWatchlist(false)
         .then((wl) => {
@@ -160,7 +176,7 @@ export default function CNDashboard() {
         .catch(() => {});
     }, 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [ready, session]);
 
   // 轮询计数器：每5次（5分钟）触发一次动态重排
   const rerankCounterRef = useRef(0);
@@ -259,6 +275,10 @@ export default function CNDashboard() {
   const bareSym = (s?: string) => String(s || "").replace(/\D/g, "").slice(-6);
 
   const handleToggleWatchlist = async (item: ScreenerItem) => {
+    if (!session) {
+      router.push("/login?next=/cn");
+      return;
+    }
     const sym = bareSym(item.symbol);
     if (watchlistSymbols.has(sym)) {
       try {
@@ -281,6 +301,10 @@ export default function CNDashboard() {
   };
 
   const confirmAddWatchlist = async () => {
+    if (!session) {
+      router.push("/login?next=/cn");
+      return;
+    }
     if (!priceDialog) return;
     const item = priceDialog.item;
     const sym = bareSym(item.symbol);
@@ -365,19 +389,40 @@ export default function CNDashboard() {
       )}
 
       {error && (
-        <div className="card-lift mb-6 rounded-2xl border border-status-danger bg-surface-card p-4 shadow-sm">
+        <div className={`card-lift mb-6 rounded-2xl border p-4 shadow-sm ${
+          /401|未登录/.test(error)
+            ? "border-status-warning bg-surface-card"
+            : "border-status-danger bg-surface-card"
+        }`}>
           <div className="flex items-start gap-3">
-            <svg className="w-6 h-6 shrink-0 text-status-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg className={`w-6 h-6 shrink-0 ${/401|未登录/.test(error) ? "text-status-warning" : "text-status-danger"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             <div className="flex-1">
-              <p className="text-sm text-status-danger font-semibold">后端无法连接</p>
-              <p className="mt-1 text-[12px] text-text-secondary">{error}</p>
-              <button onClick={handleRefresh} className="mt-3 rounded-lg bg-status-danger px-4 py-2 text-[12px] font-semibold text-white hover:bg-status-danger/70">
-                重试
-              </button>
+              {/401|未登录/.test(error) ? (
+                <>
+                  <p className="text-sm text-status-warning font-semibold">需要登录后查看个人数据</p>
+                  <p className="mt-1 text-[12px] text-text-secondary">收藏夹与模拟盘已改为私有，公开行情仍可浏览。</p>
+                  <div className="mt-3 flex gap-2">
+                    <Link href="/login?next=/cn" className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white hover:opacity-90">
+                      去登录
+                    </Link>
+                    <button onClick={() => setError(null)} className="rounded-lg border border-border-subtle px-4 py-2 text-[12px] text-text-secondary hover:text-text-primary">
+                      关闭
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-status-danger font-semibold">后端无法连接</p>
+                  <p className="mt-1 text-[12px] text-text-secondary">{error}</p>
+                  <button onClick={handleRefresh} className="mt-3 rounded-lg bg-status-danger px-4 py-2 text-[12px] font-semibold text-white hover:bg-status-danger/70">
+                    重试
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

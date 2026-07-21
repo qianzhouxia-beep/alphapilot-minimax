@@ -4,7 +4,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { HeaderBar } from "@/components/HeaderBar";
+import { useAuth } from "@/lib/auth";
 import {
   fetchWatchlist, removeFromWatchlist, updateWatchlistEntry, addToWatchlist,
   type WatchlistItem,
@@ -32,6 +34,8 @@ function totalReturn(w: WatchlistItem): number | null {
 }
 
 export default function WatchlistPage() {
+  const { session, ready } = useAuth();
+  const router = useRouter();
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,17 +52,27 @@ export default function WatchlistPage() {
       setItems(wl.watchlist || []);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/\b401\b|未登录/.test(msg)) {
+        router.replace("/login?next=/cn/watchlist");
+        return;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!ready) return;
+    if (!session) {
+      router.replace("/login?next=/cn/watchlist");
+      return;
+    }
     load(true);
     const id = setInterval(() => load(false), 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [ready, session, router]);
 
   const handleRemove = async (symbol: string) => {
     setRemoving(symbol);
@@ -137,9 +151,17 @@ export default function WatchlistPage() {
     <main className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
       <HeaderBar market="cn" />
 
-      {error && (
+      {error && !/401|未登录/.test(error) && (
         <div className="glass mb-6 rounded-2xl border border-status-danger p-4 text-[13px] text-status-danger">
           {error}
+        </div>
+      )}
+      {error && /401|未登录/.test(error) && (
+        <div className="glass mb-6 rounded-2xl border border-status-warning p-4">
+          <p className="text-[13px] text-status-warning font-semibold">请先登录后查看个人收藏</p>
+          <Link href="/login?next=/cn/watchlist" className="mt-3 inline-block rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white">
+            去登录
+          </Link>
         </div>
       )}
 

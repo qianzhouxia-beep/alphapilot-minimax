@@ -1,9 +1,13 @@
 ﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse, type TradeLogEntry } from "@/lib/cn-api";
 
 export default function PaperTradingPage() {
+  const { session, ready } = useAuth();
+  const router = useRouter();
   const [data, setData] = useState<PaperTradingData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,17 +25,27 @@ export default function PaperTradingPage() {
       setLastUpdate(new Date());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/\b401\b|未登录/.test(msg)) {
+        router.replace("/login?next=/cn/paper-trading");
+        return;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!ready) return;
+    if (!session) {
+      router.replace("/login?next=/cn/paper-trading");
+      return;
+    }
     load();
     const id = setInterval(load, 60000); // refresh every 60s
     return () => clearInterval(id);
-  }, []);
+  }, [ready, session, router]);
 
   if (loading && !data) {
     return (
@@ -44,14 +58,25 @@ export default function PaperTradingPage() {
   }
 
   if (error) {
+    const needLogin = /\b401\b|未登录/.test(error);
     return (
       <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
-        <div className="glass rounded-2xl border border-status-danger p-6">
-          <p className="text-sm text-status-danger font-semibold">加载失败</p>
-          <p className="mt-2 text-[12px] text-text-secondary">{error}</p>
-          <button onClick={load} className="mt-4 rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-text-primary">
-            重试
-          </button>
+        <div className={`glass rounded-2xl border p-6 ${needLogin ? "border-status-warning" : "border-status-danger"}`}>
+          <p className={`text-sm font-semibold ${needLogin ? "text-status-warning" : "text-status-danger"}`}>
+            {needLogin ? "请先登录后查看模拟盘" : "加载失败"}
+          </p>
+          {!needLogin && <p className="mt-2 text-[12px] text-text-secondary">{error}</p>}
+          <div className="mt-4 flex gap-2">
+            {needLogin ? (
+              <Link href="/login?next=/cn/paper-trading" className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white">
+                去登录
+              </Link>
+            ) : (
+              <button onClick={load} className="rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-text-primary">
+                重试
+              </button>
+            )}
+          </div>
         </div>
       </main>
     );
