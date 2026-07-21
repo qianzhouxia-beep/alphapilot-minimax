@@ -400,15 +400,24 @@ function weekMeta(iso?: string): { key: string; label: string; sortKey: string }
   };
 }
 
+/** 历史结算价：优先 T+3/T+2/T+1 收盘，不用实时价（实时价会继续漂移，导致盈亏≠T+n） */
 function historyExitPrice(w: WatchlistItem): number {
-  return (
-    w.current_price ||
-    w.day3_price ||
-    w.day2_price ||
-    w.day1_price ||
-    w.entry_price ||
-    0
-  );
+  if (w.day3_price != null) return w.day3_price;
+  if (w.day2_price != null) return w.day2_price;
+  if (w.day1_price != null) return w.day1_price;
+  if (w.current_price != null) return w.current_price;
+  return w.entry_price || 0;
+}
+
+/** 历史盈亏%：与结算价同源，优先用已落库的 dayN_change */
+function historyProfitPct(w: WatchlistItem): number | null {
+  if (w.day3_change != null) return w.day3_change;
+  if (w.day2_change != null) return w.day2_change;
+  if (w.day1_change != null) return w.day1_change;
+  const entry = w.entry_price || 0;
+  const exit = historyExitPrice(w);
+  if (entry <= 0 || !exit) return null;
+  return ((exit - entry) / entry) * 100;
 }
 
 function HistoryTable({
@@ -484,11 +493,7 @@ function HistoryTable({
     <div className="space-y-4 -mx-4 sm:mx-0">
       {weekGroups.map((group) => {
         const isCollapsed = !!collapsed[group.key];
-        const pcts = group.rows.map((w) => {
-          const entry = w.entry_price || 0;
-          const exit = historyExitPrice(w);
-          return entry > 0 ? ((exit - entry) / entry) * 100 : 0;
-        });
+        const pcts = group.rows.map((w) => historyProfitPct(w) ?? 0);
         const wins = pcts.filter((p) => p > 0).length;
         const avg = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : 0;
 
@@ -541,16 +546,14 @@ function HistoryTable({
                   const entryPrice = w.entry_price || 0;
                   const exitPrice = historyExitPrice(w);
                   const hasExit =
-                    w.day1_price != null ||
-                    w.day2_price != null ||
                     w.day3_price != null ||
-                    w.current_price != null;
+                    w.day2_price != null ||
+                    w.day1_price != null;
                   const qty = getQty(w.symbol);
                   const costTotal = entryPrice * qty;
                   const exitTotal = (hasExit ? exitPrice : entryPrice) * qty;
                   const profitAmt = exitTotal - costTotal;
-                  const profitPct =
-                    costTotal > 0 ? ((exitTotal - costTotal) / costTotal) * 100 : 0;
+                  const profitPct = historyProfitPct(w) ?? 0;
                   const rowKey = String(w.id ?? `${w.symbol}-${w.added_at}`);
                   const isRemoving = removing === w.symbol;
                   const isRetracking = retracking === w.symbol;

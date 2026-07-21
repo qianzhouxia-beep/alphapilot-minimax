@@ -404,13 +404,25 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
 
             const track = lastSell || firstBuy;
             const entryPrice = firstBuy.entry_price || 0;
-            const exitPrice = lastSell?.current_price || lastSell?.day3_price || lastSell?.day2_price || lastSell?.day1_price || entryPrice;
-            const hasSell = row.sells.length > 0;
+            const exitPrice =
+              track.day3_price ??
+              track.day2_price ??
+              track.day1_price ??
+              track.current_price ??
+              entryPrice;
+            const hasSell =
+              track.day3_price != null ||
+              track.day2_price != null ||
+              track.day1_price != null;
             const qty = getQty(row.symbol);
             const costTotal = entryPrice * qty;       // 买入总成本
             const exitTotal = exitPrice * qty;         // 卖出总额
             const profitAmt = exitTotal - costTotal;   // 盈余（绝对金额）
-            const profitPct = costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : 0;
+            const profitPct =
+              track.day3_change ??
+              track.day2_change ??
+              track.day1_change ??
+              (costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : 0);
             const d1 = track.day1_change;
             const d2 = track.day2_change;
             const d3 = track.day3_change;
