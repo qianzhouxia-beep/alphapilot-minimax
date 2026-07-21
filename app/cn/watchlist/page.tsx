@@ -378,20 +378,23 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
   }
   const mergedRows = Array.from(mergedMap.values());
 
-  // 8 列：股票 | 买入价 | 卖出价 | 数量 | 盈余 | 盈亏% | 结果 | 操作
-  const gridCols = "grid-cols-[12fr_5fr_5fr_4fr_5fr_5fr_4fr_5fr]";
+  // 股票 | 买入 | 卖出 | T+1 | T+2 | T+3 | 数量 | 盈余 | 盈亏% | 结果 | 操作
+  const gridCols = "grid-cols-[10fr_4fr_4fr_4fr_4fr_4fr_4fr_5fr_4fr_4fr_5fr]";
 
   return (
     <div className="overflow-x-auto -mx-4 sm:mx-0">
       {/* Header */}
-      <div className={"grid " + gridCols + " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"}>
+      <div className={"grid " + gridCols + " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle min-w-[860px]"}>
         <div className="px-2 py-2.5 font-medium text-left">股票</div>
-        <div className="px-2 py-2.5 font-medium text-right">买入价</div>
-        <div className="px-2 py-2.5 font-medium text-right">卖出价</div>
-        <div className="px-2 py-2.5 font-medium text-right">数量</div>
-        <div className="px-2 py-2.5 font-medium text-right">盈余</div>
-        <div className="px-2 py-2.5 font-medium text-right">盈亏%</div>
-        <div className="px-2 py-2.5 font-medium text-right">结果</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">买入价</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">卖出价</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+1</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+2</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+3</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">数量</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">盈余</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">盈亏%</div>
+        <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">结果</div>
         <div className="px-2 py-2.5 font-medium text-center">操作</div>
       </div>
       {mergedRows.map((row) => {
@@ -399,6 +402,7 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
             const firstBuy = row.buys.length > 0 ? row.buys[0] : (row.sells.length > 0 ? row.sells[0] : null);
             if (!firstBuy) return null;
 
+            const track = lastSell || firstBuy;
             const entryPrice = firstBuy.entry_price || 0;
             const exitPrice = lastSell?.current_price || lastSell?.day3_price || lastSell?.day2_price || lastSell?.day1_price || entryPrice;
             const hasSell = row.sells.length > 0;
@@ -407,14 +411,26 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
             const exitTotal = exitPrice * qty;         // 卖出总额
             const profitAmt = exitTotal - costTotal;   // 盈余（绝对金额）
             const profitPct = costTotal > 0 ? ((exitTotal - costTotal) / costTotal * 100) : 0;
-            const d1 = firstBuy.day1_change;
+            const d1 = track.day1_change;
+            const d2 = track.day2_change;
+            const d3 = track.day3_change;
+            const fmtChg = (v: number | null | undefined) => {
+              if (v == null) return { text: "—", cls: "text-text-disabled" };
+              return {
+                text: `${v > 0 ? "+" : ""}${v}%`,
+                cls: v >= 0 ? "text-status-danger" : "text-status-success",
+              };
+            };
+            const c1 = fmtChg(d1);
+            const c2 = fmtChg(d2);
+            const c3 = fmtChg(d3);
 
             const isRemoving = removing === row.symbol;
             const rl = resultLabel(d1);
             const isEditingQty = editingQty === row.symbol;
 
             return (
-            <div key={row.symbol} className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"}>
+            <div key={row.symbol} className={"grid " + gridCols + " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors min-w-[860px]"}>
               {/* 股票 */}
               <div className="px-2 py-3 flex items-center gap-2">
                 <div>
@@ -438,6 +454,9 @@ function HistoryTable({ items, onRemove, removing, onRetrack, retracking, onPric
               <div className={"px-2 py-3 text-right font-mono " + (hasSell ? "text-text-primary" : "text-text-disabled")}>
                 {hasSell ? "¥" + exitPrice.toFixed(2) : "—"}
               </div>
+              <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + c1.cls}>{c1.text}</div>
+              <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + c2.cls}>{c2.text}</div>
+              <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + c3.cls}>{c3.text}</div>
               {/* 数量 */}
               <div className="px-2 py-3 text-right font-mono whitespace-nowrap">
                 {isEditingQty ? (

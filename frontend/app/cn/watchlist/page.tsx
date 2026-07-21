@@ -231,7 +231,7 @@ export default function WatchlistPage() {
                 <span className="h-2 w-2 rounded-full bg-text-secondary"></span>
                 历史记录 ({completedItems.length})
               </h2>
-              <span className="text-[11px] text-text-disabled">按周归类 · 每条记录单独保留</span>
+              <span className="text-[11px] text-text-disabled">按周归类 · 含 T+1/T+2/T+3</span>
             </div>
             <HistoryTable items={completedItems} onRemove={handleRemove} removing={removing}
               onRetrack={handleRetrack} retracking={retracking}
@@ -463,7 +463,22 @@ function HistoryTable({
     weekGroups[idx].rows.push(w);
   }
 
-  const gridCols = "grid-cols-[12fr_5fr_5fr_4fr_5fr_5fr_4fr_5fr]";
+  // 股票 | 买入 | 卖出 | T+1 | T+2 | T+3 | 数量 | 盈余 | 盈亏% | 结果 | 操作
+  const gridCols = "grid-cols-[10fr_4fr_4fr_4fr_4fr_4fr_4fr_5fr_4fr_4fr_5fr]";
+
+  const fmtDayChg = (v: number | null | undefined) => {
+    if (v == null) return { text: "—", cls: "text-text-disabled" };
+    return {
+      text: `${v > 0 ? "+" : ""}${v}%`,
+      cls: v >= 0 ? "text-status-danger" : "text-status-success",
+    };
+  };
+  const fmtDayDate = (iso?: string | null) => {
+    if (!iso) return "";
+    const d = new Date(iso.substring(0, 10) + "T12:00:00");
+    if (Number.isNaN(d.getTime())) return "";
+    return fmtMd(d);
+  };
 
   return (
     <div className="space-y-4 -mx-4 sm:mx-0">
@@ -506,16 +521,19 @@ function HistoryTable({
                   className={
                     "grid " +
                     gridCols +
-                    " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle"
+                    " gap-0 text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle min-w-[860px]"
                   }
                 >
                   <div className="px-2 py-2.5 font-medium text-left">股票</div>
-                  <div className="px-2 py-2.5 font-medium text-right">买入价</div>
-                  <div className="px-2 py-2.5 font-medium text-right">卖出价</div>
-                  <div className="px-2 py-2.5 font-medium text-right">数量</div>
-                  <div className="px-2 py-2.5 font-medium text-right">盈余</div>
-                  <div className="px-2 py-2.5 font-medium text-right">盈亏%</div>
-                  <div className="px-2 py-2.5 font-medium text-right">结果</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">买入价</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">卖出价</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+1</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+2</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">T+3</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">数量</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">盈余</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">盈亏%</div>
+                  <div className="px-2 py-2.5 font-medium text-right whitespace-nowrap">结果</div>
                   <div className="px-2 py-2.5 font-medium text-center">操作</div>
                 </div>
 
@@ -538,6 +556,9 @@ function HistoryTable({
                   const isRetracking = retracking === w.symbol;
                   const rl = resultLabel(hasExit ? profitPct : null);
                   const isEditingQty = editingQty === rowKey;
+                  const d1 = fmtDayChg(w.day1_change);
+                  const d2 = fmtDayChg(w.day2_change);
+                  const d3 = fmtDayChg(w.day3_change);
 
                   return (
                     <div
@@ -545,7 +566,7 @@ function HistoryTable({
                       className={
                         "grid " +
                         gridCols +
-                        " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors"
+                        " gap-0 text-[13px] border-b border-border-subtle/30 hover:bg-primary/4 transition-colors min-w-[860px]"
                       }
                     >
                       <div className="px-2 py-3 flex items-center gap-2">
@@ -581,6 +602,24 @@ function HistoryTable({
                         }
                       >
                         {hasExit ? "¥" + exitPrice.toFixed(2) : "—"}
+                      </div>
+                      <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + d1.cls}>
+                        <div>{d1.text}</div>
+                        {w.day1_date ? (
+                          <div className="text-[10px] text-text-disabled font-normal">{fmtDayDate(w.day1_date)}</div>
+                        ) : null}
+                      </div>
+                      <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + d2.cls}>
+                        <div>{d2.text}</div>
+                        {w.day2_date ? (
+                          <div className="text-[10px] text-text-disabled font-normal">{fmtDayDate(w.day2_date)}</div>
+                        ) : null}
+                      </div>
+                      <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + d3.cls}>
+                        <div>{d3.text}</div>
+                        {w.day3_date ? (
+                          <div className="text-[10px] text-text-disabled font-normal">{fmtDayDate(w.day3_date)}</div>
+                        ) : null}
                       </div>
                       <div className="px-2 py-3 text-right font-mono whitespace-nowrap">
                         {isEditingQty ? (
