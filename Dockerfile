@@ -14,7 +14,7 @@ RUN npm run build
 
 # ===== Stage 2: python backend =====
 FROM python:3.11-slim
-ARG CACHEBUSTER=20260721-sectors-merge-research
+ARG CACHEBUSTER=20260722-pe-customer-filter
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

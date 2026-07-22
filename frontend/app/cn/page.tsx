@@ -3,7 +3,7 @@
 // 2026-07-19: 浅色 UI 统一 · 信心分展示 · 版本文案对齐
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HeaderBar } from "@/components/HeaderBar";
@@ -17,10 +17,19 @@ import {
   type EODS2Response, type EODS2HistoryDay,
 } from "@/lib/cn-api";
 
+type PeFilter = "all" | "le_30" | "gt_30";
+
 const scoreColor = (s: number) =>
   s >= 0.50 ? "text-status-success" : s >= 0.40 ? "text-status-info" : s >= 0.30 ? "text-status-warning" : "text-text-secondary";
 const displayScore = (s: number) => Math.min(99, Math.max(75, Math.round(Number(s || 0) * 45 + 75)));
 const formatModelProba = (s: number) => Number(s || 0).toFixed(2);
+
+function peBucketOf(it: any): PeFilter | "na" {
+  if (it?.pe_bucket === "le_30" || it?.pe_bucket === "gt_30") return it.pe_bucket;
+  const pe = it?.pe_ttm ?? it?.pe;
+  if (pe == null || Number(pe) <= 0 || Number.isNaN(Number(pe))) return "na";
+  return Number(pe) > 30 ? "gt_30" : "le_30";
+}
 
 // ─── 价格日期标注工具 ───
 function isTradingHours(): boolean {
@@ -71,6 +80,7 @@ export default function CNDashboard() {
   const [s2HistoryDays, setS2HistoryDays] = useState<EODS2HistoryDay[]>([]);
   const [s2HistoryLoading, setS2HistoryLoading] = useState(false);
   const [s2QueryLoading, setS2QueryLoading] = useState(false);
+  const [peFilter, setPeFilter] = useState<PeFilter>("all");
 
   const loadS2HistoryList = useCallback(async () => {
     try {
@@ -333,6 +343,20 @@ export default function CNDashboard() {
   };
 
   const items = data?.recommendations ?? [];
+  const peCounts = useMemo(() => {
+    const c = { all: items.length, le_30: 0, gt_30: 0, na: 0 };
+    items.forEach((it) => {
+      const b = peBucketOf(it);
+      if (b === "le_30") c.le_30 += 1;
+      else if (b === "gt_30") c.gt_30 += 1;
+      else c.na += 1;
+    });
+    return c;
+  }, [items]);
+  const filteredItems = useMemo(() => {
+    if (peFilter === "all") return items;
+    return items.filter((it) => peBucketOf(it) === peFilter);
+  }, [items, peFilter]);
   const buildSectorChanges = (stockList: any[]) => {
     const groups: Record<string, number[]> = {};
     stockList.forEach((it: any) => {
@@ -502,17 +526,44 @@ export default function CNDashboard() {
               )}
             </div>
             <p className="mt-0.5 text-[12px] text-text-secondary max-w-2xl">
-              V3.1 硬门控漏斗 · VM2.5 打分 · 资金门控 · 大盘暴露 · 盘中 60 秒刷新
+              V3.1 硬门控漏斗 · VM2.5 打分 · 资金门控 · 大盘暴露 · 市盈率由你自选（系统不再硬淘 PE）
             </p>
           </div>
-          <div className="flex flex-row items-center gap-2 shrink-0">
+          <div className="flex flex-row items-center gap-2 shrink-0 flex-wrap justify-end">
+            <div
+              className="inline-flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-card p-0.5"
+              role="group"
+              aria-label="市盈率筛选"
+            >
+              {(
+                [
+                  { key: "all" as PeFilter, label: "全部", n: peCounts.all },
+                  { key: "le_30" as PeFilter, label: "PE≤30", n: peCounts.le_30 },
+                  { key: "gt_30" as PeFilter, label: "PE>30", n: peCounts.gt_30 },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setPeFilter(opt.key)}
+                  className={`rounded-md px-2.5 py-1.5 text-[11px] sm:text-[12px] transition-colors cursor-pointer whitespace-nowrap ${
+                    peFilter === opt.key
+                      ? "bg-primary/15 text-text-primary border border-primary/30"
+                      : "text-text-secondary hover:text-text-primary border border-transparent"
+                  }`}
+                >
+                  {opt.label}
+                  <span className="ml-1 text-[10px] text-text-disabled">{opt.n}</span>
+                </button>
+              ))}
+            </div>
             <Link href="/cn/watchlist" className="rounded-lg border border-border-subtle bg-surface-card px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-[12px] text-status-warning hover:border-status-warning transition-colors whitespace-nowrap">
               收藏追踪
             </Link>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="rounded-lg border border-border-subtle bg-surface-card px-3 py-1.5 text-[12px] text-text-secondary hover:border-status-info hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="rounded-lg border border-border-subtle bg-surface-card px-3 py-1.5 text-[12px] text-text-secondary hover:border-status-info hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
             >
               <svg className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" />
@@ -531,14 +582,22 @@ export default function CNDashboard() {
           </div>
         )}
 
+        {data && filteredItems.length === 0 && (
+          <p className="py-8 text-center text-[13px] text-text-secondary">
+            当前市盈率筛选下暂无标的，请切换「全部 / PE≤30 / PE&gt;30」
+          </p>
+        )}
+
         {data && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-fade-in">
-            {items.map((item, i) => {
+            {filteredItems.map((item, i) => {
               const sym = bareSym(item.symbol);
               const isFav = watchlistSymbols.has(sym);
               const isWlLoading = wlLoading[sym] ?? false;
               const changePct = item.change_pct ?? 0;
               const isUp = changePct >= 0;
+              const peVal = item.pe_ttm ?? item.pe;
+              const peB = peBucketOf(item);
               return (
               <div key={item.symbol} className="card-lift rounded-xl border border-border-subtle bg-surface-card p-4 shadow-sm">
                 {/* Row 1: Rank + Symbol + Name + Sector + Change% */}
@@ -604,6 +663,15 @@ export default function CNDashboard() {
                     </div>
                     {/* Signal tags */}
                     <div className="flex flex-wrap items-center gap-1.5">
+                      {peVal != null && Number(peVal) > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                          peB === "gt_30"
+                            ? "bg-status-warning/12 text-status-warning border-status-warning/25"
+                            : "bg-surface-container-high text-text-secondary border-border-subtle"
+                        }`}>
+                          PE {Number(peVal) >= 100 ? Number(peVal).toFixed(0) : Number(peVal).toFixed(1)}
+                        </span>
+                      )}
                       {item.money_phase_label && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-status-warning/12 px-2 py-0.5 text-[10px] font-medium text-status-warning border border-status-warning/20">
                           {item.money_phase_label}

@@ -1,7 +1,7 @@
 // AlphaPilot 智能选股：今日推荐（门控）+ 评分 Top10（无门槛）分栏对照
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { HeaderBar } from "@/components/HeaderBar";
 import {
@@ -33,16 +33,27 @@ type RecRow = {
 
 const PE_TTM_MAX = 30;
 
+type PeFilter = "all" | "le_30" | "gt_30";
+
 function peTtmOf(item: { pe_ttm?: number | null; pe?: number | null }): number | null {
   const v = item.pe_ttm ?? item.pe;
   if (v == null || Number.isNaN(Number(v))) return null;
   return Number(v);
 }
 
-/** 市盈率 TTM：有值、为正、且 ≤ 阈值 */
-function passPeTtm(item: { pe_ttm?: number | null; pe?: number | null }, max = PE_TTM_MAX): boolean {
+/** le_30: 0 < PE ≤ 30；gt_30: PE > 30；na: 缺失/亏损 */
+function peBucketOf(item: { pe_ttm?: number | null; pe?: number | null }): "le_30" | "gt_30" | "na" {
   const pe = peTtmOf(item);
-  return pe != null && pe > 0 && pe <= max;
+  if (pe == null || pe <= 0) return "na";
+  return pe > PE_TTM_MAX ? "gt_30" : "le_30";
+}
+
+function passPeFilter(
+  item: { pe_ttm?: number | null; pe?: number | null },
+  filter: PeFilter
+): boolean {
+  if (filter === "all") return true;
+  return peBucketOf(item) === filter;
 }
 
 function displayScore(item: { score?: number; confidence_score?: number; score_pct?: number }): number {
@@ -75,8 +86,8 @@ export default function CNScreener() {
   const [top10, setTop10] = useState<ScoreTop10Response | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  // 生产阀门在 VM2.5 money_flow_gate；此处仅作展示层二次过滤，默认关
-  const [peFilterOn, setPeFilterOn] = useState(false);
+  // 客户自选：全部 / PE≤30 / PE>30（系统不再硬淘 PE）
+  const [peFilter, setPeFilter] = useState<PeFilter>("all");
 
   const loadData = async () => {
     try {
@@ -117,18 +128,26 @@ export default function CNScreener() {
     top10?.recommend_compare?.length ? top10.recommend_compare : recommendationsRaw
   ) as RecRow[];
 
-  const recommendations = peFilterOn
-    ? recommendationsRaw.filter((x) => passPeTtm(x))
-    : recommendationsRaw;
-  const scoreItems = peFilterOn ? scoreItemsRaw.filter((x) => passPeTtm(x)) : scoreItemsRaw;
-  const recCompare = peFilterOn ? recCompareRaw.filter((x) => passPeTtm(x)) : recCompareRaw;
+  const peCounts = useMemo(() => {
+    const pool = [...recommendationsRaw, ...scoreItemsRaw];
+    const c = { all: pool.length, le_30: 0, gt_30: 0, na: 0 };
+    pool.forEach((x) => {
+      const b = peBucketOf(x);
+      if (b === "le_30") c.le_30 += 1;
+      else if (b === "gt_30") c.gt_30 += 1;
+      else c.na += 1;
+    });
+    return c;
+  }, [recommendationsRaw, scoreItemsRaw]);
+
+  const recommendations = recommendationsRaw.filter((x) => passPeFilter(x, peFilter));
+  const scoreItems = scoreItemsRaw.filter((x) => passPeFilter(x, peFilter));
+  const recCompare = recCompareRaw.filter((x) => passPeFilter(x, peFilter));
 
   const scoreCodes = new Set(scoreItems.map((x) => symCode(x.symbol)));
   const overlap = recCompare.filter((x) => scoreCodes.has(symCode(x.symbol)));
-  const peFilteredOut =
-    recommendationsRaw.length +
-    scoreItemsRaw.length -
-    (recommendations.length + scoreItems.length);
+  const peFilterLabel =
+    peFilter === "le_30" ? `PE≤${PE_TTM_MAX}` : peFilter === "gt_30" ? `PE>${PE_TTM_MAX}` : "全部";
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
@@ -152,19 +171,39 @@ export default function CNScreener() {
           <span className="text-text-secondary">评分 Top10</span>
           ：只按模型分数从高到低列第 1–10 名，不加资金/板块门槛。
         </p>
-        <label className="mt-3 inline-flex items-center gap-2 text-[13px] text-text-secondary cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={peFilterOn}
-            onChange={(e) => setPeFilterOn(e.target.checked)}
-            className="h-3.5 w-3.5 rounded border-border-subtle accent-[#4DA3FF]"
-          />
-          展示层再滤：市盈率 TTM ≤ {PE_TTM_MAX}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-[12px] text-text-secondary">市盈率（客户自选）</span>
+          <div
+            className="inline-flex items-center gap-0.5 rounded-lg border border-border-subtle bg-bg-elevated p-0.5"
+            role="group"
+            aria-label="市盈率筛选"
+          >
+            {(
+              [
+                { key: "all" as PeFilter, label: "全部", n: peCounts.all },
+                { key: "le_30" as PeFilter, label: `PE≤${PE_TTM_MAX}`, n: peCounts.le_30 },
+                { key: "gt_30" as PeFilter, label: `PE>${PE_TTM_MAX}`, n: peCounts.gt_30 },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setPeFilter(opt.key)}
+                className={`rounded-md px-2.5 py-1.5 text-[12px] transition-colors cursor-pointer ${
+                  peFilter === opt.key
+                    ? "bg-[rgba(77,163,255,0.18)] text-text-primary border border-[rgba(77,163,255,0.35)]"
+                    : "text-text-secondary hover:text-text-primary border border-transparent"
+                }`}
+              >
+                {opt.label}
+                <span className="ml-1 text-[10px] text-text-disabled">{opt.n}</span>
+              </button>
+            ))}
+          </div>
           <span className="text-[11px] text-text-disabled">
-            （生产已在 VM2.5 资金门硬淘
-            {peFilterOn && peFilteredOut > 0 ? ` · 本页再滤 ${peFilteredOut}` : ""}）
+            系统已关闭 PE 硬淘 · 亏损/无 PE 仅在「全部」
           </span>
-        </label>
+        </div>
       </header>
 
       {loading && (
@@ -180,7 +219,7 @@ export default function CNScreener() {
           <section className="glass rounded-2xl p-5">
             <h2 className="text-[15px] font-semibold mb-2">评分榜 vs 推荐 · 今日对照</h2>
             <p className="text-[12px] text-text-disabled mb-3">
-              重叠 {overlap.length} 只
+              重叠 {overlap.length} 只 · 当前筛选 {peFilterLabel}
               {top10?.asof ? ` · 评分榜更新 ${top10.asof}` : ""}
               {(recData as any)?.generated_at ? ` · 推荐更新 ${(recData as any).generated_at}` : ""}
             </p>
@@ -203,6 +242,7 @@ export default function CNScreener() {
                 <h2 className="text-[18px] font-semibold">今日推荐（门控后）</h2>
                 <p className="text-[12px] text-text-disabled mt-0.5">
                   漏斗 + 资金门 + 盘中流入排序 · 与评分榜独立
+                  {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
                 </p>
               </div>
               <button
@@ -215,8 +255,8 @@ export default function CNScreener() {
             {recommendations.length === 0 ? (
               <EmptyBox
                 text={
-                  peFilterOn && recommendationsRaw.length > 0
-                    ? `今日推荐均未通过市盈率 TTM ≤ ${PE_TTM_MAX}`
+                  peFilter !== "all" && recommendationsRaw.length > 0
+                    ? `今日推荐在「${peFilterLabel}」下无标的，可切换筛选`
                     : "今日推荐池为空（nuclear / 门控后无幸存）"
                 }
               />
@@ -242,14 +282,14 @@ export default function CNScreener() {
               <h2 className="text-[18px] font-semibold">评分 Top10（无门槛）</h2>
               <p className="text-[12px] text-text-disabled mt-0.5">
                 按 score 降序第 1→10 · {top10?.mode || "score_only"}
-                {peFilterOn ? ` · 已套用 PE-TTM≤${PE_TTM_MAX}` : ""}
+                {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
               </p>
             </div>
             {scoreItems.length === 0 ? (
               <EmptyBox
                 text={
-                  peFilterOn && scoreItemsRaw.length > 0
-                    ? `评分 Top10 均未通过市盈率 TTM ≤ ${PE_TTM_MAX}`
+                  peFilter !== "all" && scoreItemsRaw.length > 0
+                    ? `评分 Top10 在「${peFilterLabel}」下无标的，可切换筛选`
                     : "暂无评分榜（等待管线写入 score_top10）"
                 }
               />
