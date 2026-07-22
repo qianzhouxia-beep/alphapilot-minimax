@@ -141,8 +141,13 @@ export default function PaperTradingPage() {
             key={group.key}
             group={group}
             nextExecution={data.next_execution}
-            accountCash={acc.cash || 0}
-            capitalMode={(data as any).capital_mode || group.strategies[0]?.capital_mode}
+            accountCash={Number(acc.cash || 0)}
+            accountEquity={Number(acc.total_assets || (acc.cash || 0) + (acc.market_value || 0))}
+            capitalMode={
+              (data as any).capital_mode ||
+              group.strategies.find((s: any) => s.capital_mode)?.capital_mode ||
+              "shared"
+            }
           />
         ))}
       </div>
@@ -218,7 +223,10 @@ function groupStrategies(strategies: PaperTradingData["strategies"]): StrategyGr
   }
   const groups: StrategyGroup[] = others.map((s) => ({
     key: s.id,
-    title: s.name,
+    title:
+      s.id === "v19_daily" || /VM2\.5|v19|模型 Top/i.test(s.name || "")
+        ? "日频精选"
+        : s.name,
     subtitle: "",
     strategies: [s],
     merged: false,
@@ -227,7 +235,7 @@ function groupStrategies(strategies: PaperTradingData["strategies"]): StrategyGr
     groups.push({
       key: "eod_group",
       title: "尾盘狙击",
-      subtitle: eod.map((s) => s.name).join(" · "),
+      subtitle: "",
       strategies: eod,
       merged: true,
     });
@@ -239,19 +247,24 @@ function StrategyGroupCard({
   group,
   nextExecution,
   accountCash = 0,
+  accountEquity = 0,
   capitalMode,
 }: {
   group: StrategyGroup;
   nextExecution: Record<string, string> | string;
   accountCash?: number;
+  accountEquity?: number;
   capitalMode?: string;
 }) {
   const strategies = group.strategies;
-  const shared = capitalMode === "shared" || strategies.some((s: any) => s.capital_mode === "shared");
-  const allocated = shared
-    ? Math.max(...strategies.map((s) => s.allocated || 0), 0)
-    : strategies.reduce((a, s) => a + (s.allocated || 0), 0);
+  // 默认共用账户现金；仅明确 split 时才走旧「分配/可用」
+  const shared = capitalMode !== "split";
   const used = strategies.reduce((a, s) => a + (s.used || 0), 0);
+  // 策略展示名：对外不暴露内部模型代号
+  const title =
+    group.key === "v19_daily" || /VM2\.5|v19/i.test(group.title)
+      ? "日频精选"
+      : group.title;
   const positions = strategies.flatMap((s) =>
     (s.positions || []).map((p) => ({ ...p, _strategyId: s.id, _strategyName: s.name }))
   );
@@ -286,7 +299,7 @@ function StrategyGroupCard({
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-[18px] font-semibold text-text-primary">{group.title}</h2>
+            <h2 className="text-[18px] font-semibold text-text-primary">{title}</h2>
             <span
               className={`tag-badge ${
                 active
@@ -305,8 +318,8 @@ function StrategyGroupCard({
           <p className="mt-1 text-[12px] text-text-disabled">
             {group.merged && group.subtitle ? `${group.subtitle} · ` : ""}
             {shared
-              ? `共用资金 · 本策略已用 ￥${(used / 10000).toFixed(2)}万 · 账户现金 ￥${(accountCash / 10000).toFixed(2)}万`
-              : `分配 ￥${(allocated / 10000).toFixed(0)}万 · 已用 ￥${(used / 10000).toFixed(2)}万 · 可用 ￥${((allocated - used) / 10000).toFixed(2)}万`}
+              ? `共用资金 · 本策略占用 ￥${(used / 10000).toFixed(2)}万 · 账户现金 ￥${(accountCash / 10000).toFixed(2)}万可买`
+              : `分配 ￥${((accountEquity || strategies.reduce((a, s) => a + (s.allocated || 0), 0)) / 10000).toFixed(0)}万 · 已用 ￥${(used / 10000).toFixed(2)}万`}
           </p>
         </div>
         <div className="text-right">
