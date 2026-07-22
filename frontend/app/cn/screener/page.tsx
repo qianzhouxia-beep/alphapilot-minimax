@@ -1,4 +1,4 @@
-// AlphaPilot 智能选股：今日推荐（门控）+ 评分 Top10（无门槛）分栏对照
+// AlphaPilot 智能选股：今日推荐 + 评分榜分栏对照
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -257,7 +257,7 @@ export default function CNScreener() {
                 text={
                   peFilter !== "all" && recommendationsRaw.length > 0
                     ? `今日推荐在「${peFilterLabel}」下无标的，可切换筛选`
-                    : "今日推荐池为空（nuclear / 门控后无幸存）"
+                    : "今日推荐池为空，请稍后再看"
                 }
               />
             ) : (

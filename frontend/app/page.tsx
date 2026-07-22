@@ -20,8 +20,8 @@ const PLACEHOLDER_INDICES: IndexData[] = [
 
 const stats = [
   { value: "全 A", label: "每日扫描覆盖", highlight: true },
-  { value: "V3.1", label: "硬门控漏斗", highlight: false },
-  { value: "VM2.5", label: "三模型打分", highlight: false },
+  { value: "多层", label: "综合量化筛选", highlight: false },
+  { value: "评分", label: "横向可比排序", highlight: false },
   { value: "Top N", label: "可执行精选", highlight: false },
 ];
 
@@ -165,7 +165,7 @@ function Hero() {
     <section className="pt-[120px] pb-16 px-6 text-center max-w-[1200px] mx-auto">
       <div className="badge-purple mb-6">
         <span className="w-1.5 h-1.5 rounded-full bg-purple-primary animate-pulse-dot" />
-        V3.1 漏斗 · VM2.5 在线
+        今日精选 · 在线
       </div>
       <h1 className="text-[56px] font-bold tracking-tight leading-[1.1] mb-5 text-gradient max-md:text-[40px] max-sm:text-[32px]">
         把建仓信号
@@ -173,14 +173,14 @@ function Hero() {
         收成可执行清单
       </h1>
       <p className="text-xl text-text-secondary font-normal max-w-[560px] mx-auto mb-10 leading-relaxed max-sm:text-base">
-        从全 A 出发，经量价金叉、资金门控与大盘环境过滤，再用 VM2.5 打分，留下当日值得关注的票。
+        从全 A 出发，综合量价、资金与行情环境，筛出当日值得关注的标的。
       </p>
       <div className="flex gap-4 justify-center flex-wrap">
         <a href="/cn/" className="btn-primary hover:btn-primary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/40">
           查看今日信号
         </a>
         <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/30">
-          看漏斗怎么筛
+          查看历史表现
         </a>
       </div>
     </section>
@@ -282,7 +282,7 @@ function StatsBar() {
   );
 }
 
-/** 资金硬门控大卡插图：浅色金融风漏斗，填满空白区域 */
+/** 功能大卡插图：浅色金融风漏斗，填满空白区域 */
 function MoneyGateArt() {
   return (
     <div
@@ -390,10 +390,10 @@ function FeaturesSection() {
     <section className="max-w-[1200px] mx-auto mb-20 px-6">
       <div className="text-center mb-12">
         <h2 className="text-4xl font-bold tracking-tight mb-3 max-sm:text-[28px]">
-          一层层收窄，再给出名单
+          层层筛选，给出可执行名单
         </h2>
         <p className="text-lg text-text-secondary">
-          V3.1 硬门控 · VM2.5 打分 · 仓位暴露随大盘调整
+          综合量化筛选 · 评分排序 · 仓位随行情调整
         </p>
       </div>
       <div className="grid grid-cols-4 grid-rows-2 gap-4 max-md:grid-cols-2 max-sm:grid-cols-1 max-md:auto-rows-auto">
@@ -401,12 +401,12 @@ function FeaturesSection() {
           <div className="w-11 h-11 rounded-xl bg-purple-light flex items-center justify-center mb-4 shrink-0">
             <IconShield />
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">资金硬门控</div>
+          <div className="text-[17px] font-semibold mb-2 tracking-tight">资金强弱筛选</div>
           <p className="text-sm text-text-secondary leading-relaxed">
-            用主动买入、换手、量比与资金流信号过滤弱资金票，让名单先过「钱在不在」这一关，再谈评分高低。
+            优先关注有资金承接的标的，弱资金票更靠后，让名单先过「钱在不在」这一关。
           </p>
           <p className="text-sm text-text-secondary leading-relaxed mt-2">
-            盘中还会结合实时买盘强弱做软加权：资金退潮的票往下排，真正有承接的票才会留在可执行清单里。
+            盘中持续跟踪买盘强弱：退潮的往下排，有承接的才更容易留在可执行清单里。
           </p>
           <MoneyGateArt />
           <div className="text-xs font-semibold text-purple-primary pt-1 shrink-0">
@@ -418,11 +418,11 @@ function FeaturesSection() {
           <div className="w-11 h-11 rounded-xl bg-status-success/10 flex items-center justify-center mb-4">
             <IconGauge />
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">VM2.5 三模型打分</div>
+          <div className="text-[17px] font-semibold mb-2 tracking-tight">综合评分排序</div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            对漏斗内候选做概率打分，输出信心分与排名，方便横向比较。
+            对入选标的给出信心分与排名，方便横向比较。
           </div>
-          <div className="text-xs font-semibold text-status-success mt-auto pt-3">信心分 75–99</div>
+          <div className="text-xs font-semibold text-status-success mt-auto pt-3">信心分可读</div>
         </div>
 
         <div className="card p-7 flex flex-col group hover:card-hover">
@@ -431,7 +431,7 @@ function FeaturesSection() {
           </div>
           <div className="text-[17px] font-semibold mb-2 tracking-tight">资金阶段识别</div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            区分吸筹、拉升、诱多等阶段，帮你判断现在更像潜伏还是追高。
+            区分吸筹、拉升等阶段，帮你判断现在更像潜伏还是追高。
           </div>
           <div className="text-xs font-semibold text-status-warning mt-auto pt-3">阶段标签</div>
         </div>
@@ -440,11 +440,11 @@ function FeaturesSection() {
           <div className="w-11 h-11 rounded-xl bg-status-info/10 flex items-center justify-center mb-4">
             <IconSliders />
           </div>
-          <div className="text-[17px] font-semibold mb-2 tracking-tight">大盘环境门控</div>
+          <div className="text-[17px] font-semibold mb-2 tracking-tight">仓位随行情调整</div>
           <div className="text-sm text-text-secondary leading-relaxed flex-1">
-            弱市自动降仓或空仓：仓位暴露在 0 / 0.5 / 1 之间切换，避免行情不配合时硬推满仓名单。
+            弱市自动降仓或空仓，避免行情不配合时硬推满仓名单。
           </div>
-          <div className="text-xs font-semibold text-status-info mt-auto pt-3">暴露 0 · 0.5 · 1</div>
+          <div className="text-xs font-semibold text-status-info mt-auto pt-3">风险优先</div>
         </div>
       </div>
     </section>
@@ -485,9 +485,9 @@ function SignalSection() {
           <div className="flex justify-between items-start mb-8 max-sm:flex-col max-sm:gap-4">
             <div>
               <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
-              <div className="text-sm text-text-secondary mt-1">正在加载漏斗结果…</div>
+              <div className="text-sm text-text-secondary mt-1">正在加载今日精选…</div>
             </div>
-            <div className="badge-purple">V3.1 · VM2.5</div>
+            <div className="badge-purple">今日精选</div>
           </div>
         </div>
       </section>
@@ -503,14 +503,14 @@ function SignalSection() {
           <div className="flex justify-between items-start mb-4 max-sm:flex-col max-sm:gap-4">
             <div>
               <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
-              <div className="text-sm text-text-secondary mt-1">V3.1 漏斗 · 经门控后的名单</div>
+              <div className="text-sm text-text-secondary mt-1">综合量化筛选 · 当日名单</div>
             </div>
-            <div className="badge-purple">V3.1 · VM2.5</div>
+            <div className="badge-purple">今日精选</div>
           </div>
           <div className="py-16">
             <div className="text-lg font-semibold text-text-secondary mb-2">今日空仓 / 暂无信号</div>
             <div className="text-sm text-text-tertiary max-w-sm mx-auto">
-              大盘环境偏弱或未通过硬门控时，系统会主动留空，而不是硬凑名单。下一交易日开盘后重新扫描。
+              行情偏弱或暂无合适标的时，系统会主动留空，而不是硬凑名单。下一交易日开盘后重新扫描。
             </div>
           </div>
         </div>
@@ -528,10 +528,10 @@ function SignalSection() {
           <div>
             <div className="text-2xl font-bold tracking-tight">今日精选信号</div>
             <div className="text-sm text-text-secondary mt-1">
-              {runAt ? `更新于 ${runAt}` : "V3.1 漏斗 · 经门控后的名单"}
+              {runAt ? `更新于 ${runAt}` : "综合量化筛选 · 当日名单"}
             </div>
           </div>
-          <div className="badge-purple">V3.1 · VM2.5</div>
+          <div className="badge-purple">今日精选</div>
         </div>
 
         <div className="overflow-x-auto">
@@ -618,7 +618,7 @@ function Footer() {
           <Image src="/logo.png?v=20260719" alt="AlphaPilot" width={180} height={40} className="h-7 w-auto" />
         </a>
         <div className="text-[13px] text-text-tertiary">
-          AlphaPilot V3.1 · A 股智能决策 · 非投资建议
+          AlphaPilot · A 股智能决策 · 非投资建议
         </div>
       </div>
     </footer>

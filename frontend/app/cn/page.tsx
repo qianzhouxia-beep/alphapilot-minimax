@@ -1,4 +1,4 @@
-// AlphaPilot A 股 Dashboard — V3.1 硬门控 + VM2.5
+// AlphaPilot A 股 Dashboard
 // Zeabur HTTPS -> cn_proxy.py -> 腾讯云 150.158.100.236
 // 2026-07-19: 浅色 UI 统一 · 信心分展示 · 版本文案对齐
 "use client";
@@ -486,7 +486,7 @@ export default function CNDashboard() {
           <KPI
             label="今日推荐"
             value={`${returnedCount}`}
-            sub={`${items.length} 只通过门控`}
+            sub={`${items.length} 只入选`}
             accent="var(--color-status-success)"
           />
           <KPI
@@ -517,7 +517,7 @@ export default function CNDashboard() {
               {items[0]?._reranked && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-status-success/25">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-success animate-pulse" />
-                  5分钟动态重排
+                  动态更新
                 </span>
               )}
               {liveTs > 0 && (
@@ -974,9 +974,9 @@ export default function CNDashboard() {
             </p>
           </div>
           <div className="rounded-2xl border border-border-subtle bg-surface-card p-4 card-lift shadow-sm border-t-2 border-t-status-warning">
-            <h3 className="text-[14px] font-semibold text-text-primary mb-1">门控参数优化</h3>
+            <h3 className="text-[14px] font-semibold text-text-primary mb-1">参数持续优化</h3>
             <p className="text-[11px] text-text-disabled leading-relaxed">
-              基于历史数据自动调整首板洗盘/量比换手门控参数，持续提升准确率
+              基于历史表现自动微调筛选阈值，持续提升准确率
             </p>
           </div>
         </div>

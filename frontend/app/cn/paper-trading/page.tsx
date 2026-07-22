@@ -114,7 +114,7 @@ export default function PaperTradingPage() {
             </span>
           </h1>
           <p className="mt-1 text-[12px] text-text-disabled">
-            VM2.5 Top2 日频（可交易闭环）+ 尾盘狙击 · 盘中动态止损止盈
+            日频模拟交易 · 尾盘机会 · 盘中风控
           </p>
         </div>
         </div>

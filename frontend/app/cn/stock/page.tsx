@@ -1,4 +1,4 @@
-﻿// AlphaPilot A 股 Stock Detail — 个股详情 + 资金锋面/骨架 + 板块/新闻 (2026-07-20)
+﻿// AlphaPilot A 股 Stock Detail — 个股详情 + 资金/板块/新闻
 "use client";
 
 import { useEffect, useState } from "react";
@@ -347,26 +347,20 @@ export default function CNStockDetail() {
         <div className="col-span-1 space-y-6">
           {/* Fund flow: 3d tip + 5d spine */}
           <section className="glass rounded-2xl p-5">
-            <h3 className="mb-1 text-[14px] font-semibold">资金锋面 · 骨架</h3>
-            <p className="mb-3 text-[11px] text-text-disabled">弱硬底线 + 流入软加分 · 3日锋面 / 5日骨架</p>
+            <h3 className="mb-1 text-[14px] font-semibold">资金概况</h3>
+            <p className="mb-3 text-[11px] text-text-disabled">近端流入与中期资金强度</p>
 
             <div className="grid grid-cols-3 gap-2 mb-4">
-              <FundStat label="3日锋面" value={stock?.main_net_3d} />
-              <FundStat label="5日骨架" value={stock?.main_net_5d} highlight />
-              <FundStat label="10日参考" value={stock?.main_net_10d} />
+              <FundStat label="近3日" value={stock?.main_net_3d} />
+              <FundStat label="近5日" value={stock?.main_net_5d} highlight />
+              <FundStat label="近10日" value={stock?.main_net_10d} />
             </div>
 
-            <div className="flex items-center justify-between text-[12px] text-text-secondary mb-3">
-              <span>近5日正流入</span>
-              <span className="text-text-primary font-semibold">
-                {stock?.fund_pos_days_5 != null ? `${stock.fund_pos_days_5}/5` : "—"}
-              </span>
-            </div>
-            {stock?.fund_soft_bonus != null && (
+            {stock?.fund_pos_days_5 != null && (
               <div className="flex items-center justify-between text-[12px] text-text-secondary mb-3">
-                <span>资金软加分</span>
-                <span className="text-status-info font-semibold">
-                  {stock.fund_soft_bonus >= 0 ? "+" : ""}{Number(stock.fund_soft_bonus).toFixed(3)}
+                <span>近5日正流入</span>
+                <span className="text-text-primary font-semibold">
+                  {`${stock.fund_pos_days_5}/5`}
                 </span>
               </div>
             )}
@@ -480,16 +474,16 @@ export default function CNStockDetail() {
                 <span className="text-text-primary font-semibold">{stock?.money_phase_label || stock?.money_phase || "—"}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>资金门</span>
-                <span className="text-text-primary font-semibold">弱硬底线 + 软加分</span>
+                <span>资金筛选</span>
+                <span className="text-text-primary font-semibold">已通过</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>仓位敞口</span>
+                <span>仓位建议</span>
                 <span className="text-text-primary font-semibold">{expo != null ? Number(expo).toFixed(2) : "—"}</span>
               </div>
               {demoteList.length > 0 && (
                 <div className="pt-2 border-t border-border-subtle">
-                  <div className="text-[11px] text-text-disabled mb-1">软降权</div>
+                  <div className="text-[11px] text-text-disabled mb-1">风险提示</div>
                   <ul className="space-y-1">
                     {demoteList.map((d, i) => (
                       <li key={i} className="text-[11px] text-status-warning leading-snug">· {d}</li>
