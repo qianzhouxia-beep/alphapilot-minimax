@@ -734,6 +734,7 @@ export type PaperTradingStrategy = {
   positions: PaperTradingPosition[];
   signals: PaperTradingSignal[];
   history: any[];
+  capital_mode?: string;
 };
 
 export type PaperTradingAccount = {
@@ -799,6 +800,7 @@ export type PaperTradingData = {
   market_env_flags?: Record<string, boolean>;
   empty_reason?: string | null;
   loop?: PaperLoopSummary;
+  capital_mode?: string;
 };
 
 export async function fetchPaperTrading(): Promise<PaperTradingData> {

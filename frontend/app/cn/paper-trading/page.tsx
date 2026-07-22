@@ -137,7 +137,13 @@ export default function PaperTradingPage() {
       {/* 策略详情：日频独立；尾盘狙击策略 + S2 合并同一板块 */}
       <div className="space-y-6">
         {groupStrategies(data.strategies).map((group) => (
-          <StrategyGroupCard key={group.key} group={group} nextExecution={data.next_execution} />
+          <StrategyGroupCard
+            key={group.key}
+            group={group}
+            nextExecution={data.next_execution}
+            accountCash={acc.cash || 0}
+            capitalMode={(data as any).capital_mode || group.strategies[0]?.capital_mode}
+          />
         ))}
       </div>
 
@@ -232,12 +238,19 @@ function groupStrategies(strategies: PaperTradingData["strategies"]): StrategyGr
 function StrategyGroupCard({
   group,
   nextExecution,
+  accountCash = 0,
+  capitalMode,
 }: {
   group: StrategyGroup;
   nextExecution: Record<string, string> | string;
+  accountCash?: number;
+  capitalMode?: string;
 }) {
   const strategies = group.strategies;
-  const allocated = strategies.reduce((a, s) => a + (s.allocated || 0), 0);
+  const shared = capitalMode === "shared" || strategies.some((s: any) => s.capital_mode === "shared");
+  const allocated = shared
+    ? Math.max(...strategies.map((s) => s.allocated || 0), 0)
+    : strategies.reduce((a, s) => a + (s.allocated || 0), 0);
   const used = strategies.reduce((a, s) => a + (s.used || 0), 0);
   const positions = strategies.flatMap((s) =>
     (s.positions || []).map((p) => ({ ...p, _strategyId: s.id, _strategyName: s.name }))
@@ -291,8 +304,9 @@ function StrategyGroupCard({
           </div>
           <p className="mt-1 text-[12px] text-text-disabled">
             {group.merged && group.subtitle ? `${group.subtitle} · ` : ""}
-            分配 ￥{(allocated / 10000).toFixed(0)}万 · 已用 ￥{(used / 10000).toFixed(2)}万 · 可用 ￥
-            {((allocated - used) / 10000).toFixed(2)}万
+            {shared
+              ? `共用资金 · 本策略已用 ￥${(used / 10000).toFixed(2)}万 · 账户现金 ￥${(accountCash / 10000).toFixed(2)}万`
+              : `分配 ￥${(allocated / 10000).toFixed(0)}万 · 已用 ￥${(used / 10000).toFixed(2)}万 · 可用 ￥${((allocated - used) / 10000).toFixed(2)}万`}
           </p>
         </div>
         <div className="text-right">
