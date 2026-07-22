@@ -172,7 +172,9 @@ export default function CNScreener() {
           ：只按模型分数从高到低列第 1–10 名，不加资金/板块门槛。
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-[12px] text-text-secondary">市盈率（客户自选）</span>
+          <span className="text-[12px] text-text-secondary">
+            你自选 · 市盈率（系统不硬淘）
+          </span>
           <div
             className="inline-flex items-center gap-0.5 rounded-lg border border-border-subtle bg-bg-elevated p-0.5"
             role="group"

@@ -25,7 +25,9 @@ const displayScore = (s: number) => Math.min(99, Math.max(75, Math.round(Number(
 const formatModelProba = (s: number) => Number(s || 0).toFixed(2);
 
 function peBucketOf(it: any): PeFilter | "na" {
-  if (it?.pe_bucket === "le_30" || it?.pe_bucket === "gt_30") return it.pe_bucket;
+  if (it?.pe_bucket === "le_30" || it?.pe_bucket === "gt_30" || it?.pe_bucket === "na") {
+    return it.pe_bucket;
+  }
   const pe = it?.pe_ttm ?? it?.pe;
   if (pe == null || Number(pe) <= 0 || Number.isNaN(Number(pe))) return "na";
   return Number(pe) > 30 ? "gt_30" : "le_30";
@@ -525,8 +527,12 @@ export default function CNDashboard() {
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-[12px] text-text-secondary max-w-2xl">
-              V3.1 硬门控漏斗 · VM2.5 打分 · 资金门控 · 大盘暴露 · 市盈率由你自选（系统不再硬淘 PE）
+            <p className="mt-0.5 text-[12px] text-text-secondary max-w-2xl leading-relaxed">
+              <span className="text-text-primary/80">系统侧</span>
+              ：V3.1 漏斗门控 · VM2.5 打分 · 资金与大盘暴露 · 上涨趋势优先 · 下跌通道剔除
+              <span className="mx-1.5 text-border-subtle">|</span>
+              <span className="text-text-primary/80">你自选</span>
+              ：市盈率 全部 / ≤30 / &gt;30（系统不硬淘）
             </p>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0 flex-wrap justify-end">
