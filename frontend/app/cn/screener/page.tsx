@@ -167,14 +167,12 @@ export default function CNScreener() {
         </p>
         <p className="mt-2 text-[12px] text-text-disabled leading-relaxed max-w-3xl">
           <span className="text-text-secondary">今日推荐</span>
-          ：漏斗门控 + 09:35 盘中资金重排后的交易候选（通常 Top2）。{" "}
-          <span className="text-text-secondary">评分 Top10</span>
-          ：只按模型分数从高到低列第 1–10 名，不加资金/板块门槛。
+          ：当日交易候选。{" "}
+          <span className="text-text-secondary">评分榜</span>
+          ：按综合评分排序，便于对照。
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-[12px] text-text-secondary">
-            你自选 · 市盈率（系统不硬淘）
-          </span>
+          <span className="text-[12px] text-text-secondary">市盈率筛选</span>
           <div
             className="inline-flex items-center gap-0.5 rounded-lg border border-border-subtle bg-bg-elevated p-0.5"
             role="group"
@@ -241,9 +239,9 @@ export default function CNScreener() {
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
-                <h2 className="text-[18px] font-semibold">今日推荐（门控后）</h2>
+                <h2 className="text-[18px] font-semibold">今日推荐</h2>
                 <p className="text-[12px] text-text-disabled mt-0.5">
-                  漏斗 + 资金门 + 盘中流入排序 · 与评分榜独立
+                  当日交易候选 · 与评分榜独立
                   {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
                 </p>
               </div>

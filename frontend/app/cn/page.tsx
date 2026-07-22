@@ -512,7 +512,7 @@ export default function CNDashboard() {
               <div className="w-1 h-6 rounded-full bg-status-info"></div>
               <h2 className="text-[18px] font-semibold text-text-primary">A 股 Top 10 机会</h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/20">
-                V3.1 · VM2.5
+                今日精选
               </span>
               {items[0]?._reranked && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-status-success/25">
@@ -527,12 +527,8 @@ export default function CNDashboard() {
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-[12px] text-text-secondary max-w-2xl leading-relaxed">
-              <span className="text-text-primary/80">系统侧</span>
-              ：V3.1 漏斗门控 · VM2.5 打分 · 资金与大盘暴露 · 上涨趋势优先 · 下跌通道剔除
-              <span className="mx-1.5 text-border-subtle">|</span>
-              <span className="text-text-primary/80">你自选</span>
-              ：市盈率 全部 / ≤30 / &gt;30（系统不硬淘）
+            <p className="mt-0.5 text-[12px] text-text-secondary max-w-2xl">
+              综合量化筛选 · 市盈率右侧自选
             </p>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0 flex-wrap justify-end">
