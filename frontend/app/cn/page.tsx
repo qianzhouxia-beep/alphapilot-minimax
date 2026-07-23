@@ -817,7 +817,7 @@ export default function CNDashboard() {
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h2 className="text-[17px] font-semibold text-text-primary">尾盘狙击</h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/30">14:45</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/30">一夜持股</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/30">止盈止损持有</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/25">S2 规则引擎</span>
               {(s2Data?.date || s2ViewDate) && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-container-low text-text-secondary border border-border-subtle font-display-numeric">
