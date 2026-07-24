@@ -3,7 +3,8 @@
 协议：
 1. 优先读 output/morning_live_picks.json（09:35 资金门 + 模型分 Top2）
 2. 若今日尚无 picks，则对 daily_recommend 池现场跑一遍 morning 逻辑
-3. expo<=0 → 不买；否则买入模型分前 2 只（仓位仍 × position_exposure 等权）
+3. expo<=0 → 不买；否则买入模型分前 N 只
+4. 仓位分配：KELLY_ENABLE=1 时用 Kelly + 风险预算；否则等权
 """
 import json
 import os
@@ -23,6 +24,25 @@ STRAT_NAME = "日频精选"
 VALID_PICK_MODES = frozenset(
     {"morning_live_model_top2", "morning_live_fund_top2"}
 )
+
+
+EXCLUDE_PATH = ROOT / "config/exclude_symbols.json"
+
+
+def _load_exclude_symbols() -> set[str]:
+    """读取排除列表（模拟盘不交易的股票）。"""
+    try:
+        if EXCLUDE_PATH.exists():
+            data = json.loads(EXCLUDE_PATH.read_text(encoding="utf-8"))
+            syms = data.get("symbols") or []
+            names = data.get("names") or []
+            if syms:
+                print("  [排除] {} 只股票被排除出模拟盘: {}".format(
+                    len(syms), ", ".join(names or syms)))
+            return set(str(s).zfill(6) for s in syms)
+    except Exception as e:
+        print("  [排除] 读取排除列表失败: {}".format(e))
+    return set()
 
 
 def ensure_daily_strategy(pt: dict) -> dict:
@@ -113,6 +133,112 @@ def main():
     top_n = int(picks.get("trade_top_n") or (DEFAULT_TOP_N if expo > 0 else 0))
     top = top[:top_n]
 
+    # 排除列表过滤（不交易、不计入统计）
+    _excluded = _load_exclude_symbols()
+    if _excluded:
+        _before = len(top)
+        top = [r for r in top if str(r.get("symbol", "")).zfill(6) not in _excluded]
+        if len(top) < _before:
+            print("  [排除] 过滤掉 {} 只黑名单股票, 剩余 {} 只备选".format(_before - len(top), len(top)))
+            # 池子不够时从 recommend 补位
+            if len(top) < max(top_n, 1) and _excluded:
+                try:
+                    d = json.loads(REC_PATH.read_text(encoding="utf-8"))
+                    all_items = list(d.get("recommendations") or [])
+                    held_syms = {str(r.get("symbol", "")).zfill(6) for r in top}
+                    for r in all_items:
+                        sym = str(r.get("symbol", "")).zfill(6)
+                        if sym not in held_syms and sym not in _excluded:
+                            top.append(r)
+                            if len(top) >= top_n:
+                                break
+                except Exception:
+                    pass
+            top = top[:top_n]
+
+    # ── 在线增量学习：每日更新 Kelly 模型 ──
+    _kelly_hist_stats = None
+    try:
+        from kelly_learner import KellyLearner
+        _kl = KellyLearner()
+        _kl.train()  # 在线重训 LR
+        _kelly_hist_stats = _kl.get_hist_stats()
+        _ml_ready = _kelly_hist_stats.get("ml_ready", False)
+        print(
+            "  KellyLearner 在线重训完成: {} trades, ml_ready={}".format(
+                _kelly_hist_stats.get("n_trades", 0), _ml_ready
+            )
+        )
+    except ImportError:
+        _kelly_hist_stats = None
+        print("  KellyLearner 未安装（skip 在线学习）")
+    except Exception as e:
+        _kelly_hist_stats = None
+        print(f"  KellyLearner 异常 (fallback 静态): {e}")
+
+    # ── Kelly + 风险预算仓位分配 ──
+    try:
+        from kelly_sizing import apply_kelly, calibrate_from_backtest, KELLY_ENABLE
+
+        if KELLY_ENABLE:
+            equity = float(pt.get("account", {}).get("cash", 0)) if "account" in (pt or {}) else 0
+            if equity <= 0:
+                equity = float(pt.get("initial_capital") or 1_000_000)
+            # 校准统计（首次或文件过期时重跑）
+            if _kelly_hist_stats is not None and _kelly_hist_stats.get("n_trades", 0) >= 30:
+                _hist = _kelly_hist_stats
+                print(
+                    "  KellyLearner 在线 hist_stats 已启用 ({} trades)".format(
+                        _kelly_hist_stats.get("n_trades", 0)
+                    )
+                )
+            else:
+                _hist = calibrate_from_backtest()
+                print("  KellyLearner 样本不足，使用回测静态校准")
+            # 加载日K波动率（需有 kline_all.parquet）
+            _kdf = None
+            try:
+                import pandas as pd
+
+                _kp = ROOT / "data/kline_cache/kline_all.parquet"
+                if _kp.exists():
+                    _kdf = pd.read_parquet(_kp, columns=["symbol", "date", "close"])
+            except Exception:
+                pass
+            top = apply_kelly(top, equity, _kdf, _hist)
+            # 从 apply_kelly 回写 entry_score_pct / entry_vol
+            for r in top:
+                if "entry_score_pct" not in r:
+                    r["entry_score_pct"] = r.get("_pct") or 0.5
+                if "entry_vol" not in r:
+                    r["entry_vol"] = r.get("_vol") or 0.3
+            print(f"  Kelly 仓位分配已启用, {len(top)} 只, 数据源=KellyLearner" if _ml_ready else f"  Kelly 仓位分配已启用, {len(top)} 只, 数据源=静态回测")
+            for i, r in enumerate(top):
+                print(
+                    "    #{} {} entry_weight={:.0%} kelly_frac={:.1%} vol={}".format(
+                        i + 1,
+                        r.get("symbol"),
+                        float(r.get("entry_weight") or 0),
+                        float(r.get("kelly_frac") or 0),
+                        r.get("_vol", "?"),
+                    )
+                )
+        else:
+            # 等权（默认）
+            w = 1.0 / max(len(top), 1)
+            for r in top:
+                r["entry_weight"] = round(w, 4)
+                r["kelly_enabled"] = False
+    except ImportError:
+        w = 1.0 / max(len(top), 1)
+        for r in top:
+            r["entry_weight"] = round(w, 4)
+    except Exception as e:
+        print(f"  Kelly 分配异常 (fallback 等权): {e}")
+        w = 1.0 / max(len(top), 1)
+        for r in top:
+            r["entry_weight"] = round(w, 4)
+
     # 同步读 recommend 元数据
     env_flags = {}
     pool_n = 10
@@ -165,9 +291,9 @@ def main():
             "09:35 money gate → model score Top2"
         ),
         "entry_mode": "gap_soft",
-        "scale_in": (
-            "50% day1; +50% next day if gap<5% not limit; "
-            "drop>=5% vs prev/cost → fill remaining or +1x current once"
+        "sizing": (
+            "默认等权（KELLY_ENABLE=0）；"
+            "KELLY_ENABLE=1 时 Half-Kelly + 波动率调整 + 行业集中度约束"
         ),
         "exit": "E2 hard-stop -10% close-confirm; peel if float>0; T+2 force with 1d fund-extend",
         "top_n": top_n,
@@ -176,6 +302,8 @@ def main():
         "cost_model": "dynamic",
         "strategy_id": STRAT_ID,
         "rank_by": picks.get("rank_by") or "score",
+        "kelly_enabled": os.environ.get("KELLY_ENABLE", "0").strip().lower()
+        in ("1", "true", "yes", "on"),
     }
     try:
         from cost_model import estimate_trade_cost

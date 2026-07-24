@@ -5,8 +5,10 @@
   - 1.5%<gap<3%: 限价=昨收×1.01，权重 0.7；未触及则挂单至收盘
   - 3%≤gap<5%: 限价=昨收×1.02，权重线性 0.5→0；未触及挂单
   - gap≥5% 或近涨停: 跳过
-  - 首日建仓 50%；次日确认补仓 50%（未涨停、相对昨收涨幅 <5%）
-  - 当日跌幅≥5%（相对昨收或成本）可补仓：优先补剩余计划仓；已买满则再补一笔与首仓等量（每票每日一次）
+  - 日频建仓：默认一次买满计划仓（ENABLE_SCALE_IN=0）。若开启则首日 SCALE_IN_FRAC、
+    次日确认补剩余（未涨停、相对昨收涨幅 <5%）。
+  - 跌幅补仓：默认关闭（ENABLE_DIP_SCALE_IN=1 才开）。开启后仅补「计划剩余」
+    （DIP_SCALE_MODE=planned_only，默认）；不再在已买满后等量加倍。
   - K 开仓时机（默认开）：禁开时段跳过；追高市价改限价等待
 
 卖出（动态 peel）:
@@ -22,6 +24,12 @@ import json
 import os
 import sys
 from datetime import datetime
+
+# Kelly 在线学习器（平仓记录，无状态时无害）
+try:
+    from kelly_learner import record_trade as _kelly_record_trade
+except Exception:
+    _kelly_record_trade = None
 
 os.chdir("/home/ubuntu/alphapilot")
 PT_PATH = "data/paper_trading.json"
@@ -57,9 +65,19 @@ PEEL_PULLBACK = 0.015     # 回撤 1.5% 减半
 PEEL_MAX_STEPS = 2        # 前两次减半，第三次清仓（共 3 刀）
 
 # 分批买入（仅日频；尾盘全仓一次买完）
-SCALE_IN_FRAC = 0.5
+# ENABLE_SCALE_IN=0（默认）：日频一次买满，不再次日确认补仓
+# ENABLE_SCALE_IN=1：首日 SCALE_IN_FRAC，次日确认补剩余
+ENABLE_SCALE_IN = str(
+    os.environ.get("ENABLE_SCALE_IN", "0")
+).strip().lower() in ("1", "true", "yes", "on")
+SCALE_IN_FRAC = float(os.environ.get("SCALE_IN_FRAC", "0.5") or 0.5)
 SCALE_IN_MAX_GAP = 0.05       # 次日确认：涨幅≥5% 放弃补仓
-SCALE_IN_DIP_PCT = 0.05       # 当日跌幅≥5%（相对昨收或成本）允许提前补仓
+SCALE_IN_DIP_PCT = float(os.environ.get("SCALE_IN_DIP_PCT", "0.05") or 0.05)
+# 跌幅补仓：默认关。ENABLE_DIP_SCALE_IN=1 开启；DIP_SCALE_MODE=planned_only|equal_double
+ENABLE_DIP_SCALE_IN = str(
+    os.environ.get("ENABLE_DIP_SCALE_IN", "0")
+).strip().lower() in ("1", "true", "yes", "on")
+DIP_SCALE_MODE = str(os.environ.get("DIP_SCALE_MODE", "planned_only") or "planned_only").strip().lower()
 
 # 日频入场：纯 GapSoft C（回测优选，不用 ML 择时）
 ENTRY_MODE = "gap_soft"
@@ -427,6 +445,12 @@ def append_sell(pt, pos, strat_id, action, price, qty, held_days, extra=None):
     if extra:
         row.update(extra)
     pt["trade_log"].append(row)
+    # 全仓清空 → 记录到 Kelly 在线学习器
+    if _kelly_record_trade is not None and row["qty_remaining"] <= 0:
+        try:
+            _kelly_record_trade(pt, pos, row)
+        except Exception:
+            pass
     return row
 
 
@@ -534,6 +558,32 @@ def main():
             p["stop_pct"] = round(HARD_STOP_PCT * 100, 1)
 
             clear_action = None
+
+            # 优先级 0a：板块资金反转紧急卖出（盘中板块巡检检出）
+            if clear_action is None and allow_intra:
+                try:
+                    ALERT_PATH = "output/sector_watch_alerts.json"
+                    if os.path.exists(ALERT_PATH):
+                        alerts_data = json.load(open(ALERT_PATH, encoding="utf-8"))
+                        for alert in (alerts_data.get("alerts") or []):
+                            if (
+                                alert.get("symbol") == sym
+                                and alert.get("action") == "force_sell"
+                            ):
+                                severity_pct = {
+                                    "high": 0,    # 立即市价卖
+                                    "medium": -0.01,  # 可容忍 -1%
+                                }.get(alert.get("severity", "medium"), -0.01)
+                                # 高严重度或已达容忍亏损 → 强卖
+                                if severity_pct == 0 or price <= cost * (1 + severity_pct):
+                                    clear_action = "卖出(板块资金反转:" + alert.get("sector", "?") + ")"
+                                    log(f"  🚨 板块反转紧急卖出: {sym} {name} "
+                                        f"板块={alert.get('sector')} "
+                                        f"原因={alert.get('reason')[:80]}")
+                                break
+                except Exception as e:
+                    log(f"  sector_watch alerts skip: {e}")
+
             # 优先级 1：硬止损 · 仅收盘确认窗口（14:45 后）且现价仍≤止损
             if (
                 use_t2
@@ -722,7 +772,7 @@ def main():
             if s.get("id") == "v19_daily":
                 s["signals"] = []
 
-    def _place_buy(strat_id, sym, name, fill, weight, gap, entry_reason, alloc_budget, full_position=False):
+    def _place_buy(strat_id, sym, name, fill, weight, gap, entry_reason, alloc_budget, full_position=False, *, entry_score_pct=None, entry_vol=None):
         """按权重建仓；alloc_budget 已是该票可用预算。尾盘 full_position=True 一次买满。"""
         nonlocal executed
         w = float(max(0.0, min(1.0, weight or 1.0)))
@@ -732,8 +782,8 @@ def main():
         max_cap = MAX_PER_POSITION_EOD if is_eod else MAX_PER_POSITION
         alloc_full = min(float(alloc_budget), max_cap) * w
         planned_qty = round_lot(alloc_full / fill)
-        if is_eod:
-            # 尾盘：全仓一次买入，不再 50% 分批
+        if is_eod or not ENABLE_SCALE_IN:
+            # 尾盘，或日频关闭分批：一次买满
             first_qty = planned_qty
             scale_pending = False
         else:
@@ -779,7 +829,11 @@ def main():
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "symbol": sym,
                 "name": name,
-                "action": "买入(尾盘全仓)" if is_eod else ("买入(首批50%)" if scale_pending else "买入"),
+                "action": (
+                    "买入(尾盘全仓)"
+                    if is_eod
+                    else ("买入(首批50%)" if scale_pending else "买入")
+                ),
                 "price": round(fill, 2),
                 "quantity": first_qty,
                 "amount": round(actual_cost, 2),
@@ -816,6 +870,8 @@ def main():
             "entry_mode": "eod_full" if is_eod else ENTRY_MODE,
             "entry_weight": round(w, 4),
             "position_exposure": expo,
+            "entry_score_pct": entry_score_pct,
+            "entry_vol": entry_vol,
             "scale_in_pending": scale_pending,
             "scale_in_done": not scale_pending,
             "trail_armed": False,
@@ -922,6 +978,8 @@ def main():
             od.get("gap"),
             od.get("reason") or "pending_fill",
             budget,
+            entry_score_pct=od.get("entry_score_pct"),
+            entry_vol=od.get("entry_vol"),
         )
 
     pt["pending_limits"] = still_pending
@@ -982,8 +1040,18 @@ def main():
         executed += 1
         return True
 
-    # —— 2a0.5 当日跌幅≥5% 补仓（含首日/已买满；--sell-only 也会跑）——
+    # —— 2a0.5 当日跌幅补仓（默认关；--sell-only 也会跑，故必须默认关）——
+    if not ENABLE_DIP_SCALE_IN:
+        log("  跌幅补仓关闭 (ENABLE_DIP_SCALE_IN=0)")
+    else:
+        log(
+            "  跌幅补仓开启 mode={} thr={:.0%}".format(
+                DIP_SCALE_MODE, SCALE_IN_DIP_PCT
+            )
+        )
     for s in pt.get("strategies", []):
+        if not ENABLE_DIP_SCALE_IN:
+            break
         if s.get("id") in EOD_STRATS:
             continue  # 尾盘全仓，无分批补仓
         for p in s.get("positions", []):
@@ -1012,11 +1080,14 @@ def main():
 
             planned = int(p.get("planned_quantity") or p.get("initial_quantity") or 0)
             cur = int(p.get("quantity") or 0)
-            # 优先补「计划剩余」；已买满则再补一笔与当前持仓等量（相当于原 50/50 的另一半）
+            # planned_only（默认）：只补计划剩余；已买满则不加。
+            # equal_double（旧行为）：已买满再补与当前持仓等量。
             if p.get("scale_in_pending") and not p.get("scale_in_done"):
                 need = round_lot(planned - cur)
-            else:
+            elif DIP_SCALE_MODE in ("equal_double", "double", "legacy"):
                 need = round_lot(cur)
+            else:
+                continue  # planned_only 且无计划剩余 → 跳过
             if need < 100:
                 continue
             # 单票总名义不超过 2×MAX，避免无限加仓
@@ -1042,13 +1113,29 @@ def main():
                     "day_chg": round(day_chg, 4) if day_chg is not None else None,
                     "cost_chg": round(cost_chg, 4) if cost_chg is not None else None,
                     "dip_trigger": "vs_prev" if day_dip else "vs_cost",
+                    "dip_mode": DIP_SCALE_MODE,
                 },
             )
             if ok:
                 dip_scaled_today.add(sym)
 
     # —— 2a. 次日确认补仓 ——
+    if not ENABLE_SCALE_IN:
+        log("  次日确认补仓关闭 (ENABLE_SCALE_IN=0，日频一次买满)")
+        # 清理历史半仓挂起标记，避免状态残留
+        for s in pt.get("strategies", []):
+            for p in s.get("positions", []):
+                if p.get("scale_in_pending"):
+                    p["scale_in_pending"] = False
+                    p["scale_in_done"] = True
+                    log(
+                        "  取消待补仓标记 {} {}（保留当前持仓，不再加仓）".format(
+                            p.get("symbol"), p.get("name")
+                        )
+                    )
     for s in pt.get("strategies", []):
+        if not ENABLE_SCALE_IN:
+            break
         if s.get("id") in EOD_STRATS:
             continue
         for p in s.get("positions", []):
@@ -1275,6 +1362,8 @@ def main():
                     "eod_full_cash",
                     budget,
                     full_position=True,
+                    entry_score_pct=sig.get("entry_score_pct"),
+                    entry_vol=sig.get("entry_vol"),
                 )
                 if ok:
                     _mark_ticket_filled(sig.get("ticket_id"), fill, None)
@@ -1326,7 +1415,16 @@ def main():
                     continue
 
                 if decision["action"] == "pending":
-                    pend_w = float(decision["weight"] or 1.0) * fund_w
+                    # 初始 weight = decision weight × fund_confirm
+                    base_w = float(decision["weight"] or 1.0) * fund_w
+                    # 若 signal 带有 Kelly entry_weight，用它覆盖 base_w
+                    sig_entry_w = sig.get("entry_weight")
+                    if sig_entry_w is not None:
+                        try:
+                            base_w = float(sig_entry_w) * fund_w
+                        except (TypeError, ValueError):
+                            pass
+                    pend_w = base_w
                     od = {
                         "symbol": sym,
                         "name": name,
@@ -1339,6 +1437,9 @@ def main():
                         "signal_price": signal_price,
                         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                         "fund_confirm_weight": fund_w,
+                        "entry_weight": round(base_w, 4),
+                        "entry_score_pct": sig.get("entry_score_pct"),
+                        "entry_vol": sig.get("entry_vol"),
                     }
                     pt.setdefault("pending_limits", []).append(od)
                     log(
@@ -1394,6 +1495,8 @@ def main():
                     decision.get("reason") or "buy",
                     budget,
                     full_position=False,
+                    entry_score_pct=sig.get("entry_score_pct"),
+                    entry_vol=sig.get("entry_vol"),
                 )
                 if ok:
                     _mark_ticket_filled(sig.get("ticket_id"), fill, None)
@@ -1484,9 +1587,14 @@ def main():
         "eod_force_trading_days": EOD_FORCE_TRADING_DAYS,
         "disable_eod_time_force": DISABLE_EOD_TIME_FORCE,
         "scale_in": (
-            "daily: 50% day1 +50% next/dip; stop uses weighted avg cost; "
-            "eod: 50% equity full-cash one ticker"
+            "daily: full position day1 by default (ENABLE_SCALE_IN=0); "
+            "optional 50%+50% next-day confirm if ENABLE_SCALE_IN=1; "
+            "dip_scale OFF (ENABLE_DIP_SCALE_IN=0); eod: full-cash one ticker"
         ),
+        "enable_scale_in": ENABLE_SCALE_IN,
+        "enable_dip_scale_in": ENABLE_DIP_SCALE_IN,
+        "dip_scale_mode": DIP_SCALE_MODE,
+        "scale_in_dip_pct": SCALE_IN_DIP_PCT,
         "entry_mode": ENTRY_MODE,
         "entry": (
             "gap_soft: <=1.5% open w=1; 1.5-3% limit prev*1.01 w=0.7; "
