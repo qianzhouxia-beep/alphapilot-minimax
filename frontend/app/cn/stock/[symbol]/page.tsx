@@ -32,15 +32,6 @@ type StockDetail = {
   source: string;
 };
 
-const scoreColor = (confidence: number) =>
-  confidence >= 90
-    ? "text-[#3EE6A8]"
-    : confidence >= 80
-      ? "text-status-info"
-      : confidence >= 70
-        ? "text-[#F5C451]"
-        : "text-text-secondary";
-
 function toUnitProba(v: number | null | undefined): number {
   const x = Number(v ?? 0);
   if (!Number.isFinite(x) || x <= 0) return 0;
@@ -48,17 +39,21 @@ function toUnitProba(v: number | null | undefined): number {
   return 1 / (1 + Math.exp(-x / 2));
 }
 
-function displayConfidence(stock: {
-  score?: number;
-  confidence_score?: number;
-  model_proba?: number;
-} | null): number {
-  if (stock?.confidence_score != null && Number.isFinite(Number(stock.confidence_score))) {
-    return Math.round(Number(stock.confidence_score));
-  }
-  const p = toUnitProba(stock?.model_proba ?? stock?.score);
-  return Math.round(Math.min(99, Math.max(75, p * 45 + 75)));
+const MODEL_WEIGHT = 0.8;
+const HEAT_WEIGHT = 0.2;
+
+function combinedScore(modelProba: number, heat: number): number {
+  return modelProba * MODEL_WEIGHT + heat * HEAT_WEIGHT;
 }
+
+const scoreColor = (pct: number) =>
+  pct >= 80
+    ? "text-[#3EE6A8]"
+    : pct >= 70
+      ? "text-status-info"
+      : pct >= 60
+        ? "text-[#F5C451]"
+        : "text-text-secondary";
 
 async function fetchStockDetail(symbol: string): Promise<StockDetail> {
   const clean = symbol.replace(/\.(SH|SZ|sh|sz)$/, "");
@@ -170,8 +165,11 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
   const code = symbol;
   const score = stock?.score ?? 0;
   const modelProba = toUnitProba(stock?.model_proba ?? stock?.lgb_score ?? score);
-  const sectorHeat = toUnitProba(stock?.sector_heat ?? 0.5);
-  const confidence = displayConfidence(stock);
+  const sectorHeat = Math.min(1, Math.max(0, Number(stock?.sector_heat ?? 0.5)));
+  const combined = combinedScore(modelProba, sectorHeat);
+  const modelPct = Math.round(modelProba * 100);
+  const heatPct = Math.round(sectorHeat * 100);
+  const combinedPct = Math.round(combined * 100);
   const buyPrice = stock?.buy_price ?? 0;
   const targetPrice = stock?.target_price ?? 0;
   const stopPrice = stock?.stop_price ?? 0;
@@ -230,12 +228,12 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
 
           <div className="mb-4 text-center">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-text-disabled">综合评分</div>
-            <div className={`font-display-numeric text-[64px] leading-none ${scoreColor(confidence)}`}>
-              {confidence}
+            <div className={`font-display-numeric text-[64px] leading-none ${scoreColor(combinedPct)}`}>
+              {combinedPct}
             </div>
             <div className="mt-2 text-[12px] text-text-secondary">
-              模型概率 <span className="text-text-primary">{(modelProba * 100).toFixed(0)}</span> · 板块热度{" "}
-              <span className="text-text-primary">{(sectorHeat * 100).toFixed(0)}</span>
+              XGBoost <span className="text-text-primary">{modelPct}</span> · 板块热度{" "}
+              <span className="text-text-primary">{heatPct}</span>
             </div>
           </div>
 
@@ -283,16 +281,18 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
             <span className="text-[11px] text-text-disabled">V12 集成</span>
           </div>
           <div className="space-y-4">
-            <BarMeter label="模型概率" value={modelProba} color="#A78BFA" />
+            <BarMeter label="XGBoost 概率" value={modelProba} color="#A78BFA" />
               <BarMeter label="板块热度" value={sectorHeat} color="#3EE6A8" />
               <BarMeter
                 label="综合评分"
-                value={(confidence - 75) / 24}
-                color={confidence >= 90 ? "#3EE6A8" : confidence >= 80 ? "#F5C451" : "#9FB0C7"}
+                value={combined}
+                color={combined >= 0.8 ? "#3EE6A8" : combined >= 0.7 ? "#F5C451" : "#9FB0C7"}
               />
           </div>
           <p className="mt-6 text-[11px] text-text-disabled">
-            综合评分 = 5 模型平均概率 × 0.8 + 板块热度 × 0.2。<br />
+            综合评分 = 模型概率 × {MODEL_WEIGHT} + 板块热度 × {HEAT_WEIGHT}
+            （例：{modelPct}×{MODEL_WEIGHT} + {heatPct}×{HEAT_WEIGHT} ≈ {combinedPct}）。
+            <br />
             V12 集成：AUC 0.681, 53 维特征, 2 天持有, 4%+ 目标涨幅。
           </p>
         </section>

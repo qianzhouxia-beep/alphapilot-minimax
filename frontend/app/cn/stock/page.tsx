@@ -68,25 +68,20 @@ function toUnitProba(v: number | null | undefined): number {
   return 1 / (1 + Math.exp(-x / 2));
 }
 
-/** 大号展示分：优先 confidence_score（75–99） */
-function displayConfidence(stock: {
-  score?: number;
-  confidence_score?: number;
-  model_proba?: number;
-} | null): number {
-  if (stock?.confidence_score != null && Number.isFinite(Number(stock.confidence_score))) {
-    return Math.round(Number(stock.confidence_score));
-  }
-  const p = toUnitProba(stock?.model_proba ?? stock?.score);
-  return Math.round(Math.min(99, Math.max(75, p * 45 + 75)));
+/** 综合评分 = 模型概率×0.8 + 板块热度×0.2（与决策卡说明一致） */
+const MODEL_WEIGHT = 0.8;
+const HEAT_WEIGHT = 0.2;
+
+function combinedScore(modelProba: number, heat: number): number {
+  return modelProba * MODEL_WEIGHT + heat * HEAT_WEIGHT;
 }
 
-const scoreColor = (confidence: number) =>
-  confidence >= 90
+const scoreColor = (pct: number) =>
+  pct >= 80
     ? "text-status-success"
-    : confidence >= 80
+    : pct >= 70
       ? "text-status-info"
-      : confidence >= 70
+      : pct >= 60
         ? "text-status-warning"
         : "text-text-secondary";
 
@@ -196,8 +191,11 @@ export default function CNStockDetail() {
   const code = symbol;
   const score = stock?.score ?? 0;
   const modelProba = toUnitProba(stock?.model_proba ?? stock?.lgb_score ?? score);
-  const heat = toUnitProba(stock?.sector_heat ?? 0.5);
-  const confidence = displayConfidence(stock);
+  const heat = Math.min(1, Math.max(0, Number(stock?.sector_heat ?? 0.5)));
+  const combined = combinedScore(modelProba, heat);
+  const modelPct = Math.round(modelProba * 100);
+  const heatPct = Math.round(heat * 100);
+  const combinedPct = Math.round(combined * 100);
   const change = stock?.live_change_pct ?? stock?.change_pct;
   const price = stock?.live_price ?? stock?.price ?? stock?.buy_price;
   const isWatched = wlSymbols.has(symbol);
@@ -326,12 +324,12 @@ export default function CNStockDetail() {
 
             <div className="mb-4 text-center">
               <div className="mb-1 text-[11px] uppercase tracking-wider text-text-disabled">综合评分</div>
-              <div className={`font-display-numeric text-[56px] leading-none ${scoreColor(confidence)}`}>
-                {confidence}
+              <div className={`font-display-numeric text-[56px] leading-none ${scoreColor(combinedPct)}`}>
+                {combinedPct}
               </div>
               <div className="mt-2 text-[12px] text-text-secondary">
-                模型概率 <span className="text-text-primary">{(modelProba * 100).toFixed(0)}</span>
-                {" · "}板块热度 <span className="text-text-primary">{(heat * 100).toFixed(0)}</span>
+                模型概率 <span className="text-text-primary">{modelPct}</span>
+                {" · "}板块热度 <span className="text-text-primary">{heatPct}</span>
                 {expo != null && (
                   <>
                     {" · "}仓位敞口{" "}
@@ -339,15 +337,18 @@ export default function CNStockDetail() {
                   </>
                 )}
               </div>
+              <p className="mt-2 text-[11px] text-text-disabled">
+                综合 = 模型概率×{MODEL_WEIGHT} + 板块热度×{HEAT_WEIGHT}
+              </p>
             </div>
 
             <div className="space-y-3 mb-4">
-              <BarMeter label="模型概率" value={modelProba} color="#4DA3FF" />
+              <BarMeter label="XGBoost 概率" value={modelProba} color="#4DA3FF" />
               <BarMeter label="板块热度" value={heat} color="#3EE6A8" />
               <BarMeter
                 label="综合评分"
-                value={(confidence - 75) / 24}
-                color={confidence >= 90 ? "#3EE6A8" : confidence >= 80 ? "#F5C451" : "#9FB0C7"}
+                value={combined}
+                color={combined >= 0.8 ? "#3EE6A8" : combined >= 0.7 ? "#F5C451" : "#9FB0C7"}
               />
             </div>
 
