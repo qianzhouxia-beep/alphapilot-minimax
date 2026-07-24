@@ -1,0 +1,81 @@
+{
+  "protocol": "T close signal → T+1 open buy → T+2 close sell; cost 15bp; strictGC+fund+VM2.5",
+  "window": {
+    "start": "2026-04-01",
+    "end": "2026-07-17"
+  },
+  "top_n": 2,
+  "require_pattern": false,
+  "k_eval_pass": 815,
+  "k_eval_fail": 5619,
+  "summaries": [
+    {
+      "arm": "A0_baseline",
+      "n_signals": 146,
+      "n_filled": 144,
+      "n_skipped": 2,
+      "fill_rate": 0.9863013698630136,
+      "n_days": 73,
+      "win_rate": 0.6666666666666666,
+      "hit_3pct_rate": 0.4652777777777778,
+      "avg_return": 0.030852338558579336,
+      "median_return": 0.022691564139203313,
+      "day_win_rate": 0.7534246575342466,
+      "day_avg_return": 0.03066265046032573,
+      "max_drawdown": -0.15796280321790368,
+      "total_return": 6.907589728933974,
+      "skip_reasons": {
+        "open_limit": 1,
+        "outlier_ret": 1
+      },
+      "delta_total_vs_A0": 0.0,
+      "delta_avg_vs_A0": 0.0,
+      "delta_dd_vs_A0": 0.0
+    },
+    {
+      "arm": "K1_hard_gate",
+      "n_signals": 136,
+      "n_filled": 135,
+      "n_skipped": 1,
+      "fill_rate": 0.9926470588235294,
+      "n_days": 71,
+      "win_rate": 0.5703703703703704,
+      "hit_3pct_rate": 0.3333333333333333,
+      "avg_return": 0.013608410474948178,
+      "median_return": 0.007741317633030155,
+      "day_win_rate": 0.6197183098591549,
+      "day_avg_return": 0.014225620257393667,
+      "max_drawdown": -0.2604505927229116,
+      "total_return": 1.4841035253737105,
+      "skip_reasons": {
+        "open_limit": 1
+      },
+      "delta_total_vs_A0": -5.423486203560264,
+      "delta_avg_vs_A0": -0.017243928083631156,
+      "delta_dd_vs_A0": -0.10248778950500792
+    },
+    {
+      "arm": "K2_gate_rerank",
+      "n_signals": 136,
+      "n_filled": 135,
+      "n_skipped": 1,
+      "fill_rate": 0.9926470588235294,
+      "n_days": 71,
+      "win_rate": 0.5555555555555556,
+      "hit_3pct_rate": 0.31851851851851853,
+      "avg_return": 0.012079397420921604,
+      "median_return": 0.0035292397660820498,
+      "day_win_rate": 0.5774647887323944,
+      "day_avg_return": 0.012771981086312065,
+      "max_drawdown": -0.2604505927229116,
+      "total_return": 1.2389195469974013,
+      "skip_reasons": {
+        "open_limit": 1
+      },
+      "delta_total_vs_A0": -5.668670181936573,
+      "delta_avg_vs_A0": -0.018772941137657734,
+      "delta_dd_vs_A0": -0.10248778950500792
+    }
+  ],
+  "elapsed_sec": 1420.7
+}

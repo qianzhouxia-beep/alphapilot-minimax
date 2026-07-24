@@ -1,0 +1,166 @@
+{
+  "protocol": {
+    "rank": "VM2.5 + strict GC + hard fund (A0 selection)",
+    "A0": "GapSoft C (gap_ok=1.5%) + T+2 close",
+    "K_timestop": "same entry; scratch at next open if buy-day peak<1% and open<=cost",
+    "K_entry_tight": "GapSoft gap_ok=1% + T+2 close",
+    "K_both": "tight entry + timestop",
+    "note": "时段过滤(开盘异动/午休)为盘中钟点规则，日频回测无法完整复现",
+    "cost_rt": 0.0015,
+    "top_n": 2
+  },
+  "window": {
+    "start": "2026-04-01",
+    "end": "2026-07-17"
+  },
+  "scratch_events": 16,
+  "summaries": [
+    {
+      "arm": "A0_gapsoft_t2",
+      "n_signals": 146,
+      "n_filled": 135,
+      "n_skipped": 11,
+      "fill_rate": 0.9246575342465754,
+      "n_days": 72,
+      "avg_weight": 0.9691761851708516,
+      "hit_3pct_rate": 0.4444444444444444,
+      "win_rate": 0.6592592592592592,
+      "avg_ret": 0.027591053638880543,
+      "avg_full_ret": 0.02870073039429113,
+      "median_ret": 0.01949447513812147,
+      "day_win_rate": 0.7083333333333334,
+      "day_avg_ret": 0.026928921003851913,
+      "max_drawdown": -0.15796280321790368,
+      "total_return": 4.923842354123388,
+      "entry_modes": {
+        "open_ok": 124,
+        "limit_soft_3_5": 2,
+        "limit_mid": 9
+      },
+      "skip_reasons": {
+        "gap_chase": 3,
+        "limit_miss": 8
+      },
+      "n_scratch": 0,
+      "scratch_rate": 0.0,
+      "exit_modes": {
+        "t2_close": 135
+      },
+      "delta_avg_vs_A0": 0.0,
+      "delta_total_vs_A0": 0.0,
+      "delta_dd_vs_A0": 0.0
+    },
+    {
+      "arm": "K_timestop",
+      "n_signals": 146,
+      "n_filled": 135,
+      "n_skipped": 11,
+      "fill_rate": 0.9246575342465754,
+      "n_days": 72,
+      "avg_weight": 0.9691761851708516,
+      "hit_3pct_rate": 0.42962962962962964,
+      "win_rate": 0.6444444444444445,
+      "avg_ret": 0.026647829640894634,
+      "avg_full_ret": 0.02775668396024963,
+      "median_ret": 0.014455944648404552,
+      "day_win_rate": 0.6944444444444444,
+      "day_avg_ret": 0.02604464850574013,
+      "max_drawdown": -0.18140598084379767,
+      "total_return": 4.6067170061287355,
+      "entry_modes": {
+        "open_ok": 124,
+        "limit_soft_3_5": 2,
+        "limit_mid": 9
+      },
+      "skip_reasons": {
+        "gap_chase": 3,
+        "limit_miss": 8
+      },
+      "n_scratch": 16,
+      "scratch_rate": 0.11851851851851852,
+      "exit_modes": {
+        "t2_close": 119,
+        "k_scratch_open": 16
+      },
+      "delta_avg_vs_A0": -0.0009432239979859092,
+      "delta_total_vs_A0": -0.31712534799465253,
+      "delta_dd_vs_A0": -0.023443177625893985
+    },
+    {
+      "arm": "K_entry_tight",
+      "n_signals": 146,
+      "n_filled": 135,
+      "n_skipped": 11,
+      "fill_rate": 0.9246575342465754,
+      "n_days": 72,
+      "avg_weight": 0.9580650740597405,
+      "hit_3pct_rate": 0.4444444444444444,
+      "win_rate": 0.6592592592592592,
+      "avg_ret": 0.02756196062772808,
+      "avg_full_ret": 0.028823301117392584,
+      "median_ret": 0.018986731747559438,
+      "day_win_rate": 0.7083333333333334,
+      "day_avg_ret": 0.02690164630589649,
+      "max_drawdown": -0.15796280321790368,
+      "total_return": 4.9178226618925756,
+      "entry_modes": {
+        "open_ok": 119,
+        "limit_mid": 14,
+        "limit_soft_3_5": 2
+      },
+      "skip_reasons": {
+        "gap_chase": 3,
+        "limit_miss": 8
+      },
+      "n_scratch": 0,
+      "scratch_rate": 0.0,
+      "exit_modes": {
+        "t2_close": 135
+      },
+      "delta_avg_vs_A0": -2.9093011152461767e-05,
+      "delta_total_vs_A0": -0.006019692230812446,
+      "delta_dd_vs_A0": 0.0
+    },
+    {
+      "arm": "K_both",
+      "n_signals": 146,
+      "n_filled": 135,
+      "n_skipped": 11,
+      "fill_rate": 0.9246575342465754,
+      "n_days": 72,
+      "avg_weight": 0.9580650740597405,
+      "hit_3pct_rate": 0.43703703703703706,
+      "win_rate": 0.6518518518518519,
+      "avg_ret": 0.02726046581120588,
+      "avg_full_ret": 0.028628666404497325,
+      "median_ret": 0.01655727119002323,
+      "day_win_rate": 0.7083333333333334,
+      "day_avg_ret": 0.026618994915406927,
+      "max_drawdown": -0.16086798668088054,
+      "total_return": 4.846977336736207,
+      "entry_modes": {
+        "open_ok": 119,
+        "limit_mid": 14,
+        "limit_soft_3_5": 2
+      },
+      "skip_reasons": {
+        "gap_chase": 3,
+        "limit_miss": 8
+      },
+      "n_scratch": 15,
+      "scratch_rate": 0.1111111111111111,
+      "exit_modes": {
+        "t2_close": 120,
+        "k_scratch_open": 15
+      },
+      "delta_avg_vs_A0": -0.0003305878276746617,
+      "delta_total_vs_A0": -0.07686501738718121,
+      "delta_dd_vs_A0": -0.002905183462976857
+    }
+  ],
+  "recommendation": {
+    "prefer": "A0_gapsoft_t2",
+    "reason": "highest avg_ret among arms (tie-break less negative maxDD)"
+  },
+  "elapsed_sec": 1239.5
+}

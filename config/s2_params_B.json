@@ -1,0 +1,46 @@
+{
+  "arm": "B",
+  "description": "S2 B臂对照：略收紧涨幅区间、提高量比门槛",
+  "s2_rules": {
+    "change_pct": {
+      "type": "range",
+      "range": [1.5, 6.0],
+      "bonus": 0.05,
+      "note": "涨幅性价比区间(更紧)"
+    },
+    "volume_ratio": {
+      "type": "gt",
+      "threshold": 1.8,
+      "bonus": 0.06,
+      "note": "放量门槛更高"
+    },
+    "ma_bullish": {
+      "type": "bool",
+      "bonus": 0.10,
+      "note": "均线多头"
+    },
+    "close_strength": {
+      "type": "range",
+      "range": [0.0, 0.04],
+      "bonus": 0.05,
+      "note": "收盘近最高"
+    },
+    "above_vwap": {
+      "type": "bool",
+      "bonus": 0.05,
+      "note": "站上均价"
+    },
+    "volatility_20d": {
+      "type": "gt",
+      "threshold": 0.025,
+      "bonus": 0.03,
+      "note": "有弹性"
+    },
+    "chip_penetration": {
+      "type": "gt",
+      "threshold": 0.05,
+      "bonus": 0.02,
+      "note": "筹码穿透"
+    }
+  }
+}

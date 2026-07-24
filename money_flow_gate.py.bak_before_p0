@@ -1,0 +1,384 @@
+"""
+AlphaPilot V16+ 实时资金门控 + 多日趋势过滤 + 基本面过滤
+
+V16+ 新特性：
+- 新增「诱空陷阱 🪤」分类：价格下跌但主力暗中吸筹的洗盘信号
+- 新增「右侧潜伏 🎯」分类：吸筹完成、刚启动、即将拉升的起爆点
+- 已有：吸筹末期 🔔、拉升 🚀、诱多嫌疑 ⚠️、出货 ⚠️、回调 📉
+"""
+from enriched_data import get_quotes_batch, get_mootdx_finance_fundamentals
+from config import OUTPUT_DIR
+
+
+def apply_money_flow_gate(
+    recs: list,
+    min_active_buy: float = 0.52,
+    min_turnover: float = 2.0,
+    max_turnover: float = 35.0,
+    min_vol_ratio: float = 0.8,
+    max_drop_pct: float = -5.0,
+    top_n: int = None,
+    check_fundamentals: bool = True,
+) -> list:
+    """对推荐列表施加资金门控 + 多日趋势过滤 + 加权"""
+    if not recs:
+        return recs
+    syms = [r.get("symbol") for r in recs if r.get("symbol")]
+
+    # 1. 实时资金流
+    try:
+        quotes = get_quotes_batch(syms)
+    except Exception:
+        quotes = {}
+
+    # 1.5 资金流历史（多日累计检查）
+    fund_hist = {}
+    _fhp = "data/fund_flow_history.json"
+    if os.path.exists(_fhp):
+        try:
+            fund_hist = json.load(open(_fhp))
+        except:
+            pass
+
+    # 2. 基本面
+    fundamentals = {}
+    if check_fundamentals:
+        try:
+            from enriched_data import batch_mootdx_finance
+            funds = batch_mootdx_finance(syms)
+            for s, f in funds.items():
+                fundamentals[s] = f
+        except Exception:
+            pass
+
+    out = []
+    for r in recs:
+        sym = r.get("symbol")
+        q = quotes.get(sym)
+        feats = r.get("features", {})
+
+        # ── 资金信号（今日） ──
+        if q:
+            abr = q.get("active_buy_ratio", 0.5)
+            to = q.get("turnover", 0.0) or 0.0
+            vr = q.get("volume_ratio", 1.0) or 1.0
+            r["active_buy_ratio"] = round(abr, 4)
+            r["turnover"] = round(to, 2)
+            r["volume_ratio"] = round(vr, 2)
+            money_pass = (abr >= min_active_buy) and (min_turnover <= to <= max_turnover) and (vr >= min_vol_ratio)
+            chg = q.get("change_pct", 0) or 0
+            r["change_pct"] = round(chg, 2)
+            if chg < max_drop_pct:
+                money_pass = False
+                r["drop_reason"] = f"当日跌幅 {round(chg,1)}% 超过阈值"
+        else:
+            money_pass = None
+            abr = 0.5
+            chg = 0
+
+        # ── 多日趋势信号 ──
+        ret_5d = feats.get("ret_5d", 0) or 0
+        ret_3d = feats.get("ret_3d", 0) or 0
+        vol_shrink = feats.get("vol_shrink_days", 0) or 0
+        consecutive = feats.get("consecutive_up", 0) or 0
+        atr_trend = feats.get("atr_trend", 1.0) or 1.0
+        price_vs_low = feats.get("price_vs_5d_low", 1.05) or 1.05
+        ma_dir = feats.get("ma_direction", 1.0) or 1.0
+
+        # 过热过滤
+        overheat_penalty = 0
+        if ret_5d > 0.30:
+            overheat_penalty = -0.3
+            r["overheat_warning"] = f"5日涨幅 {ret_5d*100:.1f}%（短期过热）"
+        elif ret_5d > 0.20:
+            overheat_penalty = -0.1
+            r["overheat_warning"] = f"5日涨幅 {ret_5d*100:.1f}%（偏高）"
+
+        # 缩量蓄力加分
+        accumulation_bonus = 0
+        if vol_shrink >= 3 and atr_trend < 0.9 and price_vs_low < 1.05:
+            accumulation_bonus = 0.15
+            r["accumulation_signal"] = "缩量蓄力"
+        elif vol_shrink >= 2:
+            accumulation_bonus = 0.05
+
+        # 新低警告
+        if price_vs_low < 1.01 and chg < 0:
+            r["new_low_warning"] = "接近5日新低"
+
+        # ── V16+ 资金阶段判断（含诱空陷阱+右侧潜伏）──
+        phase_key, phase_label, phase_emoji = classify_money_phase_v16(
+            abr, chg, vr, to, ret_5d, vol_shrink, atr_trend, price_vs_low
+        )
+        r["money_phase"] = phase_key
+        r["money_phase_label"] = f"{phase_emoji} {phase_label}"
+
+        # ── 多日资金累计检查 ──
+        sym_code = sym[-6:]
+        r["main_net_5d"] = 0
+        r["main_net_10d"] = 0
+        if sym_code in fund_hist:
+            _hist = fund_hist[sym_code]
+            _dates = sorted(_hist.keys(), reverse=True)
+            _nets5 = [float(_hist[d]) for d in _dates[:5] if d in _hist]
+            _nets10 = [float(_hist[d]) for d in _dates[:10] if d in _hist]
+            r["main_net_5d"] = round(sum(_nets5), 2) if len(_nets5) >= 3 else 0
+            r["main_net_10d"] = round(sum(_nets10), 2) if len(_nets10) >= 5 else 0
+            # 当日流入但5日累计流出 → 标记为可疑
+            _today_net = float(r.get("main_net", 0) or 0)
+            if _today_net > 0 and r["main_net_5d"] < 0:
+                r["money_warning"] = f"当日流入但5日累计净流出"
+            elif _today_net > 0 and r["main_net_10d"] < 0:
+                r["money_warning"] = f"当日流入但10日累计净流出"
+
+        # ── 基本面 ──
+        fin = fundamentals.get(sym)
+        if fin:
+            r["net_profit"] = float(fin.get("net_profit", 0))
+            r["eps"] = float(fin.get("eps", 0))
+            r["roe"] = round(float(fin.get("roe", 0)) * 100, 2)
+            r["revenue"] = float(fin.get("revenue", 0))
+            r["industry_code"] = int(fin.get("industry_code", 0))
+            fund_pass = (r["net_profit"] > 0) and (r["eps"] > 0)
+        else:
+            fund_pass = None
+        r["fundamental_pass"] = fund_pass
+
+        # ── 综合门控 ──
+        if money_pass is True and fund_pass is not False:
+            overall_pass = True
+        elif money_pass is None and fund_pass is True:
+            overall_pass = True
+        elif money_pass is True and fund_pass is None:
+            overall_pass = True
+        elif money_pass is None and fund_pass is None:
+            overall_pass = None
+        else:
+            overall_pass = False
+        r["money_flow_pass"] = overall_pass
+
+        # ── 最终分数 ──
+        base = float(r.get("score", 0) or 0)
+        flow_boost = 0.7 + 0.3 * max(0.0, min(1.0, abr))
+        r["score_raw"] = round(base, 4)
+        r["score"] = round(base * flow_boost + accumulation_bonus + overheat_penalty, 4)
+        r["score"] = max(0.01, r["score"])
+        out.append(r)
+
+    # ── S2 规则加权层（后门控，不出局只加分）──
+    for r in out:
+        feats = r.get("features", {})
+        chg = r.get("change_pct", 0) or 0
+        vr = r.get("volume_ratio", 0) or 0
+        s2 = s2_weight_score(
+            change_pct=chg,
+            volume_ratio=vr,
+            ma_bullish=bool(feats.get("ma_direction", 1.0) or 1.0 >= 1.0),
+            close_strength=feats.get("ret_range", 0.5) or 0.5,
+            above_vwap=chg >= 0,  # 简化：涨幅为正即为站上均价
+            volatility_20d=feats.get("atr_pct", 0.02) or 0.02,
+            chip_penetration=feats.get("chip_penetration", 0) or 0,
+        )
+        r["s2_bonus"] = s2
+        r["score"] = round(r.get("score", 0) + s2, 4)
+    
+    # 重排
+    passed_list = [r for r in out if r.get("money_flow_pass") is True]
+    failed_list = [r for r in out if r.get("money_flow_pass") is not True]
+    passed_list.sort(key=lambda x: x.get("score", 0), reverse=True)
+    failed_list.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+    if top_n:
+        if len(passed_list) >= max(3, top_n // 2):
+            result = passed_list[:top_n]
+        else:
+            result = (passed_list + failed_list)[:top_n]
+    else:
+        result = passed_list + failed_list
+    return result
+
+
+def categorize_by_phase(
+    recs: list,
+    min_active_buy: float = 0.52,
+    min_turnover: float = 2.0,
+    max_turnover: float = 35.0,
+    min_vol_ratio: float = 0.8,
+    max_drop_pct: float = -5.0,
+    check_fundamentals: bool = True,
+) -> dict:
+    """对推荐列表施加资金门控并按资金阶段分组
+
+    Returns:
+        {
+            "categories": {
+                "bear_trap": [ {stock}, ... ],        # 🪤 诱空陷阱
+                "rightside_ambush": [ {stock}, ... ],  # 🎯 右侧潜伏
+                "accumulation_end": [ {stock}, ... ],  # 🔔 吸筹末期
+                "markup": [ {stock}, ... ],            # 🚀 拉升
+                "accumulation": [ {stock}, ... ],      # 📥 吸筹
+                "suspicious": [ {stock}, ... ],        # ⚠️ 诱多嫌疑
+                "distribution": [ {stock}, ... ],      # ⚠️ 出货
+                "pullback": [ {stock}, ... ],          # 📉 回调
+                "sideways": [ {stock}, ... ],          # ➡️ 震荡
+            },
+            "stats": { ... }
+        }
+    """
+    gated = apply_money_flow_gate(
+        recs,
+        min_active_buy=min_active_buy,
+        min_turnover=min_turnover,
+        max_turnover=max_turnover,
+        min_vol_ratio=min_vol_ratio,
+        max_drop_pct=max_drop_pct,
+        top_n=None,
+        check_fundamentals=check_fundamentals,
+    )
+
+    categories = {
+        "bear_trap": [],        # 🪤 诱空陷阱
+        "rightside_ambush": [], # 🎯 右侧潜伏
+        "accumulation_end": [], # 🔔 吸筹末期
+        "markup": [],           # 🚀 拉升
+        "accumulation": [],     # 📥 吸筹
+        "suspicious": [],       # ⚠️ 诱多嫌疑
+        "distribution": [],     # ⚠️ 出货
+        "pullback": [],         # 📉 回调
+        "sideways": [],         # ➡️ 震荡
+    }
+
+    for item in gated:
+        phase = item.get("money_phase", "sideways")
+        if phase in categories:
+            categories[phase].append(item)
+
+    # 每类按分数排序
+    for k in categories:
+        categories[k].sort(key=lambda x: x.get("score_raw", 0) or x.get("score", 0), reverse=True)
+
+    return categories
+
+
+# ════════════════════════════════════════════════════════════════
+# V16+ 主力资金阶段判断（含诱空陷阱 + 右侧潜伏）
+# ════════════════════════════════════════════════════════════════
+
+def classify_money_phase_v16(
+    active_buy_ratio: float,
+    change_pct: float,
+    vol_ratio: float,
+    turnover: float,
+    ret_5d: float = 0,
+    vol_shrink_days: int = 0,
+    atr_trend: float = 1.0,
+    price_vs_low: float = 1.05,
+) -> tuple:
+    """V16+ 主力资金阶段判断
+
+    新增分类：
+    - 🪤 诱空陷阱：价格下跌但主力暗中吸筹（洗盘信号）
+    - 🎯 右侧潜伏：吸筹完成、刚启动、即将拉升（起爆点）
+
+    Returns:
+        (phase_key, phase_label, phase_emoji)
+    """
+    abr = active_buy_ratio if active_buy_ratio else 0.5
+    chg = change_pct if change_pct else 0
+    vr = vol_ratio if vol_ratio and vol_ratio > 0 else 1.0
+
+    # ── 出货 ⚠️：放量下跌 + 资金流出 ──
+    if abr < 0.45 and chg < -2.0 and vr > 1.2:
+        return ("distribution", "出货", "⚠️")
+
+    # ── 回调 📉：资金流出 + 阴跌 ──
+    if abr < 0.48 and chg < -1.0:
+        return ("pullback", "回调", "📉")
+
+    # ── 诱空陷阱 🪤：主力压价洗盘，实际在吸筹 ──
+    # 价格下跌但主动性买盘却很高
+    # 量不大（不是真恐慌），价位接近低点
+    if abr >= 0.52 and chg < 0 and vr <= 1.2 and price_vs_low < 1.05:
+        return ("bear_trap", "诱空陷阱", "🪤")
+
+    # ── 吸筹末期 🔔：缩量蓄力 + 主动买 ──
+    if vol_shrink_days >= 3 and abr >= 0.52 and atr_trend < 0.95:
+        return ("accumulation_end", "吸筹末期", "🔔")
+
+    # ── 右侧潜伏 🎯：刚启动的起爆点 ──
+    # 吸筹完成，股价刚刚转涨，量能开始恢复
+    # ATR开始扩张（波动率回归），缩量天数已清零
+    if abr >= 0.52 and chg >= 0 and chg <= 2.5 and vr >= 0.8 and vr <= 2.0 and atr_trend >= 0.95 and vol_shrink_days <= 2:
+        return ("rightside_ambush", "右侧潜伏", "🎯")
+
+    # ── 吸筹 📥：主动买强 + 不涨/微涨 ──
+    if abr >= 0.52 and chg < 2.0:
+        return ("accumulation", "吸筹", "📥")
+
+    # ── 拉升 🚀：主动买强 + 放量大涨 ──
+    if (abr >= 0.55 and chg > 3.0 and vr > 1.5) or (abr >= 0.52 and chg >= 2.0):
+        return ("markup", "拉升", "🚀")
+
+    # ── 诱多嫌疑 ⚠️：高位缩量 + 涨幅大 ──
+    if ret_5d > 0.15 and vol_shrink_days >= 2 and chg > 0:
+        return ("suspicious", "诱多嫌疑", "⚠️")
+
+    # ── 震荡 ➡️ ──
+    return ("sideways", "震荡", "➡️")
+
+
+# ════════════════════════════════════════════════════════════════
+# S2 规则加权层（后门控，不出局只加分）
+# ════════════════════════════════════════════════════════════════
+
+def s2_weight_score(
+    change_pct: float = 0,
+    volume_ratio: float = 0,
+    ma_bullish: bool = False,
+    close_strength: float = 1.0,
+    above_vwap: bool = False,
+    volatility_20d: float = 0,
+    chip_penetration: float = 0,
+) -> float:
+    """计算 S2 规则加分（0 ~ 0.35）
+    
+    规则（与 eod_s2_strategy.py 一致）：
+      +0.05  涨幅 1~7%（性价比区间）
+      +0.05  量比 > 1.5（放量）
+      +0.10  均线多头排列（趋势确认）
+      +0.05  收盘近最高（上影线短）
+      +0.05  站上均价线（日内强势）
+      +0.03  20日波动率 > 0.02（有弹性）
+      +0.02  筹码穿透率 > 0.05（无阻力）
+    """
+    score = 0.0
+    
+    # 1. 涨幅 1% ~ 7%
+    if 1.0 <= change_pct <= 7.0:
+        score += 0.05
+    
+    # 2. 量比 > 1.5
+    if volume_ratio > 1.5:
+        score += 0.05
+    
+    # 3. 均线多头排列
+    if ma_bullish:
+        score += 0.10
+    
+    # 4. 收盘近最高 (high-close)/high < 0.05
+    if 0 < close_strength < 0.05:
+        score += 0.05
+    
+    # 5. 站上均价线
+    if above_vwap:
+        score += 0.05
+    
+    # 6. 波动率加分
+    if volatility_20d > 0.02:
+        score += 0.03
+    
+    # 7. 筹码穿透率加分
+    if chip_penetration > 0.05:
+        score += 0.02
+    
+    return round(score, 4)

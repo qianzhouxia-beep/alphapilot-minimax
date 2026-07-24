@@ -1,0 +1,2021 @@
+{
+  "analysis_time": "2026-07-24 02:27:18",
+  "mode": "demo",
+  "config": {
+    "sample": 200,
+    "n_factors": 66,
+    "cross_sections": 59
+  },
+  "regime_distribution": {
+    "severe": 9,
+    "weak": 12,
+    "normal": 39
+  },
+  "factor_groups": {
+    "核心技术": {
+      "n_total": 8,
+      "n_present": 8
+    },
+    "技术指标": {
+      "n_total": 11,
+      "n_present": 11
+    },
+    "成交量": {
+      "n_total": 5,
+      "n_present": 5
+    },
+    "波动率": {
+      "n_total": 3,
+      "n_present": 3
+    },
+    "量价交互": {
+      "n_total": 3,
+      "n_present": 3
+    },
+    "信号": {
+      "n_total": 2,
+      "n_present": 2
+    },
+    "基本面": {
+      "n_total": 11,
+      "n_present": 11
+    },
+    "事件": {
+      "n_total": 4,
+      "n_present": 4
+    },
+    "资金流": {
+      "n_total": 3,
+      "n_present": 3
+    },
+    "融资融券": {
+      "n_total": 2,
+      "n_present": 2
+    },
+    "衍生因子": {
+      "n_total": 11,
+      "n_present": 8
+    },
+    "筹码": {
+      "n_total": 6,
+      "n_present": 6
+    }
+  },
+  "icir_fwd1d": {
+    "severe": [
+      {
+        "factor": "macd_signal",
+        "n_days": 8,
+        "mean_ic": 0.062,
+        "icir": 1.043,
+        "ic_std": 0.0595,
+        "pos_ic_rate": 0.75
+      },
+      {
+        "factor": "macd",
+        "n_days": 8,
+        "mean_ic": 0.0605,
+        "icir": 0.9106,
+        "ic_std": 0.0665,
+        "pos_ic_rate": 0.75
+      },
+      {
+        "factor": "sma_5",
+        "n_days": 7,
+        "mean_ic": 0.0604,
+        "icir": 0.8848,
+        "ic_std": 0.0683,
+        "pos_ic_rate": 0.7143
+      },
+      {
+        "factor": "turnover",
+        "n_days": 9,
+        "mean_ic": 0.0413,
+        "icir": 0.7697,
+        "ic_std": 0.0537,
+        "pos_ic_rate": 0.8889
+      },
+      {
+        "factor": "macd_hist",
+        "n_days": 8,
+        "mean_ic": 0.0483,
+        "icir": 0.6826,
+        "ic_std": 0.0708,
+        "pos_ic_rate": 0.75
+      },
+      {
+        "factor": "momentum_accel",
+        "n_days": 6,
+        "mean_ic": 0.0621,
+        "icir": 0.6605,
+        "ic_std": 0.0941,
+        "pos_ic_rate": 0.8333
+      },
+      {
+        "factor": "ret_5d",
+        "n_days": 6,
+        "mean_ic": 0.0377,
+        "icir": 0.4371,
+        "ic_std": 0.0862,
+        "pos_ic_rate": 0.6667
+      },
+      {
+        "factor": "bull_confirmation",
+        "n_days": 7,
+        "mean_ic": -0.024,
+        "icir": -0.2715,
+        "ic_std": 0.0885,
+        "pos_ic_rate": 0.5714
+      },
+      {
+        "factor": "gap_pct",
+        "n_days": 8,
+        "mean_ic": -0.0154,
+        "icir": -0.2581,
+        "ic_std": 0.0596,
+        "pos_ic_rate": 0.375
+      },
+      {
+        "factor": "vol_spike",
+        "n_days": 6,
+        "mean_ic": -0.0162,
+        "icir": -0.2291,
+        "ic_std": 0.0707,
+        "pos_ic_rate": 0.3333
+      },
+      {
+        "factor": "ret_range",
+        "n_days": 8,
+        "mean_ic": 0.0103,
+        "icir": 0.1909,
+        "ic_std": 0.0539,
+        "pos_ic_rate": 0.375
+      },
+      {
+        "factor": "amount_ratio_5",
+        "n_days": 7,
+        "mean_ic": 0.0019,
+        "icir": 0.0255,
+        "ic_std": 0.0725,
+        "pos_ic_rate": 0.2857
+      }
+    ],
+    "weak": [
+      {
+        "factor": "macd_hist",
+        "n_days": 12,
+        "mean_ic": 0.0653,
+        "icir": 1.4197,
+        "ic_std": 0.046,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "conv_div",
+        "n_days": 11,
+        "mean_ic": 0.0703,
+        "icir": 1.4124,
+        "ic_std": 0.0497,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "rsi_14",
+        "n_days": 12,
+        "mean_ic": 0.0749,
+        "icir": 1.3215,
+        "ic_std": 0.0567,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "ma_dist_pct",
+        "n_days": 11,
+        "mean_ic": 0.0646,
+        "icir": 1.2519,
+        "ic_std": 0.0516,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "volume_price",
+        "n_days": 11,
+        "mean_ic": 0.0609,
+        "icir": 1.1674,
+        "ic_std": 0.0522,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "ret_5d",
+        "n_days": 12,
+        "mean_ic": 0.0542,
+        "icir": 1.0856,
+        "ic_std": 0.0499,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "trend_strength",
+        "n_days": 9,
+        "mean_ic": 0.0492,
+        "icir": 0.9867,
+        "ic_std": 0.0499,
+        "pos_ic_rate": 0.7778
+      },
+      {
+        "factor": "sma_5",
+        "n_days": 12,
+        "mean_ic": 0.0544,
+        "icir": 0.9746,
+        "ic_std": 0.0558,
+        "pos_ic_rate": 0.8333
+      },
+      {
+        "factor": "macd",
+        "n_days": 12,
+        "mean_ic": 0.059,
+        "icir": 0.9723,
+        "ic_std": 0.0607,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "momentum_accel",
+        "n_days": 12,
+        "mean_ic": 0.0538,
+        "icir": 0.9471,
+        "ic_std": 0.0568,
+        "pos_ic_rate": 0.75
+      },
+      {
+        "factor": "macd_signal",
+        "n_days": 12,
+        "mean_ic": 0.0528,
+        "icir": 0.8745,
+        "ic_std": 0.0604,
+        "pos_ic_rate": 0.75
+      },
+      {
+        "factor": "vpt_20",
+        "n_days": 11,
+        "mean_ic": 0.049,
+        "icir": 0.8586,
+        "ic_std": 0.0571,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "ret_20d",
+        "n_days": 11,
+        "mean_ic": 0.0541,
+        "icir": 0.7981,
+        "ic_std": 0.0678,
+        "pos_ic_rate": 0.7273
+      },
+      {
+        "factor": "sma_20",
+        "n_days": 11,
+        "mean_ic": 0.0416,
+        "icir": 0.7676,
+        "ic_std": 0.0541,
+        "pos_ic_rate": 0.8182
+      },
+      {
+        "factor": "cmf_20",
+        "n_days": 11,
+        "mean_ic": 0.0187,
+        "icir": 0.6902,
+        "ic_std": 0.0271,
+        "pos_ic_rate": 0.7273
+      },
+      {
+        "factor": "turnover",
+        "n_days": 12,
+        "mean_ic": 0.0549,
+        "icir": 0.6688,
+        "ic_std": 0.0821,
+        "pos_ic_rate": 0.5833
+      },
+      {
+        "factor": "turnover_ratio",
+        "n_days": 11,
+        "mean_ic": 0.0516,
+        "icir": 0.6154,
+        "ic_std": 0.0838,
+        "pos_ic_rate": 0.6364
+      },
+      {
+        "factor": "up_down_vol_ratio",
+        "n_days": 11,
+        "mean_ic": 0.0429,
+        "icir": 0.5071,
+        "ic_std": 0.0846,
+        "pos_ic_rate": 0.7273
+      },
+      {
+        "factor": "atr_14",
+        "n_days": 12,
+        "mean_ic": 0.0313,
+        "icir": 0.5065,
+        "ic_std": 0.0618,
+        "pos_ic_rate": 0.75
+      },
+      {
+        "factor": "bb_width",
+        "n_days": 11,
+        "mean_ic": 0.0222,
+        "icir": 0.5018,
+        "ic_std": 0.0442,
+        "pos_ic_rate": 0.7273
+      },
+      {
+        "factor": "gap_pct",
+        "n_days": 12,
+        "mean_ic": 0.0317,
+        "icir": 0.4391,
+        "ic_std": 0.0721,
+        "pos_ic_rate": 0.6667
+      },
+      {
+        "factor": "vol_turnover",
+        "n_days": 11,
+        "mean_ic": 0.0316,
+        "icir": 0.4084,
+        "ic_std": 0.0775,
+        "pos_ic_rate": 0.5455
+      },
+      {
+        "factor": "amount_ratio_20",
+        "n_days": 11,
+        "mean_ic": 0.0281,
+        "icir": 0.4005,
+        "ic_std": 0.0702,
+        "pos_ic_rate": 0.6364
+      },
+      {
+        "factor": "amt_ma_ratio",
+        "n_days": 11,
+        "mean_ic": 0.0281,
+        "icir": 0.4005,
+        "ic_std": 0.0702,
+        "pos_ic_rate": 0.6364
+      },
+      {
+        "factor": "amount_ratio_5",
+        "n_days": 12,
+        "mean_ic": 0.0217,
+        "icir": 0.3481,
+        "ic_std": 0.0623,
+        "pos_ic_rate": 0.5833
+      },
+      {
+        "factor": "bull_confirmation",
+        "n_days": 12,
+        "mean_ic": 0.0179,
+        "icir": 0.3475,
+        "ic_std": 0.0514,
+        "pos_ic_rate": 0.6667
+      },
+      {
+        "factor": "ma_cross_5_20",
+        "n_days": 11,
+        "mean_ic": 0.0195,
+        "icir": 0.2698,
+        "ic_std": 0.0721,
+        "pos_ic_rate": 0.7273
+      },
+      {
+        "factor": "vol_kurt_20",
+        "n_days": 11,
+        "mean_ic": 0.0169,
+        "icir": 0.2508,
+        "ic_std": 0.0674,
+        "pos_ic_rate": 0.7273
+      },
+      {
+        "factor": "vol_ma_ratio",
+        "n_days": 11,
+        "mean_ic": 0.0176,
+        "icir": 0.2476,
+        "ic_std": 0.0709,
+        "pos_ic_rate": 0.4545
+      },
+      {
+        "factor": "money_flow_vol",
+        "n_days": 11,
+        "mean_ic": 0.0176,
+        "icir": 0.2476,
+        "ic_std": 0.0709,
+        "pos_ic_rate": 0.4545
+      },
+      {
+        "factor": "turnover_ma_20",
+        "n_days": 11,
+        "mean_ic": -0.0106,
+        "icir": -0.1851,
+        "ic_std": 0.0571,
+        "pos_ic_rate": 0.3636
+      },
+      {
+        "factor": "ret_range",
+        "n_days": 12,
+        "mean_ic": 0.0122,
+        "icir": 0.1781,
+        "ic_std": 0.0687,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "atr_pct",
+        "n_days": 12,
+        "mean_ic": -0.009,
+        "icir": -0.1535,
+        "ic_std": 0.0588,
+        "pos_ic_rate": 0.4167
+      },
+      {
+        "factor": "price_vol_corr_20",
+        "n_days": 11,
+        "mean_ic": 0.0092,
+        "icir": 0.1253,
+        "ic_std": 0.0732,
+        "pos_ic_rate": 0.4545
+      },
+      {
+        "factor": "vol_spike",
+        "n_days": 12,
+        "mean_ic": 0.0073,
+        "icir": 0.1221,
+        "ic_std": 0.0594,
+        "pos_ic_rate": 0.5833
+      },
+      {
+        "factor": "vol_20d",
+        "n_days": 11,
+        "mean_ic": 0.0054,
+        "icir": 0.0899,
+        "ic_std": 0.0598,
+        "pos_ic_rate": 0.4545
+      },
+      {
+        "factor": "vol_skew_20",
+        "n_days": 11,
+        "mean_ic": -0.0043,
+        "icir": -0.0635,
+        "ic_std": 0.0684,
+        "pos_ic_rate": 0.4545
+      }
+    ],
+    "normal": [
+      {
+        "factor": "atr_14",
+        "n_days": 38,
+        "mean_ic": 0.0692,
+        "icir": 1.2036,
+        "ic_std": 0.0575,
+        "pos_ic_rate": 0.9211
+      },
+      {
+        "factor": "macd_signal",
+        "n_days": 38,
+        "mean_ic": 0.0746,
+        "icir": 1.1326,
+        "ic_std": 0.0659,
+        "pos_ic_rate": 0.8421
+      },
+      {
+        "factor": "sma_5",
+        "n_days": 38,
+        "mean_ic": 0.069,
+        "icir": 1.0655,
+        "ic_std": 0.0648,
+        "pos_ic_rate": 0.8684
+      },
+      {
+        "factor": "macd",
+        "n_days": 38,
+        "mean_ic": 0.0734,
+        "icir": 1.0636,
+        "ic_std": 0.069,
+        "pos_ic_rate": 0.8684
+      },
+      {
+        "factor": "vpt_20",
+        "n_days": 38,
+        "mean_ic": 0.0658,
+        "icir": 1.0441,
+        "ic_std": 0.063,
+        "pos_ic_rate": 0.8421
+      },
+      {
+        "factor": "sma_20",
+        "n_days": 38,
+        "mean_ic": 0.0649,
+        "icir": 1.0013,
+        "ic_std": 0.0648,
+        "pos_ic_rate": 0.8421
+      },
+      {
+        "factor": "ret_20d",
+        "n_days": 38,
+        "mean_ic": 0.0675,
+        "icir": 0.9979,
+        "ic_std": 0.0677,
+        "pos_ic_rate": 0.8158
+      },
+      {
+        "factor": "bb_width",
+        "n_days": 38,
+        "mean_ic": 0.055,
+        "icir": 0.9251,
+        "ic_std": 0.0595,
+        "pos_ic_rate": 0.8421
+      },
+      {
+        "factor": "conv_div",
+        "n_days": 38,
+        "mean_ic": 0.0586,
+        "icir": 0.8172,
+        "ic_std": 0.0717,
+        "pos_ic_rate": 0.8158
+      },
+      {
+        "factor": "ma_dist_pct",
+        "n_days": 38,
+        "mean_ic": 0.0576,
+        "icir": 0.7976,
+        "ic_std": 0.0722,
+        "pos_ic_rate": 0.8158
+      },
+      {
+        "factor": "rsi_14",
+        "n_days": 38,
+        "mean_ic": 0.0556,
+        "icir": 0.7904,
+        "ic_std": 0.0703,
+        "pos_ic_rate": 0.7632
+      },
+      {
+        "factor": "sma_60",
+        "n_days": 29,
+        "mean_ic": 0.0515,
+        "icir": 0.7526,
+        "ic_std": 0.0685,
+        "pos_ic_rate": 0.8276
+      },
+      {
+        "factor": "up_down_vol_ratio",
+        "n_days": 38,
+        "mean_ic": 0.0535,
+        "icir": 0.7475,
+        "ic_std": 0.0715,
+        "pos_ic_rate": 0.7895
+      },
+      {
+        "factor": "volume_price",
+        "n_days": 38,
+        "mean_ic": 0.0535,
+        "icir": 0.6751,
+        "ic_std": 0.0793,
+        "pos_ic_rate": 0.7632
+      },
+      {
+        "factor": "low_price_buy",
+        "n_days": 29,
+        "mean_ic": -0.0434,
+        "icir": -0.6016,
+        "ic_std": 0.0721,
+        "pos_ic_rate": 0.2414
+      },
+      {
+        "factor": "gap_pct",
+        "n_days": 38,
+        "mean_ic": 0.0368,
+        "icir": 0.5422,
+        "ic_std": 0.0678,
+        "pos_ic_rate": 0.6579
+      },
+      {
+        "factor": "trend_strength",
+        "n_days": 38,
+        "mean_ic": 0.0389,
+        "icir": 0.5073,
+        "ic_std": 0.0768,
+        "pos_ic_rate": 0.6579
+      },
+      {
+        "factor": "ret_5d",
+        "n_days": 38,
+        "mean_ic": 0.036,
+        "icir": 0.4792,
+        "ic_std": 0.0751,
+        "pos_ic_rate": 0.6842
+      },
+      {
+        "factor": "momentum_accel",
+        "n_days": 38,
+        "mean_ic": 0.0336,
+        "icir": 0.4428,
+        "ic_std": 0.0759,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "macd_hist",
+        "n_days": 38,
+        "mean_ic": 0.0205,
+        "icir": 0.2827,
+        "ic_std": 0.0727,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "bull_confirmation",
+        "n_days": 38,
+        "mean_ic": 0.0183,
+        "icir": 0.2744,
+        "ic_std": 0.0665,
+        "pos_ic_rate": 0.5526
+      },
+      {
+        "factor": "cmf_20",
+        "n_days": 38,
+        "mean_ic": -0.0185,
+        "icir": -0.267,
+        "ic_std": 0.0693,
+        "pos_ic_rate": 0.4211
+      },
+      {
+        "factor": "price_vol_corr_20",
+        "n_days": 38,
+        "mean_ic": 0.0174,
+        "icir": 0.2325,
+        "ic_std": 0.0748,
+        "pos_ic_rate": 0.5789
+      },
+      {
+        "factor": "amount_ratio_20",
+        "n_days": 38,
+        "mean_ic": 0.016,
+        "icir": 0.227,
+        "ic_std": 0.0704,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "amt_ma_ratio",
+        "n_days": 38,
+        "mean_ic": 0.016,
+        "icir": 0.227,
+        "ic_std": 0.0704,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "ma_cross_20_60",
+        "n_days": 25,
+        "mean_ic": -0.0157,
+        "icir": -0.2081,
+        "ic_std": 0.0756,
+        "pos_ic_rate": 0.48
+      },
+      {
+        "factor": "atr_pct",
+        "n_days": 38,
+        "mean_ic": 0.015,
+        "icir": 0.198,
+        "ic_std": 0.0758,
+        "pos_ic_rate": 0.5789
+      },
+      {
+        "factor": "turnover",
+        "n_days": 38,
+        "mean_ic": 0.0126,
+        "icir": 0.1839,
+        "ic_std": 0.0684,
+        "pos_ic_rate": 0.6579
+      },
+      {
+        "factor": "turnover_ratio",
+        "n_days": 38,
+        "mean_ic": 0.0115,
+        "icir": 0.175,
+        "ic_std": 0.0656,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "vol_turnover",
+        "n_days": 38,
+        "mean_ic": 0.0112,
+        "icir": 0.1571,
+        "ic_std": 0.0714,
+        "pos_ic_rate": 0.5789
+      },
+      {
+        "factor": "ret_range",
+        "n_days": 38,
+        "mean_ic": 0.0087,
+        "icir": 0.1413,
+        "ic_std": 0.0617,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "vol_ma_ratio",
+        "n_days": 38,
+        "mean_ic": 0.0075,
+        "icir": 0.1088,
+        "ic_std": 0.069,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "money_flow_vol",
+        "n_days": 38,
+        "mean_ic": 0.0075,
+        "icir": 0.1088,
+        "ic_std": 0.069,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "amount_ratio_5",
+        "n_days": 38,
+        "mean_ic": 0.0078,
+        "icir": 0.106,
+        "ic_std": 0.074,
+        "pos_ic_rate": 0.5526
+      },
+      {
+        "factor": "vol_20d",
+        "n_days": 38,
+        "mean_ic": -0.0061,
+        "icir": -0.0727,
+        "ic_std": 0.0838,
+        "pos_ic_rate": 0.4737
+      },
+      {
+        "factor": "ma_cross_5_20",
+        "n_days": 38,
+        "mean_ic": 0.0049,
+        "icir": 0.0694,
+        "ic_std": 0.0712,
+        "pos_ic_rate": 0.5263
+      },
+      {
+        "factor": "vol_kurt_20",
+        "n_days": 38,
+        "mean_ic": 0.0042,
+        "icir": 0.0639,
+        "ic_std": 0.0654,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "vol_spike",
+        "n_days": 38,
+        "mean_ic": -0.0015,
+        "icir": -0.0288,
+        "ic_std": 0.0529,
+        "pos_ic_rate": 0.4737
+      },
+      {
+        "factor": "vol_skew_20",
+        "n_days": 38,
+        "mean_ic": -0.0016,
+        "icir": -0.0222,
+        "ic_std": 0.0735,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "turnover_ma_20",
+        "n_days": 38,
+        "mean_ic": 0.0018,
+        "icir": 0.021,
+        "ic_std": 0.086,
+        "pos_ic_rate": 0.5263
+      }
+    ]
+  },
+  "icir_tradable": {
+    "severe": [
+      {
+        "factor": "momentum_accel",
+        "n_days": 6,
+        "mean_ic": 0.0493,
+        "icir": 0.5052,
+        "ic_std": 0.0975,
+        "pos_ic_rate": 0.6667
+      },
+      {
+        "factor": "amount_ratio_5",
+        "n_days": 7,
+        "mean_ic": -0.0191,
+        "icir": -0.3899,
+        "ic_std": 0.0489,
+        "pos_ic_rate": 0.2857
+      },
+      {
+        "factor": "sma_5",
+        "n_days": 7,
+        "mean_ic": 0.0436,
+        "icir": 0.3648,
+        "ic_std": 0.1194,
+        "pos_ic_rate": 0.5714
+      },
+      {
+        "factor": "ret_5d",
+        "n_days": 6,
+        "mean_ic": 0.0378,
+        "icir": 0.3576,
+        "ic_std": 0.1057,
+        "pos_ic_rate": 0.8333
+      },
+      {
+        "factor": "macd_signal",
+        "n_days": 8,
+        "mean_ic": 0.0345,
+        "icir": 0.3085,
+        "ic_std": 0.1117,
+        "pos_ic_rate": 0.625
+      },
+      {
+        "factor": "macd",
+        "n_days": 8,
+        "mean_ic": 0.0322,
+        "icir": 0.278,
+        "ic_std": 0.1157,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "ret_range",
+        "n_days": 8,
+        "mean_ic": -0.0175,
+        "icir": -0.2651,
+        "ic_std": 0.0658,
+        "pos_ic_rate": 0.375
+      },
+      {
+        "factor": "macd_hist",
+        "n_days": 8,
+        "mean_ic": 0.0207,
+        "icir": 0.1892,
+        "ic_std": 0.1093,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "turnover",
+        "n_days": 9,
+        "mean_ic": -0.0033,
+        "icir": -0.0368,
+        "ic_std": 0.0886,
+        "pos_ic_rate": 0.5556
+      },
+      {
+        "factor": "vol_spike",
+        "n_days": 6,
+        "mean_ic": -0.0016,
+        "icir": -0.0278,
+        "ic_std": 0.0581,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "bull_confirmation",
+        "n_days": 7,
+        "mean_ic": -0.0008,
+        "icir": -0.0112,
+        "ic_std": 0.068,
+        "pos_ic_rate": 0.5714
+      },
+      {
+        "factor": "gap_pct",
+        "n_days": 8,
+        "mean_ic": 0.0003,
+        "icir": 0.0071,
+        "ic_std": 0.049,
+        "pos_ic_rate": 0.75
+      }
+    ],
+    "weak": [
+      {
+        "factor": "ret_20d",
+        "n_days": 11,
+        "mean_ic": 0.1041,
+        "icir": 1.6484,
+        "ic_std": 0.0632,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "ret_5d",
+        "n_days": 12,
+        "mean_ic": 0.0706,
+        "icir": 1.6302,
+        "ic_std": 0.0433,
+        "pos_ic_rate": 1.0
+      },
+      {
+        "factor": "macd_signal",
+        "n_days": 12,
+        "mean_ic": 0.0911,
+        "icir": 1.5912,
+        "ic_std": 0.0572,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "macd",
+        "n_days": 12,
+        "mean_ic": 0.0964,
+        "icir": 1.558,
+        "ic_std": 0.0619,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "sma_5",
+        "n_days": 12,
+        "mean_ic": 0.0897,
+        "icir": 1.4937,
+        "ic_std": 0.06,
+        "pos_ic_rate": 0.8333
+      },
+      {
+        "factor": "momentum_accel",
+        "n_days": 12,
+        "mean_ic": 0.0778,
+        "icir": 1.4694,
+        "ic_std": 0.0529,
+        "pos_ic_rate": 1.0
+      },
+      {
+        "factor": "vpt_20",
+        "n_days": 11,
+        "mean_ic": 0.0957,
+        "icir": 1.3898,
+        "ic_std": 0.0688,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "conv_div",
+        "n_days": 11,
+        "mean_ic": 0.0836,
+        "icir": 1.3559,
+        "ic_std": 0.0617,
+        "pos_ic_rate": 0.8182
+      },
+      {
+        "factor": "ma_dist_pct",
+        "n_days": 11,
+        "mean_ic": 0.0835,
+        "icir": 1.3074,
+        "ic_std": 0.0639,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "sma_20",
+        "n_days": 11,
+        "mean_ic": 0.0714,
+        "icir": 1.2872,
+        "ic_std": 0.0555,
+        "pos_ic_rate": 0.9091
+      },
+      {
+        "factor": "rsi_14",
+        "n_days": 12,
+        "mean_ic": 0.078,
+        "icir": 1.2758,
+        "ic_std": 0.0612,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "up_down_vol_ratio",
+        "n_days": 11,
+        "mean_ic": 0.0835,
+        "icir": 1.271,
+        "ic_std": 0.0657,
+        "pos_ic_rate": 0.8182
+      },
+      {
+        "factor": "volume_price",
+        "n_days": 11,
+        "mean_ic": 0.0756,
+        "icir": 1.2408,
+        "ic_std": 0.0609,
+        "pos_ic_rate": 0.8182
+      },
+      {
+        "factor": "atr_14",
+        "n_days": 12,
+        "mean_ic": 0.0634,
+        "icir": 1.2212,
+        "ic_std": 0.0519,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "bb_width",
+        "n_days": 11,
+        "mean_ic": 0.0624,
+        "icir": 1.1496,
+        "ic_std": 0.0543,
+        "pos_ic_rate": 0.8182
+      },
+      {
+        "factor": "vol_spike",
+        "n_days": 12,
+        "mean_ic": -0.027,
+        "icir": -0.817,
+        "ic_std": 0.033,
+        "pos_ic_rate": 0.25
+      },
+      {
+        "factor": "gap_pct",
+        "n_days": 12,
+        "mean_ic": 0.0424,
+        "icir": 0.7991,
+        "ic_std": 0.0531,
+        "pos_ic_rate": 0.9167
+      },
+      {
+        "factor": "macd_hist",
+        "n_days": 12,
+        "mean_ic": 0.0549,
+        "icir": 0.7803,
+        "ic_std": 0.0703,
+        "pos_ic_rate": 0.75
+      },
+      {
+        "factor": "vol_kurt_20",
+        "n_days": 11,
+        "mean_ic": 0.0401,
+        "icir": 0.6728,
+        "ic_std": 0.0596,
+        "pos_ic_rate": 0.8182
+      },
+      {
+        "factor": "trend_strength",
+        "n_days": 9,
+        "mean_ic": 0.04,
+        "icir": 0.5722,
+        "ic_std": 0.0698,
+        "pos_ic_rate": 0.7778
+      },
+      {
+        "factor": "vol_skew_20",
+        "n_days": 11,
+        "mean_ic": -0.0304,
+        "icir": -0.4925,
+        "ic_std": 0.0617,
+        "pos_ic_rate": 0.0909
+      },
+      {
+        "factor": "vol_ma_ratio",
+        "n_days": 11,
+        "mean_ic": -0.0299,
+        "icir": -0.409,
+        "ic_std": 0.073,
+        "pos_ic_rate": 0.3636
+      },
+      {
+        "factor": "money_flow_vol",
+        "n_days": 11,
+        "mean_ic": -0.0299,
+        "icir": -0.409,
+        "ic_std": 0.073,
+        "pos_ic_rate": 0.3636
+      },
+      {
+        "factor": "amount_ratio_5",
+        "n_days": 12,
+        "mean_ic": -0.0266,
+        "icir": -0.3755,
+        "ic_std": 0.0709,
+        "pos_ic_rate": 0.4167
+      },
+      {
+        "factor": "vol_turnover",
+        "n_days": 11,
+        "mean_ic": -0.026,
+        "icir": -0.3292,
+        "ic_std": 0.079,
+        "pos_ic_rate": 0.3636
+      },
+      {
+        "factor": "vol_20d",
+        "n_days": 11,
+        "mean_ic": 0.0171,
+        "icir": 0.2271,
+        "ic_std": 0.0752,
+        "pos_ic_rate": 0.5455
+      },
+      {
+        "factor": "ret_range",
+        "n_days": 12,
+        "mean_ic": 0.0184,
+        "icir": 0.2255,
+        "ic_std": 0.0815,
+        "pos_ic_rate": 0.6667
+      },
+      {
+        "factor": "amount_ratio_20",
+        "n_days": 11,
+        "mean_ic": -0.0169,
+        "icir": -0.2249,
+        "ic_std": 0.075,
+        "pos_ic_rate": 0.3636
+      },
+      {
+        "factor": "amt_ma_ratio",
+        "n_days": 11,
+        "mean_ic": -0.0169,
+        "icir": -0.2249,
+        "ic_std": 0.075,
+        "pos_ic_rate": 0.3636
+      },
+      {
+        "factor": "price_vol_corr_20",
+        "n_days": 11,
+        "mean_ic": 0.0138,
+        "icir": 0.1881,
+        "ic_std": 0.0731,
+        "pos_ic_rate": 0.7273
+      },
+      {
+        "factor": "turnover_ma_20",
+        "n_days": 11,
+        "mean_ic": 0.0099,
+        "icir": 0.1432,
+        "ic_std": 0.0691,
+        "pos_ic_rate": 0.5455
+      },
+      {
+        "factor": "cmf_20",
+        "n_days": 11,
+        "mean_ic": 0.0056,
+        "icir": 0.0934,
+        "ic_std": 0.0595,
+        "pos_ic_rate": 0.5455
+      },
+      {
+        "factor": "turnover_ratio",
+        "n_days": 11,
+        "mean_ic": -0.0054,
+        "icir": -0.082,
+        "ic_std": 0.0656,
+        "pos_ic_rate": 0.6364
+      },
+      {
+        "factor": "turnover",
+        "n_days": 12,
+        "mean_ic": -0.0051,
+        "icir": -0.0812,
+        "ic_std": 0.0633,
+        "pos_ic_rate": 0.6667
+      },
+      {
+        "factor": "atr_pct",
+        "n_days": 12,
+        "mean_ic": 0.0055,
+        "icir": 0.0772,
+        "ic_std": 0.0715,
+        "pos_ic_rate": 0.5833
+      },
+      {
+        "factor": "bull_confirmation",
+        "n_days": 12,
+        "mean_ic": -0.0028,
+        "icir": -0.0363,
+        "ic_std": 0.0768,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "ma_cross_5_20",
+        "n_days": 11,
+        "mean_ic": -0.0017,
+        "icir": -0.0186,
+        "ic_std": 0.0934,
+        "pos_ic_rate": 0.5455
+      }
+    ],
+    "normal": [
+      {
+        "factor": "ret_20d",
+        "n_days": 38,
+        "mean_ic": 0.0947,
+        "icir": 1.5632,
+        "ic_std": 0.0606,
+        "pos_ic_rate": 0.9474
+      },
+      {
+        "factor": "conv_div",
+        "n_days": 38,
+        "mean_ic": 0.0906,
+        "icir": 1.5329,
+        "ic_std": 0.0591,
+        "pos_ic_rate": 0.9474
+      },
+      {
+        "factor": "ma_dist_pct",
+        "n_days": 38,
+        "mean_ic": 0.0899,
+        "icir": 1.4892,
+        "ic_std": 0.0603,
+        "pos_ic_rate": 0.9211
+      },
+      {
+        "factor": "macd",
+        "n_days": 38,
+        "mean_ic": 0.0971,
+        "icir": 1.4475,
+        "ic_std": 0.0671,
+        "pos_ic_rate": 0.9737
+      },
+      {
+        "factor": "rsi_14",
+        "n_days": 38,
+        "mean_ic": 0.0832,
+        "icir": 1.3478,
+        "ic_std": 0.0617,
+        "pos_ic_rate": 0.9474
+      },
+      {
+        "factor": "vpt_20",
+        "n_days": 38,
+        "mean_ic": 0.0886,
+        "icir": 1.329,
+        "ic_std": 0.0667,
+        "pos_ic_rate": 0.9474
+      },
+      {
+        "factor": "up_down_vol_ratio",
+        "n_days": 38,
+        "mean_ic": 0.0832,
+        "icir": 1.3189,
+        "ic_std": 0.0631,
+        "pos_ic_rate": 0.9211
+      },
+      {
+        "factor": "volume_price",
+        "n_days": 38,
+        "mean_ic": 0.0869,
+        "icir": 1.3056,
+        "ic_std": 0.0665,
+        "pos_ic_rate": 0.8684
+      },
+      {
+        "factor": "sma_5",
+        "n_days": 38,
+        "mean_ic": 0.0917,
+        "icir": 1.2953,
+        "ic_std": 0.0708,
+        "pos_ic_rate": 0.8947
+      },
+      {
+        "factor": "trend_strength",
+        "n_days": 38,
+        "mean_ic": 0.0738,
+        "icir": 1.2534,
+        "ic_std": 0.0589,
+        "pos_ic_rate": 0.8947
+      },
+      {
+        "factor": "sma_60",
+        "n_days": 29,
+        "mean_ic": 0.083,
+        "icir": 1.2194,
+        "ic_std": 0.0681,
+        "pos_ic_rate": 0.8621
+      },
+      {
+        "factor": "momentum_accel",
+        "n_days": 38,
+        "mean_ic": 0.0797,
+        "icir": 1.1996,
+        "ic_std": 0.0665,
+        "pos_ic_rate": 0.8421
+      },
+      {
+        "factor": "macd_signal",
+        "n_days": 38,
+        "mean_ic": 0.0905,
+        "icir": 1.1895,
+        "ic_std": 0.076,
+        "pos_ic_rate": 0.8684
+      },
+      {
+        "factor": "ret_5d",
+        "n_days": 38,
+        "mean_ic": 0.0801,
+        "icir": 1.1656,
+        "ic_std": 0.0687,
+        "pos_ic_rate": 0.8684
+      },
+      {
+        "factor": "atr_14",
+        "n_days": 38,
+        "mean_ic": 0.0723,
+        "icir": 1.1381,
+        "ic_std": 0.0635,
+        "pos_ic_rate": 0.8421
+      },
+      {
+        "factor": "sma_20",
+        "n_days": 38,
+        "mean_ic": 0.0806,
+        "icir": 1.117,
+        "ic_std": 0.0722,
+        "pos_ic_rate": 0.8684
+      },
+      {
+        "factor": "low_price_buy",
+        "n_days": 29,
+        "mean_ic": -0.0698,
+        "icir": -1.0873,
+        "ic_std": 0.0642,
+        "pos_ic_rate": 0.2069
+      },
+      {
+        "factor": "macd_hist",
+        "n_days": 38,
+        "mean_ic": 0.0507,
+        "icir": 0.7071,
+        "ic_std": 0.0717,
+        "pos_ic_rate": 0.6842
+      },
+      {
+        "factor": "gap_pct",
+        "n_days": 38,
+        "mean_ic": 0.0384,
+        "icir": 0.551,
+        "ic_std": 0.0697,
+        "pos_ic_rate": 0.7105
+      },
+      {
+        "factor": "bb_width",
+        "n_days": 38,
+        "mean_ic": 0.0351,
+        "icir": 0.4835,
+        "ic_std": 0.0725,
+        "pos_ic_rate": 0.6842
+      },
+      {
+        "factor": "vol_spike",
+        "n_days": 38,
+        "mean_ic": -0.0377,
+        "icir": -0.4777,
+        "ic_std": 0.079,
+        "pos_ic_rate": 0.3158
+      },
+      {
+        "factor": "vol_kurt_20",
+        "n_days": 38,
+        "mean_ic": -0.0225,
+        "icir": -0.3104,
+        "ic_std": 0.0724,
+        "pos_ic_rate": 0.3947
+      },
+      {
+        "factor": "amount_ratio_5",
+        "n_days": 38,
+        "mean_ic": -0.0164,
+        "icir": -0.2546,
+        "ic_std": 0.0646,
+        "pos_ic_rate": 0.5263
+      },
+      {
+        "factor": "cmf_20",
+        "n_days": 38,
+        "mean_ic": -0.0182,
+        "icir": -0.2264,
+        "ic_std": 0.0805,
+        "pos_ic_rate": 0.4211
+      },
+      {
+        "factor": "atr_pct",
+        "n_days": 38,
+        "mean_ic": -0.016,
+        "icir": -0.2261,
+        "ic_std": 0.0707,
+        "pos_ic_rate": 0.3684
+      },
+      {
+        "factor": "bull_confirmation",
+        "n_days": 38,
+        "mean_ic": 0.0123,
+        "icir": 0.2139,
+        "ic_std": 0.0577,
+        "pos_ic_rate": 0.5526
+      },
+      {
+        "factor": "ma_cross_20_60",
+        "n_days": 25,
+        "mean_ic": 0.0131,
+        "icir": 0.195,
+        "ic_std": 0.0672,
+        "pos_ic_rate": 0.6
+      },
+      {
+        "factor": "turnover_ratio",
+        "n_days": 38,
+        "mean_ic": 0.013,
+        "icir": 0.1766,
+        "ic_std": 0.0738,
+        "pos_ic_rate": 0.6316
+      },
+      {
+        "factor": "vol_ma_ratio",
+        "n_days": 38,
+        "mean_ic": -0.012,
+        "icir": -0.174,
+        "ic_std": 0.0689,
+        "pos_ic_rate": 0.3947
+      },
+      {
+        "factor": "money_flow_vol",
+        "n_days": 38,
+        "mean_ic": -0.012,
+        "icir": -0.174,
+        "ic_std": 0.0689,
+        "pos_ic_rate": 0.3947
+      },
+      {
+        "factor": "vol_20d",
+        "n_days": 38,
+        "mean_ic": -0.0103,
+        "icir": -0.143,
+        "ic_std": 0.072,
+        "pos_ic_rate": 0.3421
+      },
+      {
+        "factor": "turnover",
+        "n_days": 38,
+        "mean_ic": 0.0102,
+        "icir": 0.1392,
+        "ic_std": 0.0733,
+        "pos_ic_rate": 0.6053
+      },
+      {
+        "factor": "vol_skew_20",
+        "n_days": 38,
+        "mean_ic": -0.0063,
+        "icir": -0.0779,
+        "ic_std": 0.0813,
+        "pos_ic_rate": 0.4211
+      },
+      {
+        "factor": "vol_turnover",
+        "n_days": 38,
+        "mean_ic": -0.0057,
+        "icir": -0.0773,
+        "ic_std": 0.0734,
+        "pos_ic_rate": 0.4474
+      },
+      {
+        "factor": "turnover_ma_20",
+        "n_days": 38,
+        "mean_ic": -0.0056,
+        "icir": -0.0722,
+        "ic_std": 0.077,
+        "pos_ic_rate": 0.4737
+      },
+      {
+        "factor": "ret_range",
+        "n_days": 38,
+        "mean_ic": 0.0024,
+        "icir": 0.0355,
+        "ic_std": 0.0665,
+        "pos_ic_rate": 0.4474
+      },
+      {
+        "factor": "price_vol_corr_20",
+        "n_days": 38,
+        "mean_ic": -0.0014,
+        "icir": -0.0183,
+        "ic_std": 0.0784,
+        "pos_ic_rate": 0.5526
+      },
+      {
+        "factor": "ma_cross_5_20",
+        "n_days": 38,
+        "mean_ic": -0.0005,
+        "icir": -0.0066,
+        "ic_std": 0.0731,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "amount_ratio_20",
+        "n_days": 38,
+        "mean_ic": 0.0003,
+        "icir": 0.0041,
+        "ic_std": 0.0679,
+        "pos_ic_rate": 0.5
+      },
+      {
+        "factor": "amt_ma_ratio",
+        "n_days": 38,
+        "mean_ic": 0.0003,
+        "icir": 0.0041,
+        "ic_std": 0.0679,
+        "pos_ic_rate": 0.5
+      }
+    ]
+  },
+  "icir_weights": {
+    "regime_weighted": {
+      "top_k": 30,
+      "regime_weights": {
+        "normal": 0.5,
+        "weak": 0.3,
+        "severe": 0.2
+      },
+      "n_factors": 30,
+      "weights": [
+        {
+          "factor": "conv_div",
+          "icir": 1.0404,
+          "weight": 0.056199
+        },
+        {
+          "factor": "macd_signal",
+          "icir": 1.0373,
+          "weight": 0.056029
+        },
+        {
+          "factor": "macd",
+          "icir": 1.0056,
+          "weight": 0.05432
+        },
+        {
+          "factor": "sma_5",
+          "icir": 1.0021,
+          "weight": 0.05413
+        },
+        {
+          "factor": "rsi_14",
+          "icir": 0.9896,
+          "weight": 0.053453
+        },
+        {
+          "factor": "vpt_20",
+          "icir": 0.9745,
+          "weight": 0.052641
+        },
+        {
+          "factor": "ma_dist_pct",
+          "icir": 0.968,
+          "weight": 0.052286
+        },
+        {
+          "factor": "atr_14",
+          "icir": 0.9422,
+          "weight": 0.050894
+        },
+        {
+          "factor": "ret_20d",
+          "icir": 0.923,
+          "weight": 0.049856
+        },
+        {
+          "factor": "sma_20",
+          "icir": 0.9137,
+          "weight": 0.049353
+        },
+        {
+          "factor": "volume_price",
+          "icir": 0.8597,
+          "weight": 0.046439
+        },
+        {
+          "factor": "bb_width",
+          "icir": 0.7664,
+          "weight": 0.041396
+        },
+        {
+          "factor": "sma_60",
+          "icir": 0.7526,
+          "weight": 0.040653
+        },
+        {
+          "factor": "macd_hist",
+          "icir": 0.7038,
+          "weight": 0.038016
+        },
+        {
+          "factor": "trend_strength",
+          "icir": 0.6871,
+          "weight": 0.037114
+        },
+        {
+          "factor": "up_down_vol_ratio",
+          "icir": 0.6573,
+          "weight": 0.035508
+        },
+        {
+          "factor": "ret_5d",
+          "icir": 0.6527,
+          "weight": 0.035257
+        },
+        {
+          "factor": "momentum_accel",
+          "icir": 0.6376,
+          "weight": 0.034443
+        },
+        {
+          "factor": "turnover",
+          "icir": 0.4465,
+          "weight": 0.02412
+        },
+        {
+          "factor": "gap_pct",
+          "icir": 0.3512,
+          "weight": 0.018971
+        },
+        {
+          "factor": "turnover_ratio",
+          "icir": 0.3401,
+          "weight": 0.018374
+        },
+        {
+          "factor": "amt_ma_ratio",
+          "icir": 0.2921,
+          "weight": 0.015776
+        },
+        {
+          "factor": "amount_ratio_20",
+          "icir": 0.2921,
+          "weight": 0.015776
+        },
+        {
+          "factor": "vol_turnover",
+          "icir": 0.2513,
+          "weight": 0.013576
+        },
+        {
+          "factor": "price_vol_corr_20",
+          "icir": 0.1923,
+          "weight": 0.010387
+        },
+        {
+          "factor": "bull_confirmation",
+          "icir": 0.1871,
+          "weight": 0.010109
+        },
+        {
+          "factor": "amount_ratio_5",
+          "icir": 0.1625,
+          "weight": 0.008779
+        },
+        {
+          "factor": "ret_range",
+          "icir": 0.1623,
+          "weight": 0.008765
+        },
+        {
+          "factor": "money_flow_vol",
+          "icir": 0.1608,
+          "weight": 0.008689
+        },
+        {
+          "factor": "vol_ma_ratio",
+          "icir": 0.1608,
+          "weight": 0.008689
+        }
+      ],
+      "note": "weight_i = ICIR_i / sum(ICIR) for positive-ICIR factors"
+    },
+    "equal_regime": {
+      "top_k": 30,
+      "regime_weights": {
+        "normal": 1.0,
+        "weak": 1.0,
+        "severe": 1.0
+      },
+      "n_factors": 30,
+      "weights": [
+        {
+          "factor": "conv_div",
+          "icir": 1.1148,
+          "weight": 0.059174
+        },
+        {
+          "factor": "rsi_14",
+          "icir": 1.0559,
+          "weight": 0.05605
+        },
+        {
+          "factor": "ma_dist_pct",
+          "icir": 1.0248,
+          "weight": 0.054394
+        },
+        {
+          "factor": "macd_signal",
+          "icir": 1.0167,
+          "weight": 0.053966
+        },
+        {
+          "factor": "macd",
+          "icir": 0.9822,
+          "weight": 0.052133
+        },
+        {
+          "factor": "sma_5",
+          "icir": 0.975,
+          "weight": 0.051751
+        },
+        {
+          "factor": "vpt_20",
+          "icir": 0.9514,
+          "weight": 0.050498
+        },
+        {
+          "factor": "volume_price",
+          "icir": 0.9213,
+          "weight": 0.0489
+        },
+        {
+          "factor": "ret_20d",
+          "icir": 0.898,
+          "weight": 0.047666
+        },
+        {
+          "factor": "sma_20",
+          "icir": 0.8844,
+          "weight": 0.046947
+        },
+        {
+          "factor": "atr_14",
+          "icir": 0.855,
+          "weight": 0.045386
+        },
+        {
+          "factor": "macd_hist",
+          "icir": 0.795,
+          "weight": 0.042199
+        },
+        {
+          "factor": "sma_60",
+          "icir": 0.7526,
+          "weight": 0.039948
+        },
+        {
+          "factor": "trend_strength",
+          "icir": 0.747,
+          "weight": 0.039651
+        },
+        {
+          "factor": "bb_width",
+          "icir": 0.7135,
+          "weight": 0.03787
+        },
+        {
+          "factor": "momentum_accel",
+          "icir": 0.6835,
+          "weight": 0.036278
+        },
+        {
+          "factor": "ret_5d",
+          "icir": 0.6673,
+          "weight": 0.03542
+        },
+        {
+          "factor": "up_down_vol_ratio",
+          "icir": 0.6273,
+          "weight": 0.033297
+        },
+        {
+          "factor": "turnover",
+          "icir": 0.5408,
+          "weight": 0.028706
+        },
+        {
+          "factor": "turnover_ratio",
+          "icir": 0.3952,
+          "weight": 0.020977
+        },
+        {
+          "factor": "amt_ma_ratio",
+          "icir": 0.3138,
+          "weight": 0.016654
+        },
+        {
+          "factor": "amount_ratio_20",
+          "icir": 0.3138,
+          "weight": 0.016654
+        },
+        {
+          "factor": "vol_turnover",
+          "icir": 0.2828,
+          "weight": 0.015008
+        },
+        {
+          "factor": "gap_pct",
+          "icir": 0.2411,
+          "weight": 0.012796
+        },
+        {
+          "factor": "cmf_20",
+          "icir": 0.2116,
+          "weight": 0.011232
+        },
+        {
+          "factor": "price_vol_corr_20",
+          "icir": 0.1789,
+          "weight": 0.009496
+        },
+        {
+          "factor": "money_flow_vol",
+          "icir": 0.1782,
+          "weight": 0.009459
+        },
+        {
+          "factor": "vol_ma_ratio",
+          "icir": 0.1782,
+          "weight": 0.009459
+        },
+        {
+          "factor": "ret_range",
+          "icir": 0.1701,
+          "weight": 0.009029
+        },
+        {
+          "factor": "ma_cross_5_20",
+          "icir": 0.1696,
+          "weight": 0.009002
+        }
+      ],
+      "note": "weight_i = ICIR_i / sum(ICIR) for positive-ICIR factors"
+    }
+  },
+  "factor_group_stats": {
+    "核心技术": {
+      "n_total": 8,
+      "n_present": 19,
+      "avg_abs_icir": 0.4372,
+      "best": {
+        "factor": "ret_5d",
+        "icir": 1.0856,
+        "regime": "weak"
+      }
+    },
+    "技术指标": {
+      "n_total": 11,
+      "n_present": 25,
+      "avg_abs_icir": 0.8591,
+      "best": {
+        "factor": "macd_hist",
+        "icir": 1.4197,
+        "regime": "weak"
+      }
+    },
+    "成交量": {
+      "n_total": 5,
+      "n_present": 11,
+      "avg_abs_icir": 0.3275,
+      "best": {
+        "factor": "turnover",
+        "icir": 0.7697,
+        "regime": "severe"
+      }
+    },
+    "波动率": {
+      "n_total": 3,
+      "n_present": 6,
+      "avg_abs_icir": 0.2758,
+      "best": {
+        "factor": "up_down_vol_ratio",
+        "icir": 0.7475,
+        "regime": "normal"
+      }
+    },
+    "量价交互": {
+      "n_total": 3,
+      "n_present": 8,
+      "avg_abs_icir": 0.2634,
+      "best": {
+        "factor": "gap_pct",
+        "icir": 0.5422,
+        "regime": "normal"
+      }
+    },
+    "信号": {
+      "n_total": 2,
+      "n_present": 3,
+      "avg_abs_icir": 0.1824,
+      "best": {
+        "factor": "ma_cross_5_20",
+        "icir": 0.2698,
+        "regime": "weak"
+      }
+    },
+    "基本面": {
+      "n_total": 11,
+      "n_present": 0,
+      "avg_abs_icir": 0.0,
+      "best": {
+        "factor": "",
+        "icir": -999,
+        "regime": ""
+      }
+    },
+    "事件": {
+      "n_total": 4,
+      "n_present": 0,
+      "avg_abs_icir": 0.0,
+      "best": {
+        "factor": "",
+        "icir": -999,
+        "regime": ""
+      }
+    },
+    "资金流": {
+      "n_total": 3,
+      "n_present": 0,
+      "avg_abs_icir": 0.0,
+      "best": {
+        "factor": "",
+        "icir": -999,
+        "regime": ""
+      }
+    },
+    "融资融券": {
+      "n_total": 2,
+      "n_present": 0,
+      "avg_abs_icir": 0.0,
+      "best": {
+        "factor": "",
+        "icir": -999,
+        "regime": ""
+      }
+    },
+    "衍生因子": {
+      "n_total": 11,
+      "n_present": 17,
+      "avg_abs_icir": 0.5902,
+      "best": {
+        "factor": "conv_div",
+        "icir": 1.4124,
+        "regime": "weak"
+      }
+    },
+    "筹码": {
+      "n_total": 6,
+      "n_present": 0,
+      "avg_abs_icir": 0.0,
+      "best": {
+        "factor": "",
+        "icir": -999,
+        "regime": ""
+      }
+    }
+  },
+  "factor_names": [
+    "ret_5d",
+    "ret_20d",
+    "vol_20d",
+    "amount_ratio_5",
+    "amount_ratio_20",
+    "vol_spike",
+    "cmf_20",
+    "vpt_20",
+    "rsi_14",
+    "macd",
+    "macd_signal",
+    "macd_hist",
+    "bb_width",
+    "sma_5",
+    "sma_20",
+    "sma_60",
+    "ma_dist_pct",
+    "atr_14",
+    "atr_pct",
+    "turnover",
+    "turnover_ma_20",
+    "turnover_ratio",
+    "vol_ma_ratio",
+    "amt_ma_ratio",
+    "vol_skew_20",
+    "vol_kurt_20",
+    "up_down_vol_ratio",
+    "price_vol_corr_20",
+    "ret_range",
+    "gap_pct",
+    "ma_cross_5_20",
+    "ma_cross_20_60",
+    "eps",
+    "revenue",
+    "revenue_yoy",
+    "net_profit",
+    "net_profit_yoy",
+    "bps",
+    "roe",
+    "gross_margin",
+    "pe",
+    "pb",
+    "profit_margin",
+    "has_forecast",
+    "yjyg_max_change_pct",
+    "buy_inst_count",
+    "has_lhb",
+    "main_net_today",
+    "main_net_5d",
+    "main_net_10d",
+    "margin_balance",
+    "margin_buy",
+    "volume_price",
+    "vol_turnover",
+    "money_flow_vol",
+    "momentum_accel",
+    "trend_strength",
+    "conv_div",
+    "bull_confirmation",
+    "low_price_buy",
+    "z_chip_concentration",
+    "chip_penetration_3d",
+    "avg_cost_shift_10d",
+    "chip_profit_trend",
+    "chip_distribution_width",
+    "chip_distribution_shape"
+  ],
+  "note": "IC = 日频截面 Spearman rank corr(因子, 次日收益) | ICIR = mean(IC)/std(IC)"
+}

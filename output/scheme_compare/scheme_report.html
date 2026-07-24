@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AlphaPilot - Factor Weighting Scheme Comparison</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f0f2f5;color:#1a1a2e;line-height:1.6}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.header{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);color:#fff;padding:40px;border-radius:16px;margin-bottom:24px}
+.header h1{font-size:28px;font-weight:700;margin-bottom:8px}
+.header p{opacity:0.8;font-size:14px;margin:2px 0}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border-top:4px solid #ccc}
+.card h3{font-size:16px;margin-bottom:12px}
+.card table{width:100%;font-size:13px}
+.card td{padding:3px 0}
+.card td:first-child{color:#888}
+.card td:last-child{font-weight:600;text-align:right}
+.sec{background:#fff;border-radius:12px;padding:24px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.sec h2{font-size:18px;margin-bottom:16px}
+.cw{position:relative;height:300px}
+.rec{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);color:#fff;border-radius:12px;padding:24px;margin-bottom:24px}
+.rec h2{font-size:18px;margin-bottom:12px}
+.rec p{font-size:14px;opacity:0.9;line-height:1.7}
+.ft{text-align:center;color:#888;font-size:12px;padding:20px 0}
+.bdg{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:12px}
+.bdgw{background:#d4edda;color:#155724}
+.bdgr{background:#fff3cd;color:#856404}
+</style></head>
+<body><div class="container">
+<div class="header"><h1>AlphaPilot Factor Weighting Scheme Comparison</h1>
+<p>Evaluation: synthetic stocks | Factors: 66 effective | Train/Test: 70/30 split</p>
+<p>Metric: Daily cross-sectional Spearman RankIC(alpha, next-day return)</p></div>
+<div class="cards"><div class="card" style="border-top-color:#4C72B0"><span class="bdg bdgw">Best</span><h3>A) Pure ICIR</h3><table><tr><td>Rank ICIR</td><td style="color:#4C72B0">0.8444</td></tr><tr><td>Mean RankIC</td><td>0.0565</td></tr><tr><td>Hit Rate</td><td>77.8%</td></tr><tr><td>RankIC Std</td><td>0.067</td></tr><tr><td>Test Days</td><td>18</td></tr></table></div><div class="card" style="border-top-color:#DD8452"><span class="bdg bdgr">--</span><h3>B) XGBoost ML</h3><table><tr><td>Rank ICIR</td><td style="color:#DD8452">0.3963</td></tr><tr><td>Mean RankIC</td><td>0.0264</td></tr><tr><td>Hit Rate</td><td>72.2%</td></tr><tr><td>RankIC Std</td><td>0.0666</td></tr><tr><td>Test Days</td><td>18</td></tr></table></div><div class="card" style="border-top-color:#55A868"><span class="bdg bdgr">--</span><h3>C) Hybrid ICIR+ML</h3><table><tr><td>Rank ICIR</td><td style="color:#55A868">0.6097</td></tr><tr><td>Mean RankIC</td><td>0.0377</td></tr><tr><td>Hit Rate</td><td>77.8%</td></tr><tr><td>RankIC Std</td><td>0.0619</td></tr><tr><td>Test Days</td><td>18</td></tr></table></div></div>
+<div class="sec"><h2>Daily RankIC Comparison</h2><div class="cw"><canvas id="c1"></canvas></div></div>
+<div class="sec"><h2>Cumulative RankIC (Stability View)</h2><div class="cw"><canvas id="c2"></canvas></div></div>
+<div class="rec"><h2>Recommendation</h2><p id="rt">Loading...</p></div>
+<div class="ft">AlphaPilot ICIR Analysis Engine | Generated 2026-07-24 02:59:58</div></div>
+<script>
+const C = {"A_ICIR": "#4C72B0", "B_XGBoost": "#DD8452", "C_Hybrid": "#55A868"}, L = {"A_ICIR": "A) Pure ICIR", "B_XGBoost": "B) XGBoost ML", "C_Hybrid": "C) Hybrid ICIR+ML"}, D = {"A_ICIR": [0.0434, 0.1259, -0.0452, 0.1427, 0.0743, -0.0928, 0.1118, 0.0352, 0.0945, 0.0953, 0.0663, 0.0649, 0.0931, -0.0459, 0.0234, -0.0087, 0.1619, 0.0775], "B_XGBoost": [0.0269, 0.0368, 0.0526, 0.1264, 0.0847, -0.1197, 0.0417, 0.0308, 0.0555, 0.0625, 0.0343, -0.0494, 0.0892, -0.0852, -0.0542, -0.0172, 0.0269, 0.1323], "C_Hybrid": [0.0235, 0.023, 0.0162, 0.0241, 0.0798, -0.0928, 0.0493, 0.1284, 0.1158, 0.0191, 0.061, 0.0759, 0.0762, -0.049, 0.0801, -0.0695, -0.0083, 0.1263]}, M = {"A_ICIR": {"name": "A_ICIR", "n_test_days": 18, "mean_rankic": 0.0565, "rankic_std": 0.067, "rank_icir": 0.8444, "hit_rate": 0.7778}, "B_XGBoost": {"name": "B_XGBoost", "n_test_days": 18, "mean_rankic": 0.0264, "rankic_std": 0.0666, "rank_icir": 0.3963, "hit_rate": 0.7222}, "C_Hybrid": {"name": "C_Hybrid", "n_test_days": 18, "mean_rankic": 0.0377, "rankic_std": 0.0619, "rank_icir": 0.6097, "hit_rate": 0.7778}}, TF = ["sma_5", "sma_20", "macd_signal", "macd", "conv_div", "vpt_20", "sma_60", "rsi_14", "ret_20d", "ma_dist_pct", "atr_14", "low_price_buy", "volume_price", "bb_width", "ret_5d", "macd_hist", "trend_strength", "up_down_vol_ratio", "momentum_accel", "gap_pct", "turnover", "turnover_ratio", "vol_turnover", "amount_ratio_20", "amt_ma_ratio", "price_vol_corr_20", "amount_ratio_5", "ret_range", "vol_ma_ratio", "money_flow_vol"];
+let best = null, bi = -999;
+for(const[k,v]of Object.entries(M)){if(v.rank_icir&&v.rank_icir>bi){bi=v.rank_icir;best=k}}
+function mkDS(label,data,color){return{label,data:data.map((v,i)=>({x:i,y:v})),borderColor:color,backgroundColor:color,borderWidth:2,pointRadius:0,tension:.1}}
+new Chart(document.getElementById('c1').getContext('2d'),{type:'line',data:{datasets:Object.entries(D).map(([k,v])=>mkDS(L[k]||k,v,C[k]))},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'top'}},scales:{x:{title:{display:true,text:'Test Day'}},y:{title:{display:true,text:'Spearman RankIC'}}}}});
+const ds2=[];for(const[k,v]of Object.entries(D)){let c=0;ds2.push(mkDS(L[k]||k,v.map(x=>(c+=x,c)),C[k]))}
+new Chart(document.getElementById('c2').getContext('2d'),{type:'line',data:{datasets:ds2},options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{position:'top'}},scales:{x:{title:{display:true,text:'Test Day'}},y:{title:{display:true,text:'Cumulative RankIC'}}}}});
+const rt=document.getElementById('rt');
+if(best&&M[best]){const bm=M[best],lm={'A_ICIR':'Pure ICIR','B_XGBoost':'XGBoost ML','C_Hybrid':'Hybrid ICIR+ML'};
+rt.innerHTML='<strong>Winner: '+(lm[best]||best)+'</strong> -- Rank ICIR='+bm.rank_icir+', Hit Rate='+(bm.hit_rate*100).toFixed(0)+'%. '+
+'This scheme shows the highest prediction stability on the test set. Recommend using this scheme for factor weighting in production, with monthly ICIR recalibration.'+
+(TF&&TF.length?('<br>Hybrid selected top factors: '+TF.slice(0,10).join(', ')+(TF.length>10?'...':'')):'');
+}else{rt.textContent='Insufficient data to determine recommendation.'}
+</script></body></html>

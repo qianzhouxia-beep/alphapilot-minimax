@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlphaPilot — 全市场量化选股策略全景</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f5f7;
+    --surface: #fff;
+    --text-primary: #1d1d1f;
+    --text-secondary: #3a3a40;
+    --text-tertiary: #55555b;
+    --purple: #7c5cfc;
+    --purple-500: #8B5CF6;
+    --purple-600: #7C3AED;
+    --purple-light: #ede9fe;
+    --purple-glow: rgba(124,92,252,0.12);
+    --green: #2ba84a;
+    --blue: #1e88e5;
+    --gold: #f59e0b;
+    --red: #e53935;
+    --border-subtle: rgba(0,0,0,0.06);
+    --border-medium: rgba(0,0,0,0.08);
+    --shadow: 0 4px 16px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+    --radius: 20px;
+    --radius-sm: 12px;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ── */
+  .site-header {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.8);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0 24px;
+  }
+  .header-inner {
+    max-width: 1120px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+  }
+  .header-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .header-logo img { height: 32px; width: auto; }
+  .header-logo span { font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -.02em; }
+  .header-logo small { font-size: 11px; color: var(--text-tertiary); font-weight: 400; margin-left: 4px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .header-actions a {
+    font-size: 13px; text-decoration: none; padding: 6px 16px; border-radius: var(--radius-sm);
+    transition: all .2s; font-weight: 500;
+  }
+  .header-actions .btn-outline {
+    border: 1px solid var(--border-medium); color: var(--text-secondary);
+  }
+  .header-actions .btn-outline:hover { border-color: var(--purple); color: var(--purple); }
+  .header-actions .btn-primary {
+    background: var(--purple); color: #fff;
+  }
+  .header-actions .btn-primary:hover { background: var(--purple-600); }
+
+  /* ── Layout ── */
+  .container { max-width: 1120px; margin: 0 auto; padding: 40px 24px 60px; }
+  .page-intro { text-align: center; margin-bottom: 48px; }
+  .page-intro h1 { font-size: 36px; font-weight: 700; letter-spacing: -.03em; }
+  .page-intro h1 span { color: var(--purple); }
+  .page-intro p { color: var(--text-tertiary); font-size: 15px; margin-top: 8px; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .intro-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--purple-light); color: var(--purple-600);
+    font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 100px;
+    margin-bottom: 16px;
+  }
+
+  /* ── KPI Row ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 40px; }
+  .kpi-card {
+    background: var(--surface); border-radius: var(--radius); padding: 20px;
+    border: 1px solid var(--border-subtle); box-shadow: var(--shadow); text-align: center;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .kpi-card .kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
+  .kpi-card .kpi-label { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; font-weight: 500; }
+  .kpi-purple .kpi-value { color: var(--purple-500); }
+  .kpi-green .kpi-value { color: var(--green); }
+  .kpi-blue .kpi-value { color: var(--blue); }
+  .kpi-gold .kpi-value { color: var(--gold); }
+
+  /* ── Section ── */
+  .section { margin-bottom: 48px; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .section-header .num {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--purple); color: #fff;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  .section-header h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  .section-desc { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; max-width: 720px; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface); border-radius: var(--radius); padding: 24px;
+    border: 1px solid var(--border-subtle); box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .dot { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+  .card-body { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+
+  /* ── Bullet list ── */
+  .bullets { list-style: none; padding: 0; }
+  .bullets li {
+    position: relative; padding-left: 20px; margin-bottom: 10px;
+    font-size: 13px; color: var(--text-secondary); line-height: 1.6;
+  }
+  .bullets li::before {
+    content: ""; position: absolute; left: 4px; top: 8px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--purple); opacity: .5;
+  }
+  .bullets li strong { color: var(--text-primary); font-weight: 600; }
+
+  /* ── Pipeline Flowchart (SVG) ── */
+  .pipeline-flow { margin: 24px 0 8px; overflow-x: auto; }
+  .pipeline-flow svg { width: 100%; min-width: 600px; height: auto; display: block; }
+  .chart-caption { font-size: 11px; color: var(--text-tertiary); text-align: center; margin-top: 8px; }
+
+  /* ── Dual Track ── */
+  .track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .track-card {
+    background: var(--surface); border-radius: var(--radius); padding: 20px;
+    border: 1px solid var(--border-subtle); box-shadow: var(--shadow);
+  }
+  .track-card.track-a { border-top: 3px solid var(--purple-500); }
+  .track-card.track-b { border-top: 3px solid var(--gold); }
+  .track-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .track-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+  .track-card .track-tag {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    margin-bottom: 8px;
+  }
+  .track-a .track-tag { background: var(--purple-light); color: var(--purple-600); }
+  .track-b .track-tag { background: #fef3c7; color: #b45309; }
+
+  .fusion-box {
+    background: linear-gradient(135deg, var(--purple-600), var(--purple));
+    color: #fff; border-radius: var(--radius); padding: 22px 24px;
+    text-align: center; font-size: 15px; font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 20px rgba(124,92,252,0.3);
+    white-space: nowrap;
+  }
+
+  /* ── Gate Chain ── */
+  .gate-chain { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; margin-bottom: 20px; }
+  .gate-item {
+    flex-shrink: 0; width: 130px; background: var(--surface); border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle); box-shadow: var(--shadow); padding: 14px 12px;
+    position: relative; text-align: center;
+  }
+  .gate-item .gate-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%; background: var(--purple-light); color: var(--purple-600);
+    font-size: 11px; font-weight: 700; margin-bottom: 6px;
+  }
+  .gate-item .gate-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .gate-item .gate-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+  .gate-arrow {
+    flex-shrink: 0; display: flex; align-items: center; color: var(--text-tertiary); font-size: 18px;
+  }
+
+  /* ── Timeline ── */
+  .timeline { position: relative; margin: 16px 0 8px; padding-left: 40px; }
+  .timeline::before {
+    content: ""; position: absolute; left: 16px; top: 8px; bottom: 8px;
+    width: 2px; background: linear-gradient(to bottom, var(--purple-light), var(--purple));
+    border-radius: 1px;
+  }
+  .tl-item { position: relative; margin-bottom: 20px; }
+  .tl-item::before {
+    content: ""; position: absolute; left: -30px; top: 6px;
+    width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--purple);
+    background: var(--surface);
+  }
+  .tl-item .tl-time {
+    display: inline-block; font-size: 12px; font-weight: 700; color: var(--purple);
+    background: var(--purple-light); padding: 1px 8px; border-radius: 4px; margin-bottom: 4px;
+  }
+  .tl-item .tl-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+  .tl-item .tl-desc { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+  /* ── Advantage cards (2-col) ── */
+  .adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ── Footer ── */
+  .site-footer {
+    text-align: center; padding: 32px 24px; border-top: 1px solid var(--border-subtle);
+    font-size: 12px; color: var(--text-tertiary);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .container { padding: 24px 16px 40px; }
+    .page-intro h1 { font-size: 26px; }
+    .kpi-row { grid-template-columns: repeat(2,1fr); }
+    .track-grid { grid-template-columns: 1fr; }
+    .adv-grid { grid-template-columns: 1fr; }
+    .gate-chain { flex-wrap: wrap; }
+    .gate-item { width: calc(50% - 6px); }
+    .gate-arrow { display: none; }
+    .header-actions a { font-size: 12px; padding: 5px 12px; }
+    .header-logo small { display: none; }
+  }
+  @media (max-width: 480px) {
+    .kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi-card { padding: 14px; }
+    .kpi-card .kpi-value { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ Header ═══ -->
+<header class="site-header">
+  <div class="header-inner">
+    <a class="header-logo" href="/cn/">
+      <img src="https://alphapilot.api-tokenmaster.com/brand-logo.png" alt="AlphaPilot" onerror="this.style.display='none'" />
+    </a>
+    <nav style="display:flex;gap:20px;align-items:center;font-size:13px;font-weight:500;">
+      <a href="/cn/" style="color:var(--text-secondary);text-decoration:none;">智能终端</a>
+      <a href="/cn/screener" style="color:var(--text-secondary);text-decoration:none;">选股</a>
+      <a href="/cn/paper-trading" style="color:var(--text-secondary);text-decoration:none;">模拟盘</a>
+      <a href="/api/v1/cn/framework" style="color:var(--purple);text-decoration:none;font-weight:600;">策略全景</a>
+    </nav>
+    <div class="header-actions">
+      <a href="https://alphapilot.api-tokenmaster.com/cn/" class="btn-outline" target="_blank">打开终端</a>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ Main ═══ -->
+<main class="container">
+
+  <!-- ═══════ Cover ═══════ -->
+  <div class="page-intro">
+    <div class="intro-badge">AlphaPilot v3 · 策略全景</div>
+    <h1>全市场 <span>量化选股</span> 框架</h1>
+    <p>多源数据融合 · 双轨评分引擎 · 级联风控门架 · 盘中实时自适应 — 万得全 A 数据</p>
+  </div>
+
+  <!-- ═══════ KPI Row ═══════ -->
+  <div class="kpi-row">
+    <div class="kpi-card kpi-purple"><div class="kpi-value">5,000+</div><div class="kpi-label">A 股每日覆盖</div></div>
+    <div class="kpi-card kpi-blue"><div class="kpi-value">130+</div><div class="kpi-label">因子库</div></div>
+    <div class="kpi-card kpi-green"><div class="kpi-value">7 级</div><div class="kpi-label">风控门链</div></div>
+    <div class="kpi-card kpi-gold"><div class="kpi-value">Wind</div><div class="kpi-label">数据源 · 万得</div></div>
+  </div>
+
+  <!-- ═══════ 1. 架构总览 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">1</div><h2>架构总览</h2></div>
+    <p class="section-desc">
+      AlphaPilot 是一套专为 A 股打造的新一代量化选股框架。系统通过多阶段漏斗管线，每天对全部 5,000+ 只 A 股进行筛选、评分、过滤和排名——结合传统因子评分与实时市场微观结构信号。
+    </p>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>设计哲学</div>
+      <div class="card-body">
+        <strong>分层管线：</strong>每个阶段都是一层质量控制——从因子评分到板块轮动再到盘中动量，确保只有最高置信度的候选存活到执行。<br><br>
+        <strong>无单点故障：</strong>架构天然模块化。某一数据源或模型失效时，其余层仍可独立运作。<br><br>
+        <strong>盘中自适应：</strong>与传统收盘价模型不同，AlphaPilot 在盘中使用实时资金流、价格动作和板块级资本运动数据来刷新观点。
+      </div>
+    </div>
+
+    <!-- Pipeline Flowchart -->
+    <div class="pipeline-flow">
+      <svg viewBox="0 0 800 90" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pgrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#ede9fe"/>
+            <stop offset="100%" stop-color="#7c5cfc"/>
+          </linearGradient>
+          <filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.08)"/></filter>
+        </defs>
+
+        <!-- Arrows -->
+        <g stroke="#ccc" stroke-width="1.5" fill="none">
+          <line x1="120" y1="45" x2="155" y2="45"/>
+          <polygon points="153,41 160,45 153,49" fill="#ccc"/>
+          <line x1="240" y1="45" x2="275" y2="45"/>
+          <polygon points="273,41 280,45 273,49" fill="#ccc"/>
+          <line x1="360" y1="45" x2="395" y2="45"/>
+          <polygon points="393,41 400,45 393,49" fill="#ccc"/>
+          <line x1="480" y1="45" x2="515" y2="45"/>
+          <polygon points="513,41 520,45 513,49" fill="#ccc"/>
+          <line x1="600" y1="45" x2="635" y2="45"/>
+          <polygon points="633,41 640,45 633,49" fill="#ccc"/>
+          <line x1="720" y1="45" x2="755" y2="45"/>
+          <polygon points="753,41 760,45 753,49" fill="#ccc"/>
+        </g>
+
+        <!-- Boxes -->
+        <!-- 1: 全市场 -->
+        <rect x="16" y="22" width="104" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
+        <text x="68" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#1d1d1f">全市场</text>
+        <text x="68" y="57" text-anchor="middle" font-size="11" fill="#55555b">5,000+ A 股</text>
+
+        <!-- 2: 因子计算 -->
+        <rect x="160" y="22" width="80" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
+        <text x="200" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">因子计算</text>
+        <text x="200" y="56" text-anchor="middle" font-size="10" fill="#55555b">130+ 因子</text>
+
+        <!-- 3: ICIR 评分 -->
+        <rect x="280" y="22" width="80" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
+        <text x="320" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">ICIR 加权</text>
+        <text x="320" y="56" text-anchor="middle" font-size="10" fill="#55555b">质量评分</text>
+
+        <!-- 4: 门控链 -->
+        <rect x="400" y="22" width="80" height="46" rx="10" fill="#faf5ff" stroke="#7c5cfc" stroke-width="1" filter="url(#shadow)"/>
+        <text x="440" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">门控链</text>
+        <text x="440" y="56" text-anchor="middle" font-size="10" fill="#55555b">7 层过滤</text>
+
+        <!-- 5: 动量扫描 -->
+        <rect x="520" y="22" width="80" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
+        <text x="560" y="40" text-anchor="middle" font-size="11" font-weight="600" fill="#1d1d1f">09:35 扫描</text>
+        <text x="560" y="56" text-anchor="middle" font-size="10" fill="#55555b">双轨融合</text>
+
+        <!-- 6: Top -->
+        <rect x="640" y="22" width="80" height="46" rx="10" fill="#f0fdf4" stroke="#2ba84a" stroke-width="1.5" filter="url(#shadow)"/>
+        <text x="680" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#2ba84a">Top 50</text>
+        <text x="680" y="57" text-anchor="middle" font-size="10" fill="#55555b">推荐池</text>
+
+        <!-- 7: Execute  -->
+        <rect x="760" y="22" width="40" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
+        <text x="780" y="49" text-anchor="middle" font-size="11" font-weight="600" fill="#1d1d1f">执行</text>
+      </svg>
+    </div>
+    <div class="chart-caption">精选漏斗流程：从 5,000+ 全市场到 Top 50 推荐池</div>
+  </div>
+
+  <!-- ═══════ 2. 多源数据融合 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">2</div><h2>多源数据融合</h2></div>
+    <p class="section-desc">三大数据域的交叉，每个域贡献独特的信号维度：</p>
+    <ul class="bullets">
+      <li><strong>基本面与因子数据</strong> — 130+ 项技术、基本面和替代因子，从收盘价数据、季度财报、业绩预告中计算。因子权重通过 ICIR（信息系数与信息比的比值）优化。</li>
+      <li><strong>实时市场微观结构</strong> — 60 秒刷新的全市场资金流数据（万得实时行情），覆盖机构净流、主动买入比、换手率、量比等核心信号。</li>
+      <li><strong>板块与行业资金流</strong> — 全天跟踪行业级资本运动，根据集合机构流量模式将板块划分为「偏好」「避开」「观察」三个档位。</li>
+    </ul>
+  </div>
+
+  <!-- ═══════ 3. 双轨评分 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">3</div><h2>双轨评分引擎</h2></div>
+    <p class="section-desc">两条独立的评估轨道，各贡献一个独特的股票质量维度：</p>
+
+    <div class="track-grid">
+      <div class="track-card track-a">
+        <div class="track-tag">Track A</div>
+        <h3>质量评分 — ICIR 因子加权</h3>
+        <p>多因子 alpha 模型，使用 Cross-sectional z-score 对每只股票评分。因子权重通过 ICIR（信息系数均值/标准差）优化—这是行业标准的因子一致性度量指标。结果是稳定的、低换手的质量排名。</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--purple-600);"><strong>自动化进化：</strong>借鉴微软 RD 底层逻辑，因子权重随市场状态自动迭代，系统持续自我学习优化，无需人工干预。</p>
+      </div>
+      <div class="track-card track-b">
+        <div class="track-tag">Track B</div>
+        <h3>动量评分 — 实时资金流</h3>
+        <p>实时评分引擎，09:35 执行全市场扫描。评估每只股票的机构净流、主动买入压力、换手放量、价格动量。能捕捉到突然资金涌入但传统因子模型完全错过的股票。</p>
+      </div>
+    </div>
+
+    <!-- Fusion -->
+    <div class="fusion-box">
+      终极评分 = 质量评分 × 50% + 动量评分 × 50%
+    </div>
+    <p style="font-size: 13px; color: var(--text-secondary); margin-top: 12px; text-align: center;">
+      融合确保一只股票必须同时具备基本面价值 <strong>和</strong> 实时资金兴趣才能排名靠前
+    </p>
+
+    <!-- Dual Track SVG Flowchart -->
+    <div class="pipeline-flow" style="margin-top:20px">
+      <svg viewBox="0 0 800 170" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shad"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="rgba(0,0,0,0.06)"/></filter>
+        </defs>
+
+        <!-- Track A (left) -->
+        <rect x="30" y="10" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
+        <text x="170" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">05:00 全市场因子计算</text>
+
+        <line x1="170" y1="42" x2="170" y2="52" stroke="#8B5CF6" stroke-width="1"/>
+        <polygon points="166,50 170,55 174,50" fill="#8B5CF6"/>
+
+        <rect x="30" y="55" width="280" height="32" rx="8" fill="#faf5ff" stroke="#8B5CF6" stroke-width="1" filter="url(#shad)"/>
+        <text x="170" y="75" text-anchor="middle" font-size="12" font-weight="600" fill="#7C3AED">ICIR 因子加权 → 质量评分</text>
+
+        <line x1="170" y1="87" x2="170" y2="97" stroke="#8B5CF6" stroke-width="1"/>
+        <polygon points="166,95 170,100 174,95" fill="#8B5CF6"/>
+
+        <rect x="30" y="100" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
+        <text x="170" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">质量分 (Quality Score)</text>
+
+        <!-- Track B (right) -->
+        <rect x="490" y="10" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
+        <text x="630" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">09:35 全市场资金扫描</text>
+
+        <line x1="630" y1="42" x2="630" y2="52" stroke="#f59e0b" stroke-width="1"/>
+        <polygon points="626,50 630,55 634,50" fill="#f59e0b"/>
+
+        <rect x="490" y="55" width="280" height="32" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1" filter="url(#shad)"/>
+        <text x="630" y="75" text-anchor="middle" font-size="11" font-weight="600" fill="#b45309">akshare 实时资金流 → 动量评分</text>
+
+        <line x1="630" y1="87" x2="630" y2="97" stroke="#f59e0b" stroke-width="1"/>
+        <polygon points="626,95 630,100 634,95" fill="#f59e0b"/>
+
+        <rect x="490" y="100" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
+        <text x="630" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">动量分 (Momentum Score)</text>
+
+        <!-- Converging arrows -->
+        <line x1="170" y1="132" x2="170" y2="142" stroke="#ccc" stroke-width="1.5"/>
+        <line x1="170" y1="142" x2="400" y2="142" stroke="#ccc" stroke-width="1.5"/>
+        <line x1="630" y1="132" x2="630" y2="142" stroke="#ccc" stroke-width="1.5"/>
+        <line x1="630" y1="142" x2="400" y2="142" stroke="#ccc" stroke-width="1.5"/>
+        <line x1="400" y1="142" x2="400" y2="147" stroke="#7c5cfc" stroke-width="2"/>
+        <polygon points="396,145 400,150 404,145" fill="#7c5cfc"/>
+
+        <!-- Fusion (wide enough for full text) -->
+        <rect x="180" y="150" width="440" height="22" rx="10" fill="#7c5cfc"/>
+        <text x="400" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">融合评分 = 质量评分 × 50% + 动量评分 × 50%</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ═══════ 4. 级联风控门架 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">4</div><h2>级联风控门架</h2></div>
+    <p class="section-desc">评分和执行之间，每个候选通过一系列风险门。每道门评估特定风险维度，可以直接淘汰候选或调整评分：</p>
+
+    <div class="gate-chain">
+      <div class="gate-item">
+        <div class="gate-num">1</div>
+        <div class="gate-name">上市公司门</div>
+        <div class="gate-desc">淘汰 ST / 低流动性</div>
+      </div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item">
+        <div class="gate-num">2</div>
+        <div class="gate-name">业绩门</div>
+        <div class="gate-desc">排除净利大幅下降</div>
+      </div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item">
+        <div class="gate-num">3</div>
+        <div class="gate-name">资金门</div>
+        <div class="gate-desc">硬筛资金流不利</div>
+      </div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item">
+        <div class="gate-num">4</div>
+        <div class="gate-name">板块门</div>
+        <div class="gate-desc">行业轮动调整</div>
+      </div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item">
+        <div class="gate-num">5</div>
+        <div class="gate-name">分散门</div>
+        <div class="gate-desc">同板块上限控制</div>
+      </div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item">
+        <div class="gate-num">6</div>
+        <div class="gate-name">环境门</div>
+        <div class="gate-desc">市场态势调节</div>
+      </div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item" style="border-color:var(--green); background:#f0fdf4;">
+        <div class="gate-num" style="background:#d1fae5; color:#2ba84a;">7</div>
+        <div class="gate-name" style="color:var(--green)">盘中巡检</div>
+        <div class="gate-desc">板块资金反转预警</div>
+      </div>
+    </div>
+
+    <ul class="bullets">
+      <li><strong>上市公司门</strong> — 淘汰流动性不足、ST 标记、退市风险股票。确保交易宇宙的清洁。</li>
+      <li><strong>业绩门</strong> — 排除净利润同比大幅下降的股票，避免价值陷阱。</li>
+      <li><strong>资金门</strong> — 硬筛资金流面临利空的股票，确保所选股票有真实的机构买入兴趣。</li>
+      <li><strong>板块门</strong> — 根据板块级资本轮动动态调整评分，避开正在被机构出货的行业。</li>
+      <li><strong>分散门</strong> — 限制集中度风险：Top10 同板块最多 2 只，全池最多 4 只。</li>
+      <li><strong>环境门</strong> — 根据广义市场态势调整仓位大小—牛市、震荡、防御模式。</li>
+      <li><strong>盘中巡检</strong> — 持续监控持有股票的板块资金反转，从流入转为流出时触发自动离场。</li>
+    </ul>
+  </div>
+
+  <!-- ═══════ 5. 盘中自适应管线 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">5</div><h2>盘中自适应管线</h2></div>
+    <p class="section-desc">AlphaPilot 的竞争优势在于其盘中刷新能力。系统不依赖单一的盘前排名—它随市场的节奏进化：</p>
+
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-time">05:00</div>
+        <div class="tl-title">全管线执行</div>
+        <div class="tl-desc">因子计算 → ICIR 加权 → 多门控过滤 → 质量评分，覆盖全部 5,000+ 只 A 股</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">09:35</div>
+        <div class="tl-title">全市场动量扫描</div>
+        <div class="tl-desc">实时资金流数据 → 动量评分 → 双轨融合 → 终极排名 Top 50</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">10:00</div>
+        <div class="tl-title">盘中巡检 1</div>
+        <div class="tl-desc">板块资金流监测 → 持有板块反转报警</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">11:00</div>
+        <div class="tl-title">盘中巡检 2</div>
+        <div class="tl-desc">持续监测板块资金流及预警</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">13:30</div>
+        <div class="tl-title">盘中巡检 3</div>
+        <div class="tl-desc">午后开盘重新评估持仓风险</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">14:30</div>
+        <div class="tl-title" style="color:var(--red)">收盘决策窗</div>
+        <div class="tl-desc">硬止损确认 / T+2/T+3 强制平仓决策</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>与传统模型的核心区别</div>
+      <div class="card-body">
+        这个盘中循环是 AlphaPilot 与收盘价模型的本质区别。当传统系统在下个收盘价前始终使用昨天的数据进行交易时，AlphaPilot 在开盘后几分钟内就完成了自适应。
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ 6. 风控与仓位管理 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">6</div><h2>风控与仓位管理</h2></div>
+    <ul class="bullets">
+      <li><strong>组合层</strong> — 根据市场态势动态调整仓位暴露。高波动期间切换到防御模式，趋势市场中保持中性。</li>
+      <li><strong>持仓层</strong> — 动态止盈 · 硬止损 · 时间强制平仓（T+2/T+3）三重保护机制。</li>
+      <li><strong>板块层</strong> — 板块集中度限制防止过度暴露于单一行业。盘中资金反转检测提供额外预警。</li>
+    </ul>
+  </div>
+
+  <!-- ═══════ 核心优势 ═══════ -->
+  <div class="section">
+    <div class="section-header"><h2 style="font-size:22px">核心优势</h2></div>
+
+    <div class="adv-grid">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--purple-500)"></span>全市场覆盖</div>
+        <div class="card-body">每天扫描 5,000+ 只 A 股，无任意规模或流动性筛子，不错过任何潜在机会。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>万得全 A 数据融合</div>
+        <div class="card-body">以万得金融数据终端为核心数据源，覆盖实时行情、板块资金流、财务基本面等全维度，确保数据质量与机构级的一致可靠性。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--gold)"></span>盘中自适应能力</div>
+        <div class="card-body">09:35 全市场刷新保证系统从不使用过期的隔夜排名交易。这单独消除一个主要的 alpha 衰减源。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>模块化架构</div>
+        <div class="card-body">每个管线阶段都独立可替换。新的数据源或因子可即插即用，不影响其余系统。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--purple-500)"></span>板块感知能力</div>
+        <div class="card-body">行业级资金流追踪提供宏观视角，防止买入机构正在默默离场的板块。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>内建护栏</div>
+        <div class="card-body">从业绩筛选到板块集中度限制再到盘中反转检测，风控措施嵌入每个阶段。</div>
+      </div>
+    </div>
+
+    <!-- 自动化因子进化（全幅亮点卡） -->
+    <div class="card" style="margin-top:20px;border:1.5px solid transparent;background:linear-gradient(var(--surface),var(--surface)) padding-box,linear-gradient(135deg,var(--purple-500),var(--blue),var(--green)) border-box;">
+      <div class="card-title"><span class="dot" style="background:linear-gradient(135deg,var(--purple-500),var(--blue))"></span>自动化因子进化 · 微软 RD 级自学习引擎</div>
+      <div class="card-body">
+        借鉴微软研究院（Microsoft Research）的底层逻辑，AlphaPilot 实现了因子的<strong>自动化进化与自我学习提升</strong>。系统持续监测各因子在不同市场状态下的表现，自动迭代加权方案——不再依赖人工经验判断因子有效性，而是由系统在运行中自我优化、动态适应。每一轮运行都是一次学习迭代，让因子配置始终贴近当前市场环境。
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══ Footer ═══ -->
+<footer class="site-footer">
+  <p>AlphaPilot v3 · 产品营销介绍 · 仅包含策略层内容，不涉及核心算法细节</p>
+  <p style="margin-top:4px">&copy; 2026 AlphaPilot</p>
+</footer>
+
+</body>
+</html>

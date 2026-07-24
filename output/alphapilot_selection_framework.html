@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="format-detection" content="telephone=no" />
+<title>AlphaPilot 选股框架与流程</title>
+<style>
+  :root {
+    --bg0: #F4F6F5;
+    --bg1: #EEF2F0;
+    --ink: #12201E;
+    --ink2: #3D4F4C;
+    --mute: #6B7C78;
+    --line: rgba(18, 32, 30, 0.1);
+    --card: #FFFFFF;
+    --teal: #1F6F64;
+    --teal2: #2A9B8C;
+    --amber: #C47A1A;
+    --rose: #B23A3A;
+    --soft: #E8F3F1;
+    --hard: #F8E8E6;
+    --score: #F3F0E8;
+    --radius: 16px;
+    --font: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--font);
+    color: var(--ink);
+    background: linear-gradient(180deg, var(--bg0), var(--bg1));
+    line-height: 1.65;
+    padding: 0 0 48px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  .hero {
+    padding: 28px 0 22px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .brand {
+    font-size: clamp(34px, 10vw, 52px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .brand span { color: var(--teal); }
+  .hero h1 {
+    margin-top: 10px;
+    font-size: clamp(20px, 5.2vw, 26px);
+    font-weight: 650;
+  }
+  .hero p {
+    margin-top: 10px;
+    color: var(--ink2);
+    font-size: 14.5px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink2);
+  }
+  .chip.teal { background: var(--soft); color: var(--teal); border-color: rgba(31,111,100,.28); }
+  .chip.amber { background: #FBF3E6; color: var(--amber); border-color: rgba(196,122,26,.3); }
+
+  .toc {
+    display: flex; flex-wrap: wrap; gap: 10px 14px;
+    margin: 0 0 18px; font-size: 13px;
+  }
+  .toc a { color: var(--teal); text-decoration: none; }
+  .toc a:active { opacity: .7; }
+
+  .block {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    margin-bottom: 14px;
+  }
+  .block h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .lead { color: var(--mute); font-size: 13px; margin-bottom: 14px; }
+
+  /* Pure CSS flowchart — no CDN */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+  .flow-group {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 0 0 4px;
+    background: #FAFCFA;
+  }
+  .flow-group .g-title {
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--mute);
+    margin-bottom: 8px;
+  }
+  .flow-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  @media (min-width: 640px) {
+    .flow-row.two { grid-template-columns: 1fr 1fr; }
+  }
+  .node {
+    background: #fff;
+    border: 1.5px solid rgba(31,111,100,.35);
+    border-radius: 12px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .node strong { display: block; font-size: 14px; color: var(--ink); }
+  .node span { display: block; font-size: 12px; color: var(--mute); margin-top: 2px; }
+  .node.soft { border-color: rgba(31,111,100,.25); background: var(--soft); }
+  .node.hard { border-color: rgba(178,58,58,.35); background: var(--hard); }
+  .node.score { border-color: rgba(196,122,26,.4); background: var(--score); }
+  .node.out { border-color: rgba(31,111,100,.5); background: #E4F2EF; }
+
+  .arrow {
+    text-align: center;
+    color: var(--teal);
+    font-size: 18px;
+    line-height: 1.2;
+    padding: 2px 0 6px;
+    font-weight: 700;
+  }
+  .arrow span { display: block; font-size: 11px; font-weight: 500; color: var(--mute); }
+
+  .arms { display: grid; gap: 10px; }
+  @media (min-width: 640px) { .arms { grid-template-columns: 1fr 1fr; } }
+  .arm {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    background: #fff;
+  }
+  .arm h3 { font-size: 15px; color: var(--teal); margin-bottom: 6px; }
+  .arm p { font-size: 13px; color: var(--ink2); margin-bottom: 4px; }
+
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; }
+  table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 12.5px; }
+  th, td {
+    text-align: left; padding: 9px 10px;
+    border-bottom: 1px solid var(--line); vertical-align: top;
+  }
+  th {
+    font-size: 11px; color: var(--mute); font-weight: 600;
+    background: #F7F8F7; white-space: nowrap;
+  }
+  td.mono { font-family: var(--mono); font-size: 11.5px; }
+
+  .tag {
+    display: inline-block; padding: 2px 7px; border-radius: 6px;
+    font-size: 11px; font-weight: 650;
+  }
+  .tag.hard { background: var(--hard); color: var(--rose); }
+  .tag.soft { background: var(--soft); color: var(--teal); }
+  .tag.score { background: var(--score); color: var(--amber); }
+
+  .callout {
+    margin-top: 12px; padding: 12px 14px; border-radius: 10px;
+    background: var(--soft); border-left: 3px solid var(--teal);
+    font-size: 13.5px; color: var(--ink2);
+  }
+
+  .tl-row {
+    display: grid; grid-template-columns: 64px 1fr; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--line);
+  }
+  .tl-row:last-child { border-bottom: 0; }
+  .tl-time { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--teal); }
+  .tl-body strong { display: block; font-size: 14px; }
+  .tl-body span { font-size: 12px; color: var(--mute); }
+
+  .mind {
+    margin-top: 14px; font-size: 14px; font-weight: 650; line-height: 1.55;
+  }
+  footer {
+    margin-top: 22px; text-align: center; color: var(--mute); font-size: 11.5px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="brand">Alpha<span>Pilot</span></div>
+      <h1>选股框架与流程说明</h1>
+      <p>
+        漏斗架构：先定宇宙与资金方向，再模型排序，再用盘口/板块/趋势确认，最后截断为池与下单 TopN。
+        asof = 最近已收盘日，服务下一交易日可交易标的。
+      </p>
+      <div class="chips">
+        <span class="chip teal">日频精选 · 主臂</span>
+        <span class="chip amber">尾盘狙击 · S2</span>
+        <span class="chip">共享资金纸面</span>
+        <span class="chip">板块当日 + Wind 候选</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="目录">
+      <a href="#flow">流程图</a>
+      <a href="#arms">双策略</a>
+      <a href="#funnel">漏斗步骤</a>
+      <a href="#money">资金分层</a>
+      <a href="#data">数据层</a>
+      <a href="#gates">硬软门</a>
+      <a href="#schedule">日程表</a>
+    </nav>
+
+    <section id="flow" class="block">
+      <h2>总览流程图</h2>
+      <p class="lead">手机可直接上下滑动查看；不依赖外网脚本。</p>
+
+      <div class="flow">
+        <div class="flow-group">
+          <div class="g-title">前置 05:00</div>
+          <div class="node soft"><strong>美股因子 / 隔夜情绪</strong><span>软加权 · 不定池</span></div>
+        </div>
+        <div class="arrow">↓</div>
+
+        <div class="flow-group">
+          <div class="g-title">发现宇宙</div>
+          <div class="flow-row two">
+            <div class="node hard"><strong>启动形态扫描</strong><span>全 A 日 K · 池 A</span></div>
+            <div class="node hard"><strong>主线行业旁路</strong><span>板块资金 allow · 池 B</span></div>
+          </div>
+          <div class="arrow">↓ <span>并集硬入口 · 不回退全量</span></div>
+          <div class="node hard"><strong>宇宙 = 形态 ∪ 旁路</strong><span>缩到可评分集合</span></div>
+        </div>
+        <div class="arrow">↓</div>
+
+        <div class="flow-group">
+          <div class="g-title">排序</div>
+          <div class="node score"><strong>VM 模型评分</strong><span>recommend.py · 原始分</span></div>
+        </div>
+        <div class="arrow">↓</div>
+
+        <div class="flow-group">
+          <div class="g-title">确认与缩放</div>
+          <div class="node"><strong>1. 个股资金门控</strong><span>腾讯盘口 + Wind 候选 + 资金史</span></div>
+          <div class="arrow">↓</div>
+          <div class="node"><strong>2. 大盘环境门控</strong><span>仓位 / pool_n / TopN</span></div>
+          <div class="arrow">↓</div>
+          <div class="node soft"><strong>3. 板块轮动门控</strong><span>行业 × 概念 · soft_dual</span></div>
+          <div class="arrow">↓</div>
+          <div class="node soft"><strong>4. 趋势校准</strong><span>下跌通道硬踢 · 其余软加分</span></div>
+        </div>
+        <div class="arrow">↓</div>
+
+        <div class="flow-group">
+          <div class="g-title">输出与执行</div>
+          <div class="node out"><strong>日频池 pool_n → Trade TopN</strong><span>纸面交易 · 共享资金</span></div>
+          <div class="arrow">↓</div>
+          <div class="node out"><strong>尾盘 S2 · 14:45</strong><span>可空信号 · 约 T+3</span></div>
+        </div>
+      </div>
+
+      <div class="callout">
+        用市场资金选股的主路径：<strong>当日板块资金定方向</strong> → 模型在池内排序 →
+        <strong>Wind/盘口对短名单确认</strong>。全市场 fund_flow_history 多为 T-1 骨架，不负责发现池。
+      </div>
+    </section>
+
+    <section id="arms" class="block">
+      <h2>双策略产品结构</h2>
+      <p class="lead">两条臂共用现金池，入口与持有规则不同。</p>
+      <div class="arms">
+        <div class="arm">
+          <h3>日频精选（主臂）</h3>
+          <p>入口：05:00 漏斗 + 09:35 晨间资金再门控</p>
+          <p>产出：daily_recommend 池 + Trade TopN</p>
+          <p>持有：纸面按日频规则；共享现金</p>
+        </div>
+        <div class="arm">
+          <h3>尾盘狙击（S2）</h3>
+          <p>入口：14:45 规则引擎 + 分钟线</p>
+          <p>产出：eod_s2_picks（允许当日 0 只）</p>
+          <p>持有：约强制 T+3；与日频共用资金</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="funnel" class="block">
+      <h2>日频漏斗步骤</h2>
+      <p class="lead">源码主链 alphapilot_pipeline_v3 · cron 05:00 · 表格可左右滑动</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>步</th><th>名称</th><th>做什么</th><th>关键数据</th><th>作用</th><th>软/硬</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">0</td><td>隔夜前置</td><td>美股因子 + 隔夜情绪</td><td>us_enhanced / overnight</td><td>外盘加权</td><td><span class="tag soft">软</span></td></tr>
+            <tr><td class="mono">1</td><td>启动形态</td><td>全 A 四类启动形态</td><td>日 K</td><td>发现池 A</td><td><span class="tag hard">硬入口</span></td></tr>
+            <tr><td class="mono">1b</td><td>主线旁路</td><td>板块资金 allow 成分</td><td>sector_flow_today</td><td>发现池 B</td><td><span class="tag hard">硬入口</span></td></tr>
+            <tr><td class="mono">2</td><td>VM 评分</td><td>recommend.py 打分</td><td>K线/资金/筹码/基本面</td><td>原始排序</td><td><span class="tag score">评分</span></td></tr>
+            <tr><td class="mono">3</td><td>形态|旁路过滤</td><td>只留启动 OR 旁路</td><td>两池并集</td><td>缩宇宙</td><td><span class="tag hard">硬</span></td></tr>
+            <tr><td class="mono">4</td><td>个股资金门控</td><td>money_flow_gate</td><td>腾讯 + Wind + 资金史</td><td>短名单确认</td><td><span class="tag hard">硬+软</span></td></tr>
+            <tr><td class="mono">5</td><td>大盘环境</td><td>指数强弱定仓位</td><td>指数 K</td><td>pool/TopN</td><td><span class="tag hard">硬缩放</span></td></tr>
+            <tr><td class="mono">6</td><td>板块轮动</td><td>行业×概念 soft_dual</td><td>板块资金快照</td><td>流出降权</td><td><span class="tag soft">软</span></td></tr>
+            <tr><td class="mono">6b–7</td><td>趋势校准</td><td>K位置/趋势首选</td><td>日 K 均线量能</td><td>软加分/硬踢</td><td><span class="tag soft">软为主</span></td></tr>
+            <tr><td class="mono">8–9</td><td>截断落盘</td><td>近涨停剔除 + 输出</td><td>daily_recommend</td><td>池与 TopN</td><td><span class="tag score">输出</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="money" class="block">
+      <h2>资金分层</h2>
+      <p class="lead">定方向靠板块；定个股靠短名单确认。</p>
+      <div class="arms">
+        <div class="arm">
+          <h3>定方向 · 板块级</h3>
+          <p>sector_flow_today → allow / deny</p>
+          <p>旁路池：allow 行业成分进宇宙</p>
+          <p>板块门控：流出板块降权</p>
+          <p style="margin-top:8px;color:var(--teal);font-size:12px;font-weight:650">尽量当日 · 11:50 / 15:30 刷新</p>
+        </div>
+        <div class="arm">
+          <h3>定个股 · 短名单</h3>
+          <p>腾讯：主动买 / 换手 / 量比</p>
+          <p>Wind：候选当日与 5 日净流入 + PE</p>
+          <p>fund_flow_history：多日骨架（可 T-1）</p>
+          <p style="margin-top:8px;color:var(--amber);font-size:12px;font-weight:650">不做全市场当日个股扫货</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="data" class="block">
+      <h2>数据层清单</h2>
+      <p class="lead">表格可左右滑动</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>层级</th><th>文件/源</th><th>新鲜度</th><th>谁用</th><th>要否当日</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>板块资金</td><td class="mono">sector_flow_today</td><td>当日</td><td>旁路/板块门控</td><td><strong>是</strong></td></tr>
+            <tr><td>个股资金史</td><td class="mono">fund_flow_history</td><td>常 T-1</td><td>训练/5日底/兜底</td><td>否</td></tr>
+            <tr><td>Wind 候选</td><td class="mono">wind_candidate_flow</td><td>当日短名单</td><td>money_flow_gate</td><td>短名单要</td></tr>
+            <tr><td>实时盘口</td><td class="mono">腾讯 qt</td><td>实时</td><td>主动买/换手</td><td>是</td></tr>
+            <tr><td>日 K / 分钟</td><td class="mono">kline / minute</td><td>收盘+重试</td><td>形态/趋势/S2</td><td>收盘齐</td></tr>
+            <tr><td>筹码</td><td class="mono">chip_data_all</td><td>随 K 自算</td><td>滤/S2/训练</td><td>尽量</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="gates" class="block">
+      <h2>硬门 vs 软门</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>类型</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag hard">硬入口</span></td><td>启动形态 ∪ 主线旁路</td></tr>
+            <tr><td><span class="tag hard">硬过滤</span></td><td>资金弱硬淘、旁路出货拒、极端空仓、下跌通道踢、近涨停不报</td></tr>
+            <tr><td><span class="tag soft">软加权</span></td><td>板块 soft_dual、趋势首选、草木皆兵、K 位置、资金软分</td></tr>
+            <tr><td><span class="tag score">执行</span></td><td>共享资金；日频 TopN；尾盘约 T+3；PE 默认不硬淘</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="schedule" class="block">
+      <h2>交易日时间表</h2>
+      <p class="lead">周一至周五</p>
+      <div class="tl-row"><div class="tl-time">05:00</div><div class="tl-body"><strong>日频漏斗</strong><span>daily_recommend.json</span></div></div>
+      <div class="tl-row"><div class="tl-time">08:50</div><div class="tl-body"><strong>板块研报 bias</strong><span>prefer / avoid</span></div></div>
+      <div class="tl-row"><div class="tl-time">09:35</div><div class="tl-body"><strong>晨间资金门控</strong><span>纸面日频 Top2</span></div></div>
+      <div class="tl-row"><div class="tl-time">11:50</div><div class="tl-body"><strong>刷当日板块资金</strong><span>sector_flow_today</span></div></div>
+      <div class="tl-row"><div class="tl-time">14:45</div><div class="tl-body"><strong>尾盘 S2</strong><span>eod_s2_picks</span></div></div>
+      <div class="tl-row"><div class="tl-time">15:30</div><div class="tl-body"><strong>全量刷新</strong><span>板块 + Wind + K线筹码</span></div></div>
+      <div class="tl-row"><div class="tl-time">15:40</div><div class="tl-body"><strong>新鲜度检查</strong><span>data_freshness.json</span></div></div>
+
+      <p class="mind">全A →（形态 ∪ 旁路）→ VM打分 → 资金确认 → 大盘仓位 → 板块轮动 → 趋势校准 → 池/TopN → 纸面</p>
+      <p class="lead" style="margin:8px 0 0">旁路并行发现；门控串行收缩；Wind 只打已入池短名单。</p>
+    </section>
+
+    <footer>AlphaPilot 内部说明 · 离线可打开 · 不构成投资建议</footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,271 @@
+{
+  "protocol": {
+    "entry": "T+1 open skip limit-up; signal-day near-limit excluded (vm25)",
+    "rank": "VM2.5 + strict volume GC + hard fund gate (tradable A aligned)",
+    "rank_mode": "vm25",
+    "suite": "antidump",
+    "approx_note": "日K无法还原分钟；E1≈开盘保护窗(刺穿收回不卖)；E2≈止损确认(收盘站稳)；E3≈早盘分批；E4≈大低开先卖半；E5≈买入低开过滤",
+    "D0_pierce": "baseline hard stop -10% on low pierce + peel + eod",
+    "E1_wick_protect": "low pierce but close>stop → ignore stop (bounce)",
+    "E2_close_confirm": "stop only if close<=stop",
+    "E3_half_stop": "pierce → 50% at stop + 50% at close",
+    "E4_gap_half": "sell-day open vs cost<=-5% → 50% open + 50% close",
+    "E5_entry_gap_skip": "skip if buy open gap vs prev close <= -3%",
+    "cost_rt": 0.0015,
+    "top_n": 2,
+    "fund_gate": true,
+    "stop_pct": -0.1
+  },
+  "window": {
+    "start": "2026-04-01",
+    "end": "2026-07-20"
+  },
+  "kpi": [
+    {
+      "arm": "D0_pierce",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.4755244755244755,
+      "win_rate": 0.6363636363636364,
+      "avg_ret": 0.029929169362604997,
+      "median_ret": 0.023146825396825305,
+      "p25_ret": -0.026369388391499257,
+      "p75_ret": 0.07951471033942466,
+      "day_win_rate": 0.7083333333333334,
+      "day_avg_ret": 0.028939730495589473,
+      "max_drawdown": -0.22981665458377187,
+      "total_return": 5.618459682881316,
+      "avg_legs": 1.5734265734265733,
+      "exit_breakdown": {
+        "hard_stop_10": {
+          "n": 9,
+          "rate": 0.06293706293706294
+        },
+        "hard_stop_10_gap": {
+          "n": 6,
+          "rate": 0.04195804195804196
+        },
+        "peel_then_eod": {
+          "n": 82,
+          "rate": 0.5734265734265734
+        },
+        "t1_eod": {
+          "n": 46,
+          "rate": 0.32167832167832167
+        }
+      },
+      "stop_hit_rate": 0.1048951048951049,
+      "peel_trigger_rate": 0.5734265734265734
+    },
+    {
+      "arm": "E1_wick_protect",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.4755244755244755,
+      "win_rate": 0.6363636363636364,
+      "avg_ret": 0.03106947537998988,
+      "median_ret": 0.023146825396825305,
+      "p25_ret": -0.024129946787098983,
+      "p75_ret": 0.07951471033942466,
+      "day_win_rate": 0.7222222222222222,
+      "day_avg_ret": 0.02973488521655478,
+      "max_drawdown": -0.25663231767294215,
+      "total_return": 5.932187351978514,
+      "avg_legs": 1.5804195804195804,
+      "exit_breakdown": {
+        "peel_then_eod": {
+          "n": 82,
+          "rate": 0.5734265734265734
+        },
+        "t1_eod": {
+          "n": 46,
+          "rate": 0.32167832167832167
+        },
+        "wick_protect_peel_then_eod": {
+          "n": 1,
+          "rate": 0.006993006993006993
+        },
+        "wick_protect_stop": {
+          "n": 9,
+          "rate": 0.06293706293706294
+        },
+        "wick_protect_t1_eod": {
+          "n": 5,
+          "rate": 0.03496503496503497
+        }
+      },
+      "stop_hit_rate": 0.06293706293706294,
+      "peel_trigger_rate": 0.5804195804195804
+    },
+    {
+      "arm": "E2_close_confirm",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.4755244755244755,
+      "win_rate": 0.6363636363636364,
+      "avg_ret": 0.031144372177552605,
+      "median_ret": 0.023146825396825305,
+      "p25_ret": -0.024129946787098983,
+      "p75_ret": 0.07951471033942466,
+      "day_win_rate": 0.7222222222222222,
+      "day_avg_ret": 0.029809261897467767,
+      "max_drawdown": -0.25663231767294215,
+      "total_return": 5.973309691815275,
+      "avg_legs": 1.5804195804195804,
+      "exit_breakdown": {
+        "close_confirm_stop": {
+          "n": 9,
+          "rate": 0.06293706293706294
+        },
+        "peel_then_eod": {
+          "n": 83,
+          "rate": 0.5804195804195804
+        },
+        "t1_eod": {
+          "n": 51,
+          "rate": 0.35664335664335667
+        }
+      },
+      "stop_hit_rate": 0.06293706293706294,
+      "peel_trigger_rate": 0.5804195804195804
+    },
+    {
+      "arm": "E3_half_stop",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.4755244755244755,
+      "win_rate": 0.6363636363636364,
+      "avg_ret": 0.030460721819029854,
+      "median_ret": 0.023146825396825305,
+      "p25_ret": -0.026369388391499257,
+      "p75_ret": 0.07951471033942466,
+      "day_win_rate": 0.7222222222222222,
+      "day_avg_ret": 0.02929376702986196,
+      "max_drawdown": -0.24421100873048673,
+      "total_return": 5.759385937548126,
+      "avg_legs": 1.6783216783216783,
+      "exit_breakdown": {
+        "half_stop_eod": {
+          "n": 15,
+          "rate": 0.1048951048951049
+        },
+        "peel_then_eod": {
+          "n": 82,
+          "rate": 0.5734265734265734
+        },
+        "t1_eod": {
+          "n": 46,
+          "rate": 0.32167832167832167
+        }
+      },
+      "stop_hit_rate": 0.1048951048951049,
+      "peel_trigger_rate": 0.5734265734265734
+    },
+    {
+      "arm": "E4_gap_half",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.46153846153846156,
+      "win_rate": 0.6293706293706294,
+      "avg_ret": 0.029793993735220826,
+      "median_ret": 0.02161018237082088,
+      "p25_ret": -0.026369388391499257,
+      "p75_ret": 0.07951471033942466,
+      "day_win_rate": 0.7222222222222222,
+      "day_avg_ret": 0.028631669002190482,
+      "max_drawdown": -0.2576360069769903,
+      "total_return": 5.457902592182738,
+      "avg_legs": 1.6923076923076923,
+      "exit_breakdown": {
+        "gap_half_open_eod": {
+          "n": 18,
+          "rate": 0.1258741258741259
+        },
+        "hard_stop_10": {
+          "n": 4,
+          "rate": 0.027972027972027972
+        },
+        "peel_then_eod": {
+          "n": 81,
+          "rate": 0.5664335664335665
+        },
+        "t1_eod": {
+          "n": 40,
+          "rate": 0.27972027972027974
+        }
+      },
+      "stop_hit_rate": 0.15384615384615385,
+      "peel_trigger_rate": 0.5664335664335665
+    },
+    {
+      "arm": "E5_entry_gap_skip",
+      "n_signals": 144,
+      "n_filled": 124,
+      "n_skipped": 20,
+      "fill_rate": 0.8611111111111112,
+      "n_days": 68,
+      "hit_3pct_rate": 0.46774193548387094,
+      "win_rate": 0.6451612903225806,
+      "avg_ret": 0.030886624903829277,
+      "median_ret": 0.023084885652205525,
+      "p25_ret": -0.024005738746436744,
+      "p75_ret": 0.07918419463459528,
+      "day_win_rate": 0.6911764705882353,
+      "day_avg_ret": 0.029504311204013083,
+      "max_drawdown": -0.31117810213712727,
+      "total_return": 5.109871818985991,
+      "avg_legs": 1.5725806451612903,
+      "exit_breakdown": {
+        "hard_stop_10": {
+          "n": 8,
+          "rate": 0.06451612903225806
+        },
+        "hard_stop_10_gap": {
+          "n": 4,
+          "rate": 0.03225806451612903
+        },
+        "peel_then_eod": {
+          "n": 71,
+          "rate": 0.5725806451612904
+        },
+        "t1_eod": {
+          "n": 41,
+          "rate": 0.33064516129032256
+        }
+      },
+      "stop_hit_rate": 0.0967741935483871,
+      "peel_trigger_rate": 0.5725806451612904
+    }
+  ],
+  "n_trades": {
+    "D0_pierce": 143,
+    "E1_wick_protect": 143,
+    "E2_close_confirm": 143,
+    "E3_half_stop": 143,
+    "E4_gap_half": 143,
+    "E5_entry_gap_skip": 124
+  },
+  "comparison_focus": [
+    "D0_pierce",
+    "E1_wick_protect",
+    "E2_close_confirm",
+    "E3_half_stop",
+    "E4_gap_half",
+    "E5_entry_gap_skip"
+  ]
+}

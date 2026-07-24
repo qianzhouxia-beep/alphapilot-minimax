@@ -1,0 +1,147 @@
+{
+  "protocol": {
+    "rank": "VM2.5 + strict GC + hard fund gate",
+    "exit": "T+2 close",
+    "A": "T+1 09:35 minute price",
+    "B": "GapSoft C alone",
+    "C": "ML timing alone (ignore GapSoft)",
+    "D": "GapSoft C gate + ML timing when conf>=0.42; else pure C",
+    "minute_source": "mootdx.minutes(date=)",
+    "cost_rt": 0.0015,
+    "top_n": 2
+  },
+  "window": {
+    "start": "2026-04-01",
+    "end": "2026-07-17"
+  },
+  "minute_stats": {
+    "ok": 142,
+    "miss": 0,
+    "ml_samples": 142
+  },
+  "hybrid_stats": {
+    "ml_timed": 84,
+    "c_fallback": 48
+  },
+  "ml_window_accuracy": 0.5,
+  "D_vs_B": {
+    "n_paired": 132,
+    "avg_delta_ret": -0.009637589847114414,
+    "win_rate_vs_c": 0.3409090909090909,
+    "ml_used_rate": 0.6363636363636364
+  },
+  "kpi": [
+    {
+      "arm": "A_0935",
+      "n_signals": 142,
+      "n_filled": 142,
+      "n_skipped": 0,
+      "fill_rate": 1.0,
+      "n_days": 71,
+      "avg_weight": 1.0,
+      "hit_3pct_rate": 0.3380281690140845,
+      "win_rate": 0.4859154929577465,
+      "avg_ret": -0.013845810534757811,
+      "avg_full_ret": -0.013845810534757811,
+      "median_ret": -0.002061299917088254,
+      "day_win_rate": 0.4788732394366197,
+      "day_avg_ret": -0.013845810534757813,
+      "max_drawdown": -0.7114200594031135,
+      "total_return": -0.7161304319549454,
+      "entry_modes": {
+        "0935": 142
+      },
+      "skip_reasons": {}
+    },
+    {
+      "arm": "B_gap_soft",
+      "n_signals": 142,
+      "n_filled": 132,
+      "n_skipped": 10,
+      "fill_rate": 0.9295774647887324,
+      "n_days": 70,
+      "avg_weight": 0.9396694666168717,
+      "hit_3pct_rate": 0.4318181818181818,
+      "win_rate": 0.5909090909090909,
+      "avg_ret": 0.01601347921496028,
+      "avg_full_ret": 0.016454685728316005,
+      "median_ret": 0.010281249902213772,
+      "day_win_rate": 0.6142857142857143,
+      "day_avg_ret": 0.015402007208735436,
+      "max_drawdown": -0.3807636604883272,
+      "total_return": 1.552214245168503,
+      "entry_modes": {
+        "open_ok": 113,
+        "limit_soft_3_5": 6,
+        "limit_mid": 13
+      },
+      "skip_reasons": {
+        "gap_chase": 4,
+        "limit_miss": 6
+      }
+    },
+    {
+      "arm": "C_ml_time",
+      "n_signals": 142,
+      "n_filled": 142,
+      "n_skipped": 0,
+      "fill_rate": 1.0,
+      "n_days": 71,
+      "avg_weight": 1.0,
+      "hit_3pct_rate": 0.34507042253521125,
+      "win_rate": 0.4859154929577465,
+      "avg_ret": -0.01359422129845736,
+      "avg_full_ret": -0.01359422129845736,
+      "median_ret": -0.002061299917088254,
+      "day_win_rate": 0.4788732394366197,
+      "day_avg_ret": -0.013594221298457358,
+      "max_drawdown": -0.701302050394115,
+      "total_return": -0.7063959594910179,
+      "entry_modes": {
+        "ml_0935": 117,
+        "ml_0945": 10,
+        "ml_1000": 15
+      },
+      "skip_reasons": {}
+    },
+    {
+      "arm": "D_c_ml",
+      "n_signals": 142,
+      "n_filled": 132,
+      "n_skipped": 10,
+      "fill_rate": 0.9295774647887324,
+      "n_days": 70,
+      "avg_weight": 0.9396694666168717,
+      "hit_3pct_rate": 0.4015151515151515,
+      "win_rate": 0.5454545454545454,
+      "avg_ret": 0.006375889367845862,
+      "avg_full_ret": 0.007204258616515375,
+      "median_ret": 0.005149121660973749,
+      "day_win_rate": 0.5857142857142857,
+      "day_avg_ret": 0.00606145435904084,
+      "max_drawdown": -0.578270899583391,
+      "total_return": 0.27562292869058225,
+      "entry_modes": {
+        "c_only_open_ok": 35,
+        "c_only_limit_soft_3_5": 2,
+        "c_only_limit_mid": 3,
+        "c_ml_0945": 8,
+        "c_ml_0935": 67,
+        "c_fb_limit_mid": 6,
+        "c_ml_1000": 9,
+        "c_fb_limit_soft_3_5": 2
+      },
+      "skip_reasons": {
+        "gap_chase": 4,
+        "limit_miss": 6
+      }
+    }
+  ],
+  "recommendation": {
+    "prefer": "B_gap_soft",
+    "avg_ret": 0.01601347921496028,
+    "win_rate": 0.5909090909090909,
+    "max_drawdown": -0.3807636604883272,
+    "reason": "highest avg_ret among filled arms"
+  }
+}

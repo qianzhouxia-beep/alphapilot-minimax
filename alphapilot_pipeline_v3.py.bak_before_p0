@@ -1,0 +1,403 @@
+#!/usr/bin/env python3
+"""
+AlphaPilot 完整选股管线 v3.0 — 漏斗架构
+全A股 5000+ → 量价金叉 → V2.2+隔夜 → 资金门控 → 大盘环境 → 板块资金轮动(硬过滤) → LLM审核 → S2 → Top50
+"""
+import os, sys, json, time, subprocess, requests, numpy as np, pandas as pd
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+
+os.chdir("/home/ubuntu/alphapilot")
+OUTPUT_DIR = "output"
+
+# ── DeepSeek（LLM审核用） ──
+LLM_KEY = os.getenv("DEEPSEEK_API_KEY") or "sk-7fed993c1a084f18bb420b19264b109f"
+LLM_URL = "https://api.deepseek.com/v1/chat/completions"
+
+# ── 全局缓存 ──
+_SECTOR_HIST_CACHE = {}
+
+def log(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+def run_step(name, cmd, timeout=600):
+    log(f"▶ {name} ...")
+    t0 = time.time()
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    elapsed = int(time.time() - t0)
+    if r.returncode == 0:
+        log(f"  ✅ {name} 完成 ({elapsed}s)")
+    else:
+        log(f"  ❌ {name} 失败: {r.stderr.strip()[-200:]}")
+    return r.returncode == 0
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 1: 全A股量价金叉扫描（股价>MA25 + 量MA5上穿MA60）
+# ═══════════════════════════════════════════════════════════════
+def scan_volume_gc() -> set:
+    """全市场扫描量价金叉，返回符合条件股票代码集合"""
+    log("▶ 全A股量价金叉扫描...")
+    from data_fetcher import get_kline_sina, get_stock_list
+
+    stocks = get_stock_list()
+    symbols = [s for s in stocks["symbol"].tolist() if not s.startswith("bj")]
+    log(f"  全A股: {len(symbols)} 只")
+
+    gc_set = set()
+
+    def check(sym):
+        try:
+            kl = get_kline_sina(sym, start_date="20260301")
+            if kl is None or kl.empty:
+                return None
+            kl = kl.sort_values("date").reset_index(drop=True)
+            if len(kl) < 61:
+                return None
+            c = kl["close"].values
+            v = (kl["volume"] if "volume" in kl.columns else kl["amount"]).values
+            ma25 = pd.Series(c).rolling(25).mean().values
+            vm5 = pd.Series(v).rolling(5).mean().values
+            vm60 = pd.Series(v).rolling(60).mean().values
+            l = len(kl) - 1
+            if bool(c[l] > ma25[l] and vm5[l] > vm60[l] and vm5[l-1] <= vm60[l-1]):
+                return sym
+            return None
+        except:
+            return None
+
+    with ThreadPoolExecutor(max_workers=30) as ex:
+        futs = {ex.submit(check, s): s for s in symbols}
+        for i, fut in enumerate(as_completed(futs)):
+            r = fut.result()
+            if r:
+                gc_set.add(r)
+            if (i + 1) % 500 == 0:
+                log(f"  扫描: {i+1}/{len(symbols)}, 已发现: {len(gc_set)}")
+
+    # 保存到文件
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(f"{OUTPUT_DIR}/volume_gc_pool.json", "w") as f:
+        json.dump(list(gc_set), f)
+    log(f"  ✅ 量价金叉: {len(gc_set)} 只")
+    return gc_set
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 2: 资金门控
+# ═══════════════════════════════════════════════════════════════
+def apply_money_gate(items: list) -> list:
+    log("▶ 资金门控过滤...")
+    try:
+        from money_flow_gate import apply_money_flow_gate
+        gated = apply_money_flow_gate(items, top_n=None)
+        log(f"  ✅ 通过: {len(gated)}/{len(items)}")
+    except Exception as e:
+        log(f"  ⚠️ 资金门控失败: {e}")
+        gated = items
+    # 盘中软门控：实时资金流排名 + 行情软加权（不硬杀）
+    try:
+        from soft_intraday_gate import apply_soft_intraday_gate
+        before = len(gated)
+        gated = apply_soft_intraday_gate(gated, mode="soft")
+        log(f"  ✅ 盘中软门控加权: {before} 只（不删票）")
+    except Exception as e:
+        log(f"  ⚠️ 盘中软门控跳过: {e}")
+    return gated
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 3a: 大盘/科技环境门控（指数多日趋势）
+# ═══════════════════════════════════════════════════════════════
+def apply_market_env(items: list) -> tuple:
+    """指数环境硬过滤 + 仓位缩放；返回 (items, env_meta)。"""
+    log("▶ 大盘环境门控...")
+    try:
+        from market_env_gate import apply_market_env_gate, load_or_build_env, position_exposure
+        import json as _json
+        from pathlib import Path as _Path
+
+        env = load_or_build_env(force=True)
+        flags = env.get("flags") or {}
+        expo = float(env.get("position_exposure", position_exposure(flags)))
+        idxs = env.get("indexes") or {}
+        for k in ("sh_main", "sz_main", "chinext", "star50"):
+            st = idxs.get(k) or {}
+            log(
+                f"  {st.get('name', k)}: 5d={st.get('ret_5d')}% 10d={st.get('ret_10d')}% "
+                f"weak={st.get('weak')} severe={st.get('severe')}"
+            )
+        log(
+            f"  flags: market_weak={flags.get('market_weak')} market_severe={flags.get('market_severe')} "
+            f"tech_weak={flags.get('tech_weak')} tech_severe={flags.get('tech_severe')} "
+            f"position_exposure={expo}"
+        )
+        imap = {}
+        ip = _Path("data/stock_industry_map.json")
+        if ip.exists():
+            try:
+                imap = _json.loads(ip.read_text(encoding="utf-8"))
+            except Exception:
+                imap = {}
+        before = len(items)
+        result = apply_market_env_gate(
+            items, env=env, hard_filter=True, mode="hard_only", industry_map=imap
+        )
+        meta = {"flags": flags, "position_exposure": expo, "indexes": idxs}
+        if expo <= 0:
+            log("  ⛔ 大盘严重走弱 → 空仓（不输出推荐）")
+            return [], meta
+        if expo < 1.0:
+            log(f"  ⚠️ 降仓执行：建议仓位 {expo:.0%}（等权 Top3 按此缩放）")
+        log(f"  ✅ 环境门控: {before} → {len(result)} 只")
+        return result, meta
+    except Exception as e:
+        log(f"  ⚠️ 大盘环境门控失败: {e}")
+        return items, {"position_exposure": 1.0, "flags": {}, "error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 3b: 板块资金轮动硬门控（1–3日流入/流出；只过滤不改分）
+# ═══════════════════════════════════════════════════════════════
+def apply_sector_rotation(items: list) -> list:
+    """行业×概念联合硬剔除（高分也不留）；只过滤不改分。"""
+    log("▶ 板块资金轮动硬门控（行业+概念）...")
+    try:
+        from sector_rotation_gate import apply_sector_rotation_gate, build_snapshot
+
+        snap = build_snapshot()
+        allow = [x["name"] for x in (snap.get("classes") or {}).get("allow", [])[:8]]
+        deny = [x["name"] for x in (snap.get("classes") or {}).get("deny", [])[:8]]
+        c_allow = [x["name"] for x in (snap.get("concept_classes") or {}).get("allow", [])[:8]]
+        c_deny = [x["name"] for x in (snap.get("concept_classes") or {}).get("deny", [])[:8]]
+        log(f"  行业流入: {allow}")
+        log(f"  行业流出: {deny}")
+        log(f"  概念流入: {c_allow}")
+        log(f"  概念流出: {c_deny}")
+        before = len(items)
+        result = apply_sector_rotation_gate(items, snap=snap, mode="dual")
+        log(f"  ✅ 硬过滤: {before} → {len(result)} 只（未改 score）")
+        return result
+    except Exception as e:
+        log(f"  ⚠️ 板块轮动门控失败: {e}")
+        return items
+
+
+def apply_sector_gate(items: list) -> list:
+    """兼容旧名：转发到硬门控（不再做 ±3% 软调权）。"""
+    return apply_sector_rotation(items)
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 4: LLM 双重审核（Top 50）
+# ═══════════════════════════════════════════════════════════════
+def llm_review(items: list) -> list:
+    """LLM新闻情绪审核 Top 50"""
+    log(f"▶ LLM双重审核: {min(50, len(items))} 只...")
+
+    if not items:
+        return items
+
+    top50 = items[:50]
+    bonus_count = 0
+
+    def review_one(item):
+        nonlocal bonus_count
+        name = item.get("name", "")
+        sym = item.get("symbol", "")
+        if not name or not sym:
+            return None
+
+        # 拉取新闻（多源）
+        news = []
+        # 源1: akshare 东财新闻
+        try:
+            import akshare as ak
+            df = ak.stock_news_em(symbol=sym.replace("sh","").replace("sz",""))
+            if df is not None and not df.empty:
+                for _, row in df.head(3).iterrows():
+                    title = str(row.get("新闻标题", row.get("title", row.get("content", ""))))
+                    if title and len(title) > 5:
+                        news.append(title[:80])
+        except:
+            pass
+        # 源2: 新浪快讯（备用）
+        if len(news) < 2:
+            try:
+                r = requests.get("https://feed.mix.sina.com.cn/api/roll/get",
+                    params={"pageid": "153", "lid": "2510", "num": 5},
+                    headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+                if r.status_code == 200:
+                    data = r.json()
+                    for item in data.get("result", {}).get("data", []):
+                        t = item.get("title", "")
+                        if t and len(t) > 5:
+                            news.append(t[:80])
+            except:
+                pass
+
+        if not news:
+            # soft-fail: keep stock, neutral sentiment (avoid emptying funnel)
+            return (sym, 0.0, "无新闻-中性放行")
+
+        # LLM分析
+        prompt = (
+            "分析以下股票最新新闻标题，判断其短期情绪（利好/中性/利空），返回一个情绪分（-0.02到+0.03）、以及一句话理由。"
+            f"\n股票: {name}({sym})\n新闻:\n" + "\n".join(f"- {n}" for n in news) +
+            "\n\n格式: JSON {\"sentiment\": float, \"reason\": str}"
+        )
+        try:
+            r = requests.post(LLM_URL, json={
+                "model": "deepseek-chat",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.1, "max_tokens": 200,
+            }, headers={"Authorization": f"Bearer {LLM_KEY}"}, timeout=10)
+            if r.status_code == 200:
+                content = r.json()["choices"][0]["message"]["content"]
+                import re
+                m = re.search(r'"sentiment"\s*:\s*(-?[\d.]+)', content)
+                if m:
+                    sentiment = float(m.group(1))
+                    sentiment = max(-0.02, min(0.03, sentiment))
+                    return (sym, sentiment, content[:100])
+        except:
+            pass
+        return None
+
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futs = {ex.submit(review_one, it): it for it in top50}
+        llm_results = {}
+        for fut in as_completed(futs):
+            r = fut.result()
+            if r:
+                llm_results[r[0]] = {"sentiment": r[1], "reason": r[2]}
+
+    # 应用LLM情绪分
+    for item in items:
+        sym = item.get("symbol", "")
+        if sym in llm_results:
+            lr = llm_results[sym]
+            item["score"] = round(float(item.get("score", 0) or 0) + lr["sentiment"], 4)
+            item["llm_sentiment"] = lr["sentiment"]
+            item["llm_reason"] = lr["reason"][:80]
+            bonus_count += 1
+
+    items.sort(key=lambda x: -float(x.get("score", 0) or 0))
+    log(f"  ✅ LLM: {bonus_count} 只有情绪分")
+    return items
+
+# ═══════════════════════════════════════════════════════════════
+# STEP 5: S2 策略加权
+# ═══════════════════════════════════════════════════════════════
+def apply_s2_weight(items: list) -> list:
+    """S2策略作为最终加权层"""
+    log("▶ S2策略加权...")
+    for item in items:
+        s2_score = item.get("s2_score", 0)
+        if s2_score:
+            base = float(item.get("score", 0) or 0)
+            item["score"] = round(base * (1 + s2_score * 0.05), 4)
+    items.sort(key=lambda x: -float(x.get("score", 0) or 0))
+    log(f"  ✅ 完成")
+    return items
+
+# ═══════════════════════════════════════════════════════════════
+# 主流程
+# ═══════════════════════════════════════════════════════════════
+def run():
+    log("🔥" * 25)
+    log("AlphaPilot 选股管线 v3.0（漏斗架构）")
+    log("🔥" * 25)
+
+    t_start = time.time()
+
+    # 0. 增强美股因子收集（前置数据）
+    ok = run_step("增强美股因子收集", "python3 us_enhanced_collector.py", 30)
+
+    # 1. 全市场量价金叉扫描
+    gc_set = scan_volume_gc()
+
+    # 2. V2.2 评分 + 隔夜情绪（recommend.py 内部已有）
+    ok = run_step("V2.2模型选股", "python3 -u recommend.py", 1200)
+    if not ok:
+        log("❌ V2.2选股失败，终止管线")
+        return
+
+    # 3. 读取评分结果，用量价金叉过滤
+    rec_path = f"{OUTPUT_DIR}/daily_recommend.json"
+    recs = json.load(open(rec_path))
+    items = recs.get("recommendations", [])
+
+    # 过滤：只保留在量价金叉池中的股票
+    before = len(items)
+    items = [it for it in items if it.get("symbol", "") in gc_set]
+    log(f"  量价金叉过滤: {before} → {len(items)} 只")
+
+    if not items:
+        log("⚠️ 量价金叉过滤后无候选股，使用原始推荐")
+        recs = json.load(open(rec_path))
+        items = recs.get("recommendations", [])
+
+    # 4. 资金门控
+    items = apply_money_gate(items)
+    log(f"  资金门控后: {len(items)} 只")
+
+    # 5. 大盘/科技环境门控 + 仓位缩放
+    items, mkt_meta = apply_market_env(items)
+    log(f"  大盘环境门控后: {len(items)} 只  exposure={mkt_meta.get('position_exposure')}")
+
+    # 6. 板块资金轮动硬门控（流出板块直接剔除，不加减分）— 90s超时
+    if items:
+        try:
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                fut = ex.submit(apply_sector_rotation, items)
+                items = fut.result(timeout=90)
+        except Exception as e:
+            log(f"  ⚠️ 板块轮动门控超时/失败: {e}")
+
+    # 7. 取 Top 50 → LLM 审核（空仓则跳过）
+    top50 = items[:50]
+    if top50:
+        top50 = llm_review(top50)
+        top50 = apply_s2_weight(top50)
+
+    # 8. 执行层标记：信号日近涨停不应报（双保险）
+    def _limit_frac(sym: str) -> float:
+        s = str(sym or "").replace("sh", "").replace("sz", "")[-6:]
+        if s.startswith(("300", "301", "688")):
+            return 0.20
+        return 0.10
+
+    exec_notes = []
+    filtered = []
+    for it in top50:
+        chg = it.get("change_pct") or it.get("pct_chg") or it.get("signal_chg")
+        try:
+            chg_f = float(chg) / (100.0 if abs(float(chg)) > 1 else 1.0) if chg is not None else None
+        except Exception:
+            chg_f = None
+        lim = _limit_frac(it.get("symbol", ""))
+        if chg_f is not None and chg_f >= lim * 0.97:
+            exec_notes.append({"symbol": it.get("symbol"), "reason": "signal_near_limit", "chg": chg_f})
+            continue
+        it = dict(it)
+        it["position_exposure"] = mkt_meta.get("position_exposure", 1.0)
+        it["exec_hint"] = "buy_t1_open_skip_if_limit; sell_t2_close"
+        filtered.append(it)
+    top50 = filtered
+
+    # 9. 保存最终结果
+    recs["recommendations"] = top50
+    recs["pipeline_version"] = "v3.1_funnel_gated"
+    recs["total_candidates"] = len(items)
+    recs["position_exposure"] = mkt_meta.get("position_exposure", 1.0)
+    recs["market_env_flags"] = mkt_meta.get("flags") or {}
+    recs["exec_excluded_near_limit"] = exec_notes
+    recs["generated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    json.dump(recs, open(rec_path, "w"), ensure_ascii=False, indent=2)
+
+    elapsed = int(time.time() - t_start)
+    log("=" * 50)
+    log(f"🚀 管线完成! 最终输出 {len(top50)} 只")
+    log(f"总耗时: {elapsed}s ({elapsed//60}分{elapsed%60}秒)")
+    log(f"Top3: {[x.get('name','') for x in top50[:3]]}")
+    log("=" * 50)
+
+if __name__ == "__main__":
+    run()

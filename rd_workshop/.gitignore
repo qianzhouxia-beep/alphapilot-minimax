@@ -1,0 +1,8 @@
+# Candidate artifacts (keep directory placeholders)
+candidates/**
+!candidates/.gitkeep
+data_support/inbound/**
+!data_support/inbound/.gitkeep
+!data_support/inbound/_sample_factors.csv
+rdagent_runs/**
+!rdagent_runs/.gitkeep

@@ -1,0 +1,18 @@
+---
+description: Use UI UX Pro Max for AlphaPilot UI/frontend changes
+globs: "**/frontend*/**/*.{tsx,ts,jsx,js,css},**/page.tsx,**/HeaderBar.tsx,**/*.css"
+alwaysApply: false
+---
+
+# AlphaPilot × UI UX Pro Max
+
+修改本仓库前端 / 落地页 / 组件 / 样式时：
+
+1. 读取并遵循 `C:\Users\elvisq\.cursor\skills\ui-ux-pro-max\SKILL.md`
+2. 重大改版先跑：
+
+```bash
+python C:\Users\elvisq\.cursor\skills\ui-ux-pro-max\scripts\search.py "fintech stock trading dashboard light" --design-system -p "AlphaPilot"
+```
+
+3. **保留浅色 UI 设计系统**（`globals.css` tokens、现有布局），在此基础上做专业级打磨，不要回退到深色旧页或通用紫渐变模板。

@@ -1,0 +1,82 @@
+{
+  "protocol": {
+    "entry": "T+1 open skip limit-up; signal-day near-limit excluded (vm25)",
+    "rank": "VM2.5 + strict volume GC + hard fund gate (tradable A aligned)",
+    "rank_mode": "vm25",
+    "A": "T+2 close",
+    "B": "peel arm>=3% pull>=1.5% half×2 then clear; max_hold=5",
+    "C": "full trail arm>=3% pull>=1%",
+    "cost_rt": 0.0015,
+    "top_n": 2,
+    "fund_gate": true,
+    "note": "日K high/close 近似盘中峰值/回撤"
+  },
+  "window": {
+    "start": "2026-04-01",
+    "end": "2026-07-17"
+  },
+  "kpi": [
+    {
+      "arm": "A_t2_close",
+      "n_signals": 142,
+      "n_filled": 142,
+      "n_skipped": 0,
+      "fill_rate": 1.0,
+      "n_days": 71,
+      "hit_3pct_rate": 0.44366197183098594,
+      "win_rate": 0.5985915492957746,
+      "avg_ret": 0.019011290539207106,
+      "median_ret": 0.018916379540443062,
+      "p25_ret": -0.033752247080230974,
+      "p75_ret": 0.0678793557170701,
+      "day_win_rate": 0.6619718309859155,
+      "day_avg_ret": 0.019011290539207103,
+      "max_drawdown": -0.40333548999949487,
+      "total_return": 2.272424227036047,
+      "avg_legs": 1.0
+    },
+    {
+      "arm": "B_peel_15",
+      "n_signals": 142,
+      "n_filled": 142,
+      "n_skipped": 0,
+      "fill_rate": 1.0,
+      "n_days": 71,
+      "hit_3pct_rate": 0.4084507042253521,
+      "win_rate": 0.5845070422535211,
+      "avg_ret": 0.009014018035131906,
+      "median_ret": 0.01898119516715162,
+      "p25_ret": -0.04338185360731898,
+      "p75_ret": 0.0729918169228092,
+      "day_win_rate": 0.6197183098591549,
+      "day_avg_ret": 0.009014018035131908,
+      "max_drawdown": -0.7558705593736335,
+      "total_return": 0.4291483963148359,
+      "avg_legs": 2.288732394366197
+    },
+    {
+      "arm": "C_full_trail1",
+      "n_signals": 142,
+      "n_filled": 142,
+      "n_skipped": 0,
+      "fill_rate": 1.0,
+      "n_days": 71,
+      "hit_3pct_rate": 0.4154929577464789,
+      "win_rate": 0.704225352112676,
+      "avg_ret": 0.01232155139251346,
+      "median_ret": 0.018981457812145275,
+      "p25_ret": -0.005717914389468835,
+      "p75_ret": 0.05765004133778795,
+      "day_win_rate": 0.704225352112676,
+      "day_avg_ret": 0.012321551392513454,
+      "max_drawdown": -0.5822596500476431,
+      "total_return": 0.9156744474389629,
+      "avg_legs": 1.0
+    }
+  ],
+  "n_trades": {
+    "A_t2_close": 142,
+    "B_peel_15": 142,
+    "C_full_trail1": 142
+  }
+}

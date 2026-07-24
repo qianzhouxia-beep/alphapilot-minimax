@@ -1,0 +1,58 @@
+{
+  "arm": "A",
+  "description": "S2 尾盘阻击规则参数（可通过 S2_ARM=B 切换 config/s2_params_B.json）",
+  "s2_rules": {
+    "change_pct": {
+      "type": "range",
+      "range": [3.0, 5.0],
+      "bonus": 0.05,
+      "note": "涨幅性价比区间（文档3~5）"
+    },
+    "volume_ratio": {
+      "type": "gt",
+      "threshold": 1.5,
+      "bonus": 0.05,
+      "note": "放量"
+    },
+    "turnover": {
+      "type": "range",
+      "range": [5.0, 10.0],
+      "bonus": 0.04,
+      "note": "换手5~10%"
+    },
+    "circ_mv": {
+      "type": "range",
+      "range": [50.0, 200.0],
+      "bonus": 0.04,
+      "note": "流通市值50~200亿"
+    },
+    "ma_bullish": {
+      "type": "bool",
+      "bonus": 0.10,
+      "note": "均线多头"
+    },
+    "close_strength": {
+      "type": "range",
+      "range": [0.0, 0.05],
+      "bonus": 0.05,
+      "note": "收盘近最高(上影短)"
+    },
+    "above_vwap": {
+      "type": "bool",
+      "bonus": 0.05,
+      "note": "站上均价"
+    },
+    "volatility_20d": {
+      "type": "gt",
+      "threshold": 0.02,
+      "bonus": 0.03,
+      "note": "有弹性"
+    },
+    "chip_penetration": {
+      "type": "gt",
+      "threshold": 0.05,
+      "bonus": 0.02,
+      "note": "筹码穿透"
+    }
+  }
+}

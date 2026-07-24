@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>板块研报 2026-07-20 下午盘 | AlphaPilot</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --bg: #F5F5F7;
+    --card: #FFFFFF;
+    --bg-tertiary: #FAFAFA;
+    --border: rgba(0,0,0,0.06);
+    --text: #1D1D1F;
+    --text-secondary: #3A3A40;
+    --text-tertiary: #86868B;
+    --purple: #7C5CFC;
+    --purple-light: #EDE9FE;
+    --red: #FF3B30;
+    --green: #34C759;
+    --yellow: #FF9500;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .header .meta { font-size: 13px; color: var(--text-tertiary); }
+  .header .badge { background: var(--purple); color: white; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 32px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  .section h2 { font-size: 20px; font-weight: 700; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .section h3 { font-size: 17px; font-weight: 600; margin: 20px 0 10px; color: var(--text); }
+  .section h4 { font-size: 15px; font-weight: 600; margin: 16px 0 6px; color: var(--text-secondary); }
+  .section p { font-size: 14px; color: var(--text-secondary); line-height: 1.85; margin-bottom: 10px; }
+  .section .highlight { background: var(--purple-light); border-radius: 12px; padding: 14px 18px; margin: 12px 0; }
+  .section .highlight .label { font-size: 13px; font-weight: 600; color: var(--purple); margin-bottom: 4px; }
+  .section .highlight .text { font-size: 15px; color: var(--text); line-height: 1.6; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .stat { text-align: center; padding: 12px; background: var(--bg-tertiary); border-radius: 12px; }
+  .stat .label { font-size: 12px; color: var(--text-tertiary); }
+  .stat .value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .stat .value.red { color: var(--red); }
+  .stat .value.green { color: var(--green); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-tertiary); font-weight: 500; background: var(--bg-tertiary); }
+  tr:hover td { background: var(--bg-tertiary); }
+  td.pos { color: var(--red); font-weight: 600; }
+  td.neg { color: var(--green); font-weight: 600; }
+
+  .tier { padding: 16px 20px; border-radius: 12px; margin-bottom: 16px; }
+  .tier.t1 { background: rgba(52,199,89,0.06); border-left: 4px solid var(--green); }
+  .tier.t2 { background: rgba(255,149,0,0.06); border-left: 4px solid var(--yellow); }
+  .tier.t3 { background: rgba(255,59,48,0.06); border-left: 4px solid var(--red); }
+  .tier .tier-label { font-weight: 700; margin-bottom: 10px; font-size: 15px; }
+
+  .sector-detail { margin-bottom: 14px; }
+  .sector-detail h4 { margin-bottom: 4px; }
+  .sector-detail .sector-data { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+  .rank-num { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center; background: var(--purple); color: white; border-radius: 50%; font-size: 12px; margin-right: 8px; }
+
+  .chart-box { width: 100%; height: 400px; margin: 16px 0; }
+  .chart-box-sm { width: 100%; height: 300px; margin: 16px 0; }
+
+  .footer { text-align: center; padding: 24px; color: var(--text-tertiary); font-size: 12px; border-top: 1px solid var(--border); margin-top: 24px; }
+  .back-link { display: inline-block; margin-bottom: 16px; color: var(--purple); text-decoration: none; font-size: 13px; font-weight: 500; }
+  .back-link:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    .section { padding: 20px 16px; }
+    .stat-row { grid-template-columns: 1fr; }
+    .chart-box { height: 300px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<a href="/cn/sectors/" class="back-link">← 返回板块看板</a>
+
+<div class="header">
+  <div>
+    <h1>板块研报 · 下午盘</h1>
+    <div class="meta">2026-07-20 | 数据源：通达信 tdxhub | 生成于 2026-07-21 00:55:19</div>
+  </div>
+  <span class="badge">下午盘</span>
+</div>
+
+<div class="section">
+  <h2>一、数据基础 & 市场概览</h2>
+  <p>数据来源：通达信THS行业指数多周期快照（今日/5日/10日/20日/60日）、主力资金净流入数据、市场概览。</p>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="label">上涨 / 下跌</div>
+      <div class="value"><span class="red">0</span> / <span class="red">0</span></div>
+    </div>
+    <div class="stat">
+      <div class="label">主力净流入</div>
+      <div class="value green">-1440.6亿</div>
+    </div>
+    <div class="stat">
+      <div class="label">放行 / 拦截板块</div>
+      <div class="value">1 / 6</div>
+    </div>
+  </div>
+
+  <h3>三大指数</h3>
+  <div class="stat-row">
+    <div class="stat">
+      <div class="label">上证指数</div>
+      <div class="value ">3796.28</div>
+      <div class="" style="font-size:14px;">+0.00%</div>
+    </div>
+    <div class="stat">
+      <div class="label">深证成指</div>
+      <div class="value ">13610.23</div>
+      <div class="" style="font-size:14px;">+0.00%</div>
+    </div>
+    <div class="stat">
+      <div class="label">创业板指</div>
+      <div class="value ">3443.10</div>
+      <div class="" style="font-size:14px;">+0.00%</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>二、核心判断</h2>
+  <p style="font-size:16px; font-weight:600; color:var(--text); line-height:1.8;">主力净流出-1440.6亿，6个板块被拦截、1个获放行。上证指数+0.00%、深证成指+0.00%、创业板指+0.00%。资金今日整体偏空，防御优先。</p>
+  <div class="highlight">
+    <div class="label">💡 核心一句话</div>
+    <div class="text">当前强势方向集中在美容护理，但需观察资金持续性。</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>三、资金迁移路径</h2>
+  <p>多周期持续流出：电子(今日-496.9亿、10日-2393.2亿)、通信(今日-210.3亿、10日-447.6亿)、机械设备(今日-105.2亿、10日-490.7亿)。这些方向资金在系统性撤退。</p>
+  <h3>持续流出板块（5日+10日+今日均为负）</h3>
+  <table>
+    <thead><tr><th>板块</th><th>今日(亿)</th><th>5日(亿)</th><th>10日(亿)</th><th>20日(亿)</th><th>60日(亿)</th></tr></thead>
+    <tbody>
+      <tr><td>电子</td><td class="neg">-496.9亿</td><td class="neg">-1880.3亿</td><td class="neg">-2393.2亿</td><td>-4777.8亿</td><td>+3582.4亿</td></tr>
+      <tr><td>通信</td><td class="neg">-210.3亿</td><td class="neg">-372.5亿</td><td class="neg">-447.6亿</td><td>-1550.4亿</td><td>+604.3亿</td></tr>
+      <tr><td>机械设备</td><td class="neg">-105.2亿</td><td class="neg">-325.2亿</td><td class="neg">-490.7亿</td><td>-729.3亿</td><td>+1993.7亿</td></tr>
+      <tr><td>有色金属</td><td class="neg">-72.2亿</td><td class="neg">-117.7亿</td><td class="neg">-388.4亿</td><td>-690.2亿</td><td>+682.0亿</td></tr>
+      <tr><td>电力设备</td><td class="neg">-48.7亿</td><td class="neg">-216.4亿</td><td class="neg">-614.9亿</td><td>-956.6亿</td><td>+1113.6亿</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>四、板块轮动分析</h2>
+  <p>多周期强势板块：美容护理——这些板块在今日、5日、10日多个周期均获主力放行，是当前资金最一致的方向。 改善信号：公用事业、石油石化、制造业——从弱势转强，值得跟踪是否形成趋势。 恶化信号：医药生物、国防军工、交通运输——从强势转弱，需警惕格局破坏。 多周期弱势板块：电子、通信、机械设备、有色金属、电力设备——多周期被拦截，短期不建议碰。</p>
+  <h3>板块轮动分类</h3>
+  <div class="tier t1">
+    <div class="tier-label" style="color:var(--green);">⬆ 多周期强势</div>
+<div class="sector-detail">
+  <h4><span class="rank-num">1</span>美容护理</h4>
+  <p class="sector-data">今日主力净流入-1.5亿，5日+1.6亿，10日+0.2亿，20日+0.3亿，60日+24.0亿。3个周期放行，0个周期拦截。多周期一致放行，资金持续性强，是当前确定性最高的方向。</p>
+</div>  </div>
+  <div class="tier t2">
+    <div class="tier-label" style="color:var(--yellow);">↗ 改善信号</div>
+<div class="sector-detail">
+  <h4>公用事业</h4>
+  <p class="sector-data">今日主力净流入+7.6亿，5日-33.1亿，10日-58.1亿，20日-68.0亿，60日+835.5亿。0个周期放行，0个周期拦截。多周期偏弱，资金持续流出。</p>
+</div><div class="sector-detail">
+  <h4>石油石化</h4>
+  <p class="sector-data">今日主力净流入-0.6亿，5日+7.9亿，10日+18.4亿，20日-12.8亿，60日+56.5亿。0个周期放行，0个周期拦截。多周期偏强，资金有一定持续性。</p>
+</div><div class="sector-detail">
+  <h4>制造业</h4>
+  <p class="sector-data">今日主力净流入-1.9亿，5日-20.3亿，10日-28.3亿，20日+63.2亿，60日+72.0亿。0个周期放行，0个周期拦截。多周期偏弱，资金持续流出。</p>
+</div><div class="sector-detail">
+  <h4>商贸零售</h4>
+  <p class="sector-data">今日主力净流入-4.5亿，5日+2.9亿，10日-4.0亿，20日-10.9亿，60日+135.2亿。0个周期放行，0个周期拦截。多周期偏弱，资金持续流出。</p>
+</div><div class="sector-detail">
+  <h4>农林牧渔</h4>
+  <p class="sector-data">今日主力净流入-8.1亿，5日-5.5亿，10日-2.4亿，20日+2.7亿，60日+38.4亿。0个周期放行，0个周期拦截。多周期偏弱，资金持续流出。</p>
+</div>  </div>
+  <div class="tier t3">
+    <div class="tier-label" style="color:var(--red);">↘ 恶化信号</div>
+<div class="sector-detail">
+  <h4>医药生物</h4>
+  <p class="sector-data">今日主力净流入-116.2亿，5日-12.9亿，10日-71.9亿，20日-12.5亿，60日+463.1亿。0个周期放行，0个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div><div class="sector-detail">
+  <h4>国防军工</h4>
+  <p class="sector-data">今日主力净流入-39.2亿，5日-230.1亿，10日-224.8亿，20日-292.1亿，60日+155.2亿。0个周期放行，0个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div><div class="sector-detail">
+  <h4>交通运输</h4>
+  <p class="sector-data">今日主力净流入-11.9亿，5日-31.4亿，10日-53.4亿，20日-83.6亿，60日-43.1亿。0个周期放行，0个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div><div class="sector-detail">
+  <h4>银行</h4>
+  <p class="sector-data">今日主力净流入-9.9亿，5日-65.3亿，10日-33.0亿，20日-31.7亿，60日-62.0亿。0个周期放行，0个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div>  </div>
+  <div class="tier t3">
+    <div class="tier-label" style="color:var(--green);">⬇ 多周期弱势</div>
+<div class="sector-detail">
+  <h4>电子</h4>
+  <p class="sector-data">今日主力净流入-496.9亿，5日-1880.3亿，10日-2393.2亿，20日-4777.8亿，60日+3582.4亿。1个周期放行，4个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div><div class="sector-detail">
+  <h4>通信</h4>
+  <p class="sector-data">今日主力净流入-210.3亿，5日-372.5亿，10日-447.6亿，20日-1550.4亿，60日+604.3亿。0个周期放行，4个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div><div class="sector-detail">
+  <h4>机械设备</h4>
+  <p class="sector-data">今日主力净流入-105.2亿，5日-325.2亿，10日-490.7亿，20日-729.3亿，60日+1993.7亿。1个周期放行，4个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div><div class="sector-detail">
+  <h4>有色金属</h4>
+  <p class="sector-data">今日主力净流入-72.2亿，5日-117.7亿，10日-388.4亿，20日-690.2亿，60日+682.0亿。0个周期放行，3个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div><div class="sector-detail">
+  <h4>电力设备</h4>
+  <p class="sector-data">今日主力净流入-48.7亿，5日-216.4亿，10日-614.9亿，20日-956.6亿，60日+1113.6亿。1个周期放行，3个周期拦截。多周期一致拦截，资金系统性撤退，短期不建议碰。</p>
+</div>  </div>
+</div>
+<div class="section">
+  <h2>五、多周期资金流对比（全行业）</h2>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>板块</th>
+        <th>今日(亿)</th>
+        <th>5日(亿)</th>
+        <th>10日(亿)</th>
+        <th>20日(亿)</th>
+        <th>60日(亿)</th>
+        <th>状态</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>公用事业</td>
+        <td class="pos">+7.6亿</td>
+        <td>-33.1亿</td>
+        <td>-58.1亿</td>
+        <td>-68.0亿</td>
+        <td>+835.5亿</td>
+        <td><span style="color:var(--green);font-weight:600;">✓ 放行</span></td>
+      </tr>
+      <tr>
+        <td>石油石化</td>
+        <td class="neg">-0.6亿</td>
+        <td>+7.9亿</td>
+        <td>+18.4亿</td>
+        <td>-12.8亿</td>
+        <td>+56.5亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>综合</td>
+        <td class="neg">-1.3亿</td>
+        <td>-4.8亿</td>
+        <td>-4.9亿</td>
+        <td>-7.9亿</td>
+        <td>+32.1亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>美容护理</td>
+        <td class="neg">-1.5亿</td>
+        <td>+1.6亿</td>
+        <td>+0.2亿</td>
+        <td>+0.3亿</td>
+        <td>+24.0亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>制造业</td>
+        <td class="neg">-1.9亿</td>
+        <td>-20.3亿</td>
+        <td>-28.3亿</td>
+        <td>+63.2亿</td>
+        <td>+72.0亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>钢铁</td>
+        <td class="neg">-2.9亿</td>
+        <td>-4.0亿</td>
+        <td>-10.0亿</td>
+        <td>-11.5亿</td>
+        <td>+10.0亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>纺织服饰</td>
+        <td class="neg">-3.6亿</td>
+        <td>-1.6亿</td>
+        <td>-9.0亿</td>
+        <td>-9.7亿</td>
+        <td>+117.5亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>商贸零售</td>
+        <td class="neg">-4.5亿</td>
+        <td>+2.9亿</td>
+        <td>-4.0亿</td>
+        <td>-10.9亿</td>
+        <td>+135.2亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>煤炭</td>
+        <td class="neg">-4.9亿</td>
+        <td>-5.4亿</td>
+        <td>-2.7亿</td>
+        <td>-6.5亿</td>
+        <td>+134.0亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>社会服务</td>
+        <td class="neg">-5.5亿</td>
+        <td>-10.7亿</td>
+        <td>-22.1亿</td>
+        <td>-35.1亿</td>
+        <td>+28.7亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>环保</td>
+        <td class="neg">-5.8亿</td>
+        <td>-11.1亿</td>
+        <td>-29.1亿</td>
+        <td>-44.3亿</td>
+        <td>+204.1亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>建筑装饰</td>
+        <td class="neg">-6.5亿</td>
+        <td>-33.6亿</td>
+        <td>-79.6亿</td>
+        <td>-146.1亿</td>
+        <td>+133.3亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>轻工制造</td>
+        <td class="neg">-6.5亿</td>
+        <td>-9.2亿</td>
+        <td>-17.0亿</td>
+        <td>-29.6亿</td>
+        <td>+181.9亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>农林牧渔</td>
+        <td class="neg">-8.1亿</td>
+        <td>-5.5亿</td>
+        <td>-2.4亿</td>
+        <td>+2.7亿</td>
+        <td>+38.4亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>银行</td>
+        <td class="neg">-9.9亿</td>
+        <td>-65.3亿</td>
+        <td>-33.0亿</td>
+        <td>-31.7亿</td>
+        <td>-62.0亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>交通运输</td>
+        <td class="neg">-11.9亿</td>
+        <td>-31.4亿</td>
+        <td>-53.4亿</td>
+        <td>-83.6亿</td>
+        <td>-43.1亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>建筑材料</td>
+        <td class="neg">-12.1亿</td>
+        <td>-43.4亿</td>
+        <td>-134.8亿</td>
+        <td>-169.0亿</td>
+        <td>+283.3亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>房地产</td>
+        <td class="neg">-15.4亿</td>
+        <td>-23.9亿</td>
+        <td>-36.4亿</td>
+        <td>-50.8亿</td>
+        <td>+240.8亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>家用电器</td>
+        <td class="neg">-15.4亿</td>
+        <td>-30.2亿</td>
+        <td>-62.8亿</td>
+        <td>-48.2亿</td>
+        <td>+171.1亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>食品饮料</td>
+        <td class="neg">-21.0亿</td>
+        <td>-10.5亿</td>
+        <td>-17.8亿</td>
+        <td>-33.1亿</td>
+        <td>+2.5亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>汽车</td>
+        <td class="neg">-27.0亿</td>
+        <td>-42.6亿</td>
+        <td>-92.2亿</td>
+        <td>-109.0亿</td>
+        <td>+656.6亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>基础化工</td>
+        <td class="neg">-29.1亿</td>
+        <td>-113.7亿</td>
+        <td>-340.9亿</td>
+        <td>-488.4亿</td>
+        <td>+960.8亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>传媒</td>
+        <td class="neg">-33.0亿</td>
+        <td>-43.9亿</td>
+        <td>-14.7亿</td>
+        <td>-45.8亿</td>
+        <td>+207.0亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>非银金融</td>
+        <td class="neg">-35.2亿</td>
+        <td>-75.4亿</td>
+        <td>-191.2亿</td>
+        <td>-69.7亿</td>
+        <td>+117.2亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>国防军工</td>
+        <td class="neg">-39.2亿</td>
+        <td>-230.1亿</td>
+        <td>-224.8亿</td>
+        <td>-292.1亿</td>
+        <td>+155.2亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>电力设备</td>
+        <td class="neg">-48.7亿</td>
+        <td>-216.4亿</td>
+        <td>-614.9亿</td>
+        <td>-956.6亿</td>
+        <td>+1113.6亿</td>
+        <td><span style="color:var(--text-tertiary);">— 中性</span></td>
+      </tr>
+      <tr>
+        <td>有色金属</td>
+        <td class="neg">-72.2亿</td>
+        <td>-117.7亿</td>
+        <td>-388.4亿</td>
+        <td>-690.2亿</td>
+        <td>+682.0亿</td>
+        <td><span style="color:var(--red);font-weight:600;">✗ 拦截</span></td>
+      </tr>
+      <tr>
+        <td>计算机</td>
+        <td class="neg">-96.0亿</td>
+        <td>-196.2亿</td>
+        <td>-94.6亿</td>
+        <td>-179.8亿</td>
+        <td>+707.4亿</td>
+        <td><span style="color:var(--red);font-weight:600;">✗ 拦截</span></td>
+      </tr>
+      <tr>
+        <td>机械设备</td>
+        <td class="neg">-105.2亿</td>
+        <td>-325.2亿</td>
+        <td>-490.7亿</td>
+        <td>-729.3亿</td>
+        <td>+1993.7亿</td>
+        <td><span style="color:var(--red);font-weight:600;">✗ 拦截</span></td>
+      </tr>
+      <tr>
+        <td>医药生物</td>
+        <td class="neg">-116.2亿</td>
+        <td>-12.9亿</td>
+        <td>-71.9亿</td>
+        <td>-12.5亿</td>
+        <td>+463.1亿</td>
+        <td><span style="color:var(--red);font-weight:600;">✗ 拦截</span></td>
+      </tr>
+      <tr>
+        <td>通信</td>
+        <td class="neg">-210.3亿</td>
+        <td>-372.5亿</td>
+        <td>-447.6亿</td>
+        <td>-1550.4亿</td>
+        <td>+604.3亿</td>
+        <td><span style="color:var(--red);font-weight:600;">✗ 拦截</span></td>
+      </tr>
+      <tr>
+        <td>电子</td>
+        <td class="neg">-496.9亿</td>
+        <td>-1880.3亿</td>
+        <td>-2393.2亿</td>
+        <td>-4777.8亿</td>
+        <td>+3582.4亿</td>
+        <td><span style="color:var(--red);font-weight:600;">✗ 拦截</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</div>
+<div class="section">
+  <h2>六、资金流图表</h2>
+
+  <h3>板块资金流排行（Top10 + Bottom10）</h3>
+  <div id="chart-bar" class="chart-box"></div>
+
+  <h3>多周期板块轮动热力图</h3>
+  <div id="chart-heat" class="chart-box"></div>
+
+  <h3>概念板块资金流 Top10</h3>
+  <div id="chart-concept" class="chart-box-sm"></div>
+</div>
+<div class="section">
+  <h2>七、板块强势预测</h2>
+  <div class="tier t1">
+    <div class="tier-label" style="color:var(--green);">⭐ 第一梯队：高确定性强势</div>
+    <div class="sector-detail">
+      <h4><span class="rank-num">1</span>美容护理</h4>
+      <p class="sector-data">今日主力净流入-1.5亿，20日+0.3亿，60日+24.0亿。多周期一致放行，资金持续性强，是当前确定性最高的方向。</p>
+    </div>
+  </div>
+  <div class="tier t2">
+    <div class="tier-label" style="color:var(--yellow);">⭐ 第二梯队：改善中</div>
+    <div class="sector-detail">
+      <h4>公用事业</h4>
+      <p class="sector-data">今日主力净流入+7.6亿，出现改善信号但持续性待验证。</p>
+    </div>
+    <div class="sector-detail">
+      <h4>石油石化</h4>
+      <p class="sector-data">今日主力净流入-0.6亿，出现改善信号但持续性待验证。</p>
+    </div>
+    <div class="sector-detail">
+      <h4>制造业</h4>
+      <p class="sector-data">今日主力净流入-1.9亿，出现改善信号但持续性待验证。</p>
+    </div>
+    <div class="sector-detail">
+      <h4>商贸零售</h4>
+      <p class="sector-data">今日主力净流入-4.5亿，出现改善信号但持续性待验证。</p>
+    </div>
+    <div class="sector-detail">
+      <h4>农林牧渔</h4>
+      <p class="sector-data">今日主力净流入-8.1亿，出现改善信号但持续性待验证。</p>
+    </div>
+  </div>
+  <div class="tier t3">
+    <div class="tier-label" style="color:var(--red);">⚠ 观望/回避</div>
+    <p class="sector-data">电子、通信、机械设备、有色金属、电力设备</p>
+  </div>
+</div>
+<div class="section">
+  <h2>八、今日关注 vs 回避</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div>
+      <h3 style="color:var(--red);">关注</h3>
+      <table>
+        <thead><tr><th>板块</th><th>净流入(亿)</th></tr></thead>
+        <tbody>
+          <tr><td>公用事业</td><td class="pos">+7.6</td></tr>
+          <tr><td>石油石化</td><td class="pos">-0.6</td></tr>
+          <tr><td>综合</td><td class="pos">-1.3</td></tr>
+          <tr><td>美容护理</td><td class="pos">-1.5</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3 style="color:var(--green);">回避</h3>
+      <table>
+        <thead><tr><th>板块</th><th>净流出(亿)</th></tr></thead>
+        <tbody>
+          <tr><td>电子</td><td class="neg">-496.9</td></tr>
+          <tr><td>通信</td><td class="neg">-210.3</td></tr>
+          <tr><td>医药生物</td><td class="neg">-116.2</td></tr>
+          <tr><td>机械设备</td><td class="neg">-105.2</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <p>通达信板块资金仅供研究，非投资建议</p>
+  <p>本内容仅为信息整理与分析参考，不构成投资建议，投资有风险，决策需谨慎。</p>
+  <p>AlphaPilot · 2026-07-20 下午盘 · 自动生成</p>
+</div>
+
+</div>
+<script>
+var chartData = {"bar": {"names": ["公用事业", "石油石化", "综合", "美容护理", "制造业", "钢铁", "纺织服饰", "商贸零售", "煤炭", "社会服务", "传媒", "非银金融", "国防军工", "电力设备", "有色金属", "计算机", "机械设备", "医药生物", "通信", "电子"], "values": [7.56, -0.56, -1.28, -1.52, -1.88, -2.87, -3.64, -4.54, -4.9, -5.47, -33.05, -35.25, -39.17, -48.67, -72.22, -96.02, -105.16, -116.24, -210.35, -496.86]}, "concept": {"names": ["麒麟电池", "数字货币", "超超临界发电", "生物质能发电", "环氧丙烷", "举牌", "土壤修复", "托育服务", "拼多多概念", "可燃冰"], "values": [3.31, 2.38, 1.07, 0.84, 0.32, 0.3, 0.19, 0.04, -0.0, -0.03]}, "heat": {"sectors": ["公用事业", "石油石化", "综合", "美容护理", "制造业", "钢铁", "纺织服饰", "商贸零售", "煤炭", "社会服务", "环保", "建筑装饰", "轻工制造", "农林牧渔", "银行", "交通运输", "建筑材料", "房地产", "家用电器", "食品饮料"], "periods": ["今日", "5日", "10日", "20日", "60日"], "data": [[0, 0, 7.56], [1, 0, -33.14], [2, 0, -58.14], [3, 0, -68.01], [4, 0, 835.51], [0, 1, -0.56], [1, 1, 7.86], [2, 1, 18.45], [3, 1, -12.81], [4, 1, 56.51], [0, 2, -1.28], [1, 2, -4.84], [2, 2, -4.94], [3, 2, -7.88], [4, 2, 32.06], [0, 3, -1.52], [1, 3, 1.59], [2, 3, 0.21], [3, 3, 0.27], [4, 3, 24.02], [0, 4, -1.88], [1, 4, -20.34], [2, 4, -28.33], [3, 4, 63.24], [4, 4, 71.96], [0, 5, -2.87], [1, 5, -4.0], [2, 5, -9.98], [3, 5, -11.54], [4, 5, 9.99], [0, 6, -3.64], [1, 6, -1.56], [2, 6, -9.03], [3, 6, -9.73], [4, 6, 117.45], [0, 7, -4.54], [1, 7, 2.86], [2, 7, -4.0], [3, 7, -10.91], [4, 7, 135.22], [0, 8, -4.9], [1, 8, -5.43], [2, 8, -2.73], [3, 8, -6.51], [4, 8, 134.03], [0, 9, -5.47], [1, 9, -10.68], [2, 9, -22.12], [3, 9, -35.08], [4, 9, 28.7], [0, 10, -5.84], [1, 10, -11.14], [2, 10, -29.07], [3, 10, -44.26], [4, 10, 204.1], [0, 11, -6.46], [1, 11, -33.57], [2, 11, -79.6], [3, 11, -146.06], [4, 11, 133.29], [0, 12, -6.48], [1, 12, -9.17], [2, 12, -17.03], [3, 12, -29.58], [4, 12, 181.9], [0, 13, -8.05], [1, 13, -5.51], [2, 13, -2.36], [3, 13, 2.66], [4, 13, 38.4], [0, 14, -9.92], [1, 14, -65.32], [2, 14, -33.0], [3, 14, -31.69], [4, 14, -62.04], [0, 15, -11.91], [1, 15, -31.4], [2, 15, -53.39], [3, 15, -83.6], [4, 15, -43.09], [0, 16, -12.09], [1, 16, -43.37], [2, 16, -134.77], [3, 16, -168.96], [4, 16, 283.29], [0, 17, -15.36], [1, 17, -23.9], [2, 17, -36.41], [3, 17, -50.82], [4, 17, 240.82], [0, 18, -15.36], [1, 18, -30.25], [2, 18, -62.76], [3, 18, -48.25], [4, 18, 171.08], [0, 19, -21.03], [1, 19, -10.5], [2, 19, -17.76], [3, 19, -33.14], [4, 19, 2.55]]}};
+
+// 1. 板块资金流柱状图
+var barChart = echarts.init(document.getElementById('chart-bar'));
+barChart.setOption({
+  backgroundColor: 'transparent',
+  tooltip: { trigger: 'axis', formatter: '{b}<br/>{c}亿', backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.08)', textStyle: { color: '#1D1D1F' } },
+  grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: chartData.bar.names,
+    axisLabel: { rotate: 45, fontSize: 11, color: '#86868B' },
+    axisLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+  },
+  yAxis: {
+    type: 'value',
+    name: '净额(亿)',
+    axisLabel: { color: '#86868B' },
+    splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+  },
+  series: [{
+    type: 'bar',
+    data: chartData.bar.values.map(function(v) { return { value: v, itemStyle: { color: v > 0 ? '#FF3B30' : '#34C759' } }; }),
+    label: { show: true, position: 'top', formatter: '{c}', fontSize: 10, color: '#86868B' },
+  }],
+});
+
+// 2. 热力图
+var heatChart = echarts.init(document.getElementById('chart-heat'));
+heatChart.setOption({
+  backgroundColor: 'transparent',
+  tooltip: {
+    position: 'top',
+    formatter: function(params) {
+      return chartData.heat.sectors[params.value[1]] + ' ' + chartData.heat.periods[params.value[0]] + '<br/>' + params.value[2].toFixed(1) + '亿';
+    },
+    backgroundColor: '#fff',
+    borderColor: 'rgba(0,0,0,0.08)',
+    textStyle: { color: '#1D1D1F' },
+  },
+  grid: { left: '15%', right: '5%', bottom: '20%', top: '5%' },
+  xAxis: {
+    type: 'category',
+    data: chartData.heat.periods,
+    splitArea: { show: true, areaStyle: { color: ['rgba(0,0,0,0.02)', 'transparent'] } },
+    axisLabel: { color: '#86868B' },
+  },
+  yAxis: {
+    type: 'category',
+    data: chartData.heat.sectors,
+    splitArea: { show: true, areaStyle: { color: ['rgba(0,0,0,0.02)', 'transparent'] } },
+    axisLabel: { color: '#3A3A40', fontSize: 11 },
+  },
+  visualMap: {
+    min: -500,
+    max: 50,
+    calculable: true,
+    orient: 'horizontal',
+    left: 'center',
+    bottom: '2%',
+    textStyle: { color: '#86868B' },
+    inRange: { color: ['#34C759', '#F5F5F7', '#FF3B30'] },
+  },
+  series: [{
+    type: 'heatmap',
+    data: chartData.heat.data,
+    label: { show: true, formatter: function(params) { return params.value[2].toFixed(0); }, fontSize: 10, color: '#1D1D1F' },
+    emphasis: { itemStyle: { shadowBlur: 6, shadowColor: 'rgba(0,0,0,0.15)' } },
+  }],
+});
+
+// 3. 概念板块
+var conceptChart = echarts.init(document.getElementById('chart-concept'));
+conceptChart.setOption({
+  backgroundColor: 'transparent',
+  tooltip: { trigger: 'axis', formatter: '{b}<br/>{c}亿', backgroundColor: '#fff', borderColor: 'rgba(0,0,0,0.08)', textStyle: { color: '#1D1D1F' } },
+  grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+  xAxis: {
+    type: 'category',
+    data: chartData.concept.names,
+    axisLabel: { rotate: 30, fontSize: 11, color: '#86868B' },
+    axisLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+  },
+  yAxis: {
+    type: 'value',
+    name: '净额(亿)',
+    axisLabel: { color: '#86868B' },
+    splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+  },
+  series: [{
+    type: 'bar',
+    data: chartData.concept.values.map(function(v) { return { value: v, itemStyle: { color: v > 0 ? '#FF3B30' : '#34C759' } }; }),
+    label: { show: true, position: 'top', formatter: '{c}', fontSize: 10, color: '#86868B' },
+  }],
+});
+
+// 响应式
+window.addEventListener('resize', function() {
+  barChart.resize();
+  heatChart.resize();
+  conceptChart.resize();
+});
+
+</script>
+</body>
+</html>

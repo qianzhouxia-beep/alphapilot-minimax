@@ -1,0 +1,156 @@
+{
+  "protocol": {
+    "entry": "T+1 open skip limit-up; signal-day near-limit excluded (vm25)",
+    "rank": "VM2.5 + strict volume GC + hard fund gate (tradable A aligned)",
+    "rank_mode": "vm25",
+    "A": "T+2 close",
+    "B": "peel arm>=3% pull>=1.5% half×2 then clear; max_hold=5",
+    "C": "full trail arm>=3% pull>=1%",
+    "D": "sellable day after buy: hard stop -10% vs cost; peel if peak>=3%; force flat at that close",
+    "cost_rt": 0.0015,
+    "top_n": 2,
+    "fund_gate": true,
+    "note": "日K high/low/close 近似盘中；同日止损优先于 peel"
+  },
+  "window": {
+    "start": "2026-04-01",
+    "end": "2026-07-20"
+  },
+  "kpi": [
+    {
+      "arm": "A_t2_close",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.4755244755244755,
+      "win_rate": 0.6363636363636364,
+      "avg_ret": 0.03157968686286729,
+      "median_ret": 0.023896825396825305,
+      "p25_ret": -0.023379946787098982,
+      "p75_ret": 0.07988971033942466,
+      "day_win_rate": 0.7222222222222222,
+      "day_avg_ret": 0.030241553564134445,
+      "max_drawdown": -0.2557927163016763,
+      "total_return": 6.186239333735098,
+      "avg_legs": 1.0,
+      "exit_breakdown": {
+        "t2_close": {
+          "n": 143,
+          "rate": 1.0
+        }
+      },
+      "stop_hit_rate": 0.0,
+      "peel_trigger_rate": 0.0
+    },
+    {
+      "arm": "B_peel_15",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.5594405594405595,
+      "win_rate": 0.7272727272727273,
+      "avg_ret": 0.03877969038080603,
+      "median_ret": 0.038349085365853686,
+      "p25_ret": -0.004304306560290584,
+      "p75_ret": 0.09474901711246955,
+      "day_win_rate": 0.7638888888888888,
+      "day_avg_ret": 0.03678581112479431,
+      "max_drawdown": -0.6328842639484376,
+      "total_return": 9.705839027506201,
+      "avg_legs": 2.5384615384615383,
+      "exit_breakdown": {
+        "peel": {
+          "n": 143,
+          "rate": 1.0
+        }
+      },
+      "stop_hit_rate": 0.0,
+      "peel_trigger_rate": 0.9090909090909091
+    },
+    {
+      "arm": "C_full_trail1",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.4755244755244755,
+      "win_rate": 0.7482517482517482,
+      "avg_ret": 0.02801150107951192,
+      "median_ret": 0.02711713473160332,
+      "p25_ret": -0.0009327888821101236,
+      "p75_ret": 0.06594867430104207,
+      "day_win_rate": 0.7638888888888888,
+      "day_avg_ret": 0.026092400915870298,
+      "max_drawdown": -0.524550533190655,
+      "total_return": 4.382356590024906,
+      "avg_legs": 1.0,
+      "exit_breakdown": {
+        "full_trail": {
+          "n": 131,
+          "rate": 0.916083916083916
+        },
+        "max_hold": {
+          "n": 12,
+          "rate": 0.08391608391608392
+        }
+      },
+      "stop_hit_rate": 0.0,
+      "peel_trigger_rate": 0.0
+    },
+    {
+      "arm": "D_t1_stop10_peel",
+      "n_signals": 144,
+      "n_filled": 143,
+      "n_skipped": 1,
+      "fill_rate": 0.9930555555555556,
+      "n_days": 72,
+      "hit_3pct_rate": 0.4755244755244755,
+      "win_rate": 0.6363636363636364,
+      "avg_ret": 0.029929169362604997,
+      "median_ret": 0.023146825396825305,
+      "p25_ret": -0.026369388391499257,
+      "p75_ret": 0.07951471033942466,
+      "day_win_rate": 0.7083333333333334,
+      "day_avg_ret": 0.028939730495589473,
+      "max_drawdown": -0.22981665458377187,
+      "total_return": 5.618459682881316,
+      "avg_legs": 1.5734265734265733,
+      "exit_breakdown": {
+        "hard_stop_10": {
+          "n": 9,
+          "rate": 0.06293706293706294
+        },
+        "hard_stop_10_gap": {
+          "n": 6,
+          "rate": 0.04195804195804196
+        },
+        "peel_then_eod": {
+          "n": 82,
+          "rate": 0.5734265734265734
+        },
+        "t1_eod": {
+          "n": 46,
+          "rate": 0.32167832167832167
+        }
+      },
+      "stop_hit_rate": 0.1048951048951049,
+      "peel_trigger_rate": 0.5734265734265734
+    }
+  ],
+  "n_trades": {
+    "A_t2_close": 143,
+    "B_peel_15": 143,
+    "C_full_trail1": 143,
+    "D_t1_stop10_peel": 143
+  },
+  "comparison_focus": [
+    "A_t2_close",
+    "B_peel_15",
+    "D_t1_stop10_peel"
+  ]
+}

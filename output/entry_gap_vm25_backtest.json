@@ -1,0 +1,98 @@
+{
+  "protocol": {
+    "rank": "VM2.5 + strict GC + hard fund gate",
+    "exit": "T+2 close (buy_day+1 close)",
+    "A": "T+1 open skip near-limit, weight=1",
+    "B": "gap hard: skip gap>=3% or near-limit; mid limit prev*1.01",
+    "C": "gap soft: <=1.5% open w=1; 1.5-3% limit prev*1.01 w=0.7; 3-5% limit prev*1.02 w=linear 0.5→0; >=5% skip; ret=weight*full_ret",
+    "cost_rt": 0.0015,
+    "top_n": 2,
+    "note": "avg_ret 为仓位加权贡献；avg_full_ret / hit_3pct 按满仓价差"
+  },
+  "window": {
+    "start": "2026-04-01",
+    "end": "2026-07-17"
+  },
+  "kpi": [
+    {
+      "arm": "A_open",
+      "n_signals": 142,
+      "n_filled": 142,
+      "n_skipped": 0,
+      "fill_rate": 1.0,
+      "n_days": 71,
+      "avg_weight": 1.0,
+      "hit_3pct_rate": 0.44366197183098594,
+      "win_rate": 0.5985915492957746,
+      "avg_ret": 0.019011290539207106,
+      "avg_full_ret": 0.019011290539207106,
+      "median_ret": 0.018916379540443062,
+      "day_win_rate": 0.6619718309859155,
+      "day_avg_ret": 0.019011290539207103,
+      "max_drawdown": -0.40333548999949487,
+      "total_return": 2.272424227036047,
+      "entry_modes": {
+        "open": 142
+      },
+      "skip_reasons": {}
+    },
+    {
+      "arm": "B_gap_hard",
+      "n_signals": 142,
+      "n_filled": 126,
+      "n_skipped": 16,
+      "fill_rate": 0.8873239436619719,
+      "n_days": 70,
+      "avg_weight": 1.0,
+      "hit_3pct_rate": 0.4365079365079365,
+      "win_rate": 0.5873015873015873,
+      "avg_ret": 0.01810085620639016,
+      "avg_full_ret": 0.01810085620639016,
+      "median_ret": 0.015006700470843903,
+      "day_win_rate": 0.6142857142857143,
+      "day_avg_ret": 0.01909454048869681,
+      "max_drawdown": -0.3708142316424978,
+      "total_return": 2.245544612917479,
+      "entry_modes": {
+        "open_ok": 113,
+        "limit_pullback": 13
+      },
+      "skip_reasons": {
+        "gap_chase": 11,
+        "limit_miss": 5
+      }
+    },
+    {
+      "arm": "C_gap_soft",
+      "n_signals": 142,
+      "n_filled": 132,
+      "n_skipped": 10,
+      "fill_rate": 0.9295774647887324,
+      "n_days": 70,
+      "avg_weight": 0.9396694666168717,
+      "hit_3pct_rate": 0.4318181818181818,
+      "win_rate": 0.5909090909090909,
+      "avg_ret": 0.01601347921496028,
+      "avg_full_ret": 0.016454685728316005,
+      "median_ret": 0.010281249902213772,
+      "day_win_rate": 0.6142857142857143,
+      "day_avg_ret": 0.015402007208735436,
+      "max_drawdown": -0.3807636604883272,
+      "total_return": 1.552214245168503,
+      "entry_modes": {
+        "open_ok": 113,
+        "limit_soft_3_5": 6,
+        "limit_mid": 13
+      },
+      "skip_reasons": {
+        "gap_chase": 4,
+        "limit_miss": 6
+      }
+    }
+  ],
+  "go_live_recommendation": {
+    "prefer_arm": "C_gap_soft",
+    "go_live_soft": true,
+    "reason": "C vs A: avg_ret 0.0160/0.0190; max_dd -0.3808/-0.4033"
+  }
+}
