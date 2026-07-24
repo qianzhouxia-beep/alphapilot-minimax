@@ -200,7 +200,7 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
             className={`rounded-lg px-2.5 py-1.5 text-[11px] transition-colors cursor-pointer ${focusRing} ${navIdle}`}
             target="_blank" rel="noopener noreferrer"
           >
-            框架介绍
+            策略全景
           </a>
 
           {NAV_GROUPS.map((group) => {
