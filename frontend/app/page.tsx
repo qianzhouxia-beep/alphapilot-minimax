@@ -90,6 +90,7 @@ function Navbar() {
             { name: "选股", href: "/cn/screener" },
             { name: "回测", href: "/cn/backtest" },
             { name: "资讯", href: "/cn/news" },
+            { name: "框架介绍", href: "/api/v1/cn/framework" },
           ].map((item, i) => (
             <a
               key={item.name}

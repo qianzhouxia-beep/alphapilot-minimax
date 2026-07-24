@@ -195,6 +195,13 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
           >
             工作台
           </Link>
+          <a
+            href="/api/v1/cn/framework"
+            className={`rounded-lg px-2.5 py-1.5 text-[11px] transition-colors cursor-pointer ${focusRing} ${navIdle}`}
+            target="_blank" rel="noopener noreferrer"
+          >
+            框架介绍
+          </a>
 
           {NAV_GROUPS.map((group) => {
             const open = openGroup === group.id;
