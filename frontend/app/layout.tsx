@@ -8,10 +8,10 @@ export const metadata: Metadata = {
     "AlphaPilot 综合量化筛选，从全 A 收窄到当日可关注标的。",
   icons: {
     icon: [
-      { url: "/favicon.png", type: "image/png" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/favicon.png?v=284abfe", type: "image/png" },
+      { url: "/icon-192.png?v=284abfe", type: "image/png", sizes: "192x192" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    apple: [{ url: "/apple-touch-icon.png?v=284abfe", sizes: "180x180" }],
   },
 };
 
