@@ -398,7 +398,7 @@ export default function BacktestPage() {
                         {!ran && (
                           <td className={`px-3 py-3 text-right text-[18px] font-semibold ${
                             item.score >= 0.75 ? "text-status-success" : item.score >= 0.65 ? "text-status-warning" : "text-text-secondary"
-                          }`}>{(item.score * 100).toFixed(0)}</td>
+                          }`}>{item.score != null ? item.score.toFixed(1) : '—'}</td>
                         )}
                         {ran && (
                           <>
