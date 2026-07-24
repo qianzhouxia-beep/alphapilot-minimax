@@ -68,12 +68,18 @@ function toUnitProba(v: number | null | undefined): number {
   return 1 / (1 + Math.exp(-x / 2));
 }
 
-/** 综合评分 = 模型概率×0.8 + 板块热度×0.2（与决策卡说明一致） */
-const MODEL_WEIGHT = 0.8;
-const HEAT_WEIGHT = 0.2;
+/**
+ * 综合评分：以模型概率为主。
+ * 板块热度相对中性 0.5 做小幅加减（两端最多 ±5 分），中性热度不拉低高分。
+ * 例：模型 82、热度 50 → 综合仍约 82；热度 100 → 约 87；热度 0 → 约 77。
+ */
+const HEAT_NEUTRAL = 0.5;
+const HEAT_MAX_ADJUST = 0.05; // 热度从 0→1 时，相对中性最多 ±0.05
 
 function combinedScore(modelProba: number, heat: number): number {
-  return modelProba * MODEL_WEIGHT + heat * HEAT_WEIGHT;
+  const h = Math.min(1, Math.max(0, heat));
+  const adjust = ((h - HEAT_NEUTRAL) / HEAT_NEUTRAL) * HEAT_MAX_ADJUST;
+  return Math.min(0.99, Math.max(0, modelProba + adjust));
 }
 
 const scoreColor = (pct: number) =>
@@ -338,7 +344,7 @@ export default function CNStockDetail() {
                 )}
               </div>
               <p className="mt-2 text-[11px] text-text-disabled">
-                综合 = 模型概率×{MODEL_WEIGHT} + 板块热度×{HEAT_WEIGHT}
+                综合以模型为主；板块热度相对中性(50)最多 ±{Math.round(HEAT_MAX_ADJUST * 100)} 分
               </p>
             </div>
 

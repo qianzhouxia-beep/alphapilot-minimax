@@ -39,11 +39,14 @@ function toUnitProba(v: number | null | undefined): number {
   return 1 / (1 + Math.exp(-x / 2));
 }
 
-const MODEL_WEIGHT = 0.8;
-const HEAT_WEIGHT = 0.2;
+/** 综合以模型为主；热度相对中性 0.5 最多 ±5 分，中性不拉低高分 */
+const HEAT_NEUTRAL = 0.5;
+const HEAT_MAX_ADJUST = 0.05;
 
 function combinedScore(modelProba: number, heat: number): number {
-  return modelProba * MODEL_WEIGHT + heat * HEAT_WEIGHT;
+  const h = Math.min(1, Math.max(0, heat));
+  const adjust = ((h - HEAT_NEUTRAL) / HEAT_NEUTRAL) * HEAT_MAX_ADJUST;
+  return Math.min(0.99, Math.max(0, modelProba + adjust));
 }
 
 const scoreColor = (pct: number) =>
@@ -290,8 +293,8 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
               />
           </div>
           <p className="mt-6 text-[11px] text-text-disabled">
-            综合评分 = 模型概率 × {MODEL_WEIGHT} + 板块热度 × {HEAT_WEIGHT}
-            （例：{modelPct}×{MODEL_WEIGHT} + {heatPct}×{HEAT_WEIGHT} ≈ {combinedPct}）。
+            综合评分以模型概率为主；板块热度相对中性(50)最多 ±{Math.round(HEAT_MAX_ADJUST * 100)} 分
+            （当前：模型 {modelPct}，热度 {heatPct} → 综合 {combinedPct}）。
             <br />
             V12 集成：AUC 0.681, 53 维特征, 2 天持有, 4%+ 目标涨幅。
           </p>
