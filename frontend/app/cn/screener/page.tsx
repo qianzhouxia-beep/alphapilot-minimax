@@ -56,17 +56,21 @@ function passPeFilter(
   return peBucketOf(item) === filter;
 }
 
-function displayScore(item: { score?: number; confidence_score?: number; score_pct?: number }): number {
-  if (item.confidence_score != null) return Number(item.confidence_score);
-  const s = Number(item.score || 0);
-  // 0~1 概率 → 信心分；>1 综合分勿 *100（否则 2.99→299）
-  if (s > 0 && s <= 1) return Math.round(Math.min(99, Math.max(75, s * 45 + 75)));
-  if (s > 1) {
-    const p = 1 / (1 + Math.exp(-s / 2));
-    return Math.round(Math.min(99, Math.max(75, p * 45 + 75)));
+function displayScore(item: {
+  score?: number;
+  model_proba?: number;
+  lgb_score?: number;
+  score_pct?: number;
+}): number {
+  const raw = item.model_proba ?? item.lgb_score ?? item.score;
+  const x = Number(raw ?? 0);
+  if (Number.isFinite(x) && x > 0) {
+    if (x <= 1) return Math.round(x * 100);
+    // 综合/z 分 >1：压到 0–100，勿再用 75–99 信心分
+    return Math.round((1 / (1 + Math.exp(-x / 2))) * 100);
   }
   const pct = Number(item.score_pct);
-  if (Number.isFinite(pct) && pct > 1 && pct <= 100) return Math.round(pct);
+  if (Number.isFinite(pct) && pct > 0 && pct <= 100) return Math.round(pct);
   return 0;
 }
 

@@ -6,6 +6,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeaderBar } from "@/components/HeaderBar";
 import { fetchWatchlist, addToWatchlist, removeFromWatchlist } from "@/lib/cn-api";
+import {
+  HEAT_MAX_ADJUST,
+  combinedPct as calcCombinedPct,
+  combinedScore,
+  toUnitProba,
+} from "@/lib/score-display";
 
 // ---------- types ----------
 type StockDetail = {
@@ -13,7 +19,6 @@ type StockDetail = {
   name: string;
   score: number;
   lgb_score: number;
-  confidence_score?: number;
   model_proba?: number;
   sector_heat: number;
   buy_price: number;
@@ -31,23 +36,6 @@ type StockDetail = {
   market_cap: number | null;
   source: string;
 };
-
-function toUnitProba(v: number | null | undefined): number {
-  const x = Number(v ?? 0);
-  if (!Number.isFinite(x) || x <= 0) return 0;
-  if (x <= 1) return x;
-  return 1 / (1 + Math.exp(-x / 2));
-}
-
-/** 综合以模型为主；热度相对中性 0.5 最多 ±5 分，中性不拉低高分 */
-const HEAT_NEUTRAL = 0.5;
-const HEAT_MAX_ADJUST = 0.05;
-
-function combinedScore(modelProba: number, heat: number): number {
-  const h = Math.min(1, Math.max(0, heat));
-  const adjust = ((h - HEAT_NEUTRAL) / HEAT_NEUTRAL) * HEAT_MAX_ADJUST;
-  return Math.min(0.99, Math.max(0, modelProba + adjust));
-}
 
 const scoreColor = (pct: number) =>
   pct >= 80
@@ -172,7 +160,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
   const combined = combinedScore(modelProba, sectorHeat);
   const modelPct = Math.round(modelProba * 100);
   const heatPct = Math.round(sectorHeat * 100);
-  const combinedPct = Math.round(combined * 100);
+  const combinedPct = calcCombinedPct(modelProba, sectorHeat);
   const buyPrice = stock?.buy_price ?? 0;
   const targetPrice = stock?.target_price ?? 0;
   const stopPrice = stock?.stop_price ?? 0;
@@ -293,8 +281,8 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
               />
           </div>
           <p className="mt-6 text-[11px] text-text-disabled">
-            综合评分以模型概率为主；板块热度相对中性(50)最多 ±{Math.round(HEAT_MAX_ADJUST * 100)} 分
-            （当前：模型 {modelPct}，热度 {heatPct} → 综合 {combinedPct}）。
+            已取消信心分；综合≈模型分，热度中性(50)不加减（最多 ±{Math.round(HEAT_MAX_ADJUST * 100)}）。
+            当前：模型 {modelPct}，热度 {heatPct} → 综合 {combinedPct}。
             <br />
             V12 集成：AUC 0.681, 53 维特征, 2 天持有, 4%+ 目标涨幅。
           </p>

@@ -547,7 +547,7 @@ function SignalSection() {
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["股票", "信心分", "资金阶段", "建议操作"].map((h) => (
+                {["股票", "评分", "资金阶段", "建议操作"].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider py-3 px-4 border-b border-border-light">
                     {h}
                   </th>
@@ -565,17 +565,18 @@ function SignalSection() {
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
                     {(() => {
-                      const conf =
-                        typeof sig.confidence_score === "number"
-                          ? sig.confidence_score
-                          : Math.min(99, Math.max(75, Math.round(Number(sig.score || 0) * 45 + 75)));
+                      const raw = Number(sig.model_proba ?? sig.lgb_score ?? sig.score ?? 0);
+                      const pct =
+                        raw > 1
+                          ? Math.round((1 / (1 + Math.exp(-raw / 2))) * 100)
+                          : Math.round(Math.min(1, Math.max(0, raw)) * 100);
                       return (
                         <div className="flex items-center gap-2.5">
-                          <span className="score-pill">{conf}</span>
+                          <span className="score-pill">{pct}</span>
                           <div className="w-[60px] h-1 rounded bg-border-light overflow-hidden">
                             <div
                               className="h-full rounded bg-gradient-to-r from-purple-primary to-[#A78BFA]"
-                              style={{ width: `${((conf - 75) / 24) * 100}%` }}
+                              style={{ width: `${pct}%` }}
                             />
                           </div>
                         </div>
@@ -589,21 +590,22 @@ function SignalSection() {
                   </td>
                   <td className="py-4 px-4 border-b border-border-light">
                     {(() => {
-                      const conf =
-                        typeof sig.confidence_score === "number"
-                          ? sig.confidence_score
-                          : Math.min(99, Math.max(75, Math.round(Number(sig.score || 0) * 45 + 75)));
+                      const raw = Number(sig.model_proba ?? sig.lgb_score ?? sig.score ?? 0);
+                      const pct =
+                        raw > 1
+                          ? Math.round((1 / (1 + Math.exp(-raw / 2))) * 100)
+                          : Math.round(Math.min(1, Math.max(0, raw)) * 100);
                       return (
                         <span
                           className="font-semibold"
                           style={{
                             color:
-                              conf >= 90
+                              pct >= 80
                                 ? "var(--color-purple-primary)"
                                 : "var(--color-text-tertiary)",
                           }}
                         >
-                          {conf >= 90 ? "关注" : conf >= 82 ? "观察" : "—"}
+                          {pct >= 80 ? "关注" : pct >= 65 ? "观察" : "—"}
                         </span>
                       );
                     })()}

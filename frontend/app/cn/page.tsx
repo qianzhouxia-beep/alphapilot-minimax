@@ -21,7 +21,13 @@ type PeFilter = "all" | "le_30" | "gt_30";
 
 const scoreColor = (s: number) =>
   s >= 0.50 ? "text-status-success" : s >= 0.40 ? "text-status-info" : s >= 0.30 ? "text-status-warning" : "text-text-secondary";
-const displayScore = (s: number) => Math.min(99, Math.max(75, Math.round(Number(s || 0) * 45 + 75)));
+/** 直接展示模型分 0–100，不再映射成 75–99 信心分 */
+const displayScore = (s: number) => {
+  const x = Number(s || 0);
+  if (!Number.isFinite(x) || x <= 0) return 0;
+  if (x <= 1) return Math.round(x * 100);
+  return Math.round((1 / (1 + Math.exp(-x / 2))) * 100);
+};
 const formatModelProba = (s: number) => Number(s || 0).toFixed(2);
 
 function peBucketOf(it: any): PeFilter | "na" {
@@ -470,7 +476,7 @@ export default function CNDashboard() {
             value={top ? top.name : "—"}
             sub={
               top
-                ? `${top.symbol.replace(/^(sh|sz)/, "")} · 信心${displayScore(top.score)}${
+                ? `${top.symbol.replace(/^(sh|sz)/, "")} · 评分${displayScore(top.score)}${
                     isMarkupTop ? " · 拉升确认" : top.money_phase_label ? " · " + top.money_phase_label : ""
                   }`
                 : ""
@@ -490,7 +496,7 @@ export default function CNDashboard() {
             accent="var(--color-status-success)"
           />
           <KPI
-            label="平均信心"
+            label="平均评分"
             value={`${displayScore(avgScore)}`}
             sub={`模型概率 ${formatModelProba(avgScore)} · 非百分制`}
             accent="var(--color-purple-primary)"

@@ -5,6 +5,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeaderBar } from "@/components/HeaderBar";
 import { fetchStockNews, fetchWatchlist, addToWatchlist, removeFromWatchlist, type StockNewsItem } from "@/lib/cn-api";
+import {
+  HEAT_MAX_ADJUST,
+  combinedPct as calcCombinedPct,
+  combinedScore,
+  toUnitProba,
+} from "@/lib/score-display";
 
 // ---------- types ----------
 type FundBar = { date: string; main_net: number };
@@ -14,9 +20,6 @@ type StockDetail = {
   name: string;
   score: number;
   lgb_score: number;
-  /** 展示用信心分 75–99；优先于 score*100 */
-  confidence_score?: number;
-  /** VM / 模型概率 0–1 */
   model_proba?: number;
   score_pct?: number;
   sector_heat: number;
@@ -58,29 +61,6 @@ type StockDetail = {
   money_flow_pass?: boolean | null;
   note?: string | null;
 };
-
-/** 把接口里的 score / lgb 规范成 0–1（动量扫描综合分常 >1） */
-function toUnitProba(v: number | null | undefined): number {
-  const x = Number(v ?? 0);
-  if (!Number.isFinite(x) || x <= 0) return 0;
-  if (x <= 1) return x;
-  // 综合/z 分：logistic 压到 (0,1)，避免 2.99 → 界面 299
-  return 1 / (1 + Math.exp(-x / 2));
-}
-
-/**
- * 综合评分：以模型概率为主。
- * 板块热度相对中性 0.5 做小幅加减（两端最多 ±5 分），中性热度不拉低高分。
- * 例：模型 82、热度 50 → 综合仍约 82；热度 100 → 约 87；热度 0 → 约 77。
- */
-const HEAT_NEUTRAL = 0.5;
-const HEAT_MAX_ADJUST = 0.05; // 热度从 0→1 时，相对中性最多 ±0.05
-
-function combinedScore(modelProba: number, heat: number): number {
-  const h = Math.min(1, Math.max(0, heat));
-  const adjust = ((h - HEAT_NEUTRAL) / HEAT_NEUTRAL) * HEAT_MAX_ADJUST;
-  return Math.min(0.99, Math.max(0, modelProba + adjust));
-}
 
 const scoreColor = (pct: number) =>
   pct >= 80
@@ -201,7 +181,7 @@ export default function CNStockDetail() {
   const combined = combinedScore(modelProba, heat);
   const modelPct = Math.round(modelProba * 100);
   const heatPct = Math.round(heat * 100);
-  const combinedPct = Math.round(combined * 100);
+  const combinedPct = calcCombinedPct(modelProba, heat);
   const change = stock?.live_change_pct ?? stock?.change_pct;
   const price = stock?.live_price ?? stock?.price ?? stock?.buy_price;
   const isWatched = wlSymbols.has(symbol);
@@ -344,7 +324,7 @@ export default function CNStockDetail() {
                 )}
               </div>
               <p className="mt-2 text-[11px] text-text-disabled">
-                综合以模型为主；板块热度相对中性(50)最多 ±{Math.round(HEAT_MAX_ADJUST * 100)} 分
+                综合≈模型分；热度中性不加减（最多 ±{Math.round(HEAT_MAX_ADJUST * 100)}）
               </p>
             </div>
 
