@@ -58,9 +58,16 @@ function passPeFilter(
 
 function displayScore(item: { score?: number; confidence_score?: number; score_pct?: number }): number {
   if (item.confidence_score != null) return Number(item.confidence_score);
-  if (item.score_pct != null && item.score_pct > 1) return Number(item.score_pct);
   const s = Number(item.score || 0);
-  return s <= 1.5 ? Math.round(s * 100) : Math.round(s);
+  // 0~1 概率 → 信心分；>1 综合分勿 *100（否则 2.99→299）
+  if (s > 0 && s <= 1) return Math.round(Math.min(99, Math.max(75, s * 45 + 75)));
+  if (s > 1) {
+    const p = 1 / (1 + Math.exp(-s / 2));
+    return Math.round(Math.min(99, Math.max(75, p * 45 + 75)));
+  }
+  const pct = Number(item.score_pct);
+  if (Number.isFinite(pct) && pct > 1 && pct <= 100) return Math.round(pct);
+  return 0;
 }
 
 function fmtYi(v: number | null | undefined): string {

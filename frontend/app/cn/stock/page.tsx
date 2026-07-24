@@ -14,6 +14,11 @@ type StockDetail = {
   name: string;
   score: number;
   lgb_score: number;
+  /** 展示用信心分 75–99；优先于 score*100 */
+  confidence_score?: number;
+  /** VM / 模型概率 0–1 */
+  model_proba?: number;
+  score_pct?: number;
   sector_heat: number;
   buy_price: number;
   target_price: number;
@@ -54,8 +59,36 @@ type StockDetail = {
   note?: string | null;
 };
 
-const scoreColor = (s: number) =>
-  s >= 0.75 ? "text-status-success" : s >= 0.70 ? "text-status-info" : s >= 0.65 ? "text-status-warning" : "text-text-secondary";
+/** 把接口里的 score / lgb 规范成 0–1（动量扫描综合分常 >1） */
+function toUnitProba(v: number | null | undefined): number {
+  const x = Number(v ?? 0);
+  if (!Number.isFinite(x) || x <= 0) return 0;
+  if (x <= 1) return x;
+  // 综合/z 分：logistic 压到 (0,1)，避免 2.99 → 界面 299
+  return 1 / (1 + Math.exp(-x / 2));
+}
+
+/** 大号展示分：优先 confidence_score（75–99） */
+function displayConfidence(stock: {
+  score?: number;
+  confidence_score?: number;
+  model_proba?: number;
+} | null): number {
+  if (stock?.confidence_score != null && Number.isFinite(Number(stock.confidence_score))) {
+    return Math.round(Number(stock.confidence_score));
+  }
+  const p = toUnitProba(stock?.model_proba ?? stock?.score);
+  return Math.round(Math.min(99, Math.max(75, p * 45 + 75)));
+}
+
+const scoreColor = (confidence: number) =>
+  confidence >= 90
+    ? "text-status-success"
+    : confidence >= 80
+      ? "text-status-info"
+      : confidence >= 70
+        ? "text-status-warning"
+        : "text-text-secondary";
 
 const chgColor = (v: number | null | undefined) =>
   v != null ? (v >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled";
@@ -162,6 +195,9 @@ export default function CNStockDetail() {
 
   const code = symbol;
   const score = stock?.score ?? 0;
+  const modelProba = toUnitProba(stock?.model_proba ?? stock?.lgb_score ?? score);
+  const heat = toUnitProba(stock?.sector_heat ?? 0.5);
+  const confidence = displayConfidence(stock);
   const change = stock?.live_change_pct ?? stock?.change_pct;
   const price = stock?.live_price ?? stock?.price ?? stock?.buy_price;
   const isWatched = wlSymbols.has(symbol);
@@ -290,12 +326,12 @@ export default function CNStockDetail() {
 
             <div className="mb-4 text-center">
               <div className="mb-1 text-[11px] uppercase tracking-wider text-text-disabled">综合评分</div>
-              <div className={`font-display-numeric text-[56px] leading-none ${scoreColor(score)}`}>
-                {(score * 100).toFixed(0)}
+              <div className={`font-display-numeric text-[56px] leading-none ${scoreColor(confidence)}`}>
+                {confidence}
               </div>
               <div className="mt-2 text-[12px] text-text-secondary">
-                LGB <span className="text-text-primary">{((stock?.lgb_score ?? 0) * 100).toFixed(0)}</span>
-                {" · "}板块热度 <span className="text-text-primary">{((stock?.sector_heat ?? 0.5) * 100).toFixed(0)}</span>
+                模型概率 <span className="text-text-primary">{(modelProba * 100).toFixed(0)}</span>
+                {" · "}板块热度 <span className="text-text-primary">{(heat * 100).toFixed(0)}</span>
                 {expo != null && (
                   <>
                     {" · "}仓位敞口{" "}
@@ -306,9 +342,13 @@ export default function CNStockDetail() {
             </div>
 
             <div className="space-y-3 mb-4">
-              <BarMeter label="XGBoost 概率" value={stock?.lgb_score ?? score} color="#4DA3FF" />
-              <BarMeter label="板块热度" value={stock?.sector_heat ?? 0.5} color="#3EE6A8" />
-              <BarMeter label="综合评分" value={score} color={score >= 0.7 ? "#3EE6A8" : score >= 0.65 ? "#F5C451" : "#9FB0C7"} />
+              <BarMeter label="模型概率" value={modelProba} color="#4DA3FF" />
+              <BarMeter label="板块热度" value={heat} color="#3EE6A8" />
+              <BarMeter
+                label="综合评分"
+                value={(confidence - 75) / 24}
+                color={confidence >= 90 ? "#3EE6A8" : confidence >= 80 ? "#F5C451" : "#9FB0C7"}
+              />
             </div>
 
             <div className="rounded-xl border border-border-subtle bg-surface-panel p-3">

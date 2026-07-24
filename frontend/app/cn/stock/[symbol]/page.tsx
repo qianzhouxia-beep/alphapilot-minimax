@@ -13,6 +13,8 @@ type StockDetail = {
   name: string;
   score: number;
   lgb_score: number;
+  confidence_score?: number;
+  model_proba?: number;
   sector_heat: number;
   buy_price: number;
   target_price: number;
@@ -30,8 +32,33 @@ type StockDetail = {
   source: string;
 };
 
-const scoreColor = (s: number) =>
-  s >= 0.75 ? "text-[#3EE6A8]" : s >= 0.70 ? "text-status-info" : s >= 0.65 ? "text-[#F5C451]" : "text-text-secondary";
+const scoreColor = (confidence: number) =>
+  confidence >= 90
+    ? "text-[#3EE6A8]"
+    : confidence >= 80
+      ? "text-status-info"
+      : confidence >= 70
+        ? "text-[#F5C451]"
+        : "text-text-secondary";
+
+function toUnitProba(v: number | null | undefined): number {
+  const x = Number(v ?? 0);
+  if (!Number.isFinite(x) || x <= 0) return 0;
+  if (x <= 1) return x;
+  return 1 / (1 + Math.exp(-x / 2));
+}
+
+function displayConfidence(stock: {
+  score?: number;
+  confidence_score?: number;
+  model_proba?: number;
+} | null): number {
+  if (stock?.confidence_score != null && Number.isFinite(Number(stock.confidence_score))) {
+    return Math.round(Number(stock.confidence_score));
+  }
+  const p = toUnitProba(stock?.model_proba ?? stock?.score);
+  return Math.round(Math.min(99, Math.max(75, p * 45 + 75)));
+}
 
 async function fetchStockDetail(symbol: string): Promise<StockDetail> {
   const clean = symbol.replace(/\.(SH|SZ|sh|sz)$/, "");
@@ -142,8 +169,9 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
 
   const code = symbol;
   const score = stock?.score ?? 0;
-  const lgbScore = stock?.lgb_score ?? 0;
-  const sectorHeat = stock?.sector_heat ?? 0.5;
+  const modelProba = toUnitProba(stock?.model_proba ?? stock?.lgb_score ?? score);
+  const sectorHeat = toUnitProba(stock?.sector_heat ?? 0.5);
+  const confidence = displayConfidence(stock);
   const buyPrice = stock?.buy_price ?? 0;
   const targetPrice = stock?.target_price ?? 0;
   const stopPrice = stock?.stop_price ?? 0;
@@ -202,11 +230,11 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
 
           <div className="mb-4 text-center">
             <div className="mb-1 text-[11px] uppercase tracking-wider text-text-disabled">综合评分</div>
-            <div className={`font-display-numeric text-[64px] leading-none ${scoreColor(score)}`}>
-              {(score * 100).toFixed(0)}
+            <div className={`font-display-numeric text-[64px] leading-none ${scoreColor(confidence)}`}>
+              {confidence}
             </div>
             <div className="mt-2 text-[12px] text-text-secondary">
-              LGB 评分 <span className="text-text-primary">{(lgbScore * 100).toFixed(0)}</span> · 板块热度{" "}
+              模型概率 <span className="text-text-primary">{(modelProba * 100).toFixed(0)}</span> · 板块热度{" "}
               <span className="text-text-primary">{(sectorHeat * 100).toFixed(0)}</span>
             </div>
           </div>
@@ -255,9 +283,13 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
             <span className="text-[11px] text-text-disabled">V12 集成</span>
           </div>
           <div className="space-y-4">
-            <BarMeter label="XGBoost 概率" value={lgbScore} color="#A78BFA" />
-            <BarMeter label="板块热度" value={sectorHeat} color="#3EE6A8" />
-            <BarMeter label="综合评分" value={score} color={score >= 0.7 ? "#3EE6A8" : score >= 0.65 ? "#F5C451" : "#9FB0C7"} />
+            <BarMeter label="模型概率" value={modelProba} color="#A78BFA" />
+              <BarMeter label="板块热度" value={sectorHeat} color="#3EE6A8" />
+              <BarMeter
+                label="综合评分"
+                value={(confidence - 75) / 24}
+                color={confidence >= 90 ? "#3EE6A8" : confidence >= 80 ? "#F5C451" : "#9FB0C7"}
+              />
           </div>
           <p className="mt-6 text-[11px] text-text-disabled">
             综合评分 = 5 模型平均概率 × 0.8 + 板块热度 × 0.2。<br />
