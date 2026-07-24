@@ -108,12 +108,20 @@ function Navbar() {
             </a>
           ))}
         </div>
-        <a
-          href="/cn/"
-          className="bg-text-primary text-white border-none px-[18px] py-[7px] rounded-full text-[13px] font-semibold hover:scale-[1.03] hover:opacity-90 transition-all cursor-pointer inline-block"
-        >
-          打开终端
-        </a>
+        <div className="flex items-center gap-3">
+          <a
+            href="/api/v1/cn/framework"
+            className="md:hidden text-[13px] font-medium text-text-secondary hover:text-text-primary transition-colors"
+          >
+            策略全景
+          </a>
+          <a
+            href="/cn/"
+            className="bg-text-primary text-white border-none px-[18px] py-[7px] rounded-full text-[13px] font-semibold hover:scale-[1.03] hover:opacity-90 transition-all cursor-pointer inline-block"
+          >
+            打开终端
+          </a>
+        </div>
       </div>
     </nav>
   );

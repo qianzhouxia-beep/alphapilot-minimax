@@ -6,6 +6,13 @@ export const metadata: Metadata = {
   title: "AlphaPilot — 把建仓信号收成可执行清单",
   description:
     "AlphaPilot 综合量化筛选，从全 A 收窄到当日可关注标的。",
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({

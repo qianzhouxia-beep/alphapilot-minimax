@@ -278,6 +278,17 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
               className="absolute top-full mt-2 z-50 rounded-xl border border-border-subtle bg-surface-card shadow-lg overflow-hidden"
               style={{ right: 0, width: "max-content", minWidth: "200px" }}
             >
+              <div className="py-1 border-b border-border-subtle">
+                <a
+                  href="/api/v1/cn/framework"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className={`block px-3 py-2.5 text-[12px] transition-colors ${navIdle}`}
+                >
+                  策略全景
+                </a>
+              </div>
               {NAV_GROUPS.map((group) => (
                 <div key={group.id}>
                   <div className="px-3 py-2 border-b border-border-subtle bg-surface-panel/60">
