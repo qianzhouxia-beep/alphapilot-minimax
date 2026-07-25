@@ -124,36 +124,43 @@ def light_fill(by: dict[str, dict], need: int) -> dict[str, dict]:
     return by
 
 
-def attach_quotes(rows: list[dict]) -> list[dict]:
+def fetch_quotes_batch(symbols: list[str]) -> dict:
+    """批量获取实时行情，返回 {bare_code: {fields...}}，失败时返回空 dict"""
     try:
         from enriched_data import get_quotes_batch
 
-        qs = get_quotes_batch([r["symbol"] for r in rows]) or {}
-    except Exception:
-        qs = {}
-    out = []
-    for r in rows:
-        nr = dict(r)
-        code = bare(r.get("symbol"))
-        q = qs.get(code) or qs.get(f"sh{code}") or qs.get(f"sz{code}") or {}
-        if q:
-            nr["price"] = q.get("price")
-            nr["change_pct"] = q.get("change_pct")
-            nr["active_buy_ratio"] = q.get("active_buy_ratio")
-            nr["turnover"] = q.get("turnover")
-        # industry
-        try:
-            imap = json.loads((ROOT / "data/stock_industry_map.json").read_text(encoding="utf-8"))
-            meta = imap.get(code) or {}
-            nr.setdefault("name", meta.get("name") or nr.get("name"))
-            nr["industry"] = meta.get("industry") or meta.get("industry_l3")
-            nr["industry_l1"] = meta.get("industry_l1")
-            nr["sector"] = nr.get("sector") or nr.get("industry")
-        except Exception:
-            pass
-        nr.pop("_src", None)
-        out.append(nr)
-    return out
+        raw = get_quotes_batch(symbols)
+        if not raw:
+            print("  [WARN] Tencent API 返回空，行情数据可能为旧")
+            return {}
+        print(f"  实时行情: {len(raw)}/{len(symbols)} 只有数据")
+        return raw
+    except Exception as e:
+        print(f"  [WARN] Tencent API 异常: {e}，行情数据可能为旧")
+        return {}
+
+
+def fill_quote(row: dict, qs: dict, imap: dict) -> dict:
+    """将实时行情、行业信息填入单行"""
+    nr = dict(row)
+    code = bare(row.get("symbol"))
+    # 实时行情（优先覆盖）
+    q = qs.get(code) or qs.get(f"sh{code}") or qs.get(f"sz{code}") or {}
+    if q:
+        nr["price"] = q.get("price")
+        nr["change_pct"] = q.get("change_pct")
+        nr["active_buy_ratio"] = q.get("active_buy_ratio")
+        nr["turnover"] = q.get("turnover")
+    else:
+        print(f"  [WARN] {code} {row.get('name','')} 无实时行情")
+    # 行业
+    meta = imap.get(code) or {}
+    nr.setdefault("name", meta.get("name") or nr.get("name"))
+    nr["industry"] = meta.get("industry") or meta.get("industry_l3")
+    nr["industry_l1"] = meta.get("industry_l1")
+    nr["sector"] = nr.get("sector") or nr.get("industry")
+    nr.pop("_src", None)
+    return nr
 
 
 def main() -> int:
@@ -164,9 +171,7 @@ def main() -> int:
         print(f"after light_fill scored={len(by)}")
 
     ranked = sorted(by.values(), key=lambda x: -float(x.get("score") or 0))
-    top10 = attach_quotes(ranked[:10])
-    for i, r in enumerate(top10, 1):
-        r["rank"] = i
+    top10_raw = ranked[:10]
 
     # 今日推荐（门控后）对照
     rec_path = ROOT / "output/daily_recommend.json"
@@ -182,17 +187,30 @@ def main() -> int:
     if not recommend_rows and rec_path.exists():
         d = json.loads(rec_path.read_text(encoding="utf-8"))
         recommend_rows = (d.get("recommendations") or [])[: int(d.get("recommend_top_n") or 2)]
-    recommend_rows = attach_quotes(
-        [
-            {
-                **dict(x),
-                "symbol": bare(x.get("symbol")),
-                "score": float(x.get("score") or 0),
-            }
-            for x in recommend_rows
-            if x.get("symbol")
-        ]
-    )
+    recommend_rows_raw = [
+        {**dict(x), "symbol": bare(x.get("symbol")), "score": float(x.get("score") or 0)}
+        for x in recommend_rows
+        if x.get("symbol")
+    ]
+
+    # ===== 一次性拉取实时行情（避免两次独立调用导致数据不一致）=====
+    all_symbols = list(dict.fromkeys([r["symbol"] for r in top10_raw] + [r["symbol"] for r in recommend_rows_raw]))
+    qs = fetch_quotes_batch(all_symbols)
+
+    # 加载行业映射（一次）
+    imap = {}
+    try:
+        imap = json.loads((ROOT / "data/stock_industry_map.json").read_text(encoding="utf-8"))
+    except Exception:
+        pass
+
+    # 填充 Top10
+    top10 = [fill_quote(r, qs, imap) for r in top10_raw]
+    for i, r in enumerate(top10, 1):
+        r["rank"] = i
+
+    # 填充推荐对照
+    recommend_rows = [fill_quote(r, qs, imap) for r in recommend_rows_raw]
 
     payload = {
         "asof": time.strftime("%Y-%m-%d %H:%M:%S"),

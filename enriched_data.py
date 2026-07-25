@@ -103,7 +103,7 @@ def get_quote(symbol: str, max_age_seconds: int = 300) -> dict | None:
                 return json.loads(cache.read_text(encoding="utf-8"))
             except Exception:
                 pass
-    sec = ("sh" if symbol.startswith("6") else "sz") + symbol
+    sec = ("sh" if symbol.startswith(("6", "9")) else "bj" if symbol.startswith(("4", "8")) else "sz") + symbol
 
     def _call():
         r = requests.get(_TENCENT, params={"q": sec}, headers=_HEADERS, timeout=8)
@@ -126,7 +126,7 @@ def get_quotes_batch(symbols: list[str], batch=80) -> dict:
     out = {}
     for i in range(0, len(symbols), batch):
         chunk = symbols[i : i + batch]
-        secs = [("sh" if s.startswith("6") else "sz") + s for s in chunk]
+        secs = [("sh" if s.startswith(("6", "9")) else "bj" if s.startswith(("4", "8")) else "sz") + s for s in chunk]
         q = ",".join(secs)
 
         def _call():

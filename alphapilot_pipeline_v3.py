@@ -445,6 +445,13 @@ def run():
             f"  [AUDIT] soft_universe mult={uni_meta.get('soft_mult')} "
             f"bypass_pool={n_hot_bypass} scored_in={before}"
         )
+    # 3b. 业绩门控（剔除中报业绩大幅下降股）
+    try:
+        from earnings_gate import apply_earnings_gate
+
+        items = apply_earnings_gate(items)
+    except Exception as e:
+        log(f"  ⚠️ 业绩门控跳过: {e}")
     # 4. 资金门控（A 硬 / B 软）
     items = apply_money_gate(items)
     log(f"  资金门控后: {len(items)} 只")

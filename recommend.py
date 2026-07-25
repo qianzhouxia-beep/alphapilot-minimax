@@ -19,6 +19,7 @@ from data_fetcher import (
 )
 from ml_screener import screener
 from features import _lookup_chip, load_chip_cache
+from icir_scorer import get_scorer as get_icir_scorer
 
 # 预导入 auto_factor_engine（避免线程池中导入死锁）
 import auto_factor_engine; del auto_factor_engine
@@ -70,9 +71,12 @@ def _is_suspended(sym: str) -> bool:
         return False
 
 
-def _score_one_stock(sym: str, name: str, ov_sector_bonus: dict = None,
-                     lhb_map: dict = None, yjyg_map: dict = None) -> dict | None:
-    """对单只股票评分（可在线程池中运行，优先从缓存读取K线）"""
+def _build_one_stock_features(sym: str, name: str) -> dict | None:
+    """Phase 1: Build VM2.5 features for one stock (runs in parallel).
+
+    Returns factor vector + metadata. No scoring yet — ICIR alpha is computed
+    cross-sectionally in Phase 2 across all stocks.
+    """
     try:
         # 从缓存读K线(优先)
         CACHE_DIR = "/home/ubuntu/alphapilot/backtest_cache"
@@ -88,48 +92,78 @@ def _score_one_stock(sym: str, name: str, ov_sector_bonus: dict = None,
         if kline is None or kline.empty or len(kline) < 60:
             return None
 
-        # 龙虎榜
-        has_lhb = False
-        buy_inst_count = 0
-        if lhb_map and sym in lhb_map:
-            has_lhb = True
-            buy_inst_count = lhb_map[sym]
+        # Build features via ICIR scorer (wraps VM25Scorer.build_features)
+        meta = get_icir_scorer().build_stock_features_and_meta(kline, sym)
+        if meta is None:
+            return None
 
-        # 业绩预告
-        has_forecast = False
-        yjyg_max_change = 0.0
-        if yjyg_map and sym in yjyg_map:
-            has_forecast = True
-            yjyg_max_change = yjyg_map[sym]
+        return {
+            "symbol": sym,
+            "name": name,
+            "factor_vec": meta["factor_vec"],
+            "close": meta["close"],
+            "target_price": meta["target_price"],
+            "stop_price": meta["stop_price"],
+        }
+    except Exception:
+        return None
 
-        # 评分
-        result = screener.score_stock(
-            kline_df=kline,
-            sector_heat=0.5,
-            has_lhb=has_lhb,
-            buy_inst_count=buy_inst_count,
-            has_forecast=has_forecast,
-            yjyg_max_change=yjyg_max_change,
-        )
 
-        if "error" not in result:
-            # 隔夜情绪加分（美股板块映射）
-            _ov_bonus = 0.0
-            _ov_signals = []
-            if ov_sector_bonus:
+def _assemble_icir_results(
+    build_data: list[dict | None],
+    ov_sector_bonus: dict,
+) -> list[dict]:
+    """Phase 2+3: Batch ICIR alpha + assemble final result dicts.
+
+    Receives Phase 1 build_data (parallel output), computes cross-sectional
+    ICIR alpha, applies overnight sentiment bonus, returns full result dicts.
+    """
+    valid_indices = [i for i, bd in enumerate(build_data) if bd is not None]
+    if not valid_indices:
+        return []
+
+    # Phase 2: Batch ICIR alpha
+    alphas = list(get_icir_scorer().compute_alpha_from_batch(build_data))
+
+    # Phase 3: Assemble results
+    results = []
+    for i, bd in enumerate(build_data):
+        if bd is None:
+            continue
+        alpha = float(alphas[i]) if i < len(alphas) else 0.0
+        if not np.isfinite(alpha):
+            alpha = 0.0
+
+        # 隔夜情绪加分（美股板块映射）
+        _ov_bonus = 0.0
+        _ov_signals = []
+        sym = bd["symbol"]
+        name = bd["name"]
+        if ov_sector_bonus:
+            try:
                 _bonus, _matched = get_stock_sector_bonus(sym, name, ov_sector_bonus)
                 if _bonus > 0:
                     _ov_bonus = _bonus * 0.20  # 隔夜加分权重
                     _ov_signals.append("隔夜美股板块利好")
-            result["score"] = result["score"] * (1 + _ov_bonus)
-            result["overnight_bonus"] = _ov_bonus
-            result["overnight_signals"] = _ov_signals
-            result.update({"symbol": sym, "name": name})
-            return result
+            except Exception:
+                pass
 
-    except Exception:
-        pass
-    return None
+        score = alpha * (1 + _ov_bonus)
+
+        results.append({
+            "score": round(float(score), 4),
+            "lgb_score": round(float(alpha), 4),
+            "ml_score": round(float(alpha), 4),
+            "sector_heat": 0.0,
+            "buy_price": bd["close"],
+            "target_price": bd["target_price"],
+            "stop_price": bd["stop_price"],
+            "overnight_bonus": _ov_bonus,
+            "overnight_signals": _ov_signals,
+            "symbol": sym,
+            "name": name,
+        })
+    return results
 
 
 def _build_lookup_maps(lhb_df: pd.DataFrame,
@@ -157,10 +191,20 @@ def run_daily_recommend(top_n: int = TOP_N) -> dict:
     print(f"🚀 AlphaPilot 每日推荐管线 v2 @ {run_time}")
     print(f"{'='*50}")
 
-    # 1. 加载模型
-    print("\n1. 加载模型...")
+    # 1. 加载模型 + ICIR scorer
+    print("\n1. 加载模型 + ICIR scorer...")
     if not screener.load_model(version="v25"):
         return {"error": "model_not_loaded", "run_at": run_time}
+    try:
+        _icir = get_icir_scorer()
+        if not _icir.loaded:
+            print("  ⚠️ ICIR scorer loaded, weights={}/{} factors".format(
+                len(_icir.weights), _icir.loaded))
+        else:
+            print("  ✅ ICIR scorer ready: {} factors".format(len(_icir.factor_names)))
+    except Exception as e:
+        print("  ⚠️ ICIR scorer init failed (will fallback to XGBoost): {}".format(e))
+        _icir = None
 
     # 2. 获取全A股列表
     print("\n2. 获取全A股列表...")
@@ -223,9 +267,9 @@ def run_daily_recommend(top_n: int = TOP_N) -> dict:
         print(f"   ⚠️ 隔夜情绪加载失败: {e}")
         _ov_sector_bonus = {}
 
-    # 5. 并行评分
-    print(f"\n5. 并行评分（{MAX_WORKERS}线程, 含隔夜情绪加分）...")
-    results = []
+    # 5. 并行评分（Phase 1: 特征构建）
+    print(f"\n5. Phase 1: 并行特征构建（{MAX_WORKERS}线程）...")
+    build_data = []
     scanned = 0
     start = time.time()
 
@@ -235,22 +279,26 @@ def run_daily_recommend(top_n: int = TOP_N) -> dict:
             sym = row["symbol"]
             name = row.get("name", "")
             future = executor.submit(
-                _score_one_stock, sym, name,
-                _ov_sector_bonus, lhb_map, yjyg_map,
+                _build_one_stock_features, sym, name,
             )
             futures[future] = sym
 
         for i, future in enumerate(as_completed(futures), 1):
             scanned += 1
-            result = future.result()
-            if result is not None:
-                results.append(result)
+            bd = future.result()
+            build_data.append(bd)
 
             if scanned % BATCH_REPORT == 0 or scanned == total:
+                n_valid = sum(1 for x in build_data if x is not None)
                 elapsed = time.time() - start
                 rate = scanned / elapsed if elapsed > 0 else 0
-                print(f"   进度: {scanned}/{total}, 有效: {len(results)}, "
+                print(f"   进度: {scanned}/{total}, 有效: {n_valid}, "
                       f"耗时: {elapsed:.0f}s ({rate:.1f}只/s)")
+
+    # Phase 2+3: ICIR alpha batch + 结果组装
+    print(f"  Phase 2: 批量计算 ICIR alpha (cross-sectional z-score)...")
+    results = _assemble_icir_results(build_data, _ov_sector_bonus)
+    print(f"  有效评分: {len(results)} 只")
 
     # 6. 排序取 top N（展示用），缓存扩大至 CACHE_N 供资金门控筛选高质量池
     CACHE_N = 500
@@ -293,6 +341,31 @@ def run_daily_recommend(top_n: int = TOP_N) -> dict:
             results = [r for r in results if r["symbol"] not in _chip_disp]
     except Exception as _e:
         print("   [筹码集中度过滤] 跳过(异常): %s" % _e)
+
+    # === 全量ICIR分数保存（供09:35 live_momentum_scanner使用） ===
+    try:
+        _all_icir = []
+        for r in results:
+            _all_icir.append({
+                "symbol": r["symbol"],
+                "name": r["name"],
+                "icir_alpha": r["lgb_score"],
+                "buy_price": r["buy_price"],
+                "target_price": r["target_price"],
+                "stop_price": r["stop_price"],
+                "overnight_bonus": r.get("overnight_bonus", 0),
+                "overnight_signals": r.get("overnight_signals", []),
+            })
+        _icir_path = str(OUTPUT_DIR / "icir_all_scores.json")
+        with open(_icir_path, "w", encoding="utf-8") as _f:
+            json.dump({
+                "scored_at": run_time,
+                "n": len(_all_icir),
+                "stocks": _all_icir,
+            }, _f, ensure_ascii=False, indent=2)
+        print(f"  全量ICIR分数已保存: output/icir_all_scores.json ({len(_all_icir)} 只)")
+    except Exception as _e:
+        print(f"  ⚠️ 全量ICIR分数保存失败: {_e}")
 
     top = results[:top_n]
     cached = results[:max(top_n, CACHE_N)]

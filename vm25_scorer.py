@@ -283,6 +283,15 @@ class VM25Scorer:
             full = merge_extra_factors(full, code, self.extra_factors, self.extra_factor_cols)
         return full.replace([np.inf, -np.inf], np.nan).fillna(0)
 
+    def get_factor_vector(self, kline_df, symbol):
+        """Build features and return the latest row as a {feature_name: value} dict.
+        Used by ICIR scorer for cross-sectional z-scoring (no XGBoost inference)."""
+        full = self.build_features(kline_df, symbol)
+        if full is None or len(full) < 1:
+            return None
+        row = full.iloc[-1]
+        return {c: float(row.get(c, 0.0) or 0.0) for c in self.feature_names}
+
     def score(self, kline_df, symbol, sector_heat=0.0):
         if not self.models and not self.load():
             return {"error": "model_not_loaded"}

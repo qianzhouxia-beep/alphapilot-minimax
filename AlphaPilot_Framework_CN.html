@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.png" type="image/png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>AlphaPilot — 全市场量化选股策略全景</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,38 +38,65 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ── Header ── */
-  .site-header {
-    position: sticky; top: 0; z-index: 50;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    background: rgba(255,255,255,0.8);
-    border-bottom: 1px solid var(--border-subtle);
+  /* ── Navigation (matches landing page) ── */
+  .site-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    transition: background .3s ease;
+    background: transparent;
+  }
+  .site-nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 52px;
     padding: 0 24px;
   }
-  .header-inner {
-    max-width: 1120px; margin: 0 auto;
-    display: flex; align-items: center; justify-content: space-between;
-    height: 56px;
+  .site-nav-logo { display: flex; align-items: center; text-decoration: none; }
+  .site-nav-logo img { height: 32px; width: auto; }
+  .site-nav-links {
+    display: none;
+    align-items: center;
+    gap: 32px;
   }
-  .header-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-  .header-logo img { height: 32px; width: auto; }
-  .header-logo span { font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -.02em; }
-  .header-logo small { font-size: 11px; color: var(--text-tertiary); font-weight: 400; margin-left: 4px; }
-  .header-actions { display: flex; gap: 8px; align-items: center; }
-  .header-actions a {
-    font-size: 13px; text-decoration: none; padding: 6px 16px; border-radius: var(--radius-sm);
-    transition: all .2s; font-weight: 500;
+  @media (min-width: 768px) { .site-nav-links { display: flex; } }
+  .site-nav-links a {
+    position: relative;
+    font-size: 13px; font-weight: 500; text-decoration: none;
+    color: var(--text-tertiary);
+    transition: color .2s;
   }
-  .header-actions .btn-outline {
-    border: 1px solid var(--border-medium); color: var(--text-secondary);
+  .site-nav-links a:hover { color: var(--text-primary); }
+  .site-nav-links a.active {
+    color: var(--purple);
   }
-  .header-actions .btn-outline:hover { border-color: var(--purple); color: var(--purple); }
-  .header-actions .btn-primary {
-    background: var(--purple); color: #fff;
+  .site-nav-links a.active::after {
+    content: '';
+    position: absolute;
+    bottom: -16px; left: 50%;
+    transform: translateX(-50%);
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--purple);
   }
-  .header-actions .btn-primary:hover { background: var(--purple-600); }
+  .site-nav-actions { display: flex; align-items: center; gap: 12px; }
+  .site-nav-actions .mobile-only {
+    font-size: 13px; font-weight: 500; text-decoration: none;
+    color: var(--text-tertiary);
+    transition: color .2s;
+  }
+  .site-nav-actions .mobile-only:hover { color: var(--text-primary); }
+  @media (min-width: 768px) { .site-nav-actions .mobile-only { display: none; } }
+  .site-nav-actions .cta {
+    font-size: 13px; font-weight: 600; text-decoration: none;
+    color: #fff;
+    background: var(--text-primary);
+    padding: 7px 18px;
+    border-radius: 9999px;
+    transition: transform .2s, opacity .2s;
+  }
+  .site-nav-actions .cta:hover { transform: scale(1.03); opacity: .9; }
 
   /* ── Layout ── */
+  body { padding-top: 52px; }
   .container { max-width: 1120px; margin: 0 auto; padding: 40px 24px 60px; }
   .page-intro { text-align: center; margin-bottom: 48px; }
   .page-intro h1 { font-size: 36px; font-weight: 700; letter-spacing: -.03em; }
@@ -233,23 +262,27 @@
 </head>
 <body>
 
-<!-- ═══ Header ═══ -->
-<header class="site-header">
-  <div class="header-inner">
-    <a class="header-logo" href="/cn/">
-      <img src="https://alphapilot.api-tokenmaster.com/brand-logo.png" alt="AlphaPilot" onerror="this.style.display='none'" />
+<!-- ═══ Navigation ═══ -->
+<nav class="site-nav">
+  <div class="site-nav-inner">
+    <a href="/" class="site-nav-logo">
+      <img src="/logo.png" alt="AlphaPilot" onerror="this.style.display='none'" />
     </a>
-    <nav style="display:flex;gap:20px;align-items:center;font-size:13px;font-weight:500;">
-      <a href="/cn/" style="color:var(--text-secondary);text-decoration:none;">智能终端</a>
-      <a href="/cn/screener" style="color:var(--text-secondary);text-decoration:none;">选股</a>
-      <a href="/cn/paper-trading" style="color:var(--text-secondary);text-decoration:none;">模拟盘</a>
-      <a href="/api/v1/cn/framework" style="color:var(--purple);text-decoration:none;font-weight:600;">策略全景</a>
-    </nav>
-    <div class="header-actions">
-      <a href="https://alphapilot.api-tokenmaster.com/cn/" class="btn-outline" target="_blank">打开终端</a>
+    <div class="site-nav-links">
+      <a href="/">首页</a>
+      <a href="/cn/screener">选股</a>
+      <a href="/cn/backtest">回测</a>
+      <a href="/cn/news">资讯</a>
+      <a href="/api/v1/cn/framework" class="active">策略全景</a>
+      <a href="/api/v1/cn/quant">量化方案</a>
+    </div>
+    <div class="site-nav-actions">
+      <a href="/api/v1/cn/framework" class="mobile-only">策略全景</a>
+      <a href="/api/v1/cn/quant" class="mobile-only">量化方案</a>
+      <a href="/cn/" class="cta">打开终端</a>
     </div>
   </div>
-</header>
+</nav>
 
 <!-- ═══ Main ═══ -->
 <main class="container">
