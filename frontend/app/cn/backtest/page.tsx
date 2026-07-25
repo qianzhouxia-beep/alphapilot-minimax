@@ -401,8 +401,8 @@ export default function BacktestPage() {
                         <td className="px-3 py-3 text-[13px] text-text-primary">{item.name}</td>
                         {!ran && (
                           <td className={`px-3 py-3 text-right text-[18px] font-semibold ${
-                            item.score >= 0.75 ? "text-status-success" : item.score >= 0.65 ? "text-status-warning" : "text-text-secondary"
-                          }`}>{item.score != null ? item.score.toFixed(1) : '—'}</td>
+                            (item.model_proba ?? item.score ?? 0) >= 0.8 ? "text-status-success" : (item.model_proba ?? item.score ?? 0) >= 0.7 ? "text-status-warning" : "text-text-secondary"
+                          }`}>{(item.model_proba ?? item.score) != null ? (item.model_proba ?? item.score).toFixed(4) : '—'}</td>
                         )}
                         {ran && (
                           <>
