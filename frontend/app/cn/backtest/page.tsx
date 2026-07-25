@@ -19,7 +19,7 @@ type BacktestResult = {
     win: boolean | null; entry_date?: string; exit_date?: string; entry_price?: number; exit_price?: number;
   }[];
   totalReturn: number; winRate: number; avgReturn: number; maxReturn: number; minReturn: number;
-  positiveCount: number; negativeCount: number; method: string; warning?: string;
+  maxDrawdown: number; positiveCount: number; negativeCount: number; method: string; warning?: string;
 };
 
 function mapTopNBacktest(resp: BacktestResponse): BacktestResult {
@@ -33,6 +33,7 @@ function mapTopNBacktest(resp: BacktestResponse): BacktestResult {
     stockResults, method: "Top N 回测", warning: resp.warning,
     totalReturn: k.avg_return ?? 0, winRate: k.win_rate ?? 0, avgReturn: k.avg_return ?? 0,
     maxReturn: k.max_return ?? 0, minReturn: k.min_return ?? 0,
+    maxDrawdown: k.max_drawdown ?? 0,
     positiveCount: k.positive_count ?? 0, negativeCount: k.negative_count ?? 0,
   };
 }
@@ -48,6 +49,7 @@ function mapStockBacktest(resp: StockBacktestResponse): BacktestResult {
     stockResults, method: resp.method,
     totalReturn: k.avg_return ?? 0, winRate: k.win_rate ?? 0, avgReturn: k.avg_return ?? 0,
     maxReturn: k.max_return ?? 0, minReturn: k.min_return ?? 0,
+    maxDrawdown: k.max_drawdown ?? 0,
     positiveCount: k.positive_count ?? 0, negativeCount: k.negative_count ?? 0,
   };
 }
@@ -226,12 +228,12 @@ export default function BacktestPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[12px] text-text-secondary mb-1.5">最低评分: {(cfg.minScore * 100).toFixed(0)}</label>
+                  <label className="block text-[12px] text-text-secondary mb-1.5">最低原始评分: {cfg.minScore.toFixed(2)}</label>
                   <input type="range" min={0.3} max={0.9} step={0.05} value={cfg.minScore}
                     onChange={e => setCfg({...cfg, minScore: Number(e.target.value)})}
                     className="w-full accent-[#A78BFA]" />
                   <div className="flex justify-between text-[11px] text-text-disabled mt-1">
-                    <span>30</span><span>90</span>
+                    <span>0.30</span><span>0.90</span>
                   </div>
                 </div>
                 <div className="rounded-xl bg-[rgba(245,196,81,0.08)] border border-[#F5C451]/30 p-3">
@@ -329,7 +331,7 @@ export default function BacktestPage() {
         <section className="lg:col-span-3 space-y-6">
           {/* KPI */}
           {ran && result && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               <KpiCard label="平均收益" value={`${result.avgReturn > 0 ? "+" : ""}${result.avgReturn}%`}
                 accent={result.avgReturn >= 0 ? "#3EE6A8" : "#FF5D5D"} />
               <KpiCard label="胜率" value={`${result.winRate}%`}
@@ -337,6 +339,8 @@ export default function BacktestPage() {
               <KpiCard label="最高收益" value={`${result.maxReturn > 0 ? "+" : ""}${result.maxReturn}%`} accent="#A78BFA" />
               <KpiCard label="最低收益" value={`${result.minReturn > 0 ? "+" : ""}${result.minReturn}%`}
                 accent={result.minReturn >= 0 ? "#3EE6A8" : "#FF5D5D"} />
+              <KpiCard label="最大回撤" value={`${result.maxDrawdown}%`}
+                accent={result.maxDrawdown < 0 ? "#FF5D5D" : "#3EE6A8"} />
             </div>
           )}
 
