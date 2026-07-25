@@ -1,0 +1,292 @@
+{
+  "generated_at": "2026-07-25 11:09:00",
+  "note": "集合竞价因子专用 ICIR 权重。此为初始预设权重，基于因子逻辑和研报参考设定，实际 ICIR 值需在实盘数据上回测校准。",
+  "reference": {
+    "ocvp_icir": -0.056,
+    "obcvp_icir": -0.07,
+    "obcvp_sharpe": 3.03,
+    "obcvp_annual_return": 0.151,
+    "max_drawdown": 0.102,
+    "source": "光大证券多因子系列报告之五：见微知著 (2017)",
+    "l2_buy_ratio_icir_20d": -0.092,
+    "l2_buy_ratio_winrate": 0.22,
+    "l2_buy_sell_icir_20d": -0.092,
+    "l2_buy_sell_winrate": 0.28,
+    "source_l2": "海量Level2数据因子挖掘系列报告(四): 集合竞价相关因子"
+  },
+  "regime_weighted": {
+    "top_k": 19,
+    "regime_weights": {
+      "normal": 0.5,
+      "weak": 0.3,
+      "severe": 0.2
+    },
+    "n_factors": 19,
+    "weights": [
+      {
+        "factor": "rd_auction_gap_pct",
+        "category": "量价",
+        "icir_est": 0.15,
+        "weight": 0.0925,
+        "signal": "正向：高开有延续性；过高负向：情绪过热回调",
+        "logic": "开盘涨幅是市场对隔夜信息的直接反应"
+      },
+      {
+        "factor": "rd_auction_gap_abs",
+        "category": "量价",
+        "icir_est": 0.05,
+        "weight": 0.0308,
+        "signal": "绝对值越大，多空分歧越大",
+        "logic": "跳空幅度衡量信息冲击强度"
+      },
+      {
+        "factor": "rd_auction_gap_volume_ratio",
+        "category": "量价",
+        "icir_est": 0.10,
+        "weight": 0.0617,
+        "signal": ">1.5 放量确认；<0.8 缩量背离",
+        "logic": "量比验证跳空是否得到资金认可"
+      },
+      {
+        "factor": "rd_auction_open_amt_ratio",
+        "category": "量价",
+        "icir_est": 0.08,
+        "weight": 0.0493,
+        "signal": ">2 资金参与度高",
+        "logic": "开盘金额强度反映资金真实参与度"
+      },
+      {
+        "factor": "rd_auction_gap_vol_confirm",
+        "category": "量价",
+        "icir_est": 0.12,
+        "weight": 0.0740,
+        "signal": "正向→量价齐升；负向→量价背离",
+        "logic": "量价同步性是集合竞价最核心的验证信号"
+      },
+      {
+        "factor": "rd_auction_open_atr_ratio",
+        "category": "量价",
+        "icir_est": 0.04,
+        "weight": 0.0247,
+        "signal": "0.5~2.0 合理波动范围；过高为异常",
+        "logic": "相对ATR位置体现跳空的统计学显著性"
+      },
+      {
+        "factor": "rd_auction_gap_premium",
+        "category": "量价",
+        "icir_est": 0.06,
+        "weight": 0.0370,
+        "signal": "高溢价→情绪过热；负溢价→过度反应",
+        "logic": "溢价偏离度反映开盘价相对合理价值的偏离"
+      },
+      {
+        "factor": "rd_auction_weak_to_strong",
+        "category": "模式",
+        "icir_est": 0.18,
+        "weight": 0.1110,
+        "signal": ">0 弱转强确认，高盈亏比信号",
+        "logic": "前日弱势+今日超预期高开=预期差修复，短线最强模型"
+      },
+      {
+        "factor": "rd_auction_strong_to_weak",
+        "category": "模式",
+        "icir_est": 0.12,
+        "weight": 0.0740,
+        "signal": "<0 强转弱确认，回避信号",
+        "logic": "前日强势+今日低开=多头承接不足，回调风险"
+      },
+      {
+        "factor": "rd_auction_stronger",
+        "category": "模式",
+        "icir_est": 0.08,
+        "weight": 0.0493,
+        "signal": ">0 强者恒强",
+        "logic": "强势股的延续性确认"
+      },
+      {
+        "factor": "rd_auction_explosive_open",
+        "category": "模式",
+        "icir_est": 0.14,
+        "weight": 0.0863,
+        "signal": ">0.5 高概率冲击涨停(38.2%)",
+        "logic": "研报回测：4%-7%高开+量比>1.5 为最佳形态"
+      },
+      {
+        "factor": "rd_auction_fake_gap",
+        "category": "模式",
+        "icir_est": 0.10,
+        "weight": 0.0617,
+        "signal": "<0 诱多嫌疑，回避",
+        "logic": "高开但缩量=主力诱多出货的经典信号"
+      },
+      {
+        "factor": "rd_auction_gap_momentum",
+        "category": "动量",
+        "icir_est": 0.07,
+        "weight": 0.0432,
+        "signal": ">0 跳空方向与中期趋势一致",
+        "logic": "跳空方向与5日收益方向的一致性"
+      },
+      {
+        "factor": "rd_auction_consecutive_gap",
+        "category": "动量",
+        "icir_est": 0.06,
+        "weight": 0.0370,
+        "signal": "1-2天正常；≥3天衰竭风险",
+        "logic": "连续跳空天数衡量动能持续性"
+      },
+      {
+        "factor": "rd_auction_volume_conviction",
+        "category": "动量",
+        "icir_est": 0.09,
+        "weight": 0.0555,
+        "signal": ">0.3 放量置信；<-0.3 缩量怀疑",
+        "logic": "将量比与方向结合后的综合置信度"
+      },
+      {
+        "factor": "rd_auction_bull_score",
+        "category": "综合",
+        "icir_est": 0.16,
+        "weight": 0.0987,
+        "signal": "0~1，越高做多信号越强",
+        "logic": "弱转强+强更强+爆量高开+量价确认的组合评分"
+      },
+      {
+        "factor": "rd_auction_bear_score",
+        "category": "综合",
+        "icir_est": 0.12,
+        "weight": 0.0740,
+        "signal": "0~1，越高做空/回避信号越强",
+        "logic": "强转弱+假跳空+量价背离+连续衰竭的组合评分"
+      },
+      {
+        "factor": "rd_auction_composite",
+        "category": "综合",
+        "icir_est": 0.20,
+        "weight": 0.1233,
+        "signal": "-1~1，正向做多负向做空",
+        "logic": "做多评分减做空评分的净多空信号"
+      },
+      {
+        "factor": "rd_auction_composite_z",
+        "category": "综合",
+        "icir_est": 0.20,
+        "weight": 0.1233,
+        "signal": "全市场截面标准化后的复合信号",
+        "logic": "cross-sectional z-score，适用于截面选股"
+      }
+    ]
+  },
+  "equal_regime": {
+    "top_k": 19,
+    "regime_weights": {
+      "normal": 1.0,
+      "weak": 1.0,
+      "severe": 1.0
+    },
+    "n_factors": 19,
+    "weights": [
+      {
+        "factor": "rd_auction_gap_pct",
+        "icir_est": 0.15,
+        "weight": 0.0925
+      },
+      {
+        "factor": "rd_auction_gap_abs",
+        "icir_est": 0.05,
+        "weight": 0.0308
+      },
+      {
+        "factor": "rd_auction_gap_volume_ratio",
+        "icir_est": 0.10,
+        "weight": 0.0617
+      },
+      {
+        "factor": "rd_auction_open_amt_ratio",
+        "icir_est": 0.08,
+        "weight": 0.0493
+      },
+      {
+        "factor": "rd_auction_gap_vol_confirm",
+        "icir_est": 0.12,
+        "weight": 0.0740
+      },
+      {
+        "factor": "rd_auction_open_atr_ratio",
+        "icir_est": 0.04,
+        "weight": 0.0247
+      },
+      {
+        "factor": "rd_auction_gap_premium",
+        "icir_est": 0.06,
+        "weight": 0.0370
+      },
+      {
+        "factor": "rd_auction_weak_to_strong",
+        "icir_est": 0.18,
+        "weight": 0.1110
+      },
+      {
+        "factor": "rd_auction_strong_to_weak",
+        "icir_est": 0.12,
+        "weight": 0.0740
+      },
+      {
+        "factor": "rd_auction_stronger",
+        "icir_est": 0.08,
+        "weight": 0.0493
+      },
+      {
+        "factor": "rd_auction_explosive_open",
+        "icir_est": 0.14,
+        "weight": 0.0863
+      },
+      {
+        "factor": "rd_auction_fake_gap",
+        "icir_est": 0.10,
+        "weight": 0.0617
+      },
+      {
+        "factor": "rd_auction_gap_momentum",
+        "icir_est": 0.07,
+        "weight": 0.0432
+      },
+      {
+        "factor": "rd_auction_consecutive_gap",
+        "icir_est": 0.06,
+        "weight": 0.0370
+      },
+      {
+        "factor": "rd_auction_volume_conviction",
+        "icir_est": 0.09,
+        "weight": 0.0555
+      },
+      {
+        "factor": "rd_auction_bull_score",
+        "icir_est": 0.16,
+        "weight": 0.0987
+      },
+      {
+        "factor": "rd_auction_bear_score",
+        "icir_est": 0.12,
+        "weight": 0.0740
+      },
+      {
+        "factor": "rd_auction_composite",
+        "icir_est": 0.20,
+        "weight": 0.1233
+      },
+      {
+        "factor": "rd_auction_composite_z",
+        "icir_est": 0.20,
+        "weight": 0.1233
+      }
+    ]
+  },
+  "factor_categories": {
+    "量价因子": ["rd_auction_gap_pct", "rd_auction_gap_abs", "rd_auction_gap_volume_ratio", "rd_auction_open_amt_ratio", "rd_auction_gap_vol_confirm", "rd_auction_open_atr_ratio", "rd_auction_gap_premium"],
+    "模式因子": ["rd_auction_weak_to_strong", "rd_auction_strong_to_weak", "rd_auction_stronger", "rd_auction_explosive_open", "rd_auction_fake_gap"],
+    "动量因子": ["rd_auction_gap_momentum", "rd_auction_consecutive_gap", "rd_auction_volume_conviction"],
+    "综合因子": ["rd_auction_bull_score", "rd_auction_bear_score", "rd_auction_composite", "rd_auction_composite_z"]
+  }
+}

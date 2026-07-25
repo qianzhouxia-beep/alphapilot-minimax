@@ -1,11 +1,12 @@
 """
-AlphaPilot V11 特征工程 v2 — 50维特征
+AlphaPilot V11 特征工程 v2 — 50维特征（含集合竞价因子）
 扩充自 V10 的 31 维，新增经典技术指标、成交量/波动率结构、交互特征
-删除冗余的 score_* 评分特征
+深度集成集合竞价因子 (rd_auction_*) — 从日K线计算，无需Level-2
 """
 import warnings
 import numpy as np
 import pandas as pd
+from call_auction_factors import compute_auction_factors
 
 warnings.filterwarnings("ignore")
 
@@ -254,7 +255,11 @@ def build_full_features_v2(
     - 4 维事件特征
     - 2 维融资融券
     """
+    # 基础技术特征
     df = compute_technical_features(kline_df)
+    
+    # ★ 集合竞价因子（从原始 OHLCV 计算，不依赖其他特征）
+    df = compute_auction_factors(df)
     
     if compute_advanced:
         df = compute_ta_indicators(df)
@@ -333,6 +338,20 @@ V11_FEATURE_COLUMNS = [
 
     # 融资融券 (2)
     "margin_balance", "margin_buy",
+
+    # ★ 集合竞价因子 (22) — 从日K线计算的竞价量价因子
+    "rd_auction_gap_pct", "rd_auction_gap_abs", "rd_auction_gap_volume_ratio",
+    "rd_auction_open_amt_ratio", "rd_auction_gap_vol_confirm",
+    "rd_auction_open_atr_ratio", "rd_auction_gap_premium",
+    "rd_auction_weak_to_strong", "rd_auction_strong_to_weak",
+    "rd_auction_stronger", "rd_auction_explosive_open",
+    "rd_auction_fake_gap", "rd_auction_gap_momentum",
+    "rd_auction_consecutive_gap", "rd_auction_volume_conviction",
+    "rd_auction_bull_score", "rd_auction_bear_score",
+    "rd_auction_composite", "rd_auction_composite_z",
+    # ★ 集合竞价增强因子 (3) — 主力出货/板块共振
+    "rd_auction_pump_exhaustion", "rd_auction_fake_support",
+    "rd_auction_sector_collapse",
 ]
 
 
@@ -344,8 +363,8 @@ if __name__ == "__main__":
         "date": dates,
         "open": 10 + np.random.randn(len(dates)).cumsum() * 0.1,
         "high": 0, "low": 0, "close": 0,
-        "volume": np.random.randint(1e7, 5e7, len(dates)),
-        "amount": np.random.randint(1e9, 5e9, len(dates)),
+        "volume": np.random.randint(1_000_000, 5_000_000, len(dates), dtype=np.int64),
+        "amount": np.random.randint(100_000_000, 500_000_000, len(dates), dtype=np.int64),
         "turnover": np.random.rand(len(dates)) * 5,
     })
     test_df["close"] = test_df["open"] + np.random.randn(len(dates)) * 0.2
