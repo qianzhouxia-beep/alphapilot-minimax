@@ -83,6 +83,7 @@ if _frontend_dir.is_dir():
         print(f"Frontend /cn mounted: {_cn_dir}")
 
 
+
 @app.on_event("startup")
 async def startup():
     """启动时预加载模型；把遗留收藏划归 root 管理员"""
@@ -266,19 +267,51 @@ def _confidence_score(score: float) -> int:
     return int(min(99, max(75, round(s * 45 + 75))))
 
 
+def _to_model_proba(score: float) -> float:
+    """把原始 score 规范为 0~1。
+
+    管线里 VM 概率通常在 [0,1]；live_momentum_scanner 的综合/z 分常 >1，
+    若直接 *100 会在前端显示成 299 这种异常分。
+    """
+    try:
+        s = float(score or 0)
+    except Exception:
+        return 0.0
+    if s <= 0:
+        return 0.0
+    if s <= 1.0:
+        return s
+    import math
+
+    return max(0.0, min(0.999, 1.0 / (1.0 + math.exp(-s / 2.0))))
+
+
 def _normalize_recommend_item(item: dict) -> dict:
     """统一推荐项字段格式，兼容新旧两种输出"""
     raw = float(item.get("score", 0) or 0)
+    # 显式 model_proba 优先（且必须是 0~1）
+    proba = _to_model_proba(raw)
+    try:
+        mp = item.get("model_proba")
+        if mp is not None:
+            mp_f = float(mp)
+            if 0 <= mp_f <= 1.0:
+                proba = mp_f
+    except Exception:
+        pass
+    lgb_raw = float(item.get("lgb_score", item.get("score", 0)) or 0)
+    lgb_proba = _to_model_proba(lgb_raw)
     base = {
         "symbol": item.get("symbol", ""),
         "name": item.get("name", ""),
         "score": raw,
         # 兼容旧字段；前端应优先用 confidence_score / model_proba
-        "score_pct": round(raw * 100, 1),
-        "model_proba": round(raw, 4),
-        "confidence_score": _confidence_score(raw),
+        "score_pct": round(proba * 100, 1),
+        "model_proba": round(proba, 4),
+        "confidence_score": _confidence_score(proba),
         "score_note": "confidence_score=展示信心分(75-99); model_proba=VM2.5概率(0-1); 勿把score_pct当考试分",
-        "lgb_score": item.get("lgb_score", item.get("score", 0)),
+        "score_composite": round(raw, 4) if raw > 1.0 else None,
+        "lgb_score": round(lgb_proba, 4),
         "sector_heat": item.get("sector_heat", 0.5),
         "buy_price": item.get("buy_price"),
         "target_price": item.get("target_price"),
@@ -442,7 +475,29 @@ async def get_score_top10():
         raise HTTPException(status_code=500, detail=str(e))
 
     items = _attach_live_quotes(list(data.get("items") or []))
-    rec_cmp = _attach_live_quotes(list(data.get("recommend_compare") or []))
+
+    # recommend_compare：实时从 daily_recommend.json 拉最新推荐（而非 score_top10 文件里的旧快照）
+    rec_cmp = []
+    try:
+        _rec_paths = [
+            Path("output/daily_recommend.json"),
+            Path("/home/ubuntu/alphapilot/output/daily_recommend.json"),
+        ]
+        for _rp in _rec_paths:
+            if _rp.exists():
+                _rd = json.loads(_rp.read_text(encoding="utf-8"))
+                _recs = _rd.get("recommendations") or _rd.get("items") or []
+                _top_n = int(_rd.get("recommend_top_n") or 2)
+                rec_cmp = [
+                    {**dict(x), "symbol": str(x.get("symbol", ""))[-6:]}
+                    for x in _recs[:_top_n]
+                    if x.get("symbol")
+                ]
+                break
+    except Exception:
+        rec_cmp = _attach_live_quotes(list(data.get("recommend_compare") or []))
+    if rec_cmp:
+        rec_cmp = _attach_live_quotes(rec_cmp)
 
     return {
         "asof": data.get("asof"),
@@ -453,6 +508,231 @@ async def get_score_top10():
         "recommend_compare": rec_cmp,
         "n": min(10, len(items)),
     }
+
+
+def _load_first_json(candidates: list[str | Path]) -> dict:
+    """按候选路径顺序读第一个可用 JSON 对象。"""
+    for c in candidates:
+        p = Path(c)
+        try:
+            if p.exists():
+                raw = json.loads(p.read_text(encoding="utf-8"))
+                if isinstance(raw, dict):
+                    return raw
+        except Exception:
+            continue
+    return {}
+
+
+_EMPTY_REASON_CN = {
+    "awaiting_human_approval": "待人工确认 — 确认前不自动买入",
+    "position_exposure_zero": "核武空仓 — 今日不新开仓",
+    "no_morning_picks": "盘中资金重排后无候选",
+    "fallback_empty": "候选为空",
+}
+
+
+def _expo_status(expo: float, empty_reason: str | None, n_picks: int) -> dict:
+    reason = (empty_reason or "").strip()
+    if reason == "position_exposure_zero" or expo <= 0:
+        return {
+            "code": "empty",
+            "label": "空仓",
+            "detail": "仓位曝光为 0（核武日），今日不新开仓",
+        }
+    if reason == "awaiting_human_approval":
+        return {
+            "code": "awaiting",
+            "label": "待确认",
+            "detail": "标的已出，需人工过目后才会写入买入信号",
+        }
+    if reason in ("no_morning_picks", "fallback_empty") or n_picks <= 0:
+        return {
+            "code": "no_picks",
+            "label": "无标的",
+            "detail": _EMPTY_REASON_CN.get(reason) or "今日暂无可执行买入标的",
+        }
+    if expo >= 0.99:
+        return {"code": "buy", "label": "可买入", "detail": "满仓曝光，等权买入 TopN"}
+    if expo >= 0.5:
+        return {"code": "half", "label": "半仓", "detail": f"仓位曝光 {expo:.0%}，等权买入 TopN"}
+    return {"code": "light", "label": "轻仓", "detail": f"仓位曝光 {expo:.0%}，薄仓买入"}
+
+
+def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
+    """组装「今日交易指令」：买不买 / 买谁 / 买多少 / 出场四层。"""
+    picks_raw = _load_first_json(
+        [
+            Path(OUTPUT_DIR) / "morning_live_picks.json",
+            Path("output") / "morning_live_picks.json",
+            Path("/home/ubuntu/alphapilot/output/morning_live_picks.json"),
+        ]
+    )
+    paper = _load_first_json(
+        [
+            Path("/home/ubuntu/alphapilot/data/paper_trading.json"),
+            Path("data") / "paper_trading.json",
+        ]
+    )
+    rec = rec_data if isinstance(rec_data, dict) else {}
+    if not rec:
+        try:
+            rec = _read_recommend_cache()
+        except Exception:
+            rec = {}
+
+    try:
+        expo = float(
+            picks_raw.get("position_exposure")
+            if picks_raw.get("position_exposure") is not None
+            else paper.get("position_exposure")
+            if paper.get("position_exposure") is not None
+            else rec.get("position_exposure")
+            if rec.get("position_exposure") is not None
+            else 1.0
+        )
+    except Exception:
+        expo = 1.0
+
+    flags = (
+        paper.get("market_env_flags")
+        or rec.get("market_env_flags")
+        or picks_raw.get("market_env_flags")
+        or {}
+    )
+    if not isinstance(flags, dict):
+        flags = {}
+
+    exit_policy = paper.get("exit_policy") if isinstance(paper.get("exit_policy"), dict) else {}
+    protocol = paper.get("protocol") if isinstance(paper.get("protocol"), dict) else {}
+
+    try:
+        top_n = int(
+            picks_raw.get("trade_top_n")
+            or paper.get("recommend_top_n")
+            or protocol.get("top_n")
+            or (1 if 0 < expo < 0.5 else (0 if expo <= 0 else 2))
+        )
+    except Exception:
+        top_n = 2
+
+    empty_reason = (
+        paper.get("empty_reason")
+        if paper.get("empty_reason") is not None
+        else picks_raw.get("empty_reason")
+    )
+
+    raw_picks = picks_raw.get("picks") if isinstance(picks_raw.get("picks"), list) else []
+    if not raw_picks and isinstance(rec.get("recommendations"), list):
+        raw_picks = rec.get("recommendations") or []
+
+    sized = []
+    n_buy = max(0, min(top_n, len(raw_picks))) if expo > 0 else 0
+    per_w = (expo / n_buy) if n_buy > 0 else 0.0
+    for i, it in enumerate(raw_picks[: max(top_n, 0) or 0]):
+        if not isinstance(it, dict):
+            continue
+        sym = str(it.get("symbol") or "")
+        if not sym:
+            continue
+        buy_price = it.get("buy_price") or it.get("price")
+        try:
+            buy_price = float(buy_price) if buy_price is not None else None
+        except Exception:
+            buy_price = None
+        sized.append(
+            {
+                "rank": i + 1,
+                "symbol": sym,
+                "name": it.get("name") or "",
+                "score": it.get("score"),
+                "buy_price": buy_price,
+                "target_price": it.get("target_price"),
+                "stop_price": it.get("stop_price"),
+                "sector": it.get("research_prefer_hit")
+                or it.get("sector")
+                or it.get("industry"),
+                "money_phase_label": it.get("money_phase_label") or it.get("money_phase"),
+                "weight_pct": round(per_w * 100, 1) if i < n_buy else 0.0,
+                "weight_of_book": round(per_w, 4) if i < n_buy else 0.0,
+                "action": "buy" if i < n_buy and expo > 0 else "skip",
+            }
+        )
+
+    status = _expo_status(expo, empty_reason, len([x for x in sized if x.get("action") == "buy"]))
+
+    trail_arm = float(exit_policy.get("trail_arm") or 0.03)
+    peel_pb = float(exit_policy.get("peel_pullback") or 0.015)
+    hard_stop = float(exit_policy.get("hard_stop_pct") or -0.10)
+
+    exit_layers = [
+        {
+            "id": 1,
+            "name": "动态止盈（peel）",
+            "rule": (
+                f"浮盈≥{trail_arm:.0%}仅激活跟踪；峰值回撤≥{peel_pb:.1%}→剩余仓减半；"
+                "须再创新高才允许下一刀；第3刀清仓"
+            ),
+        },
+        {
+            "id": 2,
+            "name": "E2 硬止损",
+            "rule": f"成本{hard_stop:.0%}；仅≥14:45 收盘确认且现价仍≤止损才全清",
+        },
+        {
+            "id": 3,
+            "name": "T+2 强平",
+            "rule": "持有满1个交易日于14:45后强平；资金净流入且价≥95%成本可延期1天（仅一次）",
+        },
+        {
+            "id": 4,
+            "name": "板块反转",
+            "rule": "盘中板块急杀触发紧急卖出（intraday sector watch）",
+        },
+    ]
+
+    entry_text = (
+        exit_policy.get("entry")
+        or protocol.get("entry")
+        or "GapSoft：≤1.5% 全仓；1.5–3% 限价；3–5% 线性降权；≥5% 跳过"
+    )
+
+    approval = paper.get("approval_gate") if isinstance(paper.get("approval_gate"), dict) else {}
+    asof = picks_raw.get("asof") or rec.get("generated_at") or rec.get("run_at") or ""
+
+    return {
+        "asof": asof,
+        "arm": "A1_permission",
+        "status": status,
+        "position_exposure": round(expo, 4),
+        "trade_top_n": top_n,
+        "empty_reason": empty_reason,
+        "empty_reason_label": _EMPTY_REASON_CN.get(str(empty_reason or ""), None),
+        "execution_window": "09:37 后（开盘资金重排完成后）",
+        "entry": entry_text,
+        "entry_mode": exit_policy.get("entry_mode") or protocol.get("entry_mode") or "gap_soft",
+        "market_env_flags": flags,
+        "buys": sized,
+        "exit_layers": exit_layers,
+        "exit_policy_mode": exit_policy.get("mode"),
+        "approval_gate": {
+            "enabled": bool(approval.get("enabled", True)),
+            "pending_n": int(approval.get("pending_n") or 0),
+            "note": approval.get("note"),
+        },
+        "protocol_name": protocol.get("name") or picks_raw.get("mode") or "morning_live_fund_top2",
+        "note": "研究层见下方推荐池/评分榜；本卡为当日可执行指令",
+    }
+
+
+@app.get("/api/v1/cn/trade-plan")
+async def get_trade_plan():
+    """今日交易指令（买不买 / 买谁 / 买多少 / 出场四层）"""
+    try:
+        rec = _read_recommend_cache()
+    except Exception:
+        rec = {}
+    return _build_cn_trade_plan(rec)
 
 
 @app.get("/api/v1/cn/recommend")
@@ -493,12 +773,15 @@ async def get_recommend():
     passed_items = _attach_live_quotes(passed_items[:MAX_RETURN])
     filtered_count = len(normalized) - len(passed_items)
 
+    trade_plan = _build_cn_trade_plan(data)
+
     return {
         "run_at": data.get("run_at", ""),
         "generated_at": data.get("generated_at", ""),
         "pipeline_version": data.get("pipeline_version", "v3.1_funnel_gated"),
         "model_version": data.get("model_version", "v25"),
         "position_exposure": data.get("position_exposure"),
+        "trade_plan": trade_plan,
         "recommendations": passed_items,
         "stats": {
             "total_scanned": data.get("stats", {}).get(
@@ -862,12 +1145,22 @@ async def get_cn_stock_detail(symbol: str):
                                 result["stop_price"] = lv["stop_price"]
                     except Exception:
                         pass
-                    return _enrich_stock_meta(result, sym_clean)
+                    result = _enrich_stock_meta(result, sym_clean)
+                    # 详情页旧前端会把 score*100 当展示分；综合/z 分 >1 会显示成 299。
+                    # 对外 score 改为 0~1 概率，原始综合分保留在 score_composite。
+                    if float(result.get("score") or 0) > 1.0:
+                        result["score_composite"] = round(float(result["score"]), 4)
+                        result["score"] = float(result.get("model_proba") or _to_model_proba(result["score"]))
+                    return result
 
         # 2) 不在缓存 → 按需评分
         on_demand = _analyze_on_demand(sym_clean)
         if on_demand:
-            return _enrich_stock_meta(on_demand, sym_clean)
+            on_demand = _enrich_stock_meta(on_demand, sym_clean)
+            if float(on_demand.get("score") or 0) > 1.0:
+                on_demand["score_composite"] = round(float(on_demand["score"]), 4)
+                on_demand["score"] = float(on_demand.get("model_proba") or _to_model_proba(on_demand["score"]))
+            return on_demand
 
         raise HTTPException(status_code=404, detail=f"股票 {symbol} 未找到")
 
