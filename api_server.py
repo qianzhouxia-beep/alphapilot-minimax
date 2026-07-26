@@ -559,8 +559,47 @@ def _expo_status(expo: float, empty_reason: str | None, n_picks: int) -> dict:
     return {"code": "light", "label": "轻仓", "detail": f"仓位曝光 {expo:.0%}，薄仓买入"}
 
 
+def _recommend_top_for_trade(rec: dict, top_n: int) -> tuple[list[dict], str]:
+    """与「今日推荐」同口径：daily_recommend → 资金门控 → 按 score 取 TopN。
+
+    对应生产 09:35 live_momentum_scanner 全市场重选后的池子，而不是
+    过期的 morning_live_picks（旧 05:00 池资金截 Top2）。
+    """
+    items = rec.get("recommendations") or rec.get("items") or []
+    if not isinstance(items, list):
+        items = []
+    try:
+        from money_flow_gate import apply_money_flow_gate
+
+        gated = apply_money_flow_gate(items, top_n=None)
+    except Exception:
+        gated = items
+    normalized = [_normalize_recommend_item(it) for it in gated if isinstance(it, dict)]
+    passed = [it for it in normalized if it.get("money_flow_pass") is True]
+    if not passed:
+        passed = sorted(
+            normalized,
+            key=lambda x: float(x.get("score", 0) or 0),
+            reverse=True,
+        )
+    else:
+        passed = sorted(
+            passed,
+            key=lambda x: float(x.get("score", 0) or 0),
+            reverse=True,
+        )
+    asof = (
+        str(rec.get("generated_at") or rec.get("run_at") or rec.get("asof") or "")
+    )
+    return passed[: max(0, int(top_n))], asof
+
+
 def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
-    """组装「今日交易指令」：买不买 / 买谁 / 买多少 / 出场四层。"""
+    """组装「今日交易指令」：买不买 / 买谁 / 买多少 / 出场四层。
+
+    标的与网页「今日推荐」对齐（09:35 全市场动量/ICIR 重选 + 资金门控），
+    不再优先使用可能过期的 morning_live_picks.json。
+    """
     picks_raw = _load_first_json(
         [
             Path(OUTPUT_DIR) / "morning_live_picks.json",
@@ -583,12 +622,12 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
 
     try:
         expo = float(
-            picks_raw.get("position_exposure")
-            if picks_raw.get("position_exposure") is not None
-            else paper.get("position_exposure")
+            paper.get("position_exposure")
             if paper.get("position_exposure") is not None
             else rec.get("position_exposure")
             if rec.get("position_exposure") is not None
+            else picks_raw.get("position_exposure")
+            if picks_raw.get("position_exposure") is not None
             else 1.0
         )
     except Exception:
@@ -608,9 +647,9 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
 
     try:
         top_n = int(
-            picks_raw.get("trade_top_n")
-            or paper.get("recommend_top_n")
+            paper.get("recommend_top_n")
             or protocol.get("top_n")
+            or picks_raw.get("trade_top_n")
             or (1 if 0 < expo < 0.5 else (0 if expo <= 0 else 2))
         )
     except Exception:
@@ -622,9 +661,14 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
         else picks_raw.get("empty_reason")
     )
 
-    raw_picks = picks_raw.get("picks") if isinstance(picks_raw.get("picks"), list) else []
-    if not raw_picks and isinstance(rec.get("recommendations"), list):
-        raw_picks = rec.get("recommendations") or []
+    # 主源：与今日推荐同池同排序
+    raw_picks, rec_asof = _recommend_top_for_trade(rec, top_n if top_n > 0 else 2)
+    pick_source = "daily_recommend_gated"
+
+    # 仅当 morning picks 与推荐池同一交易日时，保留其 asof 备注（不覆盖标的）
+    morning_asof = str(picks_raw.get("asof") or "")
+    today = datetime.now().strftime("%Y-%m-%d")
+    morning_same_day = bool(morning_asof) and morning_asof[:10] == today
 
     sized = []
     n_buy = max(0, min(top_n, len(raw_picks))) if expo > 0 else 0
@@ -651,7 +695,8 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
                 "stop_price": it.get("stop_price"),
                 "sector": it.get("research_prefer_hit")
                 or it.get("sector")
-                or it.get("industry"),
+                or it.get("industry")
+                or it.get("industry_l1"),
                 "money_phase_label": it.get("money_phase_label") or it.get("money_phase"),
                 "weight_pct": round(per_w * 100, 1) if i < n_buy else 0.0,
                 "weight_of_book": round(per_w, 4) if i < n_buy else 0.0,
@@ -698,7 +743,7 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
     )
 
     approval = paper.get("approval_gate") if isinstance(paper.get("approval_gate"), dict) else {}
-    asof = picks_raw.get("asof") or rec.get("generated_at") or rec.get("run_at") or ""
+    asof = rec_asof or (morning_asof if morning_same_day else "") or ""
 
     return {
         "asof": asof,
@@ -708,7 +753,7 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
         "trade_top_n": top_n,
         "empty_reason": empty_reason,
         "empty_reason_label": _EMPTY_REASON_CN.get(str(empty_reason or ""), None),
-        "execution_window": "09:37 后（开盘资金重排完成后）",
+        "execution_window": "09:37 后（09:35 全市场重选完成后）",
         "entry": entry_text,
         "entry_mode": exit_policy.get("entry_mode") or protocol.get("entry_mode") or "gap_soft",
         "market_env_flags": flags,
@@ -720,8 +765,9 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
             "pending_n": int(approval.get("pending_n") or 0),
             "note": approval.get("note"),
         },
-        "protocol_name": protocol.get("name") or picks_raw.get("mode") or "morning_live_fund_top2",
-        "note": "研究层见下方推荐池/评分榜；本卡为当日可执行指令",
+        "protocol_name": "live_momentum_full_universe",
+        "pick_source": pick_source,
+        "note": "标的与下方「今日推荐」同口径（09:35 全市场重选+资金门控 TopN）；非旧 morning_live_picks",
     }
 
 

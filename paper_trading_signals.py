@@ -1,10 +1,12 @@
 """Paper Trading 信号更新 — 09:36 消费盘中选股结果
 
-协议：
-1. 优先读 output/morning_live_picks.json（09:35 资金门 + 模型分 Top2）
-2. 若今日尚无 picks，则对 daily_recommend 池现场跑一遍 morning 逻辑
-3. expo<=0 → 不买；否则买入模型分前 N 只
-4. 仓位分配：KELLY_ENABLE=1 时用 Kelly + 风险预算；否则等权
+协议（生产）：
+1. 09:35 live_momentum 全市场重选 → daily_recommend
+2. morning_live_fund_select（默认 MORNING_RANK_MODE=model）→ morning_live_picks Top2
+   与网页「今日推荐」同序：资金门后按 score
+3. 本脚本优先读今日且 mode=model 的 picks；fund 旧臂或过期则重跑
+4. expo<=0 → 不买；否则买入 TopN
+5. 仓位：KELLY_ENABLE=1 时 Kelly；否则等权
 """
 import json
 import os
@@ -69,21 +71,51 @@ def ensure_daily_strategy(pt: dict) -> dict:
 
 
 def _picks_fresh(picks: dict) -> bool:
+    """今日 + 生产 model 臂才视为新鲜（拒绝过期 fund Top2 / 误空仓）。"""
     asof = str(picks.get("asof") or "")
     today = datetime.now().strftime("%Y-%m-%d")
-    return asof.startswith(today) and picks.get("mode") in VALID_PICK_MODES
+    mode = str(picks.get("mode") or "")
+    if not asof.startswith(today):
+        return False
+    if mode == "morning_live_fund_top2" and os.environ.get("ALLOW_FUND_PICKS", "").strip() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        return True
+    if mode != "morning_live_model_top2":
+        return False
+    n = len(picks.get("picks") or [])
+    if n > 0:
+        return True
+    # 仅真核武空仓视为有效空结果；其它空文件强制重跑
+    try:
+        expo = float(
+            picks.get("position_exposure")
+            if picks.get("position_exposure") is not None
+            else 1.0
+        )
+    except (TypeError, ValueError):
+        expo = 1.0
+    return expo <= 0 and picks.get("empty_reason") == "position_exposure_zero"
 
 
 def _ensure_morning_picks() -> dict:
+    # 强制生产默认与今日推荐同口径
+    os.environ.setdefault("MORNING_RANK_MODE", "model")
     if PICKS_PATH.exists():
         try:
             picks = json.loads(PICKS_PATH.read_text(encoding="utf-8"))
             if _picks_fresh(picks):
                 return picks
+            print(
+                "⚠️ morning_live_picks 过期或非 model 臂 "
+                f"(asof={picks.get('asof')} mode={picks.get('mode')}) → 重跑"
+            )
         except Exception:
             pass
-    # 现场补跑 09:35 逻辑
-    print("⚠️ morning_live_picks 非今日或缺失 → 现场重跑 morning_live_fund_select")
+    # 现场补跑 09:35 逻辑（score Top2）
+    print("⚠️ morning_live_picks 非今日/缺失 → 现场重跑 morning_live_fund_select (model)")
     try:
         import morning_live_fund_select as mls
 
@@ -93,8 +125,19 @@ def _ensure_morning_picks() -> dict:
         print(f"morning select failed: {e}")
         # 回退：用 recommend 池按模型分取 Top2
         d = json.loads(REC_PATH.read_text(encoding="utf-8"))
-        expo = float(d.get("position_exposure") or 0)
+        expo = float(
+            d.get("position_exposure") if d.get("position_exposure") is not None else 1.0
+        )
         items = list(d.get("recommendations") or [])
+        try:
+            from money_flow_gate import apply_money_flow_gate
+
+            items = apply_money_flow_gate(items, top_n=None)
+            passed = [x for x in items if x.get("money_flow_pass") is True]
+            if passed:
+                items = passed
+        except Exception:
+            pass
         items.sort(
             key=lambda x: float(x.get("score") or x.get("ml_score") or 0),
             reverse=True,

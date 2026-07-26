@@ -8,7 +8,7 @@
   09:35 本脚本拉全市场 akshare 资金流（免费，~13s）
   合并：final = ICIR_z × 0.5 + momentum_z × 0.5
   新票（无 ICIR）：final = momentum_z × 0.9
-  → 门控链 → Top 37 → daily_recommend.json
+  → 门控链 → Top N（默认 50）→ daily_recommend.json（须带 position_exposure）
 
 数据源（全部免费）：
   - akshare stock_fund_flow_individual(~5197只)：主力净额、主动买入比、涨跌幅、换手率
@@ -71,6 +71,56 @@ PROFIT_DECLINE_THRESHOLD = -50
 
 def log(msg: str) -> None:
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def _resolve_exposure_meta(old: dict | None = None) -> dict[str, Any]:
+    """写回 recommend 时必须带仓位元数据；缺失会被 morning_live 误判为 nuclear=0。"""
+    old = old or {}
+    try:
+        from market_env_gate import (
+            load_or_build_env,
+            position_exposure,
+            recommend_pool_n,
+            recommend_top_n,
+        )
+        from permission_gate import enrich_env_with_permission
+
+        env = load_or_build_env(force=False)
+        if env.get("exposure_mode") != "permission_v1":
+            enrich_env_with_permission(env, asof=env.get("asof"))
+        flags = env.get("flags") or {}
+        expo = float(
+            env.get("position_exposure", position_exposure(flags, env.get("permission")))
+        )
+        return {
+            "asof": env.get("asof") or datetime.now().strftime("%Y-%m-%d"),
+            "position_exposure": expo,
+            "recommend_top_n": recommend_top_n(expo, default=2),
+            "recommend_pool_n": recommend_pool_n(expo),
+            "exposure_mode": env.get("exposure_mode") or "permission_v1",
+            "market_env_flags": flags,
+        }
+    except Exception as e:
+        log(f"  ⚠️ 仓位元数据刷新失败，回退旧值/默认: {e}")
+        raw = old.get("position_exposure")
+        try:
+            expo = float(raw) if raw is not None else 1.0
+        except (TypeError, ValueError):
+            expo = 1.0
+        return {
+            "asof": old.get("asof") or datetime.now().strftime("%Y-%m-%d"),
+            "position_exposure": expo,
+            "recommend_top_n": int(
+                old.get("recommend_top_n")
+                if old.get("recommend_top_n") is not None
+                else (0 if expo <= 0 else 2)
+            ),
+            "recommend_pool_n": int(old.get("recommend_pool_n") or TOP_N),
+            "exposure_mode": old.get("exposure_mode") or "fallback_default",
+            "market_env_flags": old.get("market_env_flags")
+            if isinstance(old.get("market_env_flags"), dict)
+            else {},
+        }
 
 
 def _bare(sym: str) -> str:
@@ -534,7 +584,8 @@ def run_live_scan() -> int:
             f" [{r['sector']}]{tag}{gc}{new}")
 
     # ---- 8. 写回 daily_recommend.json ----
-    # 保留旧文件的元数据字段
+    # 保留旧文件的元数据字段；仓位元数据必须重写（缺失会被 morning_live 误判为 nuclear=0）
+    old = {}
     old_meta = {}
     if REC_PATH.exists():
         try:
@@ -543,25 +594,32 @@ def run_live_scan() -> int:
                 if k in old:
                     old_meta[k] = old[k]
         except Exception:
-            pass
+            old = {}
 
+    expo_meta = _resolve_exposure_meta(old)
     output = {
         "run_at": run_time,
         "scanner": "live_momentum_scanner",
+        "protocol": "live_momentum_full_universe",
         "recommendations": recommendations,
         "live_momentum_scan": {
-            "n_total_scanned": len(df),
+            "n_total_scanned": int(len(df)),
             "n_final": len(recommendations),
             "n_icir_stocks": n_icir,
             "n_new_stocks": n_new,
             "n_gc_pool": n_gc,
             "scanned_at": run_time,
+            "top_n": TOP_N,
         },
         **old_meta,
+        **expo_meta,
     }
 
     REC_PATH.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
-    log(f"\n📁 写入: {REC_PATH} ({len(recommendations)} 只)")
+    log(
+        f"\n📁 写入: {REC_PATH} ({len(recommendations)} 只) "
+        f"expo={expo_meta.get('position_exposure')} top_n={expo_meta.get('recommend_top_n')}"
+    )
 
     # ---- 9. 更新评分 Top10（无门槛榜）----
     try:

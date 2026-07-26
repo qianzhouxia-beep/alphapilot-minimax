@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""09:35 盘中：对推荐池刷实时资金门 →（可选）研报软加权 → 按资金门结果取 Top2。
+"""09:35 盘中：消费 live_momentum 全市场重选池 → 资金门控 → 取可交易 Top2。
 
-默认 MORNING_RANK_MODE=fund（跟资金门，与网页 Top10 机会同口径）：
-  只从 money_flow_pass=True 里按主动买/主力净流入排序取 Top2。
+生产口径（与网页「今日推荐」一致）：
+  09:35 live_momentum_scanner 已从 ~5000 只重写 daily_recommend；
+  本脚本再做资金门 + 研报软加权，默认按 **score** 取 Top2 写入 morning_live_picks。
 
 Env:
-  MORNING_RANK_MODE=fund|model   默认 fund
+  MORNING_RANK_MODE=model|fund   默认 model（score；与今日推荐同序）
+                                 fund=按主动买/主力净流入（旧实验臂，勿作生产默认）
   RESEARCH_GATE_MODE            fund 模式下若未设置则用 prefer_soft（avoid 不硬剔）
 """
 from __future__ import annotations
@@ -28,7 +30,9 @@ REC_PATH = ROOT / "output/daily_recommend.json"
 PICKS_PATH = ROOT / "output/morning_live_picks.json"
 ELIM_PATH = ROOT / "output/morning_live_elimination.json"
 LIVE_TOP_N = 2
-RANK_MODE = os.environ.get("MORNING_RANK_MODE", "fund").strip().lower() or "fund"
+# 生产默认 model：与今日推荐（资金门后按 score）同口径
+_rank_raw = os.environ.get("MORNING_RANK_MODE", "model").strip().lower() or "model"
+RANK_MODE = "fund" if _rank_raw == "fund" else "model"
 MODE_NAME = (
     "morning_live_fund_top2" if RANK_MODE == "fund" else "morning_live_model_top2"
 )
@@ -114,17 +118,43 @@ def select_top_by_inflow(gated: list[dict], top_n: int = LIVE_TOP_N) -> list[dic
 
 
 def select_top_by_score(gated: list[dict], top_n: int = LIVE_TOP_N) -> list[dict]:
-    """prefer 优先，再按模型 score。"""
+    """与网页今日推荐同序：money_flow_pass 优先，再按 score 降序。"""
 
-    def sort_key(r: dict):
-        prefer = 0 if r.get("research_tier") == "prefer" else 1
+    def score_of(r: dict) -> float:
         try:
-            sc = float(r.get("score") or r.get("ml_score") or r.get("lgb_score") or 0)
+            return float(r.get("score") or r.get("ml_score") or r.get("lgb_score") or 0)
         except (TypeError, ValueError):
-            sc = 0.0
-        return (prefer, -sc)
+            return 0.0
 
-    return sorted(gated, key=sort_key)[:top_n]
+    passed = [r for r in gated if r.get("money_flow_pass") is True]
+    pool = passed if passed else list(gated)
+    return sorted(pool, key=score_of, reverse=True)[:top_n]
+
+
+def _resolve_position_exposure(recs: dict) -> float:
+    """recommend 缺 position_exposure 时不得当作 nuclear=0（09:35 scanner 曾漏写该字段）。"""
+    raw = recs.get("position_exposure")
+    if raw is not None and raw != "":
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            pass
+    try:
+        from market_env_gate import load_or_build_env, position_exposure
+        from permission_gate import enrich_env_with_permission
+
+        env = load_or_build_env(force=False)
+        if env.get("exposure_mode") != "permission_v1":
+            enrich_env_with_permission(env, asof=env.get("asof"))
+        flags = env.get("flags") or {}
+        expo = float(
+            env.get("position_exposure", position_exposure(flags, env.get("permission")))
+        )
+        log(f"expo 缺失 → 从市场环境解析为 {expo}")
+        return expo
+    except Exception as e:
+        log(f"expo 缺失且环境门失败 → 默认 1.0 ({e})")
+        return 1.0
 
 
 def main() -> int:
@@ -158,7 +188,7 @@ def main() -> int:
 
     recs = json.loads(REC_PATH.read_text(encoding="utf-8"))
     items = list(recs.get("recommendations") or [])
-    expo = float(recs.get("position_exposure") or 0.0)
+    expo = _resolve_position_exposure(recs)
     pool_n = int(recs.get("recommend_pool_n") or len(items) or 10)
     log(f"pool loaded n={len(items)} expo={expo} pool_n={pool_n}")
 
@@ -170,6 +200,7 @@ def main() -> int:
             "picks": [],
             "empty_reason": "position_exposure_zero",
             "mode": MODE_NAME,
+            "rank_by": None,
         }
         PICKS_PATH.write_text(json.dumps(picks, ensure_ascii=False, indent=2), encoding="utf-8")
         log("nuclear expo=0 → 不选股")
@@ -284,7 +315,7 @@ def main() -> int:
         rank_by = "money_flow_pass+abr+live_main_net"
     else:
         chosen = select_top_by_score(gated, top_n=LIVE_TOP_N)
-        rank_by = "prefer_then_score"
+        rank_by = "money_flow_pass+score"
 
     chosen_codes = {_bare(x.get("symbol")) for x in chosen}
     not_top = []
@@ -314,10 +345,13 @@ def main() -> int:
         it["morning_pick_rank"] = i + 1
 
     recs["recommendations"] = new_recs[: max(pool_n, len(chosen))]
+    recs["position_exposure"] = expo
     recs["recommend_top_n"] = LIVE_TOP_N if expo > 0 else 0
     recs["recommend_pool_n"] = pool_n
+    recs["asof"] = datetime.now().strftime("%Y-%m-%d")
     recs["morning_live_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     recs["morning_live_mode"] = MODE_NAME
+    recs["protocol"] = recs.get("protocol") or "live_momentum_full_universe"
     REC_PATH.write_text(json.dumps(recs, ensure_ascii=False, indent=2), encoding="utf-8")
 
     pick_rows = []
