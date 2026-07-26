@@ -33,6 +33,7 @@ export const CN_ENDPOINTS = {
   recommendEODS2History: endpoint(`/api/v1/cn/recommend/eod-s2/history`),
   recommendLive: endpoint(`/api/v1/cn/recommend/live`),
   scoreTop10: endpoint(`/api/v1/cn/score-top10`),
+  tradePlan: endpoint(`/api/v1/cn/trade-plan`),
 } as const;
 
 export type ScoreTop10Item = {
@@ -116,10 +117,62 @@ export type IndicesResponse = {
   count: number;
 };
 
+export type TradePlanBuy = {
+  rank?: number;
+  symbol: string;
+  name?: string;
+  score?: number | null;
+  buy_price?: number | null;
+  target_price?: number | null;
+  stop_price?: number | null;
+  sector?: string | null;
+  money_phase_label?: string | null;
+  weight_pct?: number;
+  weight_of_book?: number;
+  action?: "buy" | "skip" | string;
+};
+
+export type TradePlanExitLayer = {
+  id: number;
+  name: string;
+  rule: string;
+};
+
+export type TradePlanStatus = {
+  code: string;
+  label: string;
+  detail?: string;
+};
+
+export type TradePlan = {
+  asof?: string;
+  arm?: string;
+  status?: TradePlanStatus;
+  position_exposure?: number;
+  trade_top_n?: number;
+  empty_reason?: string | null;
+  empty_reason_label?: string | null;
+  execution_window?: string;
+  entry?: string;
+  entry_mode?: string;
+  buys?: TradePlanBuy[];
+  exit_layers?: TradePlanExitLayer[];
+  approval_gate?: {
+    enabled?: boolean;
+    pending_n?: number;
+    note?: string;
+  };
+  protocol_name?: string;
+  note?: string;
+};
+
 export type ScreenerResponse = {
   run_at: string;
   recommendations: ScreenerItem[];
   stats: RecommendStats;
+  generated_at?: string;
+  position_exposure?: number | null;
+  trade_plan?: TradePlan | null;
 };
 
 export type MarketOverview = {
@@ -275,6 +328,10 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 // 业务函数
 export async function fetchCNScreener(): Promise<ScreenerResponse> {
   return apiFetch<ScreenerResponse>(CN_ENDPOINTS.recommend);
+}
+
+export async function fetchTradePlan(): Promise<TradePlan> {
+  return apiFetch<TradePlan>(CN_ENDPOINTS.tradePlan);
 }
 
 export async function fetchScoreTop10(): Promise<ScoreTop10Response> {

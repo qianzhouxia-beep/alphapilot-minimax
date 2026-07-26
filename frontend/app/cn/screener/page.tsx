@@ -10,6 +10,7 @@ import {
   type ScreenerResponse,
   type ScoreTop10Item,
   type ScoreTop10Response,
+  type TradePlan,
 } from "@/lib/cn-api";
 
 type RecRow = {
@@ -173,14 +174,14 @@ export default function CNScreener() {
         </Link>
         <h1 className="text-[28px] font-semibold tracking-tight">A 股智能选股</h1>
         <p className="mt-1 text-[13px] text-text-secondary">
-          评分榜与推荐池分栏 · 60s 自动刷新
+          今日交易指令 + 评分榜与推荐池 · 60s 自动刷新
           {error && <span className="ml-3 text-status-danger font-medium">错误: {error}</span>}
         </p>
         <p className="mt-2 text-[12px] text-text-disabled leading-relaxed max-w-3xl">
-          <span className="text-text-secondary">今日推荐</span>
-          ：当日交易候选。{" "}
-          <span className="text-text-secondary">评分榜</span>
-          ：按综合评分排序，便于对照。
+          <span className="text-text-secondary">今日交易指令</span>
+          ：买不买、买谁、买多少、出场规则。{" "}
+          <span className="text-text-secondary">今日推荐 / 评分榜</span>
+          ：研究对照层。
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-[12px] text-text-secondary">市盈率筛选</span>
@@ -226,6 +227,8 @@ export default function CNScreener() {
 
       {!loading && (
         <div className="space-y-8">
+          <TradePlanCard plan={(recData as ScreenerResponse | null)?.trade_plan ?? null} />
+
           {/* 对照摘要 */}
           <section className="glass rounded-2xl p-5">
             <h2 className="text-[15px] font-semibold mb-2">评分榜 vs 推荐 · 今日对照</h2>
@@ -336,6 +339,162 @@ export default function CNScreener() {
         AlphaPilot 提供 AI 辅助分析,仅供教育用途,非投资建议。
       </footer>
     </main>
+  );
+}
+
+function statusTone(code?: string) {
+  switch (code) {
+    case "buy":
+      return "border-[rgba(62,230,168,0.35)] bg-[rgba(62,230,168,0.08)] text-[#3EE6A8]";
+    case "half":
+    case "light":
+      return "border-[rgba(77,163,255,0.35)] bg-[rgba(77,163,255,0.08)] text-[#4DA3FF]";
+    case "awaiting":
+      return "border-[rgba(255,184,77,0.4)] bg-[rgba(255,184,77,0.1)] text-[#FFB84D]";
+    case "empty":
+    case "no_picks":
+      return "border-[rgba(255,92,122,0.35)] bg-[rgba(255,92,122,0.08)] text-[#FF5C7A]";
+    default:
+      return "border-border-subtle bg-bg-elevated text-text-secondary";
+  }
+}
+
+function TradePlanCard({ plan }: { plan: TradePlan | null }) {
+  if (!plan) {
+    return (
+      <section className="glass rounded-2xl p-5 border border-border-subtle">
+        <h2 className="text-[18px] font-semibold">今日交易指令</h2>
+        <p className="mt-2 text-[13px] text-text-disabled">指令尚未就绪，请稍后再刷新</p>
+      </section>
+    );
+  }
+
+  const status = plan.status || { code: "unknown", label: "—", detail: "" };
+  const buys = (plan.buys || []).filter((b) => b.action !== "skip");
+  const expo = Number(plan.position_exposure ?? 0);
+  const layers = plan.exit_layers || [];
+
+  return (
+    <section className="glass rounded-2xl p-5 sm:p-6 border border-[rgba(77,163,255,0.22)]">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-[18px] font-semibold tracking-tight">今日交易指令</h2>
+          <p className="mt-1 text-[12px] text-text-disabled">
+            决策层 · {plan.arm || "A1_permission"}
+            {plan.asof ? ` · 信号 ${plan.asof}` : ""}
+          </p>
+        </div>
+        <div
+          className={`rounded-lg border px-3 py-1.5 text-[13px] font-semibold ${statusTone(status.code)}`}
+        >
+          {status.label}
+        </div>
+      </div>
+
+      {status.detail && (
+        <p className="mb-4 text-[13px] text-text-secondary leading-relaxed">{status.detail}</p>
+      )}
+      {plan.empty_reason_label && status.code === "awaiting" && (
+        <p className="mb-4 text-[12px] text-[#FFB84D]">
+          {plan.empty_reason_label}
+          {" · "}
+          <Link href="/cn/paper-trading" className="underline underline-offset-2 hover:text-text-primary">
+            去模拟盘确认
+          </Link>
+        </p>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5 text-[12px]">
+        <div>
+          <div className="text-text-disabled mb-0.5">仓位曝光</div>
+          <div className="font-display-numeric text-[20px] font-semibold text-text-primary">
+            {(expo * 100).toFixed(0)}%
+          </div>
+        </div>
+        <div>
+          <div className="text-text-disabled mb-0.5">买入只数</div>
+          <div className="font-display-numeric text-[20px] font-semibold text-text-primary">
+            Top {plan.trade_top_n ?? buys.length}
+          </div>
+        </div>
+        <div>
+          <div className="text-text-disabled mb-0.5">执行窗口</div>
+          <div className="text-[13px] font-medium text-text-primary leading-snug">
+            {plan.execution_window || "09:37 后"}
+          </div>
+        </div>
+        <div>
+          <div className="text-text-disabled mb-0.5">入场</div>
+          <div className="text-[13px] font-medium text-text-primary">
+            {plan.entry_mode || "gap_soft"}
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <div className="text-[13px] font-semibold text-text-primary mb-2">买谁 · 买多少</div>
+        {buys.length === 0 ? (
+          <p className="text-[13px] text-text-disabled">今日无新开仓标的</p>
+        ) : (
+          <ul className="space-y-2">
+            {buys.map((b) => {
+              const code = symCode(b.symbol);
+              return (
+                <li
+                  key={code}
+                  className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-2 first:border-0 first:pt-0"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/cn/stock?symbol=${code}`}
+                      className="font-mono text-[14px] font-semibold text-status-info hover:underline"
+                    >
+                      {code}
+                    </Link>
+                    <span className="ml-2 text-[13px] text-text-secondary">{b.name || "—"}</span>
+                    {b.sector ? (
+                      <span className="ml-2 text-[11px] text-text-disabled">{b.sector}</span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-3 text-[12px] font-display-numeric">
+                    <span className="text-text-secondary">
+                      {b.buy_price != null ? `参考 ${Number(b.buy_price).toFixed(2)}` : "—"}
+                    </span>
+                    <span className="rounded-md border border-[rgba(77,163,255,0.3)] px-2 py-0.5 text-[#4DA3FF] font-semibold">
+                      {(b.weight_pct ?? 0).toFixed(1)}% 仓
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {plan.entry && (
+          <p className="mt-3 text-[11px] text-text-disabled leading-relaxed">入场：{plan.entry}</p>
+        )}
+      </div>
+
+      <div>
+        <div className="text-[13px] font-semibold text-text-primary mb-2">出场规则（生产 peel 四层）</div>
+        <ol className="space-y-2">
+          {layers.map((layer) => (
+            <li key={layer.id} className="flex gap-2 text-[12px] leading-relaxed">
+              <span className="font-mono text-text-disabled shrink-0">{layer.id}.</span>
+              <span>
+                <span className="text-text-primary font-medium">{layer.name}</span>
+                <span className="text-text-secondary"> — {layer.rule}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {plan.note && (
+        <p className="mt-4 text-[11px] text-text-disabled border-t border-border-subtle pt-3">
+          {plan.note}
+        </p>
+      )}
+    </section>
   );
 }
 

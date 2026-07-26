@@ -25,11 +25,40 @@ export const CN_ENDPOINTS = {
   backtest: endpoint(`/api/v1/cn/backtest`),
   news: endpoint(`/api/v1/cn/news`),
   sectors: endpoint(`/api/v1/cn/sectors`),
+  sectorResearchIndex: endpoint(`/api/v1/cn/sectors/research/`),
   watchlist: endpoint(`/api/v1/cn/watchlist`),
   recommendCategorized: endpoint(`/api/v1/cn/recommend/categorized`),
   recommendEOD: endpoint(`/api/v1/cn/recommend/eod`),
+  recommendEODS2: endpoint(`/api/v1/cn/recommend/eod-s2`),
+  recommendEODS2History: endpoint(`/api/v1/cn/recommend/eod-s2/history`),
   recommendLive: endpoint(`/api/v1/cn/recommend/live`),
+  scoreTop10: endpoint(`/api/v1/cn/score-top10`),
+  tradePlan: endpoint(`/api/v1/cn/trade-plan`),
 } as const;
+
+export type ScoreTop10Item = {
+  rank?: number;
+  symbol: string;
+  name?: string;
+  score: number;
+  price?: number | null;
+  change_pct?: number | null;
+  pe_ttm?: number | null;
+  pe?: number | null;
+  sector?: string | null;
+  industry?: string | null;
+  industry_l1?: string | null;
+  money_phase_label?: string | null;
+};
+
+export type ScoreTop10Response = {
+  asof?: string;
+  mode?: string;
+  note?: string;
+  n?: number;
+  items: ScoreTop10Item[];
+  recommend_compare?: ScoreTop10Item[];
+};
 
 // 类型定义
 export type ScreenerItem = {
@@ -59,6 +88,8 @@ export type ScreenerItem = {
   score_label?: string | null;
   score_rank_pct?: number | null;
   change_pct?: number | null;
+  pe_ttm?: number | null;
+  pe?: number | null;
 };
 
 export type RecommendStats = {
@@ -86,10 +117,62 @@ export type IndicesResponse = {
   count: number;
 };
 
+export type TradePlanBuy = {
+  rank?: number;
+  symbol: string;
+  name?: string;
+  score?: number | null;
+  buy_price?: number | null;
+  target_price?: number | null;
+  stop_price?: number | null;
+  sector?: string | null;
+  money_phase_label?: string | null;
+  weight_pct?: number;
+  weight_of_book?: number;
+  action?: "buy" | "skip" | string;
+};
+
+export type TradePlanExitLayer = {
+  id: number;
+  name: string;
+  rule: string;
+};
+
+export type TradePlanStatus = {
+  code: string;
+  label: string;
+  detail?: string;
+};
+
+export type TradePlan = {
+  asof?: string;
+  arm?: string;
+  status?: TradePlanStatus;
+  position_exposure?: number;
+  trade_top_n?: number;
+  empty_reason?: string | null;
+  empty_reason_label?: string | null;
+  execution_window?: string;
+  entry?: string;
+  entry_mode?: string;
+  buys?: TradePlanBuy[];
+  exit_layers?: TradePlanExitLayer[];
+  approval_gate?: {
+    enabled?: boolean;
+    pending_n?: number;
+    note?: string;
+  };
+  protocol_name?: string;
+  note?: string;
+};
+
 export type ScreenerResponse = {
   run_at: string;
   recommendations: ScreenerItem[];
   stats: RecommendStats;
+  generated_at?: string;
+  position_exposure?: number | null;
+  trade_plan?: TradePlan | null;
 };
 
 export type MarketOverview = {
@@ -194,18 +277,49 @@ export type WatchlistResponse = {
   count: number;
 };
 
-// 统一 fetch 封装
+// 统一 fetch 封装（自动带登录 JWT）
+function readSessionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("alphapilot_session");
+    if (!raw) return null;
+    const token = (JSON.parse(raw) as { token?: string }).token || null;
+    // 旧 mock JWT 无效，直接清掉，避免整页被 401 红框刷屏
+    if (token && (token.includes("mock_signature") || token.includes('"mock":true') || token.includes('"alg":"none"'))) {
+      localStorage.removeItem("alphapilot_session");
+      return null;
+    }
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+export function isUnauthorizedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || "");
+  return /\b401\b/.test(msg) || msg.includes("未登录");
+}
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = readSessionToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(url, {
     cache: "no-store",
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
+    headers,
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (res.status === 401 && typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("alphapilot_session");
+      } catch {}
+    }
     throw new Error(`Backend ${res.status}: ${body.slice(0, 200)}`);
   }
   return res.json();
@@ -214,6 +328,14 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 // 业务函数
 export async function fetchCNScreener(): Promise<ScreenerResponse> {
   return apiFetch<ScreenerResponse>(CN_ENDPOINTS.recommend);
+}
+
+export async function fetchTradePlan(): Promise<TradePlan> {
+  return apiFetch<TradePlan>(CN_ENDPOINTS.tradePlan);
+}
+
+export async function fetchScoreTop10(): Promise<ScoreTop10Response> {
+  return apiFetch<ScoreTop10Response>(CN_ENDPOINTS.scoreTop10);
 }
 
 export async function fetchCNMarketOverview(): Promise<MarketOverview> {
@@ -304,7 +426,6 @@ export type SectorDashboard = {
   period?: string;
   period_label?: string;
   periods?: { id: string; label: string }[];
-  provider?: string;
   has_3day?: boolean;
   has_concept?: boolean;
   summary: {
@@ -333,12 +454,12 @@ export type SectorDashboard = {
   meta?: {
     period?: string;
     data_source?: string;
+    snapshot_ts?: string;
+    sector_flow_mtime?: string | null;
     fund_flow_mtime?: string | null;
     update_cadence?: string;
     ports?: Record<string, string>;
     refresh_effect?: string;
-    provider?: string;
-    asof?: string | null;
   };
 };
 
@@ -349,8 +470,41 @@ export async function fetchSectorDashboard(
   const qs = new URLSearchParams();
   if (refresh) qs.set("refresh", "true");
   if (period) qs.set("period", period);
+  // 防 CDN/浏览器把看板 JSON 缓存住
   qs.set("_t", String(Date.now()));
   return apiFetch<SectorDashboard>(`${CN_ENDPOINTS.sectors}?${qs.toString()}`);
+}
+
+export type SectorResearchEntry = {
+  date: string;
+  sessions: Array<"morning" | "afternoon">;
+};
+
+/** 解析上海生成的研报归档 HTML，得到日期/session 列表（新在前） */
+export async function fetchSectorResearchArchive(): Promise<SectorResearchEntry[]> {
+  const url = `${CN_ENDPOINTS.sectorResearchIndex}?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`研报归档加载失败 (${res.status})`);
+  const html = await res.text();
+  const map = new Map<string, Set<"morning" | "afternoon">>();
+  const re = /(\d{4}-\d{2}-\d{2})\/(morning|afternoon)\//g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    const date = m[1];
+    const session = m[2] as "morning" | "afternoon";
+    if (!map.has(date)) map.set(date, new Set());
+    map.get(date)!.add(session);
+  }
+  return [...map.entries()]
+    .map(([date, sessions]) => ({
+      date,
+      sessions: [...sessions].sort((a, b) => (a === "afternoon" ? -1 : b === "afternoon" ? 1 : 0)),
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export function sectorResearchUrl(date: string, session: string) {
+  return `/cn/sectors/research/${date}/${session}/`;
 }
 
 export async function postCNBacktest(cfg: {
@@ -392,9 +546,77 @@ export async function fetchEODRecommend(): Promise<{ recommendations: any[]; not
   return apiFetch(CN_ENDPOINTS.recommendEOD);
 }
 
+export type EODS2Pick = {
+  symbol?: string;
+  name?: string;
+  price?: number;
+  change_pct?: number;
+  volume_ratio?: number;
+  volatility_20d?: number;
+  chip_bonus?: number;
+  turnover?: number;
+};
+
+export type EODS2Response = {
+  date?: string;
+  generated_at?: string;
+  generated_time?: string;
+  strategy?: string;
+  picks?: EODS2Pick[];
+  total_screened?: number;
+  total_passed?: number;
+  note?: string;
+  found?: boolean;
+};
+
+export type EODS2HistoryDay = {
+  date: string;
+  generated_at?: string;
+  generated_time?: string;
+  total_passed?: number;
+  pick_count?: number;
+  top1?: { symbol?: string; name?: string; price?: number; change_pct?: number } | null;
+  note?: string;
+};
+
+export type EODS2HistoryList = {
+  dates: string[];
+  days: EODS2HistoryDay[];
+  count: number;
+  from?: string | null;
+  to?: string | null;
+};
+
+/** 当前尾盘狙击（S2）；可传 date 查历史某日 */
+export async function fetchEODS2(date?: string): Promise<EODS2Response> {
+  const q = date ? `?date=${encodeURIComponent(date)}` : "";
+  return apiFetch<EODS2Response>(`${CN_ENDPOINTS.recommendEODS2}${q}`);
+}
+
+/** 尾盘狙击历史：日期列表/区间摘要，或 ?date= 单日详情 */
+export async function fetchEODS2History(params?: {
+  date?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}): Promise<EODS2HistoryList | EODS2Response> {
+  const sp = new URLSearchParams();
+  if (params?.date) sp.set("date", params.date);
+  if (params?.from) sp.set("from", params.from);
+  if (params?.to) sp.set("to", params.to);
+  if (params?.limit) sp.set("limit", String(params.limit));
+  const q = sp.toString() ? `?${sp.toString()}` : "";
+  return apiFetch(`${CN_ENDPOINTS.recommendEODS2History}${q}`);
+}
+
 // 收藏追踪 API
-export async function fetchWatchlist(): Promise<WatchlistResponse> {
-  return apiFetch<WatchlistResponse>(CN_ENDPOINTS.watchlist);
+export async function fetchWatchlist(refresh = false): Promise<WatchlistResponse> {
+  const q = refresh ? "?refresh=true" : "";
+  return apiFetch<WatchlistResponse>(`${CN_ENDPOINTS.watchlist}${q}`);
+}
+
+export async function refreshWatchlistTracking(): Promise<any> {
+  return apiFetch(`${CN_ENDPOINTS.watchlist}/update?force=true`, { method: "POST" });
 }
 
 export async function addToWatchlist(symbol: string, name: string, entry_price: number, model_score: number): Promise<any> {
@@ -569,6 +791,7 @@ export type PaperTradingStrategy = {
   positions: PaperTradingPosition[];
   signals: PaperTradingSignal[];
   history: any[];
+  capital_mode?: string;
 };
 
 export type PaperTradingAccount = {
@@ -583,18 +806,44 @@ export type PaperTradingAccount = {
   trade_count: number;
   win_count: number;
   win_rate: number;
+  position_exposure?: number;
 };
 
 export type TradeLogEntry = {
   time: string;
   symbol: string;
   name: string;
-  action: "买入" | "卖出" | "止损" | "止盈";
+  action: string;
   price: number;
   quantity: number;
   amount: number;
   strategy_id: string;
   pnl_pct?: number;
+  skip?: string;
+};
+
+export type PaperLoopSummary = {
+  audit?: {
+    generated_at?: string;
+    counts?: Record<string, number>;
+    kpi?: Record<string, number | null>;
+    checklist?: Record<string, boolean>;
+    position_exposure_today?: number;
+  } | null;
+  oos?: {
+    generated_at?: string;
+    verdict?: string;
+    reason?: string;
+    oos_window?: { n_days?: number; start?: string; end?: string };
+    kpi?: Record<string, number | null>;
+    reference_window?: {
+      window?: { start?: string; end?: string; n_days?: number };
+      in_sample_risk?: boolean;
+      kpi?: Record<string, number | null>;
+    } | null;
+  } | null;
+  empty_reason?: string | null;
+  cron?: Record<string, string>;
 };
 
 export type PaperTradingData = {
@@ -602,7 +851,13 @@ export type PaperTradingData = {
   strategies: PaperTradingStrategy[];
   trade_log: TradeLogEntry[];
   updated_at: string;
-  next_execution: Record<string, string>;
+  next_execution: Record<string, string> | string;
+  position_exposure?: number;
+  protocol?: { name?: string; entry?: string; exit?: string; top_n?: number };
+  market_env_flags?: Record<string, boolean>;
+  empty_reason?: string | null;
+  loop?: PaperLoopSummary;
+  capital_mode?: string;
 };
 
 export async function fetchPaperTrading(): Promise<PaperTradingData> {

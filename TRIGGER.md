@@ -1,1 +1,1 @@
-rebuild 2026-07-20T16:12 sector-research-proxy
+rebuild trade-plan screener 2026-07-26 11:53:19
