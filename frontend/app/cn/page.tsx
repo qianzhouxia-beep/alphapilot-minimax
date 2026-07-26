@@ -734,7 +734,7 @@ export default function CNDashboard() {
                 <h2 className="text-[18px] font-semibold text-text-primary">资金阶段分类</h2>
               </div>
               <p className="mt-0.5 text-[12px] text-text-disabled">
-                4 大板块 · 凌晨 5:00 选股 · 含隔夜美股影响
+                4 大板块 · 05:00 隔夜先验 · 09:35 开盘终选（含竞价）
               </p>
             </div>
           </div>
