@@ -63,6 +63,16 @@ function getPriceLabel(): { label: string; date: string } {
 const scoreLabel = (s: number) =>
   s >= 0.50 ? "A+" : s >= 0.35 ? "A" : s >= 0.25 ? "B+" : "B";
 
+function passTrendFilter(
+  item: any,
+  filter: "all" | "uptrend" | "downtrend"
+): boolean {
+  if (filter === "all") return true;
+  const isDowntrend = item.channel_reject === true || item.downtrend_channel === true;
+  if (filter === "downtrend") return isDowntrend;
+  return !isDowntrend;
+}
+
 export default function CNDashboard() {
   const { session, ready, openAuth } = useAuth();
   const router = useRouter();
@@ -89,6 +99,7 @@ export default function CNDashboard() {
   const [s2HistoryLoading, setS2HistoryLoading] = useState(false);
   const [s2QueryLoading, setS2QueryLoading] = useState(false);
   const [peFilter, setPeFilter] = useState<PeFilter>("all");
+  const [trendFilter, setTrendFilter] = useState<"all" | "uptrend" | "downtrend">("all");
 
   const loadS2HistoryList = useCallback(async () => {
     try {
@@ -362,9 +373,11 @@ export default function CNDashboard() {
     return c;
   }, [items]);
   const filteredItems = useMemo(() => {
-    if (peFilter === "all") return items;
-    return items.filter((it) => peBucketOf(it) === peFilter);
-  }, [items, peFilter]);
+    let f = items;
+    if (peFilter !== "all") f = f.filter((it) => peBucketOf(it) === peFilter);
+    if (trendFilter !== "all") f = f.filter((it) => passTrendFilter(it, trendFilter));
+    return f;
+  }, [items, peFilter, trendFilter]);
   const buildSectorChanges = (stockList: any[]) => {
     const groups: Record<string, number[]> = {};
     stockList.forEach((it: any) => {
@@ -564,6 +577,21 @@ export default function CNDashboard() {
                   <span className="ml-1 text-[10px] text-text-disabled">{opt.n}</span>
                 </button>
               ))}
+              <span className="mx-1 text-text-disabled text-[11px]">|</span>
+              {[
+                { key: "all" as const, label: "趋势:全部" },
+                { key: "uptrend" as const, label: "↑上升" },
+                { key: "downtrend" as const, label: "↓下跌" },
+              ].map((opt) => (
+                <button key={opt.key} type="button" onClick={() => setTrendFilter(opt.key)}
+                  className={`rounded-md px-2 py-1.5 text-[11px] sm:text-[12px] transition-colors cursor-pointer whitespace-nowrap ${
+                    trendFilter === opt.key
+                      ? "bg-primary/15 text-text-primary border border-primary/30"
+                      : "text-text-secondary hover:text-text-primary border border-transparent"
+                  }`}>
+                  {opt.label}
+                </button>
+              ))}
             </div>
             <Link href="/cn/watchlist" className="rounded-lg border border-border-subtle bg-surface-card px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-[12px] text-status-warning hover:border-status-warning transition-colors whitespace-nowrap">
               收藏追踪
@@ -620,6 +648,7 @@ export default function CNDashboard() {
                     </Link>
                     {item.sector && (
                       <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20 shrink-0">
+                        {item.channel_reject ? <span className="text-status-danger font-semibold">↓下跌通道 </span> : item.downtrend_channel ? <span className="text-status-danger">↓偏弱 </span> : null}
                         {item.sector}
                         {item.sector_change_pct != null && (
                           <span className={`${item.sector_change_pct >= 0 ? "text-status-danger" : "text-status-success"}`}>

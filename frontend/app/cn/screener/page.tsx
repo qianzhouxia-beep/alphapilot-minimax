@@ -27,6 +27,8 @@ type RecRow = {
   industry?: string | null;
   industry_l1?: string | null;
   money_phase_label?: string | null;
+  channel_reject?: boolean;
+  downtrend_channel?: boolean;
   money_phase?: string | null;
   live_main_net?: number | null;
   main_net?: number | null;
@@ -55,6 +57,17 @@ function passPeFilter(
 ): boolean {
   if (filter === "all") return true;
   return peBucketOf(item) === filter;
+}
+
+function passTrendFilter(
+  item: { channel_reject?: boolean; downtrend_channel?: boolean },
+  filter: "all" | "uptrend" | "downtrend"
+): boolean {
+  if (filter === "all") return true;
+  const isDowntrend = item.channel_reject === true || item.downtrend_channel === true;
+  if (filter === "downtrend") return isDowntrend;
+  // filter === "uptrend": 排除下跌通道
+  return !isDowntrend;
 }
 
 function displayScore(item: {
@@ -100,6 +113,8 @@ export default function CNScreener() {
   const [loading, setLoading] = useState(true);
   // 客户自选：全部 / PE≤30 / PE>30（系统不再硬淘 PE）
   const [peFilter, setPeFilter] = useState<PeFilter>("all");
+  // 趋势通道过滤：全部 / 仅上升趋势 / 仅下跌通道
+  const [trendFilter, setTrendFilter] = useState<"all" | "uptrend" | "downtrend">("all");
 
   const loadData = async () => {
     try {
@@ -153,7 +168,9 @@ export default function CNScreener() {
   }, [recommendationsRaw, scoreItemsRaw]);
 
   const recommendations = recommendationsRaw.filter((x) => passPeFilter(x, peFilter));
-  const scoreItems = scoreItemsRaw.filter((x) => passPeFilter(x, peFilter));
+  const scoreItems = scoreItemsRaw
+  .filter((x) => passPeFilter(x, peFilter))
+  .filter((x) => passTrendFilter(x, trendFilter));
   const recCompare = recCompareRaw.filter((x) => passPeFilter(x, peFilter));
 
   const scoreCodes = new Set(scoreItems.map((x) => symCode(x.symbol)));
@@ -255,7 +272,7 @@ export default function CNScreener() {
               <div>
                 <h2 className="text-[18px] font-semibold">今日推荐</h2>
                 <p className="text-[12px] text-text-disabled mt-0.5">
-                  当日交易候选 · 与评分榜独立
+                  09:35 开盘终选 · 05:00 隔夜不上页
                   {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
                 </p>
               </div>
@@ -271,7 +288,10 @@ export default function CNScreener() {
                 text={
                   peFilter !== "all" && recommendationsRaw.length > 0
                     ? `今日推荐在「${peFilterLabel}」下无标的，可切换筛选`
-                    : "今日推荐池为空，请稍后再看"
+                    : (recData as any)?.display_policy?.awaiting_opening_final ||
+                        (recData as any)?.stats?.awaiting_opening_final
+                      ? "等待 09:35 开盘终选后显示（05:00 隔夜池不上页）"
+                      : "今日推荐池为空，请稍后再看"
                 }
               />
             ) : (
@@ -293,11 +313,34 @@ export default function CNScreener() {
           {/* 评分 Top10 */}
           <section>
             <div className="mb-3">
-              <h2 className="text-[18px] font-semibold">评分 Top10（无门槛）</h2>
-              <p className="text-[12px] text-text-disabled mt-0.5">
-                按 score 降序第 1→10 · {top10?.mode || "score_only"}
-                {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
-              </p>
+              <div className="flex items-start justify-between flex-wrap gap-2">
+                <div>
+                  <h2 className="text-[18px] font-semibold">评分 Top10（无门槛）</h2>
+                  <p className="text-[12px] text-text-disabled mt-0.5">
+                    按 score 降序第 1→10 · {top10?.mode || "score_only"}
+                    {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-text-disabled">趋势</span>
+                  <div className="inline-flex items-center gap-0.5 rounded-lg border border-border-subtle bg-bg-elevated p-0.5">
+                    {[
+                      { key: "all" as const, label: "全部" },
+                      { key: "uptrend" as const, label: "↑上升" },
+                      { key: "downtrend" as const, label: "↓下跌" },
+                    ].map((opt) => (
+                      <button key={opt.key} type="button" onClick={() => setTrendFilter(opt.key)}
+                        className={`rounded-md px-2 py-1 text-[11px] transition-colors cursor-pointer whitespace-nowrap ${
+                          trendFilter === opt.key
+                            ? "bg-[rgba(77,163,255,0.18)] text-text-primary border border-[rgba(77,163,255,0.35)]"
+                            : "text-text-secondary hover:text-text-primary border border-transparent"
+                        }`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
             {scoreItems.length === 0 ? (
               <EmptyBox
@@ -469,9 +512,6 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
             })}
           </ul>
         )}
-        {plan.entry && (
-          <p className="mt-3 text-[11px] text-text-disabled leading-relaxed">入场：{plan.entry}</p>
-        )}
       </div>
 
       <div>
@@ -488,12 +528,6 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
           ))}
         </ol>
       </div>
-
-      {plan.note && (
-        <p className="mt-4 text-[11px] text-text-disabled border-t border-border-subtle pt-3">
-          {plan.note}
-        </p>
-      )}
     </section>
   );
 }
@@ -565,7 +599,14 @@ function StockGrid({
               </div>
             </div>
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-text-secondary truncate max-w-[50%]">{item.sector || "—"}</span>
+              <span className="text-text-secondary truncate max-w-[50%] flex items-center gap-1">
+                {(item as any).channel_reject ? (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-status-danger/15 text-status-danger border border-status-danger/20">↓下跌通道</span>
+                ) : (item as any).downtrend_channel ? (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-status-danger/12 text-status-danger border border-status-danger/15">↓偏弱</span>
+                ) : null}
+                {item.sector || "—"}
+              </span>
               <span className={`font-display-numeric font-medium ${chgColor(item.change_pct)}`}>
                 {item.change_pct != null
                   ? `${item.change_pct > 0 ? "+" : ""}${Number(item.change_pct).toFixed(2)}%`

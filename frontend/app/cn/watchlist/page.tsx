@@ -355,7 +355,7 @@ function WatchlistTable({ items, onRemove, removing, onRetrack, retracking, onPr
           <div className={"px-2 py-3 text-right font-mono font-semibold whitespace-nowrap " + (chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
             {chg != null ? (chg > 0 ? "+" : "") + chg + "%" : "—"}
           </div>
-          <div className="px-2 py-3 text-right font-mono text-text-secondary whitespace-nowrap">{(w.model_score * 100).toFixed(0)}%</div>
+          <div className="px-2 py-3 text-right font-mono text-text-secondary whitespace-nowrap">{(() => { const x = Number(w.model_score); return Number.isFinite(x) && x > 0 ? (x <= 1 ? x : 1 / (1 + Math.exp(-x / 2))) * 100 : 0; })().toFixed(0)}%</div>
           <div className={"px-2 py-3 text-right font-mono whitespace-nowrap " + (w.day1_change != null ? (w.day1_change >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled")}>
             {w.day1_change != null ? (w.day1_change > 0 ? "+" : "") + w.day1_change + "%" : "—"}
           </div>

@@ -49,6 +49,10 @@ export type ScoreTop10Item = {
   industry?: string | null;
   industry_l1?: string | null;
   money_phase_label?: string | null;
+  channel_reject?: boolean;
+  downtrend_channel?: boolean;
+  not_uptrend_channel?: boolean;
+  price_below_ma20?: boolean;
 };
 
 export type ScoreTop10Response = {
@@ -85,6 +89,10 @@ export type ScreenerItem = {
   sector_change_pct?: number | null;
   money_phase?: string | null;
   money_phase_label?: string | null;
+  channel_reject?: boolean;
+  downtrend_channel?: boolean;
+  not_uptrend_channel?: boolean;
+  price_below_ma20?: boolean;
   score_label?: string | null;
   score_rank_pct?: number | null;
   change_pct?: number | null;
@@ -127,6 +135,10 @@ export type TradePlanBuy = {
   stop_price?: number | null;
   sector?: string | null;
   money_phase_label?: string | null;
+  channel_reject?: boolean;
+  downtrend_channel?: boolean;
+  not_uptrend_channel?: boolean;
+  price_below_ma20?: boolean;
   weight_pct?: number;
   weight_of_book?: number;
   action?: "buy" | "skip" | string;
@@ -654,6 +666,10 @@ export type CategorizedStock = {
   volume_ratio?: number | null;
   money_flow_pass?: boolean | null;
   money_phase_label?: string | null;
+  channel_reject?: boolean;
+  downtrend_channel?: boolean;
+  not_uptrend_channel?: boolean;
+  price_below_ma20?: boolean;
   overheat_warning?: string | null;
   accumulation_signal?: string | null;
   new_low_warning?: string | null;
