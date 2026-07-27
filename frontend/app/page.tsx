@@ -171,26 +171,43 @@ function IconSliders() {
 // Hero 区域 — 首屏只保留品牌叙事 + CTA
 function Hero() {
   return (
-    <section className="pt-[120px] pb-16 px-6 text-center max-w-[1200px] mx-auto">
-      <div className="badge-purple mb-6">
-        <span className="w-1.5 h-1.5 rounded-full bg-purple-primary animate-pulse-dot" />
-        今日精选 · 在线
+    <section className="relative w-full overflow-hidden">
+      {/* 背景视频动画 */}
+      <div className="absolute inset-0 z-0">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="w-full h-full object-cover opacity-15 pointer-events-none"
+        >
+          <source
+            src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260606_131516_eca35265-ea66-4fbd-8d52-22aae6e1a503.mp4"
+            type="video/mp4"
+          />
+        </video>
       </div>
-      <h1 className="text-[56px] font-bold tracking-tight leading-[1.1] mb-5 text-gradient max-md:text-[40px] max-sm:text-[32px]">
-        把建仓信号
-        <br />
-        收成可执行清单
-      </h1>
-      <p className="text-xl text-text-secondary font-normal max-w-[560px] mx-auto mb-10 leading-relaxed max-sm:text-base">
-        从全 A 出发，综合量价、资金与行情环境，筛出当日值得关注的标的。
-      </p>
-      <div className="flex gap-4 justify-center flex-wrap">
-        <a href="/cn/" className="btn-primary hover:btn-primary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/40">
-          查看今日信号
-        </a>
-        <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/30">
-          查看历史表现
-        </a>
+      <div className="relative z-10 pt-[120px] pb-16 px-6 text-center max-w-[1200px] mx-auto">
+        <div className="badge-purple mb-6">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-primary animate-pulse-dot" />
+          今日精选 · 在线
+        </div>
+        <h1 className="text-[56px] font-bold tracking-tight leading-[1.1] mb-5 text-gradient max-md:text-[40px] max-sm:text-[32px]">
+          把建仓信号
+          <br />
+          收成可执行清单
+        </h1>
+        <p className="text-xl text-text-secondary font-normal max-w-[560px] mx-auto mb-10 leading-relaxed max-sm:text-base">
+          从全 A 出发，综合量价、资金与行情环境，筛出当日值得关注的标的。
+        </p>
+        <div className="flex gap-4 justify-center flex-wrap">
+          <a href="/cn/" className="btn-primary hover:btn-primary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/40">
+            查看今日信号
+          </a>
+          <a href="/cn/backtest" className="btn-secondary hover:btn-secondary-hover inline-block text-center focus-visible:ring-2 focus-visible:ring-purple-primary/30">
+            查看历史表现
+          </a>
+        </div>
       </div>
     </section>
   );
