@@ -275,8 +275,8 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
 
           {menuOpen && (
             <div
-              className="absolute top-full mt-2 z-50 rounded-xl border border-border-subtle bg-surface-card shadow-lg overflow-hidden"
-              style={{ right: 0, width: "max-content", minWidth: "200px" }}
+              className="absolute top-full mt-2 z-50 rounded-xl border border-border-subtle bg-surface-card shadow-lg overflow-y-auto"
+              style={{ right: 0, maxWidth: "calc(100vw - 32px)", maxHeight: "70vh", minWidth: "180px" }}
             >
               <div className="py-1 border-b border-border-subtle">
                 <a
