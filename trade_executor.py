@@ -1222,11 +1222,19 @@ def main():
             is_eod = strat_id in EOD_STRATS
             cash_now = float(pt["account"].get("cash", total_cash))
             if is_eod:
+                if not continuous:
+                    log("  尾盘跳过买入：非连续交易时段")
+                    s["signals"] = []
+                    continue
                 # 尾盘：用账户可用现金全仓买 Top1（单票仍受 MAX_PER_POSITION_EOD 限制）
                 pool_cash = cash_now * pool_ratio
                 entry_label = "eod_full"
                 first_pct = 100.0
             else:
+                if not continuous:
+                    log("  日频跳过买入：非连续交易时段")
+                    s["signals"] = []
+                    continue
                 pool_cash = cash_now * pool_ratio * expo
                 entry_label = ENTRY_MODE
                 first_pct = SCALE_IN_FRAC * 100
