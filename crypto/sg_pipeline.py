@@ -76,7 +76,8 @@ print_result(bt)
 # 7. Grid backtest (2h entry, same TF)
 log("Running grid backtest (all data, 2h entry)...")
 from crypto.grid_backtest import grid_backtest, print_grid_result
-gr = grid_backtest(df, factors=factors, min_score=0.50, per_signal_risk=0.10, entry_timeframe="2h")
+gr = grid_backtest(df, factors=factors, min_score=0.50, per_signal_risk=0.10, entry_timeframe="2h",
+                    use_atr_sizing=True, atr_risk_pct=0.002, atr_max_batch_pct=0.25)
 print_grid_result(gr)
 
 # 8. Current signals

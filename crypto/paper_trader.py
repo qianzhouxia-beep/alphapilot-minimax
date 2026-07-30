@@ -223,7 +223,8 @@ def _close_batch(pos: dict, exit_price: float, ts: pd.Timestamp) -> dict:
     }
 
 
-def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float, ts: pd.Timestamp):
+def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float, ts: pd.Timestamp,
+               atr_pct: float | None = None):
     active = sum(1 for p in state["positions"] if p.get("symbol") == sym)
     if active >= MAX_POSITIONS_PER_SYM * BATCHES:
         return
@@ -241,7 +242,14 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
         return
 
     state["last_signal_by_sym"][sym] = state["next_batch_id"]
-    batch_size = state["capital"] * C.PAPER.per_trade_risk / BATCHES
+
+    # ATR-based dynamic batch sizing (Turtle-inspired)
+    if C.PAPER.use_atr_sizing and atr_pct is not None and atr_pct > 1e-6:
+        raw_batch = state["capital"] * C.PAPER.atr_risk_pct / (atr_pct * BATCHES)
+        max_batch = state["capital"] * C.PAPER.atr_max_batch_pct
+        batch_size = min(raw_batch, max_batch)
+    else:
+        batch_size = state["capital"] * C.PAPER.per_trade_risk / BATCHES
 
     for level in range(BATCHES):
         px = price * (1 - level * BATCH_SPREAD) if best_dir == "long" else price * (1 + level * BATCH_SPREAD)
@@ -255,8 +263,9 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
         state["next_batch_id"] += 1
 
     state["total_entries"] += 1
+    risk_str = f"atr_batch=${batch_size:.2f}" if C.PAPER.use_atr_sizing and atr_pct is not None and atr_pct > 1e-6 else f"risk=${state['capital']*C.PAPER.per_trade_risk:.2f}"
     log(f"  ENTER {sym.replace('/USDT:USDT','')} {best_dir} @ ${price:.2f} "
-        f"(prob={best_signal:.3f}, risk=${state['capital']*C.PAPER.per_trade_risk:.2f})")
+        f"(prob={best_signal:.3f}, {risk_str})")
 
 
 # ─── Capital / equity ───
@@ -421,7 +430,8 @@ def _main_cycle(state: dict, df_cache: pd.DataFrame, factors: list[str]) -> pd.D
         price = float(row["close"])
         prob_l = float(probs[i])
         ts = row["timestamp"] if isinstance(row["timestamp"], pd.Timestamp) else latest_ts
-        _try_entry(state, sym, price, prob_l, 0.0, ts)
+        atr_pct = float(row.get("atr_pct", 0)) if "atr_pct" in row else None
+        _try_entry(state, sym, price, prob_l, 0.0, ts, atr_pct=atr_pct)
 
     # Update & save
     state["capital"] = _recalc_capital(state)

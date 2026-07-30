@@ -54,7 +54,11 @@ EXIT = ExitConfig()
 class PaperConfig:
     initial_capital: float = 1000.0  # USDT
     max_positions: int = 2
-    per_trade_risk: float = 0.10    # 10% of capital per signal (进取版)
+    per_trade_risk: float = 0.10    # 10% of capital per signal (fallback when ATR sizing off)
     min_signal_score: float = 0.50  # lower threshold for more signals
+    # ATR-based dynamic sizing (Turtle-inspired)
+    use_atr_sizing: bool = True     # enable ATR-adaptive position sizing
+    atr_risk_pct: float = 0.002     # risk 0.2% of capital per ATR unit (normalizes vol)
+    atr_max_batch_pct: float = 0.25 # cap single batch at 25% of capital
 
 PAPER = PaperConfig()
