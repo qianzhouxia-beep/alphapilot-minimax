@@ -70,14 +70,15 @@ log(f"Long AUC: {lm['auc']:.4f}")
 # 6. OOS peel backtest (2h entry, same TF)
 log("Running OOS peel backtest (all data, 2h entry)...")
 from crypto.backtest import backtest, print_result
-bt = backtest(df, factors=factors, min_score=0.50, per_trade_risk=0.10, entry_timeframe="2h")
+bt = backtest(df, factors=factors, min_score=0.45, per_trade_risk=0.10, entry_timeframe="2h")
 print_result(bt)
 
 # 7. Grid backtest (2h entry, same TF)
 log("Running grid backtest (all data, 2h entry)...")
 from crypto.grid_backtest import grid_backtest, print_grid_result
-gr = grid_backtest(df, factors=factors, min_score=0.50, per_signal_risk=0.10, entry_timeframe="2h",
-                    use_atr_sizing=True, atr_risk_pct=0.002, atr_max_batch_pct=0.25)
+gr = grid_backtest(df, factors=factors, min_score=0.45, per_signal_risk=0.10, entry_timeframe="2h",
+                    use_atr_sizing=True, atr_risk_pct=0.002, atr_max_batch_pct=0.25,
+                    max_positions_per_sym=3, cooldown_bars=4)
 print_grid_result(gr)
 
 # 8. Current signals
@@ -99,7 +100,7 @@ report = {
         "entry_tf": "2h",
         "forward": 2,
         "per_signal_risk": 0.10,
-        "min_score": 0.50,
+        "min_score": 0.45,
     },
     "data": {"rows": len(df), "train": len(train_set), "test": len(test_set)},
     "long_auc": lm["auc"],

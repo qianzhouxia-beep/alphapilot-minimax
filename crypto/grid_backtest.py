@@ -58,7 +58,7 @@ class GridResult:
 def grid_backtest(
     df: pd.DataFrame,
     initial_capital: float = 1000.0,
-    max_positions_per_sym: int = 2,
+    max_positions_per_sym: int = 3,
     per_signal_risk: float = 0.015,
     min_score: float = 0.55,
     batches: int = 3,
@@ -71,6 +71,7 @@ def grid_backtest(
     use_atr_sizing: bool = False,
     atr_risk_pct: float = 0.002,
     atr_max_batch_pct: float = 0.25,
+    cooldown_bars: int = 6,
 ) -> GridResult:
     """Run grid-style backtest with symmetric per-symbol position tracking.
 
@@ -169,8 +170,8 @@ def grid_backtest(
         if prob_s > min_score and prob_s > best_signal:
             best_signal, best_dir = prob_s, "short"
 
-        last_bar = last_signal_by_sym.get(sym, -batches * 2)
-        if best_dir is None or i - last_bar < batches * 2:
+        last_bar = last_signal_by_sym.get(sym, -cooldown_bars)
+        if best_dir is None or i - last_bar < cooldown_bars:
             _append_grid_equity(equity, capital, positions, last_price_by_sym)
             continue
 

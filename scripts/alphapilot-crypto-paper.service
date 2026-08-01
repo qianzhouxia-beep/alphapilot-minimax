@@ -1,0 +1,22 @@
+[Unit]
+Description=AlphaPilot Crypto 24/7 Paper Trader
+Documentation=https://github.com/alphapilot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/alphapilot
+ExecStart=/usr/bin/python3 /home/ubuntu/alphapilot/crypto/paper_trader.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/ubuntu/alphapilot/output/crypto/paper_trader.log
+StandardError=append:/home/ubuntu/alphapilot/output/crypto/paper_trader.log
+
+# Resource limits
+CPUQuota=50%
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

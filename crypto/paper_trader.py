@@ -38,7 +38,7 @@ TAKE_PROFIT_LEVELS = [0.01, 0.02, 0.03]
 STOP_LOSS_LEVELS = [-0.015, -0.025, -0.04]
 BATCHES = 3
 BATCH_SPREAD = 0.005
-MAX_POSITIONS_PER_SYM = 2
+MAX_POSITIONS_PER_SYM = C.PAPER.max_positions
 
 FEATURE_WINDOW = 500
 
@@ -237,8 +237,8 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
     if best_dir is None:
         return
 
-    last = state["last_signal_by_sym"].get(sym, -BATCHES * 2)
-    if state["next_batch_id"] - last < BATCHES * 2:
+    last = state["last_signal_by_sym"].get(sym, -C.SIGNAL_COOLDOWN_BARS)
+    if state["next_batch_id"] - last < C.SIGNAL_COOLDOWN_BARS:
         return
 
     state["last_signal_by_sym"][sym] = state["next_batch_id"]

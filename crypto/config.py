@@ -6,7 +6,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # ─── Trading pairs & timeframes ───
-SYMBOLS = ["BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT", "XRP/USDT:USDT", "BNB/USDT:USDT"]
+SYMBOLS = [
+    "BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT", "XRP/USDT:USDT", "BNB/USDT:USDT",
+    "DOGE/USDT:USDT", "LINK/USDT:USDT", "ADA/USDT:USDT", "AVAX/USDT:USDT", "LTC/USDT:USDT",
+]
 TIMEFRAMES = ["2h", "4h", "1d"]
 PRIMARY_TF = "2h"
 
@@ -53,12 +56,15 @@ EXIT = ExitConfig()
 @dataclass
 class PaperConfig:
     initial_capital: float = 1000.0  # USDT
-    max_positions: int = 2
+    max_positions: int = 3           # 3 batches per symbol (more data for analysis)
     per_trade_risk: float = 0.10    # 10% of capital per signal (fallback when ATR sizing off)
-    min_signal_score: float = 0.50  # lower threshold for more signals
+    min_signal_score: float = 0.45  # lower threshold → more signals/data
     # ATR-based dynamic sizing (Turtle-inspired)
     use_atr_sizing: bool = True     # enable ATR-adaptive position sizing
     atr_risk_pct: float = 0.002     # risk 0.2% of capital per ATR unit (normalizes vol)
     atr_max_batch_pct: float = 0.25 # cap single batch at 25% of capital
 
 PAPER = PaperConfig()
+
+# ─── Signal frequency (higher = more data) ───
+SIGNAL_COOLDOWN_BARS = 4   # min bars between entries per symbol (2h × 4 = 8h)
