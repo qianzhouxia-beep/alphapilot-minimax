@@ -15,7 +15,7 @@ log("=" * 50)
 log("AlphaPilot Crypto v2 — Singapore Server Pipeline")
 log("=" * 50)
 
-from crypto.config import MODEL_DIR, MODEL_PARAMS, ICIR_TOP_K
+from crypto.config import MODEL_DIR, MODEL_PARAMS, ICIR_TOP_K, USE_SHORT_MODEL
 
 # 1. Fetch
 log("Fetching Binance data (2000 bars)...")
@@ -55,8 +55,9 @@ log(f"Training (2h): {len(t_2h)} rows, {len(factors)} factors")
 
 # 5. Train with best params
 from crypto.train import train_model
+# Pass full t_2h — train_model does its own 80/20 time split (test = latest 20%)
+train_set = t_2h
 split = int(len(t_2h) * 0.8)
-train_set = t_2h.iloc[:split]
 test_set = t_2h.iloc[split:]
 
 log(f"Training long model (params: {MODEL_PARAMS})...")
@@ -67,10 +68,23 @@ lm = train_model(
 )
 log(f"Long AUC: {lm['auc']:.4f}")
 
+sm = None
+if USE_SHORT_MODEL:
+    log(f"Training short model (params: {MODEL_PARAMS})...")
+    sm = train_model(
+        train_set, target="label_short", factors=factors,
+        hyperparams=MODEL_PARAMS,
+        model_path=str(MODEL_DIR / "model_short.ubj"),
+    )
+    log(f"Short AUC: {sm['auc']:.4f}")
+else:
+    log("Short model disabled (USE_SHORT_MODEL=False)")
+
 # 6. OOS peel backtest (2h entry, same TF)
 log("Running OOS peel backtest (all data, 2h entry)...")
 from crypto.backtest import backtest, print_result
-bt = backtest(df, factors=factors, min_score=0.45, per_trade_risk=0.10, entry_timeframe="2h")
+bt = backtest(df, factors=factors, min_score=0.45, per_trade_risk=0.10, entry_timeframe="2h",
+              short_model=USE_SHORT_MODEL)
 print_result(bt)
 
 # 7. Grid backtest (2h entry, same TF)
@@ -104,6 +118,7 @@ report = {
     },
     "data": {"rows": len(df), "train": len(train_set), "test": len(test_set)},
     "long_auc": lm["auc"],
+    "short_auc": sm["auc"] if sm else None,
     "oos_backtest": {
         "n_trades": bt.n_trades, "total_return_pct": bt.total_return,
         "sharpe": bt.sharpe, "max_dd_pct": bt.max_drawdown,
@@ -122,7 +137,8 @@ log(f"Report: {rp}")
 with open(str(MODEL_DIR / "train_history.jsonl"), "a") as f:
     f.write(json.dumps({
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "long_auc": lm["auc"], "n_factors": len(factors),
+        "long_auc": lm["auc"], "short_auc": sm["auc"] if sm else None,
+        "n_factors": len(factors),
         "n_train": lm["n_train"],
     }) + "\n")
 

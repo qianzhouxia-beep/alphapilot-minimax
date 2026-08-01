@@ -24,7 +24,7 @@ TRAIN_TEST_SPLIT = 0.2
 N_BOOST = 300
 EARLY_STOP = 50
 SCALE_POS_WEIGHT = 4.0
-USE_SHORT_MODEL = False  # short AUC < 0.52 → pure noise
+USE_SHORT_MODEL = True  # short AUC 0.58 → viable; dual-direction validated
 
 # Best hyperparams from sweep: d=4, lr=0.08, 60 ICIR factors
 MODEL_PARAMS = {"max_depth": 4, "learning_rate": 0.08, "subsample": 0.6, "colsample_bytree": 0.6}

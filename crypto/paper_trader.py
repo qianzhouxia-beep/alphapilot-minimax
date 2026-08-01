@@ -53,22 +53,43 @@ def log(msg: str) -> None:
 # ─── Model / factors ───
 
 _model_l: Any = None
-_model_mtime: float = 0.0
+_model_s: Any = None
+_model_l_mtime: float = 0.0
+_model_s_mtime: float = 0.0
 
 
 def _ensure_model():
-    """Load model if not loaded, or reload if file changed (daily retrain)."""
-    global _model_l, _model_mtime
+    """Load long+short models if not loaded, or reload if files changed (daily retrain)."""
+    global _model_l, _model_s, _model_l_mtime, _model_s_mtime
     import xgboost as xgb
-    path = C.MODEL_DIR / "model_long.ubj"
-    if not path.exists():
-        raise FileNotFoundError(f"Model not found: {path}")
-    mtime = path.stat().st_mtime
-    if _model_l is None or mtime > _model_mtime:
+
+    # Long model (always)
+    lpath = C.MODEL_DIR / "model_long.ubj"
+    if not lpath.exists():
+        raise FileNotFoundError(f"Model not found: {lpath}")
+    lmtime = lpath.stat().st_mtime
+    if _model_l is None or lmtime > _model_l_mtime:
         _model_l = xgb.Booster()
-        _model_l.load_model(str(path))
-        _model_mtime = mtime
-        log(f"Model loaded/reloaded: {path} (mtime={datetime.fromtimestamp(mtime).strftime('%H:%M:%S')})")
+        _model_l.load_model(str(lpath))
+        _model_l_mtime = lmtime
+        log(f"Model loaded/reloaded: {lpath} (mtime={datetime.fromtimestamp(lmtime).strftime('%H:%M:%S')})")
+
+    # Short model (optional, only if enabled and file exists)
+    if C.USE_SHORT_MODEL:
+        spath = C.MODEL_DIR / "model_short.ubj"
+        if not spath.exists():
+            if _model_s is not None:
+                log("WARNING: model_short.ubj removed — short signals disabled")
+            _model_s = None
+        else:
+            smtime = spath.stat().st_mtime
+            if _model_s is None or smtime > _model_s_mtime:
+                _model_s = xgb.Booster()
+                _model_s.load_model(str(spath))
+                _model_s_mtime = smtime
+                log(f"Model loaded/reloaded: {spath} (mtime={datetime.fromtimestamp(smtime).strftime('%H:%M:%S')})")
+    else:
+        _model_s = None
 
 
 def _load_icir_factors() -> list[str]:
@@ -296,7 +317,8 @@ def _main_loop():
     log("AlphaPilot Crypto — 24/7 Paper Trader Starting")
     log("=" * 50)
     log(f"Config: {C.PAPER.per_trade_risk*100:.0f}% risk/signal, "
-         f"min_score={C.PAPER.min_signal_score}, {len(C.SYMBOLS)} symbols, 2h timeframe")
+         f"min_score={C.PAPER.min_signal_score}, {len(C.SYMBOLS)} symbols, 2h timeframe, "
+         f"direction={'long+short' if C.USE_SHORT_MODEL else 'long-only'}")
 
     state = _load_state()
 
@@ -399,18 +421,20 @@ def _main_cycle(state: dict, df_cache: pd.DataFrame, factors: list[str]) -> pd.D
         return df_cache
     latest = df_2h.groupby("symbol", sort=False).last().reset_index()
 
-    # Score
+    # Score (long + short)
     import xgboost as xgb
     _ensure_model()
     X = latest[factors].values
     dmat = xgb.DMatrix(X)
-    probs = _model_l.predict(dmat)
+    probs_l = _model_l.predict(dmat)
+    probs_s = _model_s.predict(dmat) if (C.USE_SHORT_MODEL and _model_s is not None) else None
 
     # Process each symbol
     for i, row in latest.iterrows():
         sym = row["symbol"]
         price = float(row["close"])
-        prob_l = float(probs[i])
+        prob_l = float(probs_l[i])
+        prob_s = float(probs_s[i]) if probs_s is not None else 0.0
         ts = row["timestamp"] if isinstance(row["timestamp"], pd.Timestamp) else latest_ts
         state["last_price_by_sym"][sym] = price
 
@@ -428,10 +452,11 @@ def _main_cycle(state: dict, df_cache: pd.DataFrame, factors: list[str]) -> pd.D
     for i, row in latest.iterrows():
         sym = row["symbol"]
         price = float(row["close"])
-        prob_l = float(probs[i])
+        prob_l = float(probs_l[i])
+        prob_s = float(probs_s[i]) if probs_s is not None else 0.0
         ts = row["timestamp"] if isinstance(row["timestamp"], pd.Timestamp) else latest_ts
         atr_pct = float(row.get("atr_pct", 0)) if "atr_pct" in row else None
-        _try_entry(state, sym, price, prob_l, 0.0, ts, atr_pct=atr_pct)
+        _try_entry(state, sym, price, prob_l, prob_s, ts, atr_pct=atr_pct)
 
     # Update & save
     state["capital"] = _recalc_capital(state)

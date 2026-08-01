@@ -24,6 +24,7 @@ from .config import (
     TIMEFRAMES,
     PRIMARY_TF,
     PAPER,
+    USE_SHORT_MODEL,
 )
 
 _models: dict = {}
@@ -82,6 +83,7 @@ def run_simulation(force_fetch: bool = False) -> dict:
     # 4. Predict
     try:
         model_l = _load_model("long")
+        model_s = _load_model("short") if USE_SHORT_MODEL else None
     except FileNotFoundError as e:
         log(f"ERROR: {e}")
         return {"error": str(e), "status": "no_model"}
@@ -94,7 +96,7 @@ def run_simulation(force_fetch: bool = False) -> dict:
     dmat = xgb.DMatrix(X)
 
     latest["prob_long"] = model_l.predict(dmat)
-    latest["prob_short"] = 0.0  # short model disabled
+    latest["prob_short"] = model_s.predict(dmat) if model_s is not None else 0.0
 
     # 5. Build signals
     signals = []
