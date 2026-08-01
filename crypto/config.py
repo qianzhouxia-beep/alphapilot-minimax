@@ -68,3 +68,14 @@ PAPER = PaperConfig()
 
 # ─── Signal frequency (higher = more data) ───
 SIGNAL_COOLDOWN_BARS = 4   # min bars between entries per symbol (2h × 4 = 8h)
+
+# ─── Slippage (per-side fractional cost) ───
+# Liquidity tiers: BTC/ETH deepest, small alts thinner.
+# Stress test: 0.1% costs erase ~77% of gross return; 0.5% kills the strategy.
+SLIPPAGE_DEFAULT = 0.001  # 0.1% per side (fallback)
+SLIPPAGE_BY_SYMBOL = {
+    "BTC/USDT:USDT": 0.0005, "ETH/USDT:USDT": 0.0005,   # deepest books
+    "BNB/USDT:USDT": 0.001, "SOL/USDT:USDT": 0.001, "XRP/USDT:USDT": 0.001,
+    "LTC/USDT:USDT": 0.0015, "DOGE/USDT:USDT": 0.0015, "ADA/USDT:USDT": 0.0015,
+    "LINK/USDT:USDT": 0.002, "AVAX/USDT:USDT": 0.002,    # thinnest books
+}

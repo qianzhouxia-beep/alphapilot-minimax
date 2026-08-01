@@ -76,11 +76,25 @@ def backtest(
     factors: list[str] | None = None,
     taker_fee: float = TAKER_FEE,
     entry_timeframe: str = "1h",
+    slippage: float | dict | None = None,
 ) -> BacktestResult:
     if "label_long" not in df.columns:
         raise ValueError("Run compute_features with forward/threshold first")
     if "symbol" not in df.columns:
         raise ValueError("DataFrame must have a 'symbol' column")
+
+    if slippage is None:
+        slip_map: dict | None = dict(C.SLIPPAGE_BY_SYMBOL)
+        slip_default = C.SLIPPAGE_DEFAULT
+    elif isinstance(slippage, dict):
+        slip_map = dict(slippage)
+        slip_default = C.SLIPPAGE_DEFAULT
+    else:
+        slip_default = float(slippage)
+        slip_map = {s: float(slippage) for s in df["symbol"].unique()}
+
+    def _slip(sym: str) -> float:
+        return slip_map.get(sym, slip_default) if slip_map else 0.0
 
     if factors is None:
         factors = list_factors()
@@ -130,7 +144,7 @@ def backtest(
 
             bars_held = i - pos["entry_idx"]
             if bars_held >= C.EXIT.max_hold_bars:
-                _close_trade(pos, price, trades, ts, taker_fee)
+                _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
                 positions.remove(pos)
                 continue
 
@@ -142,17 +156,17 @@ def backtest(
                 pullback = pos["trail_high"] - unrealized
                 if pullback >= C.EXIT.peel_pullback:
                     pos["exit_reason"] = "peel"
-                    _close_trade(pos, price, trades, ts, taker_fee)
+                    _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
                     positions.remove(pos)
                     continue
             if unrealized <= C.EXIT.hard_stop:
                 pos["exit_reason"] = "hard_stop"
-                _close_trade(pos, price, trades, ts, taker_fee)
+                _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
                 positions.remove(pos)
                 continue
             if unrealized >= C.EXIT.take_profit:
                 pos["exit_reason"] = "take_profit"
-                _close_trade(pos, price, trades, ts, taker_fee)
+                _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
                 positions.remove(pos)
                 continue
 
@@ -181,8 +195,10 @@ def backtest(
             continue
 
         trade_size = capital * per_trade_risk
+        slip = _slip(sym)
+        entry_px = price * (1 + slip) if best_dir == "long" else price * (1 - slip)
         positions.append({
-            "symbol": sym, "direction": best_dir, "entry_price": price,
+            "symbol": sym, "direction": best_dir, "entry_price": entry_px,
             "entry_idx": i, "entry_size": trade_size, "peak": 0.0,
             "trail_high": 0.0, "entry_time": ts,
             "entry_fee": trade_size * taker_fee,
@@ -239,8 +255,10 @@ def _append_equity(equity: list, capital: float, positions: list, last_px: dict)
     equity.append(max(capital + upnl, 0))
 
 
-def _close_trade(pos: dict, exit_price: float, trades: list, ts: pd.Timestamp, fee_rate: float):
+def _close_trade(pos: dict, exit_price: float, trades: list, ts: pd.Timestamp, fee_rate: float,
+                 slippage: float = 0.0):
     direction = pos["direction"]
+    exit_price = exit_price * (1 - slippage) if direction == "long" else exit_price * (1 + slippage)
     pnl_pct = (exit_price / pos["entry_price"] - 1) * (1 if direction == "long" else -1)
     pnl_usdt = pos["entry_size"] * pnl_pct
     exit_fee = pos["entry_size"] * fee_rate

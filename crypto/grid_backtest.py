@@ -72,12 +72,31 @@ def grid_backtest(
     atr_risk_pct: float = 0.002,
     atr_max_batch_pct: float = 0.25,
     cooldown_bars: int = 6,
+    slippage: float | dict | None = None,
 ) -> GridResult:
     """Run grid-style backtest with symmetric per-symbol position tracking.
 
     When use_atr_sizing=True, batch_size = capital × atr_risk_pct / (atr_pct × batches)
     so that higher volatility → smaller batches (Turtle-inspired risk normalization).
+
+    slippage: fractional price cost per side, applied as:
+      - entry: long buys higher, short sells lower
+      - exit:  long sells lower, short buys higher
+      Accepts a float (uniform), a {symbol: rate} dict (per-symbol), or None
+      (uses config.SLIPPAGE_BY_SYMBOL with SLIPPAGE_DEFAULT fallback).
     """
+    if slippage is None:
+        slippage = dict(C.SLIPPAGE_BY_SYMBOL)
+        slippage_default = C.SLIPPAGE_DEFAULT
+    elif isinstance(slippage, dict):
+        slippage = dict(slippage)
+        slippage_default = C.SLIPPAGE_DEFAULT
+    else:
+        slippage_default = float(slippage)
+        slippage = {s: float(slippage) for s in df["symbol"].unique()}
+
+    def _slip(sym: str) -> float:
+        return slippage.get(sym, slippage_default)
     if take_profit_levels is None:
         take_profit_levels = [0.01, 0.02, 0.03]  # 1%, 2%, 3% (was 0.5%, 1%, 2%)
     if stop_loss_levels is None:
@@ -139,16 +158,16 @@ def grid_backtest(
             sl = stop_loss_levels[min(level, len(stop_loss_levels) - 1)]
 
             if unrealized >= tp:
-                _close_batch(batch, price, trades, ts, taker_fee)
+                _close_batch(batch, price, trades, ts, taker_fee, _slip(batch["symbol"]))
                 positions.remove(batch)
                 continue
             if unrealized <= sl:
                 batch["exit_reason"] = "stop_loss"
-                _close_batch(batch, price, trades, ts, taker_fee)
+                _close_batch(batch, price, trades, ts, taker_fee, _slip(batch["symbol"]))
                 positions.remove(batch)
                 continue
             if (i - batch["entry_idx"]) >= 96:
-                _close_batch(batch, price, trades, ts, taker_fee)
+                _close_batch(batch, price, trades, ts, taker_fee, _slip(batch["symbol"]))
                 positions.remove(batch)
                 continue
 
@@ -196,6 +215,9 @@ def grid_backtest(
             if active_sym + level >= max_positions_per_sym * batches:
                 break
             px = price * (1 - level * batch_spread) if best_dir == "long" else price * (1 + level * batch_spread)
+            # slippage: long pays up, short sells lower
+            slip = _slip(sym)
+            px = px * (1 + slip) if best_dir == "long" else px * (1 - slip)
             entry_fee = batch_size * taker_fee
             positions.append({
                 "symbol": sym, "direction": best_dir, "entry_price": px,
@@ -214,7 +236,7 @@ def grid_backtest(
         for batch in list(positions):
             if batch["symbol"] == sym_close:
                 batch["exit_reason"] = "end_of_data"
-                _close_batch(batch, last["close"], trades, last["timestamp"], taker_fee)
+                _close_batch(batch, last["close"], trades, last["timestamp"], taker_fee, _slip(sym_close))
 
     capital = initial_capital + sum(t.pnl_usdt for t in trades if t.pnl_usdt is not None)
     equity.append(max(capital, 0))
@@ -261,8 +283,11 @@ def _append_grid_equity(equity: list, capital: float, positions: list, last_pric
     equity.append(max(capital + upnl, 0))
 
 
-def _close_batch(batch: dict, exit_price: float, trades: list, ts: pd.Timestamp, fee_rate: float):
+def _close_batch(batch: dict, exit_price: float, trades: list, ts: pd.Timestamp, fee_rate: float,
+                 slippage: float = 0.0):
     direction = batch["direction"]
+    # slippage: long sells lower, short buys higher
+    exit_price = exit_price * (1 - slippage) if direction == "long" else exit_price * (1 + slippage)
     pnl_pct = (exit_price / batch["entry_price"] - 1) * (1 if direction == "long" else -1)
     pnl_usdt = batch["batch_size"] * pnl_pct
     exit_fee = batch["batch_size"] * fee_rate
