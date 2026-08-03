@@ -71,6 +71,7 @@ def backtest(
     max_positions_per_symbol: int = 1,
     per_trade_risk: float = 0.02,
     min_score: float = 0.55,
+    min_score_short: float | None = None,
     long_model: bool = True,
     short_model: bool = False,
     factors: list[str] | None = None,
@@ -95,6 +96,8 @@ def backtest(
 
     def _slip(sym: str) -> float:
         return slip_map.get(sym, slip_default) if slip_map else 0.0
+    if min_score_short is None:
+        min_score_short = min_score
 
     if factors is None:
         factors = list_factors()
@@ -187,7 +190,7 @@ def backtest(
         best_signal, best_dir = 0.0, None
         if long_model and prob_l > min_score and prob_l > best_signal:
             best_signal, best_dir = prob_l, "long"
-        if short_model and prob_s > min_score and prob_s > best_signal:
+        if short_model and prob_s > min_score_short and prob_s > best_signal:
             best_signal, best_dir = prob_s, "short"
 
         if best_dir is None:

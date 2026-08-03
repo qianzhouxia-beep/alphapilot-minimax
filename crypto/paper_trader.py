@@ -253,7 +253,7 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
     best_signal, best_dir = 0.0, None
     if prob_l > C.PAPER.min_signal_score and prob_l > best_signal:
         best_signal, best_dir = prob_l, "long"
-    if prob_s > C.PAPER.min_signal_score and prob_s > best_signal:
+    if prob_s > C.PAPER.min_signal_score_short and prob_s > best_signal:
         best_signal, best_dir = prob_s, "short"
     if best_dir is None:
         return
@@ -317,7 +317,8 @@ def _main_loop():
     log("AlphaPilot Crypto — 24/7 Paper Trader Starting")
     log("=" * 50)
     log(f"Config: {C.PAPER.per_trade_risk*100:.0f}% risk/signal, "
-         f"min_score={C.PAPER.min_signal_score}, {len(C.SYMBOLS)} symbols, 2h timeframe, "
+         f"min_score={C.PAPER.min_signal_score}/{C.PAPER.min_signal_score_short} (long/short), "
+         f"{len(C.SYMBOLS)} symbols, 2h timeframe, "
          f"direction={'long+short' if C.USE_SHORT_MODEL else 'long-only'}")
 
     state = _load_state()

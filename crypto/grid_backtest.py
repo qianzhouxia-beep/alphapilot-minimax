@@ -61,6 +61,7 @@ def grid_backtest(
     max_positions_per_sym: int = 3,
     per_signal_risk: float = 0.015,
     min_score: float = 0.55,
+    min_score_short: float | None = None,
     batches: int = 3,
     take_profit_levels: list[float] | None = None,
     stop_loss_levels: list[float] | None = None,
@@ -97,6 +98,8 @@ def grid_backtest(
 
     def _slip(sym: str) -> float:
         return slippage.get(sym, slippage_default)
+    if min_score_short is None:
+        min_score_short = min_score
     if take_profit_levels is None:
         take_profit_levels = [0.01, 0.02, 0.03]  # 1%, 2%, 3% (was 0.5%, 1%, 2%)
     if stop_loss_levels is None:
@@ -186,7 +189,7 @@ def grid_backtest(
         best_signal, best_dir = 0.0, None
         if prob_l > min_score and prob_l > best_signal:
             best_signal, best_dir = prob_l, "long"
-        if prob_s > min_score and prob_s > best_signal:
+        if prob_s > min_score_short and prob_s > best_signal:
             best_signal, best_dir = prob_s, "short"
 
         last_bar = last_signal_by_sym.get(sym, -cooldown_bars)

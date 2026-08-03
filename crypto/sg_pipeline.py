@@ -15,7 +15,7 @@ log("=" * 50)
 log("AlphaPilot Crypto v2 — Singapore Server Pipeline")
 log("=" * 50)
 
-from crypto.config import MODEL_DIR, MODEL_PARAMS, ICIR_TOP_K, USE_SHORT_MODEL
+from crypto.config import MODEL_DIR, MODEL_PARAMS, ICIR_TOP_K, USE_SHORT_MODEL, PAPER
 
 # 1. Fetch
 log("Fetching Binance data (2000 bars)...")
@@ -83,14 +83,16 @@ else:
 # 6. OOS peel backtest (2h entry, same TF)
 log("Running OOS peel backtest (all data, 2h entry)...")
 from crypto.backtest import backtest, print_result
-bt = backtest(df, factors=factors, min_score=0.45, per_trade_risk=0.10, entry_timeframe="2h",
+bt = backtest(df, factors=factors, min_score=PAPER.min_signal_score,
+              min_score_short=PAPER.min_signal_score_short, per_trade_risk=0.10, entry_timeframe="2h",
               short_model=USE_SHORT_MODEL)
 print_result(bt)
 
 # 7. Grid backtest (2h entry, same TF)
 log("Running grid backtest (all data, 2h entry)...")
 from crypto.grid_backtest import grid_backtest, print_grid_result
-gr = grid_backtest(df, factors=factors, min_score=0.45, per_signal_risk=0.10, entry_timeframe="2h",
+gr = grid_backtest(df, factors=factors, min_score=PAPER.min_signal_score,
+                    min_score_short=PAPER.min_signal_score_short, per_signal_risk=0.10, entry_timeframe="2h",
                     use_atr_sizing=True, atr_risk_pct=0.002, atr_max_batch_pct=0.25,
                     max_positions_per_sym=3, cooldown_bars=4)
 print_grid_result(gr)
@@ -114,7 +116,8 @@ report = {
         "entry_tf": "2h",
         "forward": 2,
         "per_signal_risk": 0.10,
-        "min_score": 0.45,
+        "min_score": PAPER.min_signal_score,
+        "min_score_short": PAPER.min_signal_score_short,
     },
     "data": {"rows": len(df), "train": len(train_set), "test": len(test_set)},
     "long_auc": lm["auc"],

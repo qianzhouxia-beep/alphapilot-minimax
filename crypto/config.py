@@ -58,7 +58,8 @@ class PaperConfig:
     initial_capital: float = 1000.0  # USDT
     max_positions: int = 3           # 3 batches per symbol (more data for analysis)
     per_trade_risk: float = 0.10    # 10% of capital per signal (fallback when ATR sizing off)
-    min_signal_score: float = 0.45  # lower threshold → more signals/data
+    min_signal_score: float = 0.45  # long entry threshold
+    min_signal_score_short: float = 0.50  # short entry threshold (higher — short AUC is noisier)
     # ATR-based dynamic sizing (Turtle-inspired)
     use_atr_sizing: bool = True     # enable ATR-adaptive position sizing
     atr_risk_pct: float = 0.002     # risk 0.2% of capital per ATR unit (normalizes vol)

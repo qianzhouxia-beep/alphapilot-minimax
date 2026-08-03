@@ -117,7 +117,7 @@ def run_simulation(force_fetch: bool = False) -> dict:
             action = "enter_long"
             direction = "long"
             confidence = round(prob_l, 4)
-        elif prob_s > PAPER.min_signal_score and prob_s > prob_l:
+        elif prob_s > PAPER.min_signal_score_short and prob_s > prob_l:
             action = "enter_short"
             direction = "short"
             confidence = round(prob_s, 4)
