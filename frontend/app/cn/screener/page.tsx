@@ -125,7 +125,7 @@ export default function CNScreener() {
         fetchScoreTop10().catch(() => null),
       ]);
       setRecData(r);
-      setTop10(t);
+      if (t) setTop10(t); // 评分 Top10 定格：仅在拉到数据时更新，轮询失败不清空
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -191,7 +191,7 @@ export default function CNScreener() {
         </Link>
         <h1 className="text-[28px] font-semibold tracking-tight">A 股智能选股</h1>
         <p className="mt-1 text-[13px] text-text-secondary">
-          今日交易指令 + 评分榜与推荐池 · 60s 自动刷新
+          今日交易指令 + 推荐池 60s 刷新 · 评分榜 09:35 定格
           {error && <span className="ml-3 text-status-danger font-medium">错误: {error}</span>}
         </p>
         <p className="mt-2 text-[12px] text-text-disabled leading-relaxed max-w-3xl">
@@ -315,9 +315,10 @@ export default function CNScreener() {
             <div className="mb-3">
               <div className="flex items-start justify-between flex-wrap gap-2">
                 <div>
-                  <h2 className="text-[18px] font-semibold">评分 Top10（无门槛）</h2>
+                  <h2 className="text-[18px] font-semibold">评分 Top 10 · 09:35 定格</h2>
                   <p className="text-[12px] text-text-disabled mt-0.5">
-                    按 score 降序第 1→10 · {top10?.mode || "score_only"}
+                    09:35 终选定格 · 当天固定 · 按 score 降序第 1→10
+                    {top10?.asof ? ` · 定格 ${top10.asof.slice(5, 16)}` : ""}
                     {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
                   </p>
                 </div>

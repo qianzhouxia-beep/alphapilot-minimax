@@ -10,12 +10,10 @@ import { HeaderBar } from "@/components/HeaderBar";
 import { useAuth } from "@/lib/auth";
 import {
   fetchCNScreener, fetchWatchlist, addToWatchlist, removeFromWatchlist,
-  fetchCategorizedRecommend,
+  fetchCategorizedRecommend, fetchLiveRecommend,
   fetchEODS2, fetchEODS2History,
-  fetchScoreTop10,
   type ScreenerItem, type ScreenerResponse, type WatchlistItem,
   type CategorizedResponse,
-  type ScoreTop10Response,
   type EODS2Response, type EODS2HistoryDay,
 } from "@/lib/cn-api";
 
@@ -90,8 +88,9 @@ export default function CNDashboard() {
   const [catLoading, setCatLoading] = useState(true);
   const [priceDialog, setPriceDialog] = useState<{ item: any; price: string } | null>(null);
   const [priceDialogLoading, setPriceDialogLoading] = useState(false);
-  // 09:35 定格快照（评分 Top10 固定数据源）
-  const [scoreTop10, setScoreTop10] = useState<ScoreTop10Response | null>(null);
+  // 实时状态标记
+  const [liveTs, setLiveTs] = useState<number>(0);
+  const [livePolling, setLivePolling] = useState<boolean>(false);
   const [overnightData, setOvernightData] = useState<any>(null);
   const [s2Data, setS2Data] = useState<EODS2Response | null>(null);
   const [s2LatestDate, setS2LatestDate] = useState<string>("");
@@ -133,16 +132,14 @@ export default function CNDashboard() {
 
   const loadData = async (wlRefresh = false) => {
     try {
-      const [d, cat, s2, st] = await Promise.all([
+      const [d, cat, s2] = await Promise.all([
         fetchCNScreener(),
         fetchCategorizedRecommend(),
         fetchEODS2().catch(() => null),
-        fetchScoreTop10().catch(() => null),
       ]);
       setData(d);
       setCatData(cat);
       setS2Data(s2);
-      if (st) setScoreTop10(st);
       if (s2?.date) {
         setS2LatestDate(s2.date);
         setS2ViewDate((prev) => prev || s2.date || "");
@@ -183,6 +180,13 @@ export default function CNDashboard() {
     return () => { cancelled = true; };
   }, [loadS2HistoryList]);
 
+  // 30 min auto refresh (全量评分+分类)
+
+  useEffect(() => {
+    const id = setInterval(() => loadData(false), 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // 收藏追踪与收藏页同源：交易时段每 60s 刷新一次（仅已登录）
   useEffect(() => {
     if (!ready || !session) return;
@@ -202,6 +206,94 @@ export default function CNDashboard() {
     }, 60_000);
     return () => clearInterval(id);
   }, [ready, session]);
+
+  // 轮询计数器：每5次（5分钟）触发一次动态重排
+  const rerankCounterRef = useRef(0);
+
+  // 60秒实时资金流刷新 + 每5分钟动态重排
+
+  useEffect(() => {
+    const pollLive = async () => {
+      if (document.hidden) return; // 标签页隐藏时不轮询
+      // 非交易时间不轮询（9:25-15:05 为交易时段，仅工作日）
+      const _now = new Date();
+      const _h = _now.getHours(), _m = _now.getMinutes(), _d = _now.getDay();
+      const _isWeekend = _d === 0 || _d === 6;
+      const _isBeforeOpen = _h < 9 || (_h === 9 && _m < 25);
+      const _isAfterClose = _h > 15 || (_h === 15 && _m > 5);
+      const _isLunchBreak = _h === 11 && _m > 30;
+      if (_isWeekend || _isBeforeOpen || _isAfterClose || _isLunchBreak) return;
+      setLivePolling(true);
+      rerankCounterRef.current += 1;
+      // 第1次（页面加载5秒后）和此后每5次（每5分钟）做动态重排
+      const isRerank = rerankCounterRef.current === 1 || rerankCounterRef.current % 5 === 0;
+
+      try {
+        // 重排时：rerank=true 获取 Top 100 动态重排
+        // 其他时候：普通60秒字段合并
+        const topN = isRerank ? 100 : 50;
+        const live = await fetchLiveRecommend(topN, isRerank);
+        setLiveTs(live.ts || Date.now() / 1000);
+
+        // 重排时：直接替换整个推荐列表
+        if (isRerank && live.rerank && live.data && live.data.length > 0) {
+          // 只取重排后的前10只（提升性能）
+          const reranked = live.data.slice(0, 10).map((it: any) => ({
+            ...it,
+            _reranked: true,
+          }));
+          setData((prev) => {
+            if (!prev) return prev;
+            return { ...prev, recommendations: reranked };
+          });
+          console.log(`[rerank] ${new Date().toLocaleTimeString()} 动态重排完成`);
+        } else if (live && live.data && live.data.length > 0) {
+          // 普通60秒：字段级合并（不改变排名）
+          setData((prev) => {
+            if (!prev) return prev;
+            const liveMap = new Map(live.data.map((it: any) => [it.symbol, it]));
+            const updated = prev.recommendations.map((it: any) => {
+              const liveItem = liveMap.get(it.symbol);
+              if (liveItem) {
+                const isLiveReal = liveItem._data_source === "live";
+                const currentAbr = it.active_buy_ratio;
+                const liveAbr = liveItem.active_buy_ratio;
+                const finalAbr = isLiveReal
+                  ? liveAbr
+                  : (currentAbr !== undefined && currentAbr !== null ? currentAbr : liveAbr);
+                return {
+                  ...it,
+                  active_buy_ratio: finalAbr,
+                  money_phase_label: isLiveReal
+                    ? (liveItem.money_phase_label ?? it.money_phase_label)
+                    : (it.money_phase_label ?? liveItem.money_phase_label),
+                  change_pct: isLiveReal
+                    ? (liveItem.change_pct ?? it.change_pct)
+                    : (it.change_pct ?? liveItem.change_pct),
+                  turnover: isLiveReal
+                    ? (liveItem.turnover ?? it.turnover)
+                    : (it.turnover ?? liveItem.turnover),
+                  price: isLiveReal
+                    ? (liveItem.price ?? it.price)
+                    : (it.price ?? liveItem.price),
+                };
+              }
+              return it;
+            });
+            return { ...prev, recommendations: updated };
+          });
+        }
+      } catch (e) {
+        console.warn("[live poll]", e);
+      } finally {
+        setLivePolling(false);
+      }
+    };
+    // 首次延迟 5 秒，等初始 loadData 完成
+    const initial = setTimeout(pollLive, 5000);
+    const id = setInterval(pollLive, 60 * 1000);
+    return () => { clearTimeout(initial); clearInterval(id); };
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -269,8 +361,7 @@ export default function CNDashboard() {
     } catch {}
   };
 
-  // 09:35 定格快照优先：评分 Top10 固定展示（无资金/板块门槛，按 score 降序）
-  const items: any[] = scoreTop10?.items?.length ? scoreTop10.items : (data?.recommendations ?? []);
+  const items = data?.recommendations ?? [];
   const peCounts = useMemo(() => {
     const c = { all: items.length, le_30: 0, gt_30: 0, na: 0 };
     items.forEach((it) => {
@@ -318,6 +409,14 @@ export default function CNDashboard() {
     : (items.find(it => it.money_flow_pass === true) || items[0]);
   const avgScore = items.length ? (items.reduce((s, i) => s + i.score, 0) / items.length) : 0;
   const returnedCount = data?.stats?.returned ?? items.length;
+
+  // 实时状态显示
+  const liveAgo = liveTs > 0 ? Math.max(0, Math.floor(Date.now() / 1000 - liveTs)) : null;
+  const liveStatusText = liveAgo === null
+    ? "等待首次实时刷新"
+    : liveAgo < 5 ? "刚刚"
+    : liveAgo < 60 ? `${liveAgo}秒前`
+    : `${Math.floor(liveAgo / 60)}分钟前`;
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
@@ -398,9 +497,9 @@ export default function CNDashboard() {
             accent="var(--color-status-success)"
           />
           <KPI
-            label="定格快照"
-            value={scoreTop10?.asof ? scoreTop10.asof.slice(5, 16) : "—"}
-            sub={`09:35 终选定格 · 当天固定${scoreTop10?.mode ? " · " + scoreTop10.mode.replace("_", " ") : ""}`}
+            label="实时资金"
+            value={livePolling ? "拉取中" : liveAgo != null ? "已同步" : "—"}
+            sub={`资金流 ${liveStatusText} · 60秒刷新`}
             accent="var(--color-status-warning)"
           />
           <KPI
@@ -430,19 +529,25 @@ export default function CNDashboard() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-1 h-6 rounded-full bg-status-info"></div>
-              <h2 className="text-[18px] font-semibold text-text-primary">评分 Top 10 · 09:35 定格</h2>
+              <h2 className="text-[18px] font-semibold text-text-primary">A 股 Top 10 机会</h2>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/20">
                 今日精选
               </span>
-              {scoreTop10?.asof && (
+              {items[0]?._reranked && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-success/12 text-status-success border border-status-success/25">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-success animate-pulse" />
+                  动态更新
+                </span>
+              )}
+              {liveTs > 0 && (
                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/25">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-warning" />
-                  定格 {scoreTop10.asof.slice(5, 16)}
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-status-warning animate-pulse" />
+                  实时 {liveStatusText}
                 </span>
               )}
             </div>
             <p className="mt-0.5 text-[12px] text-text-secondary max-w-2xl">
-              09:35 开盘终选 · 按评分降序取 Top10 · 当天固定，不随资金流实时刷新
+              综合量化筛选 · 市盈率右侧自选
             </p>
           </div>
           <div className="flex flex-row items-center gap-2 shrink-0 flex-wrap justify-end">
@@ -560,8 +665,8 @@ export default function CNDashboard() {
                     </span>
                     {/* Price below change % */}
                     {(() => {
-                      const pl = scoreTop10 ? { label: "定格", date: scoreTop10.asof ? scoreTop10.asof.slice(5, 10).replace("-", "/") : "" } : getPriceLabel();
-                      const mainPrice = item.live_price || item.price || item.buy_price || 0;
+                      const pl = getPriceLabel();
+                      const mainPrice = item.live_price || item.buy_price || 0;
                       return (
                         <>
                           <div className="text-[18px] font-bold font-display-numeric text-text-primary leading-tight mt-0.5">
