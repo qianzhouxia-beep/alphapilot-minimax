@@ -75,7 +75,13 @@ function displayScore(item: {
   model_proba?: number;
   lgb_score?: number;
   score_pct?: number;
+  _fusion_weight?: number | null;
 }): number {
+  // 三路融合综合分（0~1）：直接映射 0–100
+  const fw = item._fusion_weight;
+  if (fw != null && Number.isFinite(Number(fw)) && Number(fw) > 0) {
+    return Math.round(Math.min(1, Math.max(0, Number(fw))) * 100);
+  }
   const raw = item.model_proba ?? item.lgb_score ?? item.score;
   const x = Number(raw ?? 0);
   if (Number.isFinite(x) && x > 0) {
@@ -317,7 +323,7 @@ export default function CNScreener() {
                 <div>
                   <h2 className="text-[18px] font-semibold">评分 Top 10 · 09:35 定格</h2>
                   <p className="text-[12px] text-text-disabled mt-0.5">
-                    09:35 终选定格 · 当天固定 · 按 score 降序第 1→10
+                    09:35 终选定格 · 当天固定 · 综合分降序（模型分+资金流+板块热度）
                     {top10?.asof ? ` · 定格 ${top10.asof.slice(5, 16)}` : ""}
                     {peFilter !== "all" ? ` · 已套用 ${peFilterLabel}` : ""}
                   </p>
@@ -360,6 +366,7 @@ export default function CNScreener() {
                   pe_ttm: peTtmOf(it),
                 }))}
                 showRank
+                showFusion
               />
             )}
           </section>
@@ -558,6 +565,7 @@ function StockGrid({
   items,
   showRank,
   showFund,
+  showFusion,
 }: {
   items: Array<{
     rank?: number;
@@ -571,9 +579,12 @@ function StockGrid({
     sector?: string | null;
     money_phase_label?: string | null;
     main_net?: number | null;
+    _fusion_weight?: number | null;
+    _fusion_scores?: { vm25?: number; fund_flow?: number; sector_heat?: number } | null;
   }>;
   showRank?: boolean;
   showFund?: boolean;
+  showFusion?: boolean;
 }) {
   return (
     <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -581,6 +592,7 @@ function StockGrid({
         const sc = displayScore(item);
         const code = symCode(item.symbol);
         const pe = peTtmOf(item);
+        const fs = item._fusion_scores;
         return (
           <Link
             key={`${code}-${item.rank}`}
@@ -631,6 +643,21 @@ function StockGrid({
                 >
                   {fmtYi(item.main_net)}
                 </span>
+              </div>
+            )}
+            {showFusion && fs && (
+              <div className="mt-2 border-t border-border-subtle pt-2 text-[10px] text-text-disabled">
+                <div className="mb-1 flex items-center justify-between">
+                  <span>综合分</span>
+                  <span className="font-mono text-text-primary">
+                    {item._fusion_weight != null ? Number(item._fusion_weight).toFixed(3) : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-1">
+                  <span>模型 {fs.vm25 != null ? fs.vm25.toFixed(2) : "—"}</span>
+                  <span>资金 {fs.fund_flow != null ? fs.fund_flow.toFixed(2) : "—"}</span>
+                  <span>板块 {fs.sector_heat != null ? fs.sector_heat.toFixed(2) : "—"}</span>
+                </div>
               </div>
             )}
           </Link>

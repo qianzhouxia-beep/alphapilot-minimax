@@ -53,6 +53,15 @@ export type ScoreTop10Item = {
   downtrend_channel?: boolean;
   not_uptrend_channel?: boolean;
   price_below_ma20?: boolean;
+  main_net?: number | null;
+  // 三路融合综合分（模型分 + 资金流 + 板块热度）
+  _fusion_weight?: number | null;
+  _fusion_scores?: {
+    vm25?: number;
+    fund_flow?: number;
+    sector_heat?: number;
+  } | null;
+  _sector_l2?: string | null;
 };
 
 export type ScoreTop10Response = {
