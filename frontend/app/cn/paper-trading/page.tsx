@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse, type TradeLogEntry } from "@/lib/cn-api";
+import { fetchPaperTrading, fetchLiveRecommend, fetchInstitutionalWatch, type PaperTradingData, type LiveRecommendResponse, type TradeLogEntry, type InstitutionalWatchData } from "@/lib/cn-api";
 
 export default function PaperTradingPage() {
   const { session, ready, openAuth } = useAuth();
@@ -11,15 +11,18 @@ export default function PaperTradingPage() {
   const [loading, setLoading] = useState(true);
   const [liveData, setLiveData] = useState<LiveRecommendResponse | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [iwData, setIwData] = useState<InstitutionalWatchData | null>(null);
 
   const load = async () => {
     try {
-      const [pt, live] = await Promise.all([
+      const [pt, live, iw] = await Promise.all([
         fetchPaperTrading(),
         fetchLiveRecommend(100, true).catch(() => null),
+        fetchInstitutionalWatch().catch(() => null),
       ]);
       setData(pt);
       if (live) setLiveData(live);
+      if (iw) setIwData(iw);
       setLastUpdate(new Date());
       setError(null);
     } catch (e) {
@@ -151,6 +154,9 @@ export default function PaperTradingPage() {
           />
         ))}
       </div>
+
+      {/* 盘中机构/主力资金盯盘 */}
+      <InstitutionalWatchPanel data={iwData} />
 
       {/* 交易记录 */}
       {data.trade_log && data.trade_log.length > 0 && (
@@ -889,5 +895,130 @@ function TradeLogTable({
         );
       })}
     </div>
+  );
+}
+
+/** 盘中机构/主力资金盯盘面板 */
+function InstitutionalWatchPanel({ data }: { data: InstitutionalWatchData | null }) {
+  if (!data || data.n_symbols === 0) {
+    return (
+      <section className="glass card-lift rounded-2xl p-4 sm:p-6 mt-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-[18px] font-semibold text-text-primary flex items-center gap-2">
+            <span className="w-1 h-5 rounded-full bg-status-info"></span>
+            盘中主力资金
+          </h2>
+          <span className="text-[11px] text-text-disabled">每 3 分钟刷新</span>
+        </div>
+        <div className="py-6 text-center text-[12px] text-text-disabled">
+          盘中主力资金监控未启动或暂无数据（盘中 09:30-15:00 自动刷新）
+        </div>
+      </section>
+    );
+  }
+
+  const rows = Object.values(data.snapshot).sort(
+    (a, b) => (b.main_net_yi ?? 0) - (a.main_net_yi ?? 0)
+  );
+  // 只看持仓 + 候选池前几名
+  const shown = rows.filter((r) => r.source.includes("position") || r.main_net_yi !== 0);
+
+  return (
+    <section className="glass card-lift rounded-2xl p-4 sm:p-6 mt-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-[18px] font-semibold text-text-primary flex items-center gap-2">
+          <span className="w-1 h-5 rounded-full bg-status-info"></span>
+          盘中主力资金
+          {data.n_alerts > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-status-danger/10 text-status-danger border border-status-danger/25">
+              <span className="w-1 h-1 rounded-full bg-status-danger animate-pulse"></span>
+              {data.n_alerts} 条异动
+            </span>
+          )}
+        </h2>
+        <span className="text-[11px] text-text-disabled">
+          {data.ts ? new Date(data.ts.replace(" ", "T")).toLocaleTimeString() : "--"} · 每 3 分钟刷新
+        </span>
+      </div>
+
+      {/* 异动告警 */}
+      {data.alerts.length > 0 && (
+        <div className="mb-4 space-y-1.5">
+          {data.alerts.slice(0, 6).map((a, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[12px] ${
+                a.severity === "high"
+                  ? "border-status-danger/30 bg-status-danger/5 text-status-danger"
+                  : a.severity === "medium"
+                  ? "border-status-warning/30 bg-status-warning/5 text-status-warning"
+                  : "border-border-subtle bg-surface-panel/60 text-text-secondary"
+              }`}
+            >
+              <span>{a.severity === "high" ? "🚨" : a.severity === "medium" ? "⚠️" : "ℹ️"}</span>
+              <span className="min-w-0 flex-1 truncate">{a.msg}</span>
+            </div>
+          ))}
+          {data.alerts.length > 6 && (
+            <div className="text-[11px] text-text-disabled pl-1">… 共 {data.alerts.length} 条</div>
+          )}
+        </div>
+      )}
+
+      {/* 主力资金排序表 */}
+      <div className="overflow-x-auto">
+        <div className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(64px,1fr))] gap-0 min-w-[560px] text-[11px] uppercase tracking-wider text-text-disabled border-b border-border-subtle">
+          <div className="px-3 py-2.5 font-medium text-left">标的</div>
+          <div className="px-3 py-2.5 font-medium text-right">现价</div>
+          <div className="px-3 py-2.5 font-medium text-right">涨跌</div>
+          <div className="px-3 py-2.5 font-medium text-right">主力净额</div>
+          <div className="px-3 py-2.5 font-medium text-right">来源</div>
+        </div>
+        {shown.length === 0 && (
+          <div className="py-4 text-center text-[12px] text-text-disabled">暂无资金数据</div>
+        )}
+        {shown.slice(0, 20).map((r) => {
+          const net = r.main_net_yi ?? 0;
+          const netColor = net > 0 ? "text-status-danger" : net < 0 ? "text-status-success" : "text-text-secondary";
+          const chg = r.change_pct;
+          const chgColor =
+            chg === null
+              ? "text-text-secondary"
+              : chg > 0
+              ? "text-status-danger"
+              : chg < 0
+              ? "text-status-success"
+              : "text-text-secondary";
+          return (
+            <div
+              key={r.symbol}
+              className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(64px,1fr))] gap-0 min-w-[560px] items-center border-b border-border-subtle/40"
+            >
+              <div className="px-3 py-2 text-left">
+                <span className="text-[13px] font-medium text-text-primary">{r.name}</span>
+                <span className="ml-1.5 text-[10px] text-text-disabled">{r.symbol}</span>
+              </div>
+              <div className="px-3 py-2 text-right text-[12px] text-text-secondary">
+                {r.price != null ? r.price.toFixed(2) : "--"}
+              </div>
+              <div className={`px-3 py-2 text-right text-[12px] font-medium ${chgColor}`}>
+                {chg !== null ? `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%` : "--"}
+              </div>
+              <div className={`px-3 py-2 text-right text-[12px] font-semibold ${netColor}`}>
+                {net >= 0 ? "+" : ""}
+                {net.toFixed(2)}亿
+              </div>
+              <div className="px-3 py-2 text-right text-[10px] text-text-disabled">
+                {r.source === "position"
+                  ? "持仓"
+                  : r.source === "pool"
+                  ? "候选"
+                  : "持仓+候选"}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

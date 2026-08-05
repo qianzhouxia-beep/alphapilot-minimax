@@ -892,6 +892,37 @@ export async function fetchPaperTrading(): Promise<PaperTradingData> {
   return apiFetch<PaperTradingData>("/api/v1/cn/paper-trading");
 }
 
+// ── 盘中机构资金盯盘 ──
+export type InstitutionalWatchRow = {
+  symbol: string;
+  name: string;
+  source: string;
+  price: number | null;
+  change_pct: number | null;
+  main_net_yi: number | null;
+};
+
+export type InstitutionalWatchAlert = {
+  symbol: string;
+  name: string;
+  type: string;
+  severity: string;
+  msg: string;
+};
+
+export type InstitutionalWatchData = {
+  ts: string | null;
+  n_symbols: number;
+  snapshot: Record<string, InstitutionalWatchRow>;
+  alerts: InstitutionalWatchAlert[];
+  n_alerts: number;
+  note?: string;
+};
+
+export async function fetchInstitutionalWatch(): Promise<InstitutionalWatchData> {
+  return apiFetch<InstitutionalWatchData>("/api/v1/cn/institutional-watch");
+}
+
 export async function updatePaperTrading(payload: any): Promise<any> {
   return apiFetch<any>("/api/v1/cn/paper-trading/update", {
     method: "POST",
