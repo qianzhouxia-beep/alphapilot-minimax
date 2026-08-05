@@ -273,28 +273,33 @@
  <div class="flow-arrow">→</div>
  <div class="flow-step">
  <div class="step-num">2</div>
- <div class="step-title">双轨评分</div>
- <div class="step-desc">ICIR 因子 + XGBoost 模型 → 质量+动量</div></div>
+ <div class="step-title">模型评分</div>
+ <div class="step-desc">四类启动形态 → VM2.5 XGBoost → 隔夜加权</div></div>
  <div class="flow-arrow">→</div>
  <div class="flow-step">
  <div class="step-num">3</div>
- <div class="step-title">在线 Kelly</div>
- <div class="step-desc">LR 预测胜率 → Half-Kelly → 波动率调整</div></div>
+ <div class="step-title">多级门控</div>
+ <div class="step-desc">业绩 · 资金 · 环境 · 板块 · LLM → Top 50</div></div>
  <div class="flow-arrow">→</div>
  <div class="flow-step">
  <div class="step-num">4</div>
+ <div class="step-title">融合 + 在线 Kelly</div>
+ <div class="step-desc">模型50 + 资金30 + 板块20 → Half-Kelly</div></div>
+ <div class="flow-arrow">→</div>
+ <div class="flow-step">
+ <div class="step-num">5</div>
  <div class="step-title">GapSoft 入场</div>
  <div class="step-desc">动态决策 + 资金确认 + 限价等待</div></div>
  <div class="flow-arrow">→</div>
  <div class="flow-step">
- <div class="step-num">5</div>
+ <div class="step-num">6</div>
  <div class="step-title">动态出场</div>
  <div class="step-desc">4 层风控巡检 + 板块反转预警</div></div>
  <div class="flow-arrow">→</div>
  <div class="flow-step">
- <div class="step-num">6</div>
+ <div class="step-num">7</div>
  <div class="step-title" style="font-weight:700;color:var(--purple-500);"> 在线学习</div>
- <div class="step-desc">每笔平仓 → 更新 LR 模型 → 明天更准</div></div></div></div></div>
+ <div class="step-desc">每笔平仓 → 更新 8 维 LR → 明天更准</div></div></div></div></div>
 
  <!-- ═══════ 2. 核心差异化 ═══════ -->
  <div class="section">
@@ -308,7 +313,7 @@
  
  <span class="tag tag-new">业界首创</span>
 <h3>在线增量学习</h3>
- <p>不是回测优化，不是定时重训。<strong>每一笔平仓立即更新 ML 模型</strong>（Online Logistic Regression），今天的交易经验明天就用上。今早开盘的模型跟昨晚收盘时已经不一样。</p></div>
+ <p>不是回测优化，不是定时重训。<strong>每一笔平仓立即更新 ML 模型</strong>（Online Logistic Regression，8 维特征），今天的交易经验明天就用上。今早开盘的模型跟昨晚收盘时已经不一样。</p></div>
  <div class="card">
  
  <span class="tag tag-core">机构级</span>
@@ -332,8 +337,8 @@
  <div class="card">
  
  <span class="tag tag-edge">全栈自动化</span>
-<h3>零人工干预闭环</h3>
- <p>从数据采集 → 因子计算 → 多模型评分 → 门控过滤 → 订单执行 → PnL 追踪，全部无人值守运行。每天开盘前你看到的就是当日完整的交易计划。</p></div></div></div>
+<h3>全链路自动化闭环</h3>
+ <p>从数据采集 → 因子计算 → 模型评分 → 门控过滤 → 融合重排 → 订单执行 → PnL 追踪，全链路自动化运行，信号默认经人工确认闸门复核。每天开盘前你看到的就是当日完整的交易计划。</p></div></div></div>
 
  <!-- ═══════ 3. 对比：传统量化 vs AlphaPilot ═══════ -->
  <div class="section">
@@ -385,7 +390,7 @@
  <tr>
  <td class="dim">自动化程度</td>
  <td class="neutral">部分自动化，需人工干预</td>
- <td class="good">全链路无人值守，从数据到执行到复盘完全自动化</td>
+ <td class="good">全链路自动化，从数据到执行到复盘；信号可选人工复核</td>
  </tr>
  <tr>
  <td class="dim">数据维度</td>
@@ -411,11 +416,11 @@
  <div class="tl-item">
  <div class="tl-time">05:00</div>
  <div class="tl-title">全管线批处理</div>
- <div class="tl-desc">因子计算 → ICIR 加权 → 7 级门控过滤 → XGBoost 评分 → Kelly 仓位分配，全市场 5,000+ 只</div></div>
+ <div class="tl-desc">四类启动形态扫描 → VM2.5 模型评分 → 隔夜情绪加权 → 多级门控过滤 → Top 50 → Kelly 仓位分配，全市场 5,000+ 只</div></div>
  <div class="tl-item">
  <div class="tl-time">09:35</div>
  <div class="tl-title">全市场动量扫描 + 在线重训</div>
- <div class="tl-desc">KellyLearner 增量模型重训 → 实时资金流动量评分 → 双轨 50/50 融合 → 终排名 Top N</div></div>
+ <div class="tl-desc">KellyLearner 在线重训 → 实时资金流扫描 → 三路融合（模型 50 / 资金 30 / 板块 20）→ 终选 Top 10</div></div>
  <div class="tl-item">
  <div class="tl-time">09:35–14:30</div>
  <div class="tl-title">盘中持续执行</div>
@@ -427,25 +432,26 @@
  <div class="tl-item">
  <div class="tl-time">每笔平仓</div>
  <div class="tl-title" style="color:var(--purple-500)"> 在线增量更新</div>
- <div class="tl-desc">平仓结果 → KellyLearner.add_trade() → Online Logistic Regression partial_fit → 持久化 → 明天更准</div></div></div></div>
+ <div class="tl-desc">平仓结果 → KellyLearner.add_trade() → Online Logistic Regression（8 维）partial_fit → 持久化 → 明天更准</div></div></div></div>
 
  <!-- ═══════ 5. 核心模块 ═══════ -->
  <div class="section">
  <div class="section-header">
  <div class="label">系统架构</div>
- <h2>五大核心模块</h2></div>
+ <h2>核心模块</h2></div>
 
  <div class="card-grid">
  <div class="card" style="background: linear-gradient(to right, rgba(124,92,252,0.03), transparent);">
-<h3>双轨评分引擎</h3>
+<h3>VM2.5 模型评分引擎</h3>
  <p>
- <strong>Track A — ICIR 质量评分：</strong>130+ 因子全市场截面 z-score，ICIR 动态加权。不需要人工调因子权重，系统根据信息系数自动化迭代。<br><br>
- <strong>Track B — 实时动量评分：</strong>09:35 全市场资金流扫描，机构净流、主动买入比、换手放量。捕捉传统因子完全忽略的资金突发型机会。<br><br>
- <strong>融合：</strong>质量×50% + 动量×50%，确保既有基本面价值又有真实资金兴趣。</p></div>
+ <strong>模型评分：</strong>VM2.5 XGBoost 多因子模型，78+ 核心因子（技术 / 资金流 / 基本面 / 事件 / 集合竞价）+ 扩展因子库，全市场截面评分。<br><br>
+ <strong>ICIR 加权：</strong>因子权重按信息系数 IC 自动化迭代，反馈闭环每日更新，不靠人工调参。<br><br>
+ <strong>隔夜加权：</strong>美股隔夜情绪映射到 A 股，跳空风险先降一档。<br><br>
+ <strong>三路融合（09:35）：</strong>模型分 ×50% + 实时资金流 ×30% + 板块热度 ×20%，确保既有模型价值又有真实资金兴趣。</p></div>
  <div class="card" style="background: linear-gradient(to right, rgba(30,136,229,0.03), transparent);">
 <h3>Kelly 在线仓位分配</h3>
  <p>
- <strong>在线胜率预测：</strong>Online Logistic Regression，3 维特征（score_pct, vol_norm, expo），每次平仓 partial_fit 更新。<br><br>
+ <strong>在线胜率预测：</strong>Online Logistic Regression，8 维特征（评分百分位 / 波动率 / 市场环境 / 开盘缺口 / 资金阶段 / 通道状态 / 板块热度 / 主力净流入），每次平仓 partial_fit 更新。<br><br>
  <strong>Half-Kelly 计算：</strong>f* = (p·b − q) / b，再 × 0.5 保守化。<br><br>
  <strong>波动率调整：</strong>20 日对数收益年化标准差锚定行业中位数。<br><br>
  <strong>行业集中度约束：</strong>同行业总权重 ≤ 40%。<br><br>
@@ -478,10 +484,10 @@
  <div class="card" style="background: linear-gradient(to right, rgba(124,92,252,0.03), transparent);">
 <h3>全自动交易执行</h3>
  <p>
- <strong>每日 09:36 自动生成信号</strong> → 盘中逐笔自动执行<br><br>
- <strong>支持两种模式：</strong>日频量化（GapSoft 入场，T+2 强平） / 尾盘狙击（14:50 全仓买，次日 T+3 清仓）<br><br>
+ <strong>每日 09:35 自动生成终选信号</strong> → 盘中逐笔自动执行<br><br>
+ <strong>支持两种模式：</strong>日频量化（GapSoft 入场，T+2 到期强平） / 尾盘狙击（14:45 尾盘独立选股 + 资金确认，尾盘买入，走硬止损与动态止盈）<br><br>
  <strong>限价挂单：</strong>当 gap 超限时自动挂限价单等待回踩，盘中触发自动成交<br><br>
- <strong>完全无人值守：</strong>上海腾讯云服务器 7×24 运行，所有决策和执行自动化</p></div></div></div>
+ <strong>人工复核：</strong>信号默认进入待确认闸门，人工确认后自动下单，也可切换全自动；上海腾讯云服务器 7×24 运行</p></div></div></div>
 
  <!-- ═══════ 6. 数据源 ═══════ -->
  <div class="section">
@@ -506,7 +512,7 @@
  <div class="card">
  
 <h3>技术因子库</h3>
- <p>130+ 因子：MACD 多周期、RSI、布林带、量价背离、均线排列、波动率锥。因子权重由 ICIR 自动化迭代。</p></div></div></div>
+ <p>78+ 核心因子 + 扩展因子库：MACD 多周期、RSI、布林带、量价背离、均线排列、波动率锥、集合竞价量价因子。因子权重由 ICIR 信息系数自动化迭代。</p></div></div></div>
 
  <!-- ═══════ 7. 对比其他方案 ═══════ -->
  <div class="section">
