@@ -7,10 +7,12 @@ import { HeaderBar } from "@/components/HeaderBar";
 import {
   fetchCNScreener,
   fetchScoreTop10,
+  fetchFundStrength,
   type ScreenerResponse,
   type ScoreTop10Item,
   type ScoreTop10Response,
   type TradePlan,
+  type FundStrengthData,
 } from "@/lib/cn-api";
 
 type RecRow = {
@@ -115,6 +117,7 @@ function symCode(s?: string) {
 export default function CNScreener() {
   const [recData, setRecData] = useState<ScreenerResponse | null>(null);
   const [top10, setTop10] = useState<ScoreTop10Response | null>(null);
+  const [fundStrength, setFundStrength] = useState<FundStrengthData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   // 客户自选：全部 / PE≤30 / PE>30（系统不再硬淘 PE）
@@ -124,14 +127,16 @@ export default function CNScreener() {
 
   const loadData = async () => {
     try {
-      const [r, t] = await Promise.all([
+      const [r, t, fs] = await Promise.all([
         fetchCNScreener().catch((e) => {
           throw e;
         }),
         fetchScoreTop10().catch(() => null),
+        fetchFundStrength().catch(() => null),
       ]);
       setRecData(r);
       if (t) setTop10(t); // 评分 Top10 定格：仅在拉到数据时更新，轮询失败不清空
+      if (fs) setFundStrength(fs);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -312,6 +317,7 @@ export default function CNScreener() {
                 }))}
                 showRank
                 showFund
+                fundStrength={fundStrength}
               />
             )}
           </section>
@@ -367,6 +373,7 @@ export default function CNScreener() {
                 }))}
                 showRank
                 showFusion
+                fundStrength={fundStrength}
               />
             )}
           </section>
@@ -566,6 +573,7 @@ function StockGrid({
   showRank,
   showFund,
   showFusion,
+  fundStrength,
 }: {
   items: Array<{
     rank?: number;
@@ -585,6 +593,7 @@ function StockGrid({
   showRank?: boolean;
   showFund?: boolean;
   showFusion?: boolean;
+  fundStrength?: FundStrengthData | null;
 }) {
   return (
     <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -593,6 +602,7 @@ function StockGrid({
         const code = symCode(item.symbol);
         const pe = peTtmOf(item);
         const fs = item._fusion_scores;
+        const strength = fundStrength?.items?.[code];
         return (
           <Link
             key={`${code}-${item.rank}`}
@@ -642,6 +652,25 @@ function StockGrid({
                   }`}
                 >
                   {fmtYi(item.main_net)}
+                </span>
+              </div>
+            )}
+            {showFund && strength && (
+              <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border-subtle pt-1.5 text-[11px]">
+                <span className="text-text-secondary truncate">盘中资金</span>
+                <span
+                  className={`font-medium text-right ${
+                    (strength.rank_pct ?? 0) >= 0.7
+                      ? "text-status-danger"
+                      : (strength.rank_pct ?? 0) >= 0.5
+                      ? "text-status-warning"
+                      : "text-text-secondary"
+                  }`}
+                  title={
+                    strength.label || "盘中资金强度（分位·流速·冲板概率），每 3 分钟更新"
+                  }
+                >
+                  {strength.label || "数据不足"}
                 </span>
               </div>
             )}
