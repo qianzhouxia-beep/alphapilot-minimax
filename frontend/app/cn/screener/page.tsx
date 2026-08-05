@@ -374,6 +374,7 @@ export default function CNScreener() {
                 }))}
                 showRank
                 showFusion
+                showFund
                 fundStrength={fundStrength}
               />
             )}

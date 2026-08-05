@@ -10,9 +10,9 @@ import { HeaderBar } from "@/components/HeaderBar";
 import { useAuth } from "@/lib/auth";
 import {
   fetchCNScreener, fetchWatchlist, addToWatchlist, removeFromWatchlist,
-  fetchCategorizedRecommend, fetchLiveRecommend,
+  fetchCategorizedRecommend, fetchLiveRecommend, fetchFundStrength,
   type ScreenerItem, type ScreenerResponse, type WatchlistItem,
-  type CategorizedResponse,
+  type CategorizedResponse, type FundStrengthData, type FundStrengthItem,
 } from "@/lib/cn-api";
 
 type PeFilter = "all" | "le_30" | "gt_30";
@@ -75,6 +75,7 @@ export default function CNDashboard() {
   const { session, ready, openAuth } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<ScreenerResponse | null>(null);
+  const [fundStrength, setFundStrength] = useState<FundStrengthData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -95,12 +96,14 @@ export default function CNDashboard() {
 
   const loadData = async (wlRefresh = false) => {
     try {
-      const [d, cat] = await Promise.all([
+      const [d, cat, fs] = await Promise.all([
         fetchCNScreener(),
         fetchCategorizedRecommend(),
+        fetchFundStrength().catch(() => null),
       ]);
       setData(d);
       setCatData(cat);
+      if (fs) setFundStrength(fs);
       setError(null);
       try {
         const raw = typeof window !== "undefined" ? localStorage.getItem("alphapilot_session") : null;
@@ -591,6 +594,7 @@ export default function CNDashboard() {
               const isUp = changePct >= 0;
               const peVal = item.pe_ttm ?? item.pe;
               const peB = peBucketOf(item);
+              const strength = fundStrength?.items?.[sym];
               return (
               <div key={item.symbol} className="card-lift rounded-xl border border-border-subtle bg-surface-card p-4 shadow-sm">
                 {/* Row 1: Rank + Symbol + Name + Sector + Change% */}
@@ -705,6 +709,37 @@ export default function CNDashboard() {
                     </div>
                   </div>
                 </div>
+
+                {/* 盘中资金强度 */}
+                {strength && (
+                  <div className="mt-2 flex items-center justify-between gap-2 border-t border-border-subtle pt-2 text-[11px]">
+                    <span className="relative inline-flex cursor-help" onMouseEnter={(e) => { (e.currentTarget.querySelector('[data-fund-tip]') as HTMLElement)?.style.setProperty('display', 'block'); }} onMouseLeave={(e) => { (e.currentTarget.querySelector('[data-fund-tip]') as HTMLElement)?.style.setProperty('display', 'none'); }}>
+                      <span className="flex items-center gap-1 text-text-secondary">盘中资金
+                        <svg className="h-3 w-3 text-text-disabled" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 12h1v4h1" strokeLinecap="round" /></svg>
+                      </span>
+                      <span data-fund-tip className="absolute right-0 top-full z-30 mt-1.5 hidden w-[230px] rounded-xl border border-border-subtle bg-surface-card p-3 text-left shadow-xl" role="tooltip">
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-text-primary">盘中资金强度</span>
+                          <span className="text-[9px] text-text-disabled">每 3 分钟更新</span>
+                        </div>
+                        <div className="space-y-1.5 text-[10px] leading-relaxed text-text-secondary">
+                          <div className="flex items-start gap-1.5"><span className="mt-0.5 shrink-0 text-status-info">①</span><span><span className="font-semibold text-text-primary">强度分位</span> {strength.rank_pct != null ? `前 ${(strength.rank_pct * 100).toFixed(0)}%` : "—"}：今日资金量放回该股近 60 日里比，历史只有 {strength.rank_pct != null ? ((1 - strength.rank_pct) * 100).toFixed(0) : "—"}% 的日子更强。</span></div>
+                          <div className="flex items-start gap-1.5"><span className="mt-0.5 shrink-0 text-status-warning">②</span><span><span className="font-semibold text-text-primary">流速</span> {strength.speed_ratio != null ? `${strength.speed_ratio.toFixed(1)}x` : "—"}：每分钟流入是历史平均的 {strength.speed_ratio != null ? strength.speed_ratio.toFixed(1) : "—"} 倍，&gt;1 说明在加速进场。</span></div>
+                          <div className="flex items-start gap-1.5"><span className="mt-0.5 shrink-0 text-status-danger">③</span><span><span className="font-semibold text-text-primary">冲板概率</span> {strength.limit_up_prob != null ? `${(strength.limit_up_prob * 100).toFixed(1)}%` : "—"}：按全市场同强度档位的历史统计，当日冲击涨停的概率。</span></div>
+                        </div>
+                      </span>
+                    </span>
+                    <span className={`font-medium text-right ${
+                      (strength.rank_pct ?? 0) >= 0.7
+                        ? "text-status-danger"
+                        : (strength.rank_pct ?? 0) >= 0.5
+                        ? "text-status-warning"
+                        : "text-text-secondary"
+                    }`}>
+                      {strength.label || "数据不足"}
+                    </span>
+                  </div>
+                )}
               </div>
             )})}
           </div>
@@ -734,7 +769,8 @@ export default function CNDashboard() {
                 <GroupCard key={group.key} group={group}
                   categories={catData.categories || {}}
                   watchlistSymbols={watchlistSymbols} wlLoading={wlLoading}
-                  onToggleWatchlist={handleToggleWatchlist} sectorChanges={sectorChanges} />
+                  onToggleWatchlist={handleToggleWatchlist} sectorChanges={sectorChanges}
+                  fundStrength={fundStrength} />
               ))}
             </div>
           )}
@@ -925,13 +961,14 @@ const PHASE_GROUPS = [
   { key: "wait_and_see", label: "暂时观望", desc: "方向不明或回调中", color: "#6B7280", phases: ["pullback", "sideways"] }
 ];
 
-function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWatchlist, sectorChanges }: {
+function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWatchlist, sectorChanges, fundStrength }: {
   group: typeof PHASE_GROUPS[0];
   categories: Record<string, any>;
   watchlistSymbols: Set<string>;
   wlLoading: Record<string, boolean>;
   onToggleWatchlist: (item: any) => void;
   sectorChanges: Record<string, number>;
+  fundStrength?: FundStrengthData | null;
 }) {
   const phaseLabels: Record<string, string> = {
     markup: "拉升", rightside_ambush: "右侧潜伏", accumulation_end: "吸筹末期",
@@ -985,6 +1022,8 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                     const chg = s.change_pct;
                     const chgStr = chg != null ? `${chg > 0 ? "+" : ""}${chg.toFixed(1)}%` : "—";
                     const chgColor = chg != null ? (chg >= 0 ? "text-status-danger" : "text-status-success") : "text-text-disabled";
+                    const fsItem = fundStrength?.items?.[sym];
+                    const fsRank = fsItem?.rank_pct ?? 0;
                     return (
                       <div key={s.symbol} className="flex items-center gap-1.5 rounded-lg bg-surface-container-low p-1.5 hover:bg-surface-card transition-colors group">
                         <span className="text-[10px] text-text-disabled font-display-numeric w-[14px] text-center shrink-0">{i + 1}</span>
@@ -995,6 +1034,18 @@ function GroupCard({ group, categories, watchlistSymbols, wlLoading, onToggleWat
                         <span className={`text-[10px] font-bold font-display-numeric w-[24px] text-center ${
                           displayScore(s.score_raw || s.score) > 85 ? "text-status-success" : displayScore(s.score_raw || s.score) > 80 ? "text-primary" : "text-text-secondary"
                         }`}>{displayScore(s.score_raw || s.score)}</span>
+                        {fsItem && (
+                          <span className="text-[9px] px-1 py-0.5 rounded-full font-medium shrink-0 border"
+                            title={fsItem.label || ""}
+                            style={{
+                              color: fsRank >= 0.7 ? "#dc2626" : fsRank >= 0.5 ? "#f59e0b" : "#6b7280",
+                              borderColor: fsRank >= 0.7 ? "rgba(220,38,38,.3)" : fsRank >= 0.5 ? "rgba(245,158,11,.3)" : "rgba(107,114,128,.3)",
+                              background: fsRank >= 0.7 ? "rgba(220,38,38,.08)" : fsRank >= 0.5 ? "rgba(245,158,11,.08)" : "rgba(107,114,128,.08)",
+                            }}
+                          >
+                            {fsRank >= 0.9 ? "极强" : fsRank >= 0.7 ? "偏强" : fsRank >= 0.5 ? "中性" : fsRank >= 0.3 ? "偏弱" : "极弱"}
+                          </span>
+                        )}
                         <span className="text-[10px] font-display-numeric text-text-secondary w-[52px] text-right shrink-0">
                           ¥{(s.live_price || s.price || s.buy_price || 0).toFixed(2)}
                         </span>
