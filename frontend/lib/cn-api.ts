@@ -792,6 +792,7 @@ export type PaperTradingPosition = {
   days_held: number;
   strategy_id: string;
   buy_date: string;
+  entry_mode?: string;
 };
 
 export type PaperTradingSignal = {
@@ -804,6 +805,7 @@ export type PaperTradingSignal = {
   quantity: number;
   strategy_id: string;
   reason: string;
+  entry_mode?: string;
 };
 
 export type PaperTradingStrategy = {
@@ -845,6 +847,7 @@ export type TradeLogEntry = {
   strategy_id: string;
   pnl_pct?: number;
   skip?: string;
+  entry_mode?: string;
 };
 
 export type PaperLoopSummary = {

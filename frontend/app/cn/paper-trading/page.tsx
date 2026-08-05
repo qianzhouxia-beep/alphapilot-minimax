@@ -265,12 +265,19 @@ function StrategyGroupCard({
     group.key === "v19_daily" || /VM2\.5|v19/i.test(group.title)
       ? "日频精选"
       : group.title;
-  const positions = strategies.flatMap((s) =>
-    (s.positions || []).map((p) => ({ ...p, _strategyId: s.id, _strategyName: s.name }))
-  );
-  const signals = strategies.flatMap((s) =>
-    (s.signals || []).map((sig) => ({ ...sig, _strategyName: s.name }))
-  );
+const positions = strategies.flatMap((s) =>
+  (s.positions || []).map((p) => ({ ...p, _strategyId: s.id, _strategyName: s.name }))
+);
+const signals = strategies.flatMap((s) =>
+  (s.signals || []).map((sig) => ({ ...sig, _strategyName: s.name }))
+);
+// 买入成交方式徽标
+const ENTRY_MODE_LABEL: Record<string, string> = {
+  vwap_dip: "低吸·VWAP回踩",
+  hybrid_relax: "低吸·放宽",
+  force_eod: "尾盘现价",
+  direct: "信号价",
+};
   const active = strategies.some((s) => s.status === "active");
   // 按已用资金加权策略收益；无持仓时取均值
   const weightedPnl = (() => {
@@ -375,6 +382,11 @@ function StrategyGroupCard({
                 </div>
                 <div className="px-3 py-2.5 text-right font-display-numeric text-text-primary">
                   ￥{entry.toFixed(2)}
+                  {p.entry_mode && ENTRY_MODE_LABEL[p.entry_mode] ? (
+                    <div className="text-[10px] text-text-disabled font-normal mt-0.5">
+                      {ENTRY_MODE_LABEL[p.entry_mode]}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="px-3 py-2.5 text-right font-display-numeric text-status-warning">
                   ￥{cur.toFixed(2)}
@@ -413,7 +425,7 @@ function StrategyGroupCard({
 
       {signals.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border-subtle">
-          <div className="text-[12px] text-text-disabled mb-2">今日买入信号</div>
+          <div className="text-[12px] text-text-disabled mb-2">今日买入信号（盘中低吸 · 回踩 VWAP 后成交）</div>
           <div className="space-y-1.5">
             {signals.slice(0, 6).map((s, i) => (
               <div
@@ -423,6 +435,9 @@ function StrategyGroupCard({
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-status-danger font-semibold">{s.name}</span>
                   <span className="text-text-disabled">{s.symbol}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20">
+                    等待低吸
+                  </span>
                   {group.merged && s._strategyName ? (
                     <span className="text-[10px] text-text-disabled">{s._strategyName}</span>
                   ) : null}
