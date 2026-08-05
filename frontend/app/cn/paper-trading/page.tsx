@@ -208,6 +208,8 @@ function groupStrategies(strategies: PaperTradingData["strategies"]): StrategyGr
   const eod: PaperTradingData["strategies"] = [];
   const others: PaperTradingData["strategies"] = [];
   for (const s of strategies) {
+    // 只展示运行中策略；已停止/暂停的策略不渲染卡片
+    if (s.status !== "active") continue;
     const id = (s.id || "").toLowerCase();
     const name = s.name || "";
     if (
