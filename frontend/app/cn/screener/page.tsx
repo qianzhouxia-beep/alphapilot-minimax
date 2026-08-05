@@ -13,6 +13,7 @@ import {
   type ScoreTop10Response,
   type TradePlan,
   type FundStrengthData,
+  type FundStrengthItem,
 } from "@/lib/cn-api";
 
 type RecRow = {
@@ -568,6 +569,79 @@ function EmptyBox({ text }: { text: string }) {
   );
 }
 
+/** 盘中资金强度悬浮说明：解释 强度分位 / 流速 / 冲板概率 三个指标。 */
+function FundStrengthTip({ strength }: { strength: FundStrengthItem }) {
+  const [open, setOpen] = useState(false);
+  const rank = strength.rank_pct;
+  const speed = strength.speed_ratio;
+  const prob = strength.limit_up_prob;
+  return (
+    <span
+      className="relative inline-flex cursor-help"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      <span className="flex items-center gap-1 text-text-secondary">
+        盘中资金
+        <svg
+          className="h-3 w-3 text-text-disabled"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8h.01M11 12h1v4h1" strokeLinecap="round" />
+        </svg>
+      </span>
+      {open && (
+        <span
+          className="absolute right-0 top-full z-30 mt-1.5 w-[230px] rounded-xl border border-border-subtle bg-bg-elevated/95 p-3 text-left shadow-xl backdrop-blur"
+          role="tooltip"
+        >
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-text-primary">盘中资金强度</span>
+            <span className="text-[9px] text-text-disabled">每 3 分钟更新</span>
+          </div>
+          <div className="space-y-1.5 text-[10px] leading-relaxed text-text-secondary">
+            <div className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-status-info">①</span>
+              <span>
+                <span className="font-semibold text-text-primary">强度分位</span>{" "}
+                {rank != null ? (
+                  <>前 {(rank * 100).toFixed(0)}%</>
+                ) : (
+                  "数据不足"
+                )}
+                ：今日资金量放回该股近 60 日里比，历史只有{" "}
+                {rank != null ? ((1 - rank) * 100).toFixed(0) : "—"}% 的日子更强。
+              </span>
+            </div>
+            <div className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-status-warning">②</span>
+              <span>
+                <span className="font-semibold text-text-primary">流速</span>{" "}
+                {speed != null ? `${speed.toFixed(1)}x` : "—"}：每分钟流入是历史平均的{" "}
+                {speed != null ? `${speed.toFixed(1)}` : "—"} 倍，&gt;1 说明在加速进场。
+              </span>
+            </div>
+            <div className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-status-danger">③</span>
+              <span>
+                <span className="font-semibold text-text-primary">冲板概率</span>{" "}
+                {prob != null ? `${(prob * 100).toFixed(1)}%` : "—"}：按全市场同强度档位的历史
+                统计，当日冲击涨停的概率。
+              </span>
+            </div>
+          </div>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function StockGrid({
   items,
   showRank,
@@ -657,7 +731,7 @@ function StockGrid({
             )}
             {showFund && strength && (
               <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-border-subtle pt-1.5 text-[11px]">
-                <span className="text-text-secondary truncate">盘中资金</span>
+                <FundStrengthTip strength={strength} />
                 <span
                   className={`font-medium text-right ${
                     (strength.rank_pct ?? 0) >= 0.7
@@ -666,9 +740,6 @@ function StockGrid({
                       ? "text-status-warning"
                       : "text-text-secondary"
                   }`}
-                  title={
-                    strength.label || "盘中资金强度（分位·流速·冲板概率），每 3 分钟更新"
-                  }
                 >
                   {strength.label || "数据不足"}
                 </span>
