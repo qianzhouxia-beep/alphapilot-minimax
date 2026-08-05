@@ -80,3 +80,9 @@ SLIPPAGE_BY_SYMBOL = {
     "LTC/USDT:USDT": 0.0015, "DOGE/USDT:USDT": 0.0015, "ADA/USDT:USDT": 0.0015,
     "LINK/USDT:USDT": 0.002, "AVAX/USDT:USDT": 0.002,    # thinnest books
 }
+
+# ─── Execution model ───
+# Mixed maker/taker: entries & take-profit use post-only limit orders (maker),
+# stop-loss uses market orders (taker). Binance USDT-M perp: maker 0.02%, taker 0.05%.
+MAKER_FEE = 0.0002   # 0.02% post-only limit
+TAKER_FEE = 0.0005   # 0.05% market order

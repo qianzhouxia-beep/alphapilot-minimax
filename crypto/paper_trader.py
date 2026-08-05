@@ -33,7 +33,8 @@ if str(_APP_ROOT) not in sys.path:
 from crypto import config as C
 
 # ─── Constants (mirrors grid_backtest.py) ───
-TAKER_FEE = 0.0005
+MAKER_FEE = C.MAKER_FEE
+TAKER_FEE = C.TAKER_FEE
 TAKE_PROFIT_LEVELS = [0.01, 0.02, 0.03]
 STOP_LOSS_LEVELS = [-0.015, -0.025, -0.04]
 BATCHES = 3
@@ -231,16 +232,23 @@ def _check_exits(state: dict, sym: str, price: float, ts: pd.Timestamp) -> list[
 
 def _close_batch(pos: dict, exit_price: float, ts: pd.Timestamp) -> dict:
     direction = pos["direction"]
+    # Maker exits (take_profit): limit fill — no slippage, maker fee.
+    # Taker exits (stop_loss/max_hold): market fill — taker fee.
+    reason = pos.get("exit_reason", "")
+    if reason == "take_profit":
+        eff_fee = MAKER_FEE
+    else:
+        eff_fee = TAKER_FEE
     pnl_pct = (exit_price / pos["entry_price"] - 1) * (1 if direction == "long" else -1)
     pnl_usdt = pos["batch_size"] * pnl_pct
-    fee = pos["batch_size"] * TAKER_FEE * 2  # entry + exit
+    fee = pos["batch_size"] * pos.get("entry_fee_rate", MAKER_FEE) + pos["batch_size"] * eff_fee
     return {
         "symbol": pos["symbol"], "batch_id": pos["batch_id"],
         "entry_time": pos["entry_time"], "entry_price": pos["entry_price"],
         "direction": direction, "batch_size": pos["batch_size"],
         "exit_time": ts.isoformat(), "exit_price": exit_price,
         "pnl_pct": round(pnl_pct, 6), "pnl_usdt": round(pnl_usdt - fee, 4),
-        "exit_reason": pos.get("exit_reason", ""), "fee_usdt": round(fee, 4),
+        "exit_reason": reason, "fee_usdt": round(fee, 4),
     }
 
 
@@ -279,7 +287,7 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
             "batch_size": batch_size, "level": level,
             "batch_id": state["next_batch_id"],
             "entry_time": ts.isoformat(), "exit_reason": "",
-            "entry_fee": batch_size * TAKER_FEE,
+            "entry_fee": batch_size * MAKER_FEE, "entry_fee_rate": MAKER_FEE,
         })
         state["next_batch_id"] += 1
 

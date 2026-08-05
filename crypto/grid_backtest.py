@@ -14,7 +14,7 @@ import pandas as pd
 from . import config as C
 from .features import list_factors
 
-TAKER_FEE = 0.0005
+TAKER_FEE = C.TAKER_FEE  # kept for backward-compat; actual fees read from config
 
 
 def log(msg: str) -> None:
@@ -161,16 +161,18 @@ def grid_backtest(
             sl = stop_loss_levels[min(level, len(stop_loss_levels) - 1)]
 
             if unrealized >= tp:
-                _close_batch(batch, price, trades, ts, taker_fee, _slip(batch["symbol"]))
+                batch["exit_reason"] = "take_profit"
+                _close_batch(batch, price, trades, ts, _slip(batch["symbol"]), exit_type="maker")
                 positions.remove(batch)
                 continue
             if unrealized <= sl:
                 batch["exit_reason"] = "stop_loss"
-                _close_batch(batch, price, trades, ts, taker_fee, _slip(batch["symbol"]))
+                _close_batch(batch, price, trades, ts, _slip(batch["symbol"]), exit_type="taker")
                 positions.remove(batch)
                 continue
             if (i - batch["entry_idx"]) >= 96:
-                _close_batch(batch, price, trades, ts, taker_fee, _slip(batch["symbol"]))
+                batch["exit_reason"] = "max_hold"
+                _close_batch(batch, price, trades, ts, _slip(batch["symbol"]), exit_type="taker")
                 positions.remove(batch)
                 continue
 
@@ -218,10 +220,9 @@ def grid_backtest(
             if active_sym + level >= max_positions_per_sym * batches:
                 break
             px = price * (1 - level * batch_spread) if best_dir == "long" else price * (1 + level * batch_spread)
-            # slippage: long pays up, short sells lower
-            slip = _slip(sym)
-            px = px * (1 + slip) if best_dir == "long" else px * (1 - slip)
-            entry_fee = batch_size * taker_fee
+            # Maker post-only entry: fill at limit, no slippage, maker fee.
+            # (Taker market entry would pay slip + taker fee.)
+            entry_fee = batch_size * C.MAKER_FEE
             positions.append({
                 "symbol": sym, "direction": best_dir, "entry_price": px,
                 "entry_idx": i, "batch_size": batch_size, "level": level,
@@ -239,7 +240,7 @@ def grid_backtest(
         for batch in list(positions):
             if batch["symbol"] == sym_close:
                 batch["exit_reason"] = "end_of_data"
-                _close_batch(batch, last["close"], trades, last["timestamp"], taker_fee, _slip(sym_close))
+                _close_batch(batch, last["close"], trades, last["timestamp"], _slip(sym_close), exit_type="taker")
 
     capital = initial_capital + sum(t.pnl_usdt for t in trades if t.pnl_usdt is not None)
     equity.append(max(capital, 0))
@@ -286,15 +287,20 @@ def _append_grid_equity(equity: list, capital: float, positions: list, last_pric
     equity.append(max(capital + upnl, 0))
 
 
-def _close_batch(batch: dict, exit_price: float, trades: list, ts: pd.Timestamp, fee_rate: float,
-                 slippage: float = 0.0):
+def _close_batch(batch: dict, exit_price: float, trades: list, ts: pd.Timestamp,
+                 slippage: float = 0.0, exit_type: str = "taker"):
+    """Close a batch. Maker exits (take_profit): limit fill — no slippage, maker fee.
+    Taker exits (stop_loss/max_hold/end_of_data): market fill — slippage + taker fee."""
     direction = batch["direction"]
-    # slippage: long sells lower, short buys higher
-    exit_price = exit_price * (1 - slippage) if direction == "long" else exit_price * (1 + slippage)
+    if exit_type == "maker":
+        eff_slip, eff_fee = 0.0, C.MAKER_FEE
+    else:
+        eff_slip, eff_fee = slippage, C.TAKER_FEE
+    exit_price = exit_price * (1 - eff_slip) if direction == "long" else exit_price * (1 + eff_slip)
     pnl_pct = (exit_price / batch["entry_price"] - 1) * (1 if direction == "long" else -1)
     pnl_usdt = batch["batch_size"] * pnl_pct
-    exit_fee = batch["batch_size"] * fee_rate
-    total_fee = batch.get("entry_fee", batch["batch_size"] * fee_rate) + exit_fee
+    exit_fee = batch["batch_size"] * eff_fee
+    total_fee = batch.get("entry_fee", batch["batch_size"] * eff_fee) + exit_fee
     trades.append(GridTrade(
         symbol=batch.get("symbol", ""),
         batch_id=batch["batch_id"],

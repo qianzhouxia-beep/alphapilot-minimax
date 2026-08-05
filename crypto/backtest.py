@@ -14,7 +14,7 @@ from .features import compute_features, list_factors
 
 _models: dict = {}
 
-TAKER_FEE = 0.0005
+TAKER_FEE = C.TAKER_FEE  # kept for backward-compat; actual fees read from config
 
 
 def _load_model(target: str = "long"):
@@ -147,7 +147,8 @@ def backtest(
 
             bars_held = i - pos["entry_idx"]
             if bars_held >= C.EXIT.max_hold_bars:
-                _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
+                pos["exit_reason"] = "max_hold"
+                _close_trade(pos, price, trades, ts, _slip(sym), exit_type="taker")
                 positions.remove(pos)
                 continue
 
@@ -159,17 +160,17 @@ def backtest(
                 pullback = pos["trail_high"] - unrealized
                 if pullback >= C.EXIT.peel_pullback:
                     pos["exit_reason"] = "peel"
-                    _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
+                    _close_trade(pos, price, trades, ts, _slip(sym), exit_type="maker")
                     positions.remove(pos)
                     continue
             if unrealized <= C.EXIT.hard_stop:
                 pos["exit_reason"] = "hard_stop"
-                _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
+                _close_trade(pos, price, trades, ts, _slip(sym), exit_type="taker")
                 positions.remove(pos)
                 continue
             if unrealized >= C.EXIT.take_profit:
                 pos["exit_reason"] = "take_profit"
-                _close_trade(pos, price, trades, ts, taker_fee, _slip(sym))
+                _close_trade(pos, price, trades, ts, _slip(sym), exit_type="maker")
                 positions.remove(pos)
                 continue
 
@@ -198,13 +199,13 @@ def backtest(
             continue
 
         trade_size = capital * per_trade_risk
-        slip = _slip(sym)
-        entry_px = price * (1 + slip) if best_dir == "long" else price * (1 - slip)
+        # Maker post-only entry: limit fill — no taker slippage.
+        entry_px = price
         positions.append({
             "symbol": sym, "direction": best_dir, "entry_price": entry_px,
             "entry_idx": i, "entry_size": trade_size, "peak": 0.0,
             "trail_high": 0.0, "entry_time": ts,
-            "entry_fee": trade_size * taker_fee,
+            "entry_fee": trade_size * C.MAKER_FEE,
         })
         _append_equity(equity, capital, positions, last_px)
 
@@ -214,7 +215,7 @@ def backtest(
         for pos in list(positions):
             if pos["symbol"] == sym_close.symbol:
                 pos["exit_reason"] = "end_of_data"
-                _close_trade(pos, sym_close.close, trades, sym_close.timestamp, taker_fee)
+                _close_trade(pos, sym_close.close, trades, sym_close.timestamp, 0.0, exit_type="taker")
 
     capital = _current_capital(initial_capital, trades)
     equity.append(max(capital, 0))
@@ -258,14 +259,20 @@ def _append_equity(equity: list, capital: float, positions: list, last_px: dict)
     equity.append(max(capital + upnl, 0))
 
 
-def _close_trade(pos: dict, exit_price: float, trades: list, ts: pd.Timestamp, fee_rate: float,
-                 slippage: float = 0.0):
+def _close_trade(pos: dict, exit_price: float, trades: list, ts: pd.Timestamp,
+                 slippage: float = 0.0, exit_type: str = "taker"):
+    """Close a position. Maker exits (take_profit): limit fill — no slippage, maker fee.
+    Taker exits (stop_loss/max_hold): market fill — slippage + taker fee."""
     direction = pos["direction"]
-    exit_price = exit_price * (1 - slippage) if direction == "long" else exit_price * (1 + slippage)
+    if exit_type == "maker":
+        eff_slip, eff_fee = 0.0, C.MAKER_FEE
+    else:
+        eff_slip, eff_fee = slippage, C.TAKER_FEE
+    exit_price = exit_price * (1 - eff_slip) if direction == "long" else exit_price * (1 + eff_slip)
     pnl_pct = (exit_price / pos["entry_price"] - 1) * (1 if direction == "long" else -1)
     pnl_usdt = pos["entry_size"] * pnl_pct
-    exit_fee = pos["entry_size"] * fee_rate
-    total_fee = pos.get("entry_fee", pos["entry_size"] * fee_rate) + exit_fee
+    exit_fee = pos["entry_size"] * eff_fee
+    total_fee = pos.get("entry_fee", pos["entry_size"] * eff_fee) + exit_fee
     net_pnl = pnl_usdt - total_fee
     trades.append(Trade(
         symbol=pos.get("symbol", ""), entry_time=pos["entry_time"],
