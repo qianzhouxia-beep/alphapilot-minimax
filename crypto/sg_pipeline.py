@@ -93,7 +93,8 @@ log("Running grid backtest (all data, 2h entry)...")
 from crypto.grid_backtest import grid_backtest, print_grid_result
 gr = grid_backtest(df, factors=factors, min_score=PAPER.min_signal_score,
                     min_score_short=PAPER.min_signal_score_short, per_signal_risk=0.10, entry_timeframe="2h",
-                    use_atr_sizing=True, atr_risk_pct=0.002, atr_max_batch_pct=0.25,
+                    use_atr_sizing=PAPER.use_atr_sizing, atr_risk_pct=PAPER.atr_risk_pct,
+                    atr_max_batch_pct=PAPER.atr_max_batch_pct,
                     max_positions_per_sym=3, cooldown_bars=4)
 print_grid_result(gr)
 
@@ -118,6 +119,8 @@ report = {
         "per_signal_risk": 0.10,
         "min_score": PAPER.min_signal_score,
         "min_score_short": PAPER.min_signal_score_short,
+        "atr_risk_pct": PAPER.atr_risk_pct,
+        "atr_max_batch_pct": PAPER.atr_max_batch_pct,
     },
     "data": {"rows": len(df), "train": len(train_set), "test": len(test_set)},
     "long_auc": lm["auc"],

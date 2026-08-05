@@ -62,7 +62,7 @@ class PaperConfig:
     min_signal_score_short: float = 0.50  # short entry threshold (higher — short AUC is noisier)
     # ATR-based dynamic sizing (Turtle-inspired)
     use_atr_sizing: bool = True     # enable ATR-adaptive position sizing
-    atr_risk_pct: float = 0.002     # risk 0.2% of capital per ATR unit (normalizes vol)
+    atr_risk_pct: float = 0.003     # risk 0.3% of capital per ATR unit (normalizes vol)
     atr_max_batch_pct: float = 0.25 # cap single batch at 25% of capital
 
 PAPER = PaperConfig()
