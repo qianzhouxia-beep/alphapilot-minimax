@@ -11,10 +11,8 @@ import { useAuth } from "@/lib/auth";
 import {
   fetchCNScreener, fetchWatchlist, addToWatchlist, removeFromWatchlist,
   fetchCategorizedRecommend, fetchLiveRecommend,
-  fetchEODS2, fetchEODS2History,
   type ScreenerItem, type ScreenerResponse, type WatchlistItem,
   type CategorizedResponse,
-  type EODS2Response, type EODS2HistoryDay,
 } from "@/lib/cn-api";
 
 type PeFilter = "all" | "le_30" | "gt_30";
@@ -92,58 +90,17 @@ export default function CNDashboard() {
   const [liveTs, setLiveTs] = useState<number>(0);
   const [livePolling, setLivePolling] = useState<boolean>(false);
   const [overnightData, setOvernightData] = useState<any>(null);
-  const [s2Data, setS2Data] = useState<EODS2Response | null>(null);
-  const [s2LatestDate, setS2LatestDate] = useState<string>("");
-  const [s2ViewDate, setS2ViewDate] = useState<string>("");
-  const [s2HistoryDays, setS2HistoryDays] = useState<EODS2HistoryDay[]>([]);
-  const [s2HistoryLoading, setS2HistoryLoading] = useState(false);
-  const [s2QueryLoading, setS2QueryLoading] = useState(false);
   const [peFilter, setPeFilter] = useState<PeFilter>("all");
   const [trendFilter, setTrendFilter] = useState<"all" | "uptrend" | "downtrend">("all");
 
-  const loadS2HistoryList = useCallback(async () => {
-    try {
-      const hist = await fetchEODS2History({ limit: 90 });
-      if ("days" in hist && Array.isArray(hist.days)) {
-        setS2HistoryDays(hist.days);
-      }
-    } catch {
-      /* ignore history list failures */
-    }
-  }, []);
-
-  const loadS2ForDate = useCallback(async (date?: string) => {
-    setS2QueryLoading(true);
-    try {
-      const s2 = await fetchEODS2(date || undefined);
-      setS2Data(s2);
-      if (!date && s2?.date) {
-        setS2LatestDate(s2.date);
-        setS2ViewDate(s2.date);
-      } else if (date) {
-        setS2ViewDate(date);
-      }
-    } catch {
-      if (!date) setS2Data(null);
-    } finally {
-      setS2QueryLoading(false);
-    }
-  }, []);
-
   const loadData = async (wlRefresh = false) => {
     try {
-      const [d, cat, s2] = await Promise.all([
+      const [d, cat] = await Promise.all([
         fetchCNScreener(),
         fetchCategorizedRecommend(),
-        fetchEODS2().catch(() => null),
       ]);
       setData(d);
       setCatData(cat);
-      setS2Data(s2);
-      if (s2?.date) {
-        setS2LatestDate(s2.date);
-        setS2ViewDate((prev) => prev || s2.date || "");
-      }
       setError(null);
       try {
         const raw = typeof window !== "undefined" ? localStorage.getItem("alphapilot_session") : null;
@@ -174,11 +131,11 @@ export default function CNDashboard() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.all([loadData(true), loadS2HistoryList()]).finally(() => {
+    Promise.all([loadData(true)]).finally(() => {
       if (!cancelled) { setLoading(false); setCatLoading(false); }
     });
     return () => { cancelled = true; };
-  }, [loadS2HistoryList]);
+  }, []);
 
   // 30 min auto refresh (全量评分+分类)
 
@@ -844,150 +801,6 @@ export default function CNDashboard() {
         </section>
         );
       })()}
-
-      <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="w-1 h-12 rounded-full bg-primary shrink-0 mt-1"></div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h2 className="text-[17px] font-semibold text-text-primary">尾盘狙击</h2>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/12 text-primary border border-primary/30">14:45</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-warning/12 text-status-warning border border-status-warning/30">止盈止损持有</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/25">S2 规则引擎</span>
-              {(s2Data?.date || s2ViewDate) && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-container-low text-text-secondary border border-border-subtle font-display-numeric">
-                  选股日 {(s2Data?.date || s2ViewDate)}
-                  {s2Data?.generated_time ? ` · ${s2Data.generated_time}` : ""}
-                </span>
-              )}
-              {s2LatestDate && s2ViewDate && s2ViewDate !== s2LatestDate && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-status-info/12 text-status-info border border-status-info/30">历史</span>
-              )}
-            </div>
-            <p className="text-[11px] text-text-disabled">
-              S2最优版 8步法 · 涨幅1~7% · 均线多头 · 量比&gt;1.5 · 收盘近最高 · 波动率排序 Top1 · +筹码峰加分
-            </p>
-          </div>
-        </div>
-
-        <div className="mb-3 flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 rounded-lg bg-surface-container-low/80 border border-border-subtle px-2.5 py-2">
-          <span className="text-[11px] text-text-secondary shrink-0">历史查询</span>
-          <label className="flex items-center gap-1.5 text-[11px] text-text-disabled">
-            <span className="sr-only">选择日期</span>
-            <input
-              type="date"
-              value={s2ViewDate || ""}
-              max={s2LatestDate || undefined}
-              onChange={(e) => setS2ViewDate(e.target.value)}
-              className="h-8 rounded-md border border-border-subtle bg-surface-card px-2 text-[12px] text-text-primary font-display-numeric cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </label>
-          <select
-            value={s2ViewDate || ""}
-            onChange={(e) => setS2ViewDate(e.target.value)}
-            className="h-8 min-w-[9.5rem] rounded-md border border-border-subtle bg-surface-card px-2 text-[12px] text-text-primary cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30"
-            aria-label="历史选股日期列表"
-          >
-            <option value="" disabled>
-              {s2HistoryDays.length ? "选择历史日期" : "暂无历史日期"}
-            </option>
-            {s2HistoryDays.map((d) => (
-              <option key={d.date} value={d.date}>
-                {d.date}
-                {d.top1?.name ? ` · ${d.top1.name}` : d.pick_count ? ` · ${d.pick_count}只` : " · 空仓"}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            disabled={!s2ViewDate || s2QueryLoading}
-            onClick={() => loadS2ForDate(s2ViewDate)}
-            className="h-8 px-3 rounded-md bg-primary text-white text-[12px] font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-          >
-            {s2QueryLoading ? "查询中…" : "查询"}
-          </button>
-          <button
-            type="button"
-            disabled={s2QueryLoading || (!!s2LatestDate && s2ViewDate === s2LatestDate)}
-            onClick={() => {
-              if (s2LatestDate) {
-                setS2ViewDate(s2LatestDate);
-                loadS2ForDate(s2LatestDate);
-              } else {
-                loadS2ForDate();
-              }
-            }}
-            className="h-8 px-3 rounded-md border border-border-subtle bg-surface-card text-[12px] text-text-secondary cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface-container-low transition-colors"
-          >
-            回到最新
-          </button>
-          <button
-            type="button"
-            disabled={s2HistoryLoading}
-            onClick={async () => {
-              setS2HistoryLoading(true);
-              await loadS2HistoryList();
-              setS2HistoryLoading(false);
-            }}
-            className="h-8 px-2.5 rounded-md text-[11px] text-text-disabled cursor-pointer hover:text-text-secondary transition-colors"
-          >
-            {s2HistoryLoading ? "刷新中…" : "刷新列表"}
-          </button>
-        </div>
-
-        {s2Data && s2Data.picks && s2Data.picks.length > 0 ? (
-          <div className="space-y-2">
-            {s2Data.picks.slice(0, 3).map((s, i) => {
-              const sym = s.symbol ? s.symbol.replace(/^(sh|sz)/, "") : "";
-              const chg = s.change_pct || 0;
-              const chgColor = chg >= 0 ? "text-status-danger" : "text-status-success";
-              return (
-                <div key={s.symbol || i} className="rounded-lg bg-surface-container-low p-2.5 hover:bg-surface-card transition-colors">
-                  <div className="grid grid-cols-[16px_1fr_55px_55px] sm:grid-cols-[20px_1fr_80px_80px_70px] items-center gap-1">
-                    <span className="text-[13px] font-bold text-status-info">{i + 1}</span>
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Link href={s.symbol ? `/cn/stock?symbol=${s.symbol}` : "#"} className="text-[14px] font-medium text-text-primary hover:text-status-info truncate">{s.name || "?"}</Link>
-                      <span className="text-[10px] text-text-disabled shrink-0">{sym}</span>
-                    </div>
-                    <span className="text-[13px] font-display-numeric text-text-primary text-right">
-                      ¥{(s.price || 0).toFixed(2)}
-                    </span>
-                    <span className={`text-[13px] font-display-numeric font-medium text-right ${chgColor}`}>
-                      {chg > 0 ? "+" : ""}{chg.toFixed(1)}%
-                    </span>
-                    <span className="hidden sm:block text-[11px] text-right font-medium text-text-secondary">
-                      量比 {s.volume_ratio ? s.volume_ratio.toFixed(1) : "?"}
-                    </span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-disabled">
-                    <span className="text-text-secondary font-display-numeric">
-                      选股日 {s2Data.date || s2ViewDate || "—"}
-                    </span>
-                    <span className="text-text-disabled">·</span>
-                    <span className="text-text-secondary">波动率 {s.volatility_20d ? (s.volatility_20d * 100).toFixed(2) : "?"}%</span>
-                    {s.chip_bonus && s.chip_bonus > 0 && (
-                      <>
-                        <span className="text-text-disabled">·</span>
-                        <span className="text-status-success">筹码加分 +{s.chip_bonus.toFixed(1)}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 rounded-lg bg-surface-container-low px-3 py-2 border border-border-subtle">
-            <p className="text-[12px] text-text-disabled">
-              {s2QueryLoading
-                ? "正在加载尾盘选股…"
-                : s2Data
-                  ? (s2Data.date ? `${s2Data.date} ` : "") + (s2Data.note || "该日无符合 S2最优版 条件的标的")
-                  : "14:45 自动生成 · S2规则引擎尾盘狙击"}
-            </p>
-          </div>
-        )}
-      </section>
 
       <section className="mb-6">
         <div className="flex items-center gap-3 mb-3">
