@@ -6,29 +6,30 @@
 <link rel="icon" href="/favicon.png" type="image/png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <title>AlphaPilot — 全市场量化选股策略全景</title>
+<link rel="stylesheet" href="/tokens.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #f5f5f7;
-    --surface: #fff;
-    --text-primary: #1d1d1f;
-    --text-secondary: #3a3a40;
-    --text-tertiary: #55555b;
-    --purple: #7c5cfc;
-    --purple-500: #8B5CF6;
-    --purple-600: #7C3AED;
-    --purple-light: #ede9fe;
-    --purple-glow: rgba(124,92,252,0.12);
-    --green: #2ba84a;
-    --blue: #1e88e5;
-    --gold: #f59e0b;
-    --red: #e53935;
-    --border-subtle: rgba(0,0,0,0.06);
-    --border-medium: rgba(0,0,0,0.08);
-    --shadow: 0 4px 16px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
-    --radius: 20px;
-    --radius-sm: 12px;
-    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --bg: var(--ap-semantic-bg);
+    --surface: var(--ap-semantic-surface);
+    --text-primary: var(--ap-semantic-text);
+    --text-secondary: var(--ap-semantic-text-secondary);
+    --text-tertiary: var(--ap-semantic-text-tertiary);
+    --purple: var(--ap-semantic-brand);
+    --purple-500: var(--ap-primitive-violet-500);
+    --purple-600: var(--ap-primitive-violet-600);
+    --purple-light: var(--ap-semantic-brand-light);
+    --purple-glow: var(--ap-primitive-violet-8);
+    --green: var(--ap-semantic-down);
+    --blue: var(--ap-primitive-blue-800);
+    --gold: var(--ap-semantic-warning);
+    --red: var(--ap-semantic-up);
+    --border-subtle: var(--ap-semantic-border);
+    --border-medium: var(--ap-primitive-black-8);
+    --shadow: var(--ap-primitive-shadow-elevated);
+    --radius: var(--ap-primitive-radius-xl);
+    --radius-sm: var(--ap-primitive-radius-md);
+    --font: var(--ap-primitive-font-sans);
   }
   body {
     font-family: var(--font);
@@ -182,7 +183,7 @@
     margin-bottom: 8px;
   }
   .track-a .track-tag { background: var(--purple-light); color: var(--purple-600); }
-  .track-b .track-tag { background: #fef3c7; color: #b45309; }
+  .track-b .track-tag { background: var(--ap-primitive-amber-50); color: var(--ap-semantic-warning); }
 
   .fusion-box {
     background: linear-gradient(135deg, var(--purple-600), var(--purple));
@@ -322,8 +323,8 @@
       <svg viewBox="0 0 800 90" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="pgrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#ede9fe"/>
-            <stop offset="100%" stop-color="#7c5cfc"/>
+            <stop offset="0%" stop-color="var(--ap-semantic-brand-light)"/>
+            <stop offset="100%" stop-color="var(--ap-semantic-brand)"/>
           </linearGradient>
           <filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.08)"/></filter>
         </defs>
@@ -346,38 +347,38 @@
 
         <!-- Boxes -->
         <!-- 1: 全市场 -->
-        <rect x="16" y="22" width="104" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
-        <text x="68" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="#1d1d1f">全市场</text>
-        <text x="68" y="57" text-anchor="middle" font-size="11" fill="#55555b">5,000+ A 股</text>
+        <rect x="16" y="22" width="104" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="68" y="42" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ap-semantic-text)">全市场</text>
+        <text x="68" y="57" text-anchor="middle" font-size="11" fill="var(--ap-semantic-text-tertiary)">5,000+ A 股</text>
 
         <!-- 2: 因子计算 -->
-        <rect x="160" y="22" width="80" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
-        <text x="200" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">因子计算</text>
-        <text x="200" y="56" text-anchor="middle" font-size="10" fill="#55555b">130+ 因子</text>
+        <rect x="160" y="22" width="80" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="200" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">因子计算</text>
+        <text x="200" y="56" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">130+ 因子</text>
 
         <!-- 3: ICIR 评分 -->
-        <rect x="280" y="22" width="80" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
-        <text x="320" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">ICIR 加权</text>
-        <text x="320" y="56" text-anchor="middle" font-size="10" fill="#55555b">质量评分</text>
+        <rect x="280" y="22" width="80" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="320" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">ICIR 加权</text>
+        <text x="320" y="56" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">质量评分</text>
 
         <!-- 4: 门控链 -->
-        <rect x="400" y="22" width="80" height="46" rx="10" fill="#faf5ff" stroke="#7c5cfc" stroke-width="1" filter="url(#shadow)"/>
-        <text x="440" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">门控链</text>
-        <text x="440" y="56" text-anchor="middle" font-size="10" fill="#55555b">7 层过滤</text>
+        <rect x="400" y="22" width="80" height="46" rx="10" fill="var(--ap-semantic-brand-light)" stroke="var(--ap-semantic-brand)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="440" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">门控链</text>
+        <text x="440" y="56" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">7 层过滤</text>
 
         <!-- 5: 动量扫描 -->
-        <rect x="520" y="22" width="80" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
-        <text x="560" y="40" text-anchor="middle" font-size="11" font-weight="600" fill="#1d1d1f">09:35 扫描</text>
-        <text x="560" y="56" text-anchor="middle" font-size="10" fill="#55555b">双轨融合</text>
+        <rect x="520" y="22" width="80" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="560" y="40" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">09:35 扫描</text>
+        <text x="560" y="56" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">双轨融合</text>
 
         <!-- 6: Top -->
-        <rect x="640" y="22" width="80" height="46" rx="10" fill="#f0fdf4" stroke="#2ba84a" stroke-width="1.5" filter="url(#shadow)"/>
-        <text x="680" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#2ba84a">Top 50</text>
-        <text x="680" y="57" text-anchor="middle" font-size="10" fill="#55555b">推荐池</text>
+        <rect x="640" y="22" width="80" height="46" rx="10" fill="var(--ap-semantic-down-light)" stroke="var(--ap-semantic-down)" stroke-width="1.5" filter="url(#shadow)"/>
+        <text x="680" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ap-semantic-down)">Top 50</text>
+        <text x="680" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">推荐池</text>
 
         <!-- 7: Execute  -->
-        <rect x="760" y="22" width="40" height="46" rx="10" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shadow)"/>
-        <text x="780" y="49" text-anchor="middle" font-size="11" font-weight="600" fill="#1d1d1f">执行</text>
+        <rect x="760" y="22" width="40" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="780" y="49" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">执行</text>
       </svg>
     </div>
     <div class="chart-caption">精选漏斗流程：从 5,000+ 全市场到 Top 50 推荐池</div>
@@ -429,47 +430,47 @@
         </defs>
 
         <!-- Track A (left) -->
-        <rect x="30" y="10" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
-        <text x="170" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">05:00 全市场因子计算</text>
+        <rect x="30" y="10" width="280" height="32" rx="8" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad)"/>
+        <text x="170" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">05:00 全市场因子计算</text>
 
-        <line x1="170" y1="42" x2="170" y2="52" stroke="#8B5CF6" stroke-width="1"/>
-        <polygon points="166,50 170,55 174,50" fill="#8B5CF6"/>
+        <line x1="170" y1="42" x2="170" y2="52" stroke="var(--ap-primitive-violet-500)" stroke-width="1"/>
+        <polygon points="166,50 170,55 174,50" fill="var(--ap-primitive-violet-500)"/>
 
-        <rect x="30" y="55" width="280" height="32" rx="8" fill="#faf5ff" stroke="#8B5CF6" stroke-width="1" filter="url(#shad)"/>
-        <text x="170" y="75" text-anchor="middle" font-size="12" font-weight="600" fill="#7C3AED">ICIR 因子加权 → 质量评分</text>
+        <rect x="30" y="55" width="280" height="32" rx="8" fill="var(--ap-semantic-brand-light)" stroke="var(--ap-primitive-violet-500)" stroke-width="1" filter="url(#shad)"/>
+        <text x="170" y="75" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-primitive-violet-600)">ICIR 因子加权 → 质量评分</text>
 
-        <line x1="170" y1="87" x2="170" y2="97" stroke="#8B5CF6" stroke-width="1"/>
-        <polygon points="166,95 170,100 174,95" fill="#8B5CF6"/>
+        <line x1="170" y1="87" x2="170" y2="97" stroke="var(--ap-primitive-violet-500)" stroke-width="1"/>
+        <polygon points="166,95 170,100 174,95" fill="var(--ap-primitive-violet-500)"/>
 
-        <rect x="30" y="100" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
-        <text x="170" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">质量分 (Quality Score)</text>
+        <rect x="30" y="100" width="280" height="32" rx="8" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad)"/>
+        <text x="170" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">质量分 (Quality Score)</text>
 
         <!-- Track B (right) -->
-        <rect x="490" y="10" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
-        <text x="630" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">09:35 全市场资金扫描</text>
+        <rect x="490" y="10" width="280" height="32" rx="8" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad)"/>
+        <text x="630" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">09:35 全市场资金扫描</text>
 
-        <line x1="630" y1="42" x2="630" y2="52" stroke="#f59e0b" stroke-width="1"/>
-        <polygon points="626,50 630,55 634,50" fill="#f59e0b"/>
+        <line x1="630" y1="42" x2="630" y2="52" stroke="var(--ap-primitive-amber-600)" stroke-width="1"/>
+        <polygon points="626,50 630,55 634,50" fill="var(--ap-primitive-amber-600)"/>
 
-        <rect x="490" y="55" width="280" height="32" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1" filter="url(#shad)"/>
-        <text x="630" y="75" text-anchor="middle" font-size="11" font-weight="600" fill="#b45309">akshare 实时资金流 → 动量评分</text>
+        <rect x="490" y="55" width="280" height="32" rx="8" fill="var(--ap-primitive-amber-50)" stroke="var(--ap-primitive-amber-600)" stroke-width="1" filter="url(#shad)"/>
+        <text x="630" y="75" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-warning)">akshare 实时资金流 → 动量评分</text>
 
-        <line x1="630" y1="87" x2="630" y2="97" stroke="#f59e0b" stroke-width="1"/>
-        <polygon points="626,95 630,100 634,95" fill="#f59e0b"/>
+        <line x1="630" y1="87" x2="630" y2="97" stroke="var(--ap-primitive-amber-600)" stroke-width="1"/>
+        <polygon points="626,95 630,100 634,95" fill="var(--ap-primitive-amber-600)"/>
 
-        <rect x="490" y="100" width="280" height="32" rx="8" fill="#fff" stroke="#e5e5e5" stroke-width="1" filter="url(#shad)"/>
-        <text x="630" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="#1d1d1f">动量分 (Momentum Score)</text>
+        <rect x="490" y="100" width="280" height="32" rx="8" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad)"/>
+        <text x="630" y="120" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">动量分 (Momentum Score)</text>
 
         <!-- Converging arrows -->
         <line x1="170" y1="132" x2="170" y2="142" stroke="#ccc" stroke-width="1.5"/>
         <line x1="170" y1="142" x2="400" y2="142" stroke="#ccc" stroke-width="1.5"/>
         <line x1="630" y1="132" x2="630" y2="142" stroke="#ccc" stroke-width="1.5"/>
         <line x1="630" y1="142" x2="400" y2="142" stroke="#ccc" stroke-width="1.5"/>
-        <line x1="400" y1="142" x2="400" y2="147" stroke="#7c5cfc" stroke-width="2"/>
-        <polygon points="396,145 400,150 404,145" fill="#7c5cfc"/>
+        <line x1="400" y1="142" x2="400" y2="147" stroke="var(--ap-semantic-brand)" stroke-width="2"/>
+        <polygon points="396,145 400,150 404,145" fill="var(--ap-semantic-brand)"/>
 
         <!-- Fusion (wide enough for full text) -->
-        <rect x="180" y="150" width="440" height="22" rx="10" fill="#7c5cfc"/>
+        <rect x="180" y="150" width="440" height="22" rx="10" fill="var(--ap-semantic-brand)"/>
         <text x="400" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">融合评分 = 质量评分 × 50% + 动量评分 × 50%</text>
       </svg>
     </div>
@@ -517,8 +518,8 @@
         <div class="gate-desc">市场态势调节</div>
       </div>
       <div class="gate-arrow">→</div>
-      <div class="gate-item" style="border-color:var(--green); background:#f0fdf4;">
-        <div class="gate-num" style="background:#d1fae5; color:#2ba84a;">7</div>
+      <div class="gate-item" style="border-color:var(--green); background:var(--ap-semantic-down-light);">
+        <div class="gate-num" style="background:var(--ap-semantic-down-light); color:var(--ap-semantic-down);">7</div>
         <div class="gate-name" style="color:var(--green)">盘中巡检</div>
         <div class="gate-desc">板块资金反转预警</div>
       </div>

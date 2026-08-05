@@ -5,33 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="/favicon.png" type="image/png" />
 <title>AlphaPilot — 在线自进化量化交易系统 | 量化方案</title>
+<link rel="stylesheet" href="/tokens.css">
 <style>
  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
  :root {
- --bg: #f5f5f7;
- --surface: #fff;
- --text-primary: #1d1d1f;
- --text-secondary: #3a3a40;
- --text-tertiary: #55555b;
- --purple: #7c5cfc;
- --purple-500: #8B5CF6;
- --purple-600: #7C3AED;
- --purple-light: #ede9fe;
- --purple-subtle: rgba(124,92,252,0.08);
- --green: #2ba84a;
- --green-light: #d1fae5;
- --blue: #1e88e5;
- --blue-light: #dbeafe;
- --gold: #f59e0b;
- --gold-light: #fef3c7;
- --red: #e53935;
- --border-subtle: rgba(0,0,0,0.06);
- --border-medium: rgba(0,0,0,0.08);
- --shadow: 0 4px 16px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+ --bg: var(--ap-semantic-bg);
+ --bg-tertiary: var(--ap-semantic-bg-tertiary);
+ --surface: var(--ap-semantic-surface);
+ --text-primary: var(--ap-semantic-text);
+ --text-secondary: var(--ap-semantic-text-secondary);
+ --text-tertiary: var(--ap-semantic-text-tertiary);
+ --purple: var(--ap-semantic-brand);
+ --purple-500: var(--ap-primitive-violet-700);
+ --purple-600: var(--ap-primitive-violet-600);
+ --purple-light: var(--ap-semantic-brand-light);
+ --purple-subtle: var(--ap-semantic-brand-subtle);
+ --green: var(--ap-semantic-down);
+ --green-light: var(--ap-semantic-down-light);
+ --blue: var(--ap-primitive-blue-800);
+ --blue-light: var(--ap-primitive-blue-50);
+ --gold: var(--ap-semantic-warning);
+ --gold-light: var(--ap-semantic-warning-light);
+ --red: var(--ap-semantic-up);
+ --border-subtle: var(--ap-semantic-border);
+ --border-medium: var(--ap-primitive-black-8);
+ --shadow: var(--ap-primitive-shadow-elevated);
  --shadow-lg: 0 8px 32px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06);
- --radius: 20px;
- --radius-sm: 12px;
- --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+ --radius: var(--ap-primitive-radius-xl);
+ --radius-sm: var(--ap-primitive-radius-md);
+--radius-xs: var(--ap-primitive-radius-xs);
+ --font: var(--ap-primitive-font-sans);
  }
  body { font-family: var(--font); background: var(--bg); color: var(--text-primary); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 
@@ -49,7 +52,7 @@
  .site-nav-actions { display: flex; align-items: center; gap: 12px; }
  .site-nav-actions .mobile-only { font-size: 13px; font-weight: 500; text-decoration: none; color: var(--text-tertiary); }
  @media (min-width: 768px) { .site-nav-actions .mobile-only { display: none; } }
- .site-nav-actions .cta { font-size: 13px; font-weight: 600; text-decoration: none; color: #fff; background: var(--text-primary); padding: 7px 18px; border-radius: 9999px; transition: transform .2s, opacity .2s; }
+ .site-nav-actions .cta { font-size: 13px; font-weight: 600; text-decoration: none; color: var(--ap-primitive-white); background: var(--text-primary); padding: 7px 18px; border-radius: 9999px; transition: transform .2s, opacity .2s; }
  .site-nav-actions .cta:hover { transform: scale(1.03); opacity: .9; }
 
  body { padding-top: 52px; }
@@ -57,53 +60,55 @@
 
  /* ── Hero ── */
  .hero { text-align: center; padding: 56px 0 44px; position: relative; overflow: hidden; }
- .hero::before { content: ''; position: absolute; top: -160px; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, var(--purple-subtle) 0%, transparent 70%); pointer-events: none; }
+ .hero::before { content: ''; position: absolute; top: -160px; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, rgba(124,92,252,0.04) 0%, transparent 70%); pointer-events: none; }
  .hero::after { content: ''; position: absolute; top: -100px; right: -100px; width: 300px; height: 300px; background: radial-gradient(circle, rgba(30,136,229,0.06) 0%, transparent 70%); pointer-events: none; }
- .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--purple-light); color: var(--purple-600); font-size: 12px; font-weight: 600; padding: 4px 14px; border-radius: 100px; margin-bottom: 20px; }
+ .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--purple-light); color: var(--ap-semantic-brand-on-light); font-size: 12px; font-weight: 600; padding: 4px 14px; border-radius: 100px; margin-bottom: 20px; }
  .hero h1 { font-size: 44px; font-weight: 800; letter-spacing: -.03em; line-height: 1.15; }
- .hero h1 span { background: linear-gradient(135deg, var(--purple-500), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+ .hero h1 span { color: var(--purple-500); }
  .hero .subtitle { font-size: 17px; color: var(--text-tertiary); max-width: 680px; margin: 16px auto 0; line-height: 1.7; }
  .hero .cta-row { margin-top: 28px; display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
- .hero .cta-row .btn-primary { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #fff; background: var(--purple-600); padding: 12px 28px; border-radius: 100px; text-decoration: none; transition: transform .2s, box-shadow .2s; box-shadow: 0 4px 16px rgba(124,92,252,0.3); }
+ .hero .cta-row .btn-primary { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--ap-primitive-white); background: var(--purple-600); padding: 12px 28px; border-radius: 100px; text-decoration: none; transition: transform .2s, box-shadow .2s; box-shadow: 0 4px 16px rgba(124,92,252,0.3); }
  .hero .cta-row .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,92,252,0.4); }
  .hero .cta-row .btn-secondary { font-size: 14px; font-weight: 500; color: var(--text-secondary); padding: 11px 24px; border-radius: 100px; text-decoration: none; border: 1.5px solid var(--border-medium); transition: border-color .2s, color .2s; }
  .hero .cta-row .btn-secondary:hover { border-color: var(--purple); color: var(--purple); }
 
+
+
  /* ── Section ── */
  .section { margin-bottom: 56px; }
  .section-header { text-align: center; margin-bottom: 32px; }
- .section-header .label { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--purple-500); background: var(--purple-light); padding: 3px 10px; border-radius: 4px; margin-bottom: 10px; }
+ .section-header .label { display: inline-block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ap-semantic-brand-on-light); background: var(--purple-light); padding: 3px 10px; border-radius: 4px; margin-bottom: 10px; }
  .section-header h2 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
  .section-header p { font-size: 14px; color: var(--text-tertiary); max-width: 640px; margin: 8px auto 0; }
 
  /* ── KPI Row ── */
  .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 0; }
- .kpi-card { background: var(--surface); border-radius: var(--radius); padding: 22px 16px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow); text-align: center; transition: transform .2s, box-shadow .2s; }
+ .kpi-card { background: var(--surface); border-radius: var(--radius); padding: 24px 20px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow); text-align: center; transition: transform .2s, box-shadow .2s; }
  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
  .kpi-card .kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
  .kpi-card .kpi-label { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; font-weight: 500; }
- .kpi-purple .kpi-value { color: var(--purple-500); }
+ .kpi-purple .kpi-value { color: var(--ap-primitive-violet-700); }
  .kpi-green .kpi-value { color: var(--green); }
- .kpi-blue .kpi-value { color: var(--blue); }
- .kpi-gold .kpi-value { color: var(--gold); }
+ .kpi-blue .kpi-value { color: var(--ap-primitive-blue-800); }
+ .kpi-gold .kpi-value { color: var(--ap-semantic-warning); }
 
  /* ── Card Grid ── */
  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
- .card { background: var(--surface); border-radius: var(--radius); padding: 28px 24px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s; }
+ .card { background: var(--surface); border-radius: var(--radius); padding: 32px 28px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow); transition: transform .2s, box-shadow .2s; }
  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
  .card p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
- .card .tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-bottom: 10px; letter-spacing: .5px; }
- .tag-new { background: var(--purple-light); color: var(--purple-600); }
- .tag-core { background: var(--blue-light); color: var(--blue); }
- .tag-edge { background: var(--green-light); color: var(--green); }
+ .card .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 4px; margin-bottom: 10px; letter-spacing: .3px; }
+ .tag-new { background: var(--purple-light); color: var(--ap-semantic-brand-on-light); }
+ .tag-core { background: var(--blue-light); color: var(--ap-primitive-blue-700); }
+ .tag-edge { background: var(--green-light); color: var(--ap-primitive-green-700); }
 
  /* ── PAS Problem/Solution blocks ── */
  .pas-block { background: var(--surface); border-radius: var(--radius); padding: 32px 28px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow); margin-bottom: 16px; }
- .pas-block.problem { border-left: 4px solid var(--red); }
- .pas-block.agitation { border-left: 4px solid var(--gold); }
- .pas-block.solution { border-left: 4px solid var(--green); }
- .pas-block .pas-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+ .pas-block.problem { background: rgba(229,57,53,0.04); }
+ .pas-block.agitation { background: rgba(245,158,11,0.04); }
+ .pas-block.solution { background: rgba(43,168,74,0.04); }
+ .pas-block .pas-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
  .pas-block.problem .pas-label { color: var(--red); }
  .pas-block.agitation .pas-label { color: var(--gold); }
  .pas-block.solution .pas-label { color: var(--green); }
@@ -114,7 +119,7 @@
  .pas-block strong { color: var(--text-primary); }
 
  /* ── Comparison Table ── */
- .compare-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 16px 0; font-size: 13px; }
+ .compare-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 16px 0; font-size: 14px; }
  .compare-table th { background: var(--surface); font-weight: 600; color: var(--text-primary); padding: 14px 16px; text-align: left; border-bottom: 2px solid var(--border-medium); }
  .compare-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
  .compare-table tr:last-child td { border-bottom: none; }
@@ -126,39 +131,39 @@
 
  /* ── Flow diagram ── */
  .flow-row { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; margin-bottom: 16px; flex-wrap: wrap; justify-content: center; }
- .flow-step { flex-shrink: 0; min-width: 120px; background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); box-shadow: var(--shadow); padding: 16px 14px; text-align: center; }
- .flow-step .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--purple-light); color: var(--purple-600); font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+ .flow-step { flex-shrink: 0; min-width: 120px; background: var(--bg-tertiary); border-radius: var(--radius-sm); padding: 16px 14px; text-align: center; }
+ .flow-step .step-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--purple-light); color: var(--ap-semantic-brand-on-light); font-size: 12px; font-weight: 700; margin-bottom: 8px; }
  .flow-step .step-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
- .flow-step .step-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+ .flow-step .step-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
  .flow-arrow { display: flex; align-items: center; color: var(--text-tertiary); font-size: 16px; }
 
  /* ── Timeline ── */
  .timeline { position: relative; margin: 16px 0 8px; padding-left: 40px; }
- .timeline::before { content: ""; position: absolute; left: 16px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(to bottom, var(--purple-light), var(--purple)); border-radius: 1px; }
+ .timeline::before { content: ""; position: absolute; left: 16px; top: 8px; bottom: 8px; width: 2px; background: var(--purple); border-radius: 4px; }
  .tl-item { position: relative; margin-bottom: 20px; }
  .tl-item::before { content: ""; position: absolute; left: -30px; top: 6px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--purple); background: var(--surface); }
- .tl-item .tl-time { display: inline-block; font-size: 12px; font-weight: 700; color: var(--purple); background: var(--purple-light); padding: 1px 8px; border-radius: 4px; margin-bottom: 4px; }
+ .tl-item .tl-time { display: inline-block; font-size: 12px; font-weight: 700; color: var(--ap-semantic-brand-on-light); background: var(--purple-light); padding: 1px 8px; border-radius: 4px; margin-bottom: 4px; }
  .tl-item .tl-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
  .tl-item .tl-desc { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
 
  /* ── Quote block ── */
- .quote-block { background: linear-gradient(135deg, var(--surface), var(--purple-light)); border-radius: var(--radius); padding: 32px 28px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg); text-align: center; margin: 32px 0; }
+ .quote-block { background: var(--surface); border-radius: var(--radius); padding: 32px 28px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg); text-align: center; margin: 32px 0; }
  .quote-block p { font-size: 16px; font-weight: 500; color: var(--text-primary); line-height: 1.7; max-width: 700px; margin: 0 auto; }
  .quote-block .attr { font-size: 13px; color: var(--text-tertiary); margin-top: 12px; }
 
  /* ── Feature pill list ── */
  .pill-list { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0; }
- .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--purple-600); background: var(--purple-light); padding: 4px 14px; border-radius: 100px; }
- .pill.green { color: var(--green); background: var(--green-light); }
- .pill.blue { color: var(--blue); background: var(--blue-light); }
- .pill.gold { color: #b45309; background: var(--gold-light); }
+ .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ap-semantic-brand-on-light); background: var(--purple-light); padding: 4px 14px; border-radius: 100px; }
+ .pill.green { color: var(--ap-primitive-green-700); background: var(--green-light); }
+ .pill.blue { color: var(--ap-primitive-blue-700); background: var(--blue-light); }
+ .pill.gold { color: var(--ap-semantic-warning); background: var(--gold-light); }
 
  /* ── CTA Block ── */
- .cta-block { text-align: center; background: linear-gradient(135deg, var(--surface), var(--purple-light)); border-radius: var(--radius); padding: 48px 24px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg); }
+ .cta-block { text-align: center; background: var(--surface); border-radius: var(--radius); padding: 48px 24px; border: 1px solid var(--border-subtle); box-shadow: var(--shadow-lg); }
  .cta-block h2 { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
  .cta-block p { font-size: 14px; color: var(--text-secondary); max-width: 560px; margin: 0 auto 24px; }
  .cta-block .btn-row { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
- .cta-block .btn-primary { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #fff; background: var(--purple-600); padding: 12px 28px; border-radius: 100px; text-decoration: none; transition: transform .2s, box-shadow .2s; box-shadow: 0 4px 16px rgba(124,92,252,0.3); }
+ .cta-block .btn-primary { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--ap-primitive-white); background: var(--purple-600); padding: 12px 28px; border-radius: 100px; text-decoration: none; transition: transform .2s, box-shadow .2s; box-shadow: 0 4px 16px rgba(124,92,252,0.3); }
  .cta-block .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(124,92,252,0.4); }
  .cta-block .btn-secondary { font-size: 14px; font-weight: 500; color: var(--text-secondary); padding: 11px 24px; border-radius: 100px; text-decoration: none; border: 1.5px solid var(--border-medium); transition: border-color .2s, color .2s; }
  .cta-block .btn-secondary:hover { border-color: var(--purple); color: var(--purple); }
@@ -224,7 +229,7 @@
  <a href="/cn/" class="btn-primary">进入终端 →</a>
  <a href="/api/v1/cn/framework" class="btn-secondary">查看技术全景 →</a></div></div>
 
- <!-- ═══════ KPI Row ═══════ -->
+<!-- ═══════ KPI Row ═══════ -->
  <div class="kpi-row" style="margin-bottom:40px">
  <div class="kpi-card kpi-purple"><div class="kpi-value">在线增量</div><div class="kpi-label">ML 模型每笔平仓自进化</div></div>
  <div class="kpi-card kpi-blue"><div class="kpi-value">5,000+</div><div class="kpi-label">A 股每日全市场扫描</div></div>
@@ -234,7 +239,7 @@
  <!-- ═══════ 1. PAS: Problem / Agitation / Solution ═══════ -->
  <div class="section">
  <div class="section-header">
- <div class="label">The Problem</div>
+ <div class="label">核心问题</div>
  <h2>90% 的量化都在做同一件事：回测漂亮，实盘崩盘</h2>
  <p>你买过量化模板、接过 API、跑过回测。夏普很好看，曲线很平滑。一上实盘，全变样。问题出在哪里？</p></div>
 
@@ -294,7 +299,7 @@
  <!-- ═══════ 2. 核心差异化 ═══════ -->
  <div class="section">
  <div class="section-header">
- <div class="label">Differentiation</div>
+ <div class="label">本质差异</div>
  <h2>与其它量化方案的本质区别</h2>
  <p>传统量化系统是静态的——AlphaPilot 每一天都在进化</p></div>
 
@@ -333,11 +338,11 @@
  <!-- ═══════ 3. 对比：传统量化 vs AlphaPilot ═══════ -->
  <div class="section">
  <div class="section-header">
- <div class="label">vs Traditional Quant</div>
+ <div class="label">直观对比</div>
  <h2>直观对比：传统量化 vs AlphaPilot</h2>
  <p>绝大多数量化系统停留在「写好策略→回测→实盘」的三步走——AlphaPilot 走的是另一条路</p></div>
 
- <div class="card" style="overflow-x:auto; padding:0;">
+ <div class="card" style="overflow-x:auto; padding:16px 20px;">
  <table class="compare-table">
  <thead>
  <tr>
@@ -398,7 +403,7 @@
  <!-- ═══════ 4. 盘中自适应时间线 ═══════ -->
  <div class="section">
  <div class="section-header">
- <div class="label">Intraday Timeline</div>
+ <div class="label">今日盘中</div>
  <h2>今日盘中管线</h2>
  <p>传统系统用昨日数据交易今日——AlphaPilot 在开盘几分钟内完成全场刷新</p></div>
 
@@ -427,17 +432,17 @@
  <!-- ═══════ 5. 核心模块 ═══════ -->
  <div class="section">
  <div class="section-header">
- <div class="label">Architecture</div>
+ <div class="label">系统架构</div>
  <h2>五大核心模块</h2></div>
 
  <div class="card-grid">
- <div class="card" style="border-top:3px solid var(--purple-500)">
+ <div class="card" style="background: linear-gradient(to right, rgba(124,92,252,0.03), transparent);">
 <h3>双轨评分引擎</h3>
  <p>
  <strong>Track A — ICIR 质量评分：</strong>130+ 因子全市场截面 z-score，ICIR 动态加权。不需要人工调因子权重，系统根据信息系数自动化迭代。<br><br>
  <strong>Track B — 实时动量评分：</strong>09:35 全市场资金流扫描，机构净流、主动买入比、换手放量。捕捉传统因子完全忽略的资金突发型机会。<br><br>
  <strong>融合：</strong>质量×50% + 动量×50%，确保既有基本面价值又有真实资金兴趣。</p></div>
- <div class="card" style="border-top:3px solid var(--blue)">
+ <div class="card" style="background: linear-gradient(to right, rgba(30,136,229,0.03), transparent);">
 <h3>Kelly 在线仓位分配</h3>
  <p>
  <strong>在线胜率预测：</strong>Online Logistic Regression，3 维特征（score_pct, vol_norm, expo），每次平仓 partial_fit 更新。<br><br>
@@ -445,14 +450,14 @@
  <strong>波动率调整：</strong>20 日对数收益年化标准差锚定行业中位数。<br><br>
  <strong>行业集中度约束：</strong>同行业总权重 ≤ 40%。<br><br>
  最少 30 条 trade 才启用 ML，之前 Fallback 回测静态表。</p></div>
- <div class="card" style="border-top:3px solid var(--green)">
+ <div class="card" style="background: linear-gradient(to right, rgba(43,168,74,0.03), transparent);">
 <h3>4 层动态出场体系</h3>
  <p>
  <strong>① 动态止盈（回撤减半）：</strong>浮盈 ≥3% 激活跟踪；回落 ≥1.5% 减半；共 3 刀，第三刀清仓。<br><br>
  <strong>② E2 硬止损：</strong>亏损 ≥10%，仅 14:45 后收盘确认窗口且现价仍 ≤ 止损才执行。给反弹留空间。<br><br>
  <strong>③ T+2 强平：</strong>日频持仓 ≥2 天强制离场。资金净流入 + 现价 ≥ 成本 95% 可延期 1 天。<br><br>
  <strong>④ 板块反转盘中预警：</strong>盘中巡检，持仓板块从资金流入转为大幅流出时紧急市价卖出。</p></div>
- <div class="card" style="border-top:3px solid var(--gold)">
+ <div class="card" style="background: linear-gradient(to right, rgba(245,158,11,0.03), transparent);">
 <h3>GapSoft 非对称入场</h3>
  <p>
  <strong>核心思想：</strong>根据开盘涨幅（gap）动态调整入场姿势和权重，不追高不盲买。<br><br>
@@ -461,7 +466,7 @@
  3% ≤ gap < 5% → 限价昨收×1.02，权重线性递减<br>
  gap ≥ 5% / 涨停 → 跳过<br><br>
  <strong>叠加资金确认：</strong>开盘 5 分钟主力资金流向不配合 → 降权或跳过。</p></div>
- <div class="card" style="border-top:3px solid var(--red)">
+ <div class="card" style="background: linear-gradient(to right, rgba(229,57,53,0.03), transparent);">
 <h3>Expo 市场自适应</h3>
  <p>
  系统根据市场环境自动调整整体仓位：<br><br>
@@ -470,7 +475,7 @@
  <strong>severe（严峻）：</strong>轻仓或空仓，只保留最强信号<br>
  <strong>crash_day（崩盘）：</strong>零仓位，全部清仓<br><br>
  判断依据：万得全 A 指数涨跌 + 涨跌比 + 资金流 + 成交量。完全量化，零主观判断。</p></div>
- <div class="card" style="border-top:3px solid var(--purple-500)">
+ <div class="card" style="background: linear-gradient(to right, rgba(124,92,252,0.03), transparent);">
 <h3>全自动交易执行</h3>
  <p>
  <strong>每日 09:36 自动生成信号</strong> → 盘中逐笔自动执行<br><br>
@@ -481,7 +486,7 @@
  <!-- ═══════ 6. 数据源 ═══════ -->
  <div class="section">
  <div class="section-header">
- <div class="label">Data Sources</div>
+ <div class="label">数据源</div>
  <h2>机构级多源数据</h2>
  <p>全维度数据覆盖，与机构站在同一信息起跑线</p></div>
 
@@ -506,7 +511,7 @@
  <!-- ═══════ 7. 对比其他方案 ═══════ -->
  <div class="section">
  <div class="section-header">
- <div class="label">vs Alternatives</div>
+ <div class="label">同类对比</div>
  <h2>同类方案对比：AlphaPilot 的独特位置</h2></div>
 
  <div class="card-grid">

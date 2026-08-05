@@ -24,6 +24,9 @@ import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import akshare as ak
+import pandas as pd
+
 # ── 路径 ──
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / "output"
@@ -71,6 +74,119 @@ def fetch_market_overview() -> dict:
     return fetch_json(f"{API_BASE}/market-overview", timeout=10)
 
 
+def _sina_symbol(symbol: str) -> str:
+    """转换为新浪认可的代码格式。"""
+    s = str(symbol).strip()
+    if s.startswith(("sh", "sz", "bj")):
+        return s.lower()[:2] + s[2:]
+    if s.startswith(("6", "9")):
+        return "sh" + s
+    return "sz" + s
+
+
+def _parse_sina_hq(line: str) -> tuple[float | None, float | None]:
+    """解析新浪 hq 行情行，返回 (current_price, prev_close)。"""
+    if not line or "=" not in line:
+        return None, None
+    try:
+        parts = line.split('"')[1].split(",")
+        if len(parts) < 4:
+            return None, None
+        prev_close = float(parts[2]) if parts[2] else None
+        current = float(parts[3]) if parts[3] else None
+        return current, prev_close
+    except (IndexError, ValueError):
+        return None, None
+
+
+def fetch_up_down_real() -> dict:
+    """通过新浪全A实时行情获取上涨/下跌家数。
+
+    容灾链: 新浪hq批量 → 新浪paginated → 返回空(走其余兜底)
+    """
+    # ── 第一优先级：新浪 hq.sinajs.cn 批量 ──
+    try:
+        # 从 data_fetcher 获取股票代码列表（本地 parquet 缓存，无需网络）
+        import data_fetcher as _df
+        codes = list(_df.get_stock_list()["symbol"].values)
+
+        if not codes:
+            raise RuntimeError("no stock codes available")
+
+        # 分批查询 Sina（每批 800 个）
+        up = 0
+        down = 0
+        batch_size = 800
+        for i in range(0, len(codes), batch_size):
+            batch = codes[i:i + batch_size]
+            symbols = ",".join(_sina_symbol(c) for c in batch)
+            url = f"https://hq.sinajs.cn/list={symbols}"
+            req = urllib.request.Request(
+                url,
+                headers={"Referer": "https://finance.sina.com.cn"},
+            )
+            resp = urllib.request.urlopen(req, timeout=15)
+            text = resp.read().decode("gbk")
+            for raw_line in text.split(";"):
+                cur, prev = _parse_sina_hq(raw_line)
+                if cur is not None and prev is not None and prev > 0:
+                    pct = (cur - prev) / prev * 100
+                    # 过滤异常：涨跌幅应在 ±20% 内（A股10%+新股/科创板20%）
+                    if pct < -22 or pct > 22:
+                        continue
+                    if pct > 0:
+                        up += 1
+                    elif pct < 0:
+                        down += 1
+        total = up + down
+        print(f"[OK] sina hq up/down: {up}/{down} (total={total})", flush=True)
+        if total > 0:
+            return {"up_count": up, "down_count": down}
+    except Exception as e:
+        print(f"[WARN] sina hq batch failed: {e}", file=sys.stderr)
+
+    # ── 第二优先级：新浪 Market_Center paginated ──
+    try:
+        up = 0
+        down = 0
+        total = 0
+        for page in range(1, 60):
+            url = (
+                "https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php"
+                f"/Market_Center.getHQNodeData?page={page}&num=100&sort=changepercent&asc=0&node=hs_a"
+            )
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "Referer": "https://finance.sina.com.cn",
+                    "User-Agent": "Mozilla/5.0",
+                },
+            )
+            resp = urllib.request.urlopen(req, timeout=10)
+            rows = json.loads(resp.read().decode("gbk"))
+            if not isinstance(rows, list) or not rows:
+                break
+            for r in rows:
+                cp = r.get("changepercent")
+                if cp is not None:
+                    cp = float(cp)
+                    if cp > 0:
+                        up += 1
+                    elif cp < 0:
+                        down += 1
+                    total += 1
+            if len(rows) < 100:
+                break  # last page
+        print(f"[OK] sina paginated up/down: {up}/{down} (total={total})", flush=True)
+        if total > 0:
+            return {"up_count": up, "down_count": down}
+    except Exception as e:
+        print(f"[WARN] sina paginated failed: {e}", file=sys.stderr)
+
+    print("[WARN] fetch_up_down_real: all sources failed", file=sys.stderr)
+    return {}
+
+
 def load_wind_board_flow(max_age_hours: float = 36.0) -> dict | None:
     """读取盘后万得板块资金快照（咨询/研报主叙事；不改交易硬门）。"""
     path = ROOT / "data" / "wind_board_flow.json"
@@ -96,6 +212,19 @@ def load_wind_board_flow(max_age_hours: float = 36.0) -> dict | None:
         except ValueError:
             pass
     return raw
+
+
+def get_ths_data_label(date_str: str, session: str) -> str:
+    """获取通达信数据的实际日期标注（上一个交易日）。"""
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+    weekday = dt.weekday()
+    if weekday == 0:  # Monday -> Friday
+        dt = dt - timedelta(days=3)
+    elif weekday == 6:  # Sunday -> Friday
+        dt = dt - timedelta(days=2)
+    elif weekday == 5:  # Saturday -> Friday
+        dt = dt - timedelta(days=1)
+    return dt.strftime("%m/%d")
 
 
 def _fmt(v: float) -> str:
@@ -324,18 +453,40 @@ def generate_report_sections(
             if val is not None:
                 heat_data.append([j, i, val])
 
+    # ── Wind 行业资金流 ──
+    wind_industry_in = (wind_consult or {}).get("industry_top_inflow") or []
+    wind_industry_out = (wind_consult or {}).get("industry_top_outflow") or []
+    wind_prefer = (wind_consult or {}).get("prefer") or []
+    wind_avoid_list = (wind_consult or {}).get("avoid") or []
+
+    # ── 通达信数据日期标注（上一个交易日）──
+    ths_label_date = get_ths_data_label(date_str, session)
+
     chart_json = json.dumps({
         "bar": {"names": bar_names, "values": bar_values},
         "concept": {"names": concept_names, "values": concept_values},
         "heat": {"sectors": heat_sectors, "periods": heat_periods, "data": heat_data},
     }, ensure_ascii=False)
 
-    # ── 1. 市场概览数据 ──
-    total_net = summary.get("net_yi", 0)
-    allow_count = summary.get("allow", 0)
-    deny_count = summary.get("deny", 0)
-    up_count = overview.get("up_count", 0)
-    down_count = overview.get("down_count", 0)
+    # ── 1. 市场概览数据（Wind 今日数据）──
+    all_a_data = (wind_flow or {}).get("all_a") or {}
+    total_net = all_a_data.get("main_net") or 0
+    # 上涨/下跌：akshare 实时 > Wind > market-overview API > 兜底
+    _updown = fetch_up_down_real()
+    up_count = _updown.get("up_count") or all_a_data.get("up_count") or overview.get("up_count", 0)
+    down_count = _updown.get("down_count") or all_a_data.get("down_count") or overview.get("down_count", 0)
+    inst_net = all_a_data.get("inst_net")
+    large_net = all_a_data.get("large_net")
+    mid_net = all_a_data.get("mid_net")
+    retail_net = all_a_data.get("retail_net")
+
+    # 判断全A情绪
+    if inst_net and large_net and inst_net > 0 and large_net > 0:
+        sentiment_label = "偏多"
+    elif inst_net and large_net and inst_net < 0 and large_net < 0:
+        sentiment_label = "偏空"
+    else:
+        sentiment_label = "分歧"
 
     # 指数涨跌文字
     idx_parts = []
@@ -345,10 +496,10 @@ def generate_report_sections(
     idx_text = "、".join(idx_parts) if idx_parts else "数据待获取"
 
     # ── 2. 核心判断 ──
-    if total_net is not None and total_net > 0:
-        headline = f"主力净流入{_fmt(total_net)}，{allow_count}个板块获放行、{deny_count}个被拦截。{idx_text}。资金今日整体偏多，但需关注结构性分化。"
-    elif total_net is not None and total_net < 0:
-        headline = f"主力净流出{_fmt(total_net)}，{deny_count}个板块被拦截、{allow_count}个获放行。{idx_text}。资金今日整体偏空，防御优先。"
+    if total_net > 0:
+        headline = f"主力净流入{_fmt(total_net)}，全A情绪{sentiment_label}。{idx_text}。资金今日整体偏多，但需关注结构性分化。"
+    elif total_net < 0:
+        headline = f"主力净流出{_fmt(total_net)}，全A情绪{sentiment_label}。{idx_text}。资金今日整体偏空，防御优先。"
     else:
         headline = f"主力资金基本持平，{idx_text}。市场观望情绪浓厚，板块分化加剧。"
 
@@ -433,22 +584,142 @@ def generate_report_sections(
 <title>板块研报 {date_str} {session_label} | AlphaPilot</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
+  /* AlphaPilot Design Tokens — 与 tokens.css 保持一致 */
   :root {{
-    --bg: #F5F5F7;
-    --card: #FFFFFF;
-    --bg-tertiary: #FAFAFA;
-    --border: rgba(0,0,0,0.06);
-    --text: #1D1D1F;
-    --text-secondary: #3A3A40;
-    --text-tertiary: #86868B;
-    --purple: #7C5CFC;
-    --purple-light: #EDE9FE;
-    --red: #FF3B30;
-    --green: #34C759;
-    --yellow: #FF9500;
-    --radius: 16px;
-    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
-    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --ap-primitive-violet-50: #EDE9FE; --ap-primitive-violet-100: #DDD6FE;
+    --ap-primitive-violet-400: #A78BFA; --ap-primitive-violet-500: #8B5CF6;
+    --ap-primitive-violet-600: #7C3AED; --ap-primitive-violet-700: #6D3AEA;
+    --ap-primitive-violet-900: #5B21B6; --ap-primitive-violet-950: #4C1D95;
+    --ap-primitive-red-50: #FEF2F2; --ap-primitive-red-100: #FEE2E2;
+    --ap-primitive-red-200: #FECACA; --ap-primitive-red-500: #EF4444;
+    --ap-primitive-red-600: #DC2626; --ap-primitive-red-700: #C62828;
+    --ap-primitive-red-800: #991B1B; --ap-primitive-red-900: #7F1D1D;
+    --ap-primitive-green-50: #ECFDF5; --ap-primitive-green-100: #D1FAE5;
+    --ap-primitive-green-500: #10B981; --ap-primitive-green-600: #059669;
+    --ap-primitive-green-700: #166534; --ap-primitive-green-800: #1E7A35;
+    --ap-primitive-green-900: #14532D;
+    --ap-primitive-amber-50: #FEF3C7; --ap-primitive-amber-100: #FDE68A;
+    --ap-primitive-amber-600: #D97706; --ap-primitive-amber-700: #B45309;
+    --ap-primitive-amber-800: #92400E;
+    --ap-primitive-gray-50: #FAFAFA; --ap-primitive-gray-100: #F5F5F7;
+    --ap-primitive-gray-200: #EEEEF2; --ap-primitive-gray-300: #E2E2E7;
+    --ap-primitive-gray-400: #D0D0D7; --ap-primitive-gray-500: #86868B;
+    --ap-primitive-gray-600: #55555B; --ap-primitive-gray-700: #3A3A40;
+    --ap-primitive-gray-800: #1D1D1F;
+    --ap-primitive-blue-50: #DBEAFE; --ap-primitive-blue-100: #BFDBFE;
+    --ap-primitive-blue-600: #2563EB; --ap-primitive-blue-700: #1E40AF;
+    --ap-primitive-blue-800: #1A6FC4; --ap-primitive-white: #FFFFFF;
+    --ap-primitive-black-4: rgba(0,0,0,0.04); --ap-primitive-black-6: rgba(0,0,0,0.06);
+    --ap-primitive-black-8: rgba(0,0,0,0.08); --ap-primitive-black-12: rgba(0,0,0,0.12);
+    --ap-primitive-violet-8: rgba(124,92,252,0.08); --ap-primitive-violet-4: rgba(124,92,252,0.04);
+    --ap-primitive-blue-6: rgba(30,136,229,0.06);
+    --ap-primitive-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --ap-primitive-font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --ap-primitive-radius-xs: 4px; --ap-primitive-radius-sm: 8px;
+    --ap-primitive-radius-md: 12px; --ap-primitive-radius-lg: 16px;
+    --ap-primitive-radius-xl: 20px; --ap-primitive-radius-full: 9999px;
+    --ap-primitive-space-1: 4px; --ap-primitive-space-2: 8px; --ap-primitive-space-3: 12px;
+    --ap-primitive-space-4: 16px; --ap-primitive-space-5: 20px; --ap-primitive-space-6: 24px;
+    --ap-primitive-space-8: 32px; --ap-primitive-space-12: 48px; --ap-primitive-space-14: 56px;
+    --ap-primitive-shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
+    --ap-primitive-shadow-elevated: 0 4px 16px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+    --ap-primitive-shadow-hover: 0 8px 24px rgba(0,0,0,0.08);
+    --ap-primitive-shadow-button: 0 4px 16px rgba(124,92,252,0.3);
+    --ap-primitive-motion-instant: 100ms; --ap-primitive-motion-fast: 150ms;
+    --ap-primitive-motion-base: 200ms; --ap-primitive-motion-slow: 250ms;
+    --ap-primitive-font-xs: 12px; --ap-primitive-font-sm: 13px; --ap-primitive-font-base: 14px;
+    --ap-primitive-font-md: 15px; --ap-primitive-font-lg: 17px; --ap-primitive-font-xl: 20px;
+    --ap-primitive-font-2xl: 22px; --ap-primitive-font-3xl: 24px; --ap-primitive-font-4xl: 28px;
+    --ap-primitive-font-5xl: 44px;
+    --ap-primitive-weight-regular: 400; --ap-primitive-weight-medium: 500;
+    --ap-primitive-weight-semibold: 600; --ap-primitive-weight-bold: 700;
+    --ap-primitive-weight-extrabold: 800;
+    --ap-primitive-line-tight: 1.2; --ap-primitive-line-normal: 1.6; --ap-primitive-line-relaxed: 1.85;
+    --ap-primitive-container-max: 1200px; --ap-primitive-chart-height: 400px;
+    --ap-primitive-chart-height-mobile: 300px; --ap-primitive-chart-mini-height: 40px;
+    --ap-primitive-chart-main-height: 280px;
+    --ap-semantic-brand: var(--ap-primitive-violet-600);
+    --ap-semantic-brand-strong: var(--ap-primitive-violet-700);
+    --ap-semantic-brand-on-light: var(--ap-primitive-violet-900);
+    --ap-semantic-brand-light: var(--ap-primitive-violet-50);
+    --ap-semantic-brand-subtle: var(--ap-primitive-violet-8);
+    --ap-semantic-up: var(--ap-primitive-red-700);
+    --ap-semantic-up-on-light: var(--ap-primitive-red-900);
+    --ap-semantic-up-light: var(--ap-primitive-red-50);
+    --ap-semantic-up-soft: var(--ap-primitive-red-50);
+    --ap-semantic-down: var(--ap-primitive-green-800);
+    --ap-semantic-down-on-light: var(--ap-primitive-green-900);
+    --ap-semantic-down-light: var(--ap-primitive-green-50);
+    --ap-semantic-down-soft: var(--ap-primitive-green-50);
+    --ap-semantic-flat: var(--ap-primitive-gray-500);
+    --ap-semantic-warning: var(--ap-primitive-amber-700);
+    --ap-semantic-warning-on-light: var(--ap-primitive-amber-800);
+    --ap-semantic-warning-light: var(--ap-primitive-amber-50);
+    --ap-semantic-bg: var(--ap-primitive-gray-100);
+    --ap-semantic-bg-tertiary: var(--ap-primitive-gray-50);
+    --ap-semantic-surface: var(--ap-primitive-white);
+    --ap-semantic-border: var(--ap-primitive-black-6);
+    --ap-semantic-border-strong: var(--ap-primitive-black-8);
+    --ap-semantic-text: var(--ap-primitive-gray-800);
+    --ap-semantic-text-secondary: var(--ap-primitive-gray-700);
+    --ap-semantic-text-tertiary: var(--ap-primitive-gray-600);
+    --ap-semantic-text-muted: var(--ap-primitive-gray-500);
+    --ap-semantic-focus-ring: 0 0 0 3px var(--ap-primitive-violet-8);
+    --ap-semantic-link: var(--ap-primitive-blue-800);
+    --ap-semantic-link-hover: var(--ap-primitive-blue-700);
+    --ap-semantic-data-font: var(--ap-primitive-font-mono);
+    --ap-semantic-data-sync: var(--ap-primitive-motion-instant);
+    --ap-semantic-shadow-card: var(--ap-primitive-shadow-card);
+    --ap-semantic-shadow-elevated: var(--ap-primitive-shadow-elevated);
+    --ap-semantic-shadow-hover: var(--ap-primitive-shadow-hover);
+    --ap-semantic-shadow-button: var(--ap-primitive-shadow-button);
+    --ap-comp-stat-card-bg: var(--ap-semantic-bg-tertiary);
+    --ap-comp-stat-card-radius: var(--ap-primitive-radius-md);
+    --ap-comp-stat-card-padding: var(--ap-primitive-space-3);
+    --ap-comp-stat-value-font: var(--ap-primitive-font-2xl);
+    --ap-comp-stat-value-weight: var(--ap-primitive-weight-bold);
+    --ap-comp-stat-label-font: var(--ap-primitive-font-xs);
+    --ap-comp-stat-label-color: var(--ap-semantic-text-tertiary);
+    --ap-comp-section-card-bg: var(--ap-semantic-surface);
+    --ap-comp-section-card-radius: var(--ap-primitive-radius-lg);
+    --ap-comp-section-card-padding: 28px 32px;
+    --ap-comp-section-card-border: 1px solid var(--ap-semantic-border);
+    --ap-comp-section-card-shadow: var(--ap-semantic-shadow-card);
+    --ap-comp-section-gap: var(--ap-primitive-space-5);
+    --ap-comp-highlight-box-bg: var(--ap-semantic-brand-light);
+    --ap-comp-highlight-box-radius: var(--ap-primitive-radius-md);
+    --ap-comp-highlight-box-padding: 14px 18px;
+    --ap-comp-btn-primary-bg: var(--ap-primitive-violet-600);
+    --ap-comp-btn-primary-hover: var(--ap-primitive-violet-700);
+    --ap-comp-btn-primary-text: var(--ap-primitive-white);
+    --ap-comp-btn-primary-shadow: var(--ap-semantic-shadow-button);
+    --ap-comp-btn-radius: var(--ap-primitive-radius-full);
+    --ap-comp-btn-padding: 12px 28px;
+    --ap-comp-btn-font: var(--ap-primitive-font-md);
+    --ap-comp-table-th-bg: var(--ap-semantic-bg-tertiary);
+    --ap-comp-table-th-color: var(--ap-semantic-text-tertiary);
+    --ap-comp-table-border: var(--ap-semantic-border);
+    --ap-comp-table-hover-bg: var(--ap-semantic-brand-subtle);
+    --ap-comp-badge-radius: var(--ap-primitive-radius-xl);
+    --ap-comp-badge-font: var(--ap-primitive-font-xs);
+    --ap-comp-badge-weight: var(--ap-primitive-weight-semibold);
+  }}
+  :root {{
+    --bg: var(--ap-semantic-bg);
+    --card: var(--ap-semantic-surface);
+    --bg-tertiary: var(--ap-semantic-bg-tertiary);
+    --border: var(--ap-semantic-border);
+    --text: var(--ap-semantic-text);
+    --text-secondary: var(--ap-semantic-text-secondary);
+    --text-tertiary: var(--ap-semantic-text-tertiary);
+    --purple: var(--ap-semantic-brand);
+    --purple-light: var(--ap-semantic-brand-light);
+    --red: var(--ap-semantic-up);
+    --green: var(--ap-semantic-down);
+    --yellow: var(--ap-semantic-warning);
+    --radius: var(--ap-primitive-radius-lg);
+    --shadow: var(--ap-semantic-shadow-card);
+    --font: var(--ap-primitive-font-sans);
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; -webkit-font-smoothing: antialiased; }}
@@ -514,73 +785,42 @@ def generate_report_sections(
 <div class="header">
   <div>
     <h1>板块研报 · {session_label}</h1>
-    <div class="meta">{date_str} | 数据源：通达信 + 万得行业流（咨询） | 生成于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+    <div class="meta">{date_str} | 数据源：万得行业资金流(今日收盘) + 新浪实时指数 | 生成于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
   </div>
   <span class="badge">{session_label}</span>
 </div>
 """)
 
-    # ── 〇、万得行业资金主叙事（咨询轨）──
-    if wind_consult:
-        sentiment = wind_consult.get("all_a_sentiment") or {}
-        tone = sentiment.get("tone") or "—"
-        tone_cn = {"risk_on": "偏多", "mixed": "分化", "risk_off": "偏空"}.get(tone, tone)
-        top_in = wind_consult.get("industry_top_inflow") or []
-        top_out = wind_consult.get("industry_top_outflow") or []
-        prefer = wind_consult.get("prefer") or []
-        avoid = wind_consult.get("avoid") or []
-        rot_watch = wind_consult.get("rotation_watch") or []
-        wind_asof = (wind_flow or {}).get("asof") or date_str
-        html_parts.append(f"""
-<div class="section">
-  <h2>〇、万得行业资金（咨询主叙事）</h2>
-  <p>用途：早报/午评/板块解释。交易硬门仍走通达信资金门，本段不直接下单。</p>
-  <p>快照日 {wind_asof}。全A情绪：<strong>{tone_cn}</strong>
-    （主力{_fmt(sentiment.get('main_net'))} /
-     机构{_fmt(sentiment.get('inst_net'))} /
-     大户{_fmt(sentiment.get('large_net'))} /
-     散户{_fmt(sentiment.get('retail_net'))}）。</p>
-""")
-        if top_in:
-            html_parts.append(
-                "  <h3>行业流入 Top</h3>\n  <p>"
-                + "；".join(_fmt_wind_row(x) for x in top_in[:8])
-                + "</p>\n"
-            )
-        if top_out:
-            html_parts.append(
-                "  <h3>行业流出 Top</h3>\n  <p>"
-                + "；".join(_fmt_wind_row(x) for x in top_out[:8])
-                + "</p>\n"
-            )
-        html_parts.append(
-            "  <div class=\"highlight\">"
-            f"<div class=\"label\">动态因子 · 轮动</div>"
-            f"<div class=\"text\">新鲜偏好：{'、'.join(prefer[:8]) or '—'}。"
-            f"连续流入观察（约3–4日易轮换）：{'、'.join(rot_watch[:8]) or '—'}。"
-            f"当日流出：{'、'.join(avoid[:8]) or '—'}。</div></div>\n"
-        )
-        html_parts.append("</div>\n")
-
-    # ── 一、数据基础 & 市场概览 ──
+    # ── 一、数据基础 & 市场概览（Wind 今日数据）──
     html_parts.append(f"""
 <div class="section">
   <h2>一、数据基础 & 市场概览</h2>
-  <p>数据来源：通达信THS行业指数多周期快照（今日/5日/10日/20日/60日）、主力资金净流入数据、市场概览；万得行业流见「〇」节。</p>
+  <p>数据来源：万得行业资金流(今日收盘) + 新浪实时指数</p>
 
   <div class="stat-row">
     <div class="stat">
       <div class="label">上涨 / 下跌</div>
-      <div class="value"><span class="{'red' if up_count >= down_count else 'green'}">{up_count}</span> / <span class="{'green' if down_count > up_count else 'red'}">{down_count}</span></div>
+      <div class="value"><span class="{'red' if (up_count or 0) >= (down_count or 0) else 'green'}">{up_count}</span> / <span class="{'green' if (down_count or 0) > (up_count or 0) else 'red'}">{down_count}</span></div>
     </div>
     <div class="stat">
       <div class="label">主力净流入</div>
       <div class="value {'red' if (total_net or 0) > 0 else 'green'}">{_fmt(total_net)}</div>
     </div>
     <div class="stat">
-      <div class="label">放行 / 拦截板块</div>
-      <div class="value">{allow_count} / {deny_count}</div>
+      <div class="label">全A情绪</div>
+      <div class="value" style="color:var(--purple);">{sentiment_label}</div>
     </div>
+  </div>
+
+  <h3>行业资金流 Top</h3>
+  <p>{"；".join(_fmt_wind_row(x) for x in wind_industry_in[:8]) if wind_industry_in else "暂无数据"}</p>
+
+  <h3>行业流出 Top</h3>
+  <p>{"；".join(_fmt_wind_row(x) for x in wind_industry_out[:8]) if wind_industry_out else "暂无数据"}</p>
+
+  <div class="highlight">
+    <div class="label">板块偏好 · Wind</div>
+    <div class="text"><strong>Prefer：</strong>{'、'.join(wind_prefer[:8]) or '—'}。<br><strong>Avoid：</strong>{'、'.join(wind_avoid_list[:8]) or '—'}。</div>
   </div>
 
   <h3>三大指数</h3>
@@ -598,8 +838,40 @@ def generate_report_sections(
 """)
 
     html_parts.append("""  </div>
+
+  <h3>全A情绪 · 4档归因</h3>
+  <div class="stat-row">
+    <div class="stat">
+      <div class="label">机构净流入</div>
+      <div class="value {0}">{1}</div>
+    </div>
+    <div class="stat">
+      <div class="label">大户净流入</div>
+      <div class="value {0}">{2}</div>
+    </div>
+    <div class="stat">
+      <div class="label">中户净流入</div>
+      <div class="value {0}">{3}</div>
+    </div>
+    <div class="stat">
+      <div class="label">散户净流入</div>
+      <div class="value {0}">{4}</div>
+    </div>
+  </div>
+  <p style="font-size:13px; color:var(--text-tertiary);">
+    上涨 {5} 家 / 下跌 {6} 家 &nbsp;·&nbsp; 机构+大户双买入 → <strong>{7}</strong>
+  </p>
 </div>
-""")
+""".format(
+    "red" if (inst_net or 0) > 0 else "green",
+    _fmt(inst_net) if inst_net is not None else "—",
+    _fmt(large_net) if large_net is not None else "—",
+    _fmt(mid_net) if mid_net is not None else "—",
+    _fmt(retail_net) if retail_net is not None else "—",
+    up_count or "数据加载中",
+    down_count or "数据加载中",
+    sentiment_label,
+))
 
     # ── 二、核心判断 ──
     html_parts.append(f"""
@@ -705,9 +977,10 @@ def generate_report_sections(
 
     html_parts.append("</div>\n")
 
-    # ── 五、多周期资金流对比表 ──
-    html_parts.append("""<div class="section">
+    # ── 五、多周期资金流对比表（THS，标日期）──
+    html_parts.append(f"""<div class="section">
   <h2>五、多周期资金流对比（全行业）</h2>
+  <p style="font-size:13px;color:var(--text-tertiary);">通达信行业资金流，截至 {ths_label_date} 收盘</p>
   <div style="overflow-x:auto;">
   <table>
     <thead>
@@ -829,33 +1102,18 @@ def generate_report_sections(
 
     html_parts.append("</div>\n")
 
-    # ── 八、今日关注 vs 回避 ──
-    html_parts.append("""<div class="section">
+    # ── 八、今日关注 vs 回避（Wind 板块偏好）──
+    html_parts.append(f"""<div class="section">
   <h2>八、今日关注 vs 回避</h2>
+  <p>基于Wind行业资金流板块偏好</p>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
     <div>
-      <h3 style="color:var(--red);">关注</h3>
-      <table>
-        <thead><tr><th>板块</th><th>净流入(亿)</th></tr></thead>
-        <tbody>
-""")
-    for w in watch_list:
-        html_parts.append(f"""          <tr><td>{w.get('name','')}</td><td class="pos">{w.get('net_yi',0):+.1f}</td></tr>
-""")
-    html_parts.append("""        </tbody>
-      </table>
+      <h3 style="color:var(--red);">Prefer（关注）</h3>
+      <p>{'、'.join(wind_prefer[:8]) or '暂无数据'}</p>
     </div>
     <div>
-      <h3 style="color:var(--green);">回避</h3>
-      <table>
-        <thead><tr><th>板块</th><th>净流出(亿)</th></tr></thead>
-        <tbody>
-""")
-    for a in avoid_list:
-        html_parts.append(f"""          <tr><td>{a.get('name','')}</td><td class="neg">{a.get('net_yi',0):+.1f}</td></tr>
-""")
-    html_parts.append("""        </tbody>
-      </table>
+      <h3 style="color:var(--green);">Avoid（回避）</h3>
+      <p>{'、'.join(wind_avoid_list[:8]) or '暂无数据'}</p>
     </div>
   </div>
 </div>
@@ -864,7 +1122,7 @@ def generate_report_sections(
     # ── Footer ──
     html_parts.append(f"""
 <div class="footer">
-  <p>通达信板块资金仅供研究，非投资建议</p>
+  <p>万得行业资金流(今日收盘) + 新浪实时指数 + 通达信多周期对比</p>
   <p>本内容仅为信息整理与分析参考，不构成投资建议，投资有风险，决策需谨慎。</p>
   <p>AlphaPilot · {date_str} {session_label} · 自动生成</p>
 </div>
@@ -1039,9 +1297,9 @@ def main():
         print(f"  - {period}...")
         dashboards[period] = fetch_sector_dashboard(period)
         if dashboards[period]:
-            print(f"    ✓ {dashboards[period].get('summary', {}).get('sector_count', 0)} 个板块")
+            print(f"    [OK] {dashboards[period].get('summary', {}).get('sector_count', 0)} 个板块")
         else:
-            print(f"    ✗ 获取失败")
+            print(f"    [FAIL] 获取失败")
 
     print("[4/5] 板块轮动分析...")
     rotation = analyze_sector_rotation(dashboards)
