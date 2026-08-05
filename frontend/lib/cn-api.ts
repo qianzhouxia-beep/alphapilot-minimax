@@ -933,6 +933,8 @@ export type FundStrengthItem = {
   limit_up_prob: number | null;
   label: string | null;
   today_net_yi: number | null;
+  main_net_pct?: number | null;
+  super_net_pct?: number | null;
 };
 
 export type FundStrengthData = {

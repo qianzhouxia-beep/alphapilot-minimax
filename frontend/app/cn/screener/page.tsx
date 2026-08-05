@@ -608,6 +608,18 @@ function FundStrengthTip({ strength }: { strength: FundStrengthItem }) {
           </div>
           <div className="space-y-1.5 text-[10px] leading-relaxed text-text-secondary">
             <div className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-status-danger">④</span>
+              <span>
+                <span className="font-semibold text-text-primary">机构净占比</span>{" "}
+                {strength.super_net_pct != null && Math.abs(strength.super_net_pct) >= 2
+                  ? `${strength.super_net_pct > 0 ? "+" : ""}${strength.super_net_pct.toFixed(1)}%`
+                  : strength.main_net_pct != null
+                  ? `${strength.main_net_pct > 0 ? "+" : ""}${strength.main_net_pct.toFixed(1)}%`
+                  : "—"}
+                ：超大单/主力净买入占当日成交额比例，越高说明机构买盘越占主导（免费源口径）。
+              </span>
+            </div>
+            <div className="flex items-start gap-1.5">
               <span className="mt-0.5 shrink-0 text-status-info">①</span>
               <span>
                 <span className="font-semibold text-text-primary">强度分位</span>{" "}
