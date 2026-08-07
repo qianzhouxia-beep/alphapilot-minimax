@@ -405,25 +405,37 @@ export default function CNScreener() {
 function statusTone(code?: string) {
   switch (code) {
     case "buy":
-      return "border-[rgba(62,230,168,0.35)] bg-[rgba(62,230,168,0.08)] text-[#3EE6A8]";
+      return "border-status-success/35 bg-status-success/10 text-status-success";
     case "half":
     case "light":
-      return "border-[rgba(77,163,255,0.35)] bg-[rgba(77,163,255,0.08)] text-[#4DA3FF]";
+      return "border-status-info/35 bg-status-info/10 text-status-info";
     case "awaiting":
-      return "border-[rgba(255,184,77,0.4)] bg-[rgba(255,184,77,0.1)] text-[#FFB84D]";
+      return "border-status-warning/40 bg-status-warning/10 text-status-warning";
     case "empty":
     case "no_picks":
-      return "border-[rgba(255,92,122,0.35)] bg-[rgba(255,92,122,0.08)] text-[#FF5C7A]";
+      return "border-status-danger/35 bg-status-danger/10 text-status-danger";
     default:
-      return "border-border-subtle bg-bg-elevated text-text-secondary";
+      return "border-border-subtle bg-bg-secondary text-text-secondary";
   }
+}
+
+/** 出场规则层级徽章配色：按 id 1–4 映射，未知回退循环。 */
+function layerBadgeTone(id: number | undefined, idx: number) {
+  const tones = [
+    "bg-status-info/10 text-status-info",
+    "bg-status-danger/10 text-status-danger",
+    "bg-status-warning/10 text-status-warning",
+    "bg-primary/10 text-primary",
+  ];
+  if (typeof id === "number" && id >= 1 && id <= 4) return tones[id - 1];
+  return tones[idx % tones.length];
 }
 
 function TradePlanCard({ plan }: { plan: TradePlan | null }) {
   if (!plan) {
     return (
       <section className="glass rounded-2xl p-5 border border-border-subtle">
-        <h2 className="text-[18px] font-semibold">今日交易指令</h2>
+        <h2 className="text-[18px] font-semibold tracking-tight">今日交易指令</h2>
         <p className="mt-2 text-[13px] text-text-disabled">指令尚未就绪，请稍后再刷新</p>
       </section>
     );
@@ -433,68 +445,115 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
   const buys = (plan.buys || []).filter((b) => b.action !== "skip");
   const expo = Number(plan.position_exposure ?? 0);
   const layers = plan.exit_layers || [];
+  const isAwaiting = status.code === "awaiting";
 
   return (
-    <section className="glass rounded-2xl p-5 sm:p-6 border border-[rgba(77,163,255,0.22)]">
+    <section className="glass rounded-2xl p-5 sm:p-6 border border-border-subtle overflow-hidden">
+      {/* 头部：标题 + 决策层 + 状态徽章 */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-        <div>
-          <h2 className="text-[18px] font-semibold tracking-tight">今日交易指令</h2>
+        <div className="min-w-0">
+          <h2 className="text-[18px] font-semibold tracking-tight flex items-center gap-2">
+            今日交易指令
+            <span className="hidden sm:inline-flex items-center rounded-md border border-purple-primary/20 bg-purple-primary/10 px-2 py-0.5 text-[11px] font-medium text-purple-primary">
+              决策层 · {plan.arm || "A1_permission"}
+            </span>
+          </h2>
           <p className="mt-1 text-[12px] text-text-disabled">
-            决策层 · {plan.arm || "A1_permission"}
-            {plan.asof ? ` · 信号 ${plan.asof}` : ""}
+            <span className="sm:hidden">
+              决策层 · {plan.arm || "A1_permission"}
+              {plan.asof ? " · " : ""}
+            </span>
+            {plan.asof ? `信号 ${plan.asof}` : ""}
           </p>
         </div>
         <div
-          className={`rounded-lg border px-3 py-1.5 text-[13px] font-semibold ${statusTone(status.code)}`}
+          className={`rounded-lg border px-3 py-1.5 text-[13px] font-semibold shrink-0 ${statusTone(status.code)}`}
         >
           {status.label}
         </div>
       </div>
 
-      {status.detail && (
-        <p className="mb-4 text-[13px] text-text-secondary leading-relaxed">{status.detail}</p>
-      )}
-      {plan.empty_reason_label && status.code === "awaiting" && (
-        <p className="mb-4 text-[12px] text-[#FFB84D]">
-          {plan.empty_reason_label}
-          {" · "}
-          <Link href="/cn/paper-trading" className="underline underline-offset-2 hover:text-text-primary">
-            去模拟盘确认
-          </Link>
-        </p>
-      )}
+      {/* 状态提示：等待 / 就绪 */}
+      <div
+        className={`mb-5 rounded-xl border px-4 py-3 text-[13px] leading-relaxed ${
+          isAwaiting
+            ? "border-status-warning/25 bg-status-warning/5 text-text-secondary"
+            : "border-border-subtle bg-bg-secondary/60 text-text-secondary"
+        }`}
+      >
+        {status.detail && <p>{status.detail}</p>}
+        {plan.empty_reason_label && status.code === "awaiting" && (
+          <p className="mt-1 text-[12px] text-status-warning">
+            {plan.empty_reason_label}
+            {" · "}
+            <Link href="/cn/paper-trading" className="font-semibold underline underline-offset-2 hover:text-text-primary">
+              去模拟盘确认
+            </Link>
+          </p>
+        )}
+      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5 text-[12px]">
-        <div>
-          <div className="text-text-disabled mb-0.5">仓位曝光</div>
-          <div className="font-display-numeric text-[20px] font-semibold text-text-primary">
+      {/* KPI 四格 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M7 15v2M12 11v6M17 7v10" />
+            </svg>
+            仓位曝光
+          </div>
+          <div className="font-display-numeric text-[22px] font-semibold text-text-primary leading-tight">
             {(expo * 100).toFixed(0)}%
           </div>
         </div>
-        <div>
-          <div className="text-text-disabled mb-0.5">买入只数</div>
-          <div className="font-display-numeric text-[20px] font-semibold text-text-primary">
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="4" />
+            </svg>
+            买入只数
+          </div>
+          <div className="font-display-numeric text-[22px] font-semibold text-text-primary leading-tight">
             Top {plan.trade_top_n ?? buys.length}
           </div>
         </div>
-        <div>
-          <div className="text-text-disabled mb-0.5">执行窗口</div>
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            执行窗口
+          </div>
           <div className="text-[13px] font-medium text-text-primary leading-snug">
             {plan.execution_window || "09:37 后"}
           </div>
         </div>
-        <div>
-          <div className="text-text-disabled mb-0.5">入场</div>
-          <div className="text-[13px] font-medium text-text-primary">
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12h14M13 6l6 6-6 6" />
+            </svg>
+            入场
+          </div>
+          <div className="font-mono text-[13px] font-medium text-text-primary">
             {plan.entry_mode || "gap_soft"}
           </div>
         </div>
       </div>
 
-      <div className="mb-5">
+      {/* 买谁 · 买多少 */}
+      <div className="mb-6">
         <div className="text-[13px] font-semibold text-text-primary mb-2">买谁 · 买多少</div>
         {buys.length === 0 ? (
-          <p className="text-[13px] text-text-disabled">今日无新开仓标的</p>
+          <div className="rounded-xl border border-dashed border-border-subtle px-4 py-6 text-center">
+            <p className="text-[13px] text-text-disabled">今日无新开仓标的</p>
+            <p className="mt-1 text-[11px] text-text-tertiary">
+              等待 09:35 开盘终选后自动填充
+            </p>
+          </div>
         ) : (
           <ul className="space-y-2">
             {buys.map((b) => {
@@ -502,7 +561,7 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
               return (
                 <li
                   key={code}
-                  className="flex flex-wrap items-center justify-between gap-2 border-t border-border-subtle pt-2 first:border-0 first:pt-0"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle bg-bg-secondary/60 px-3 py-2.5"
                 >
                   <div className="min-w-0">
                     <Link
@@ -520,7 +579,7 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
                     <span className="text-text-secondary">
                       {b.buy_price != null ? `参考 ${Number(b.buy_price).toFixed(2)}` : "—"}
                     </span>
-                    <span className="rounded-md border border-[rgba(77,163,255,0.3)] px-2 py-0.5 text-[#4DA3FF] font-semibold">
+                    <span className="rounded-md border border-status-info/30 px-2 py-0.5 text-status-info font-semibold">
                       {(b.weight_pct ?? 0).toFixed(1)}% 仓
                     </span>
                   </div>
@@ -531,13 +590,26 @@ function TradePlanCard({ plan }: { plan: TradePlan | null }) {
         )}
       </div>
 
+      {/* 出场规则（生产 peel 四层） */}
       <div>
-        <div className="text-[13px] font-semibold text-text-primary mb-2">出场规则（生产 peel 四层）</div>
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-text-primary mb-3">
+          出场规则
+          <span className="rounded-full border border-border-subtle bg-bg-secondary/70 px-2 py-0.5 text-[11px] font-medium text-text-disabled">
+            生产 peel 四层
+          </span>
+        </div>
         <ol className="space-y-2">
           {layers.map((layer) => (
-            <li key={layer.id} className="flex gap-2 text-[12px] leading-relaxed">
-              <span className="font-mono text-text-disabled shrink-0">{layer.id}.</span>
-              <span>
+            <li
+              key={layer.id}
+              className="flex gap-3 rounded-xl border border-border-subtle bg-bg-secondary/40 px-3 py-2.5"
+            >
+              <span
+                className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-bold ${layerBadgeTone(layer.id, layers.indexOf(layer))}`}
+              >
+                {layer.id}
+              </span>
+              <span className="text-[12px] leading-relaxed min-w-0">
                 <span className="text-text-primary font-medium">{layer.name}</span>
                 <span className="text-text-secondary"> — {layer.rule}</span>
               </span>
@@ -607,18 +679,6 @@ function FundStrengthTip({ strength }: { strength: FundStrengthItem }) {
             <span className="text-[9px] text-text-disabled">每 3 分钟更新</span>
           </div>
           <div className="space-y-1.5 text-[10px] leading-relaxed text-text-secondary">
-            <div className="flex items-start gap-1.5">
-              <span className="mt-0.5 shrink-0 text-status-danger">④</span>
-              <span>
-                <span className="font-semibold text-text-primary">机构净占比</span>{" "}
-                {strength.super_net_pct != null && Math.abs(strength.super_net_pct) >= 2
-                  ? `${strength.super_net_pct > 0 ? "+" : ""}${strength.super_net_pct.toFixed(1)}%`
-                  : strength.main_net_pct != null
-                  ? `${strength.main_net_pct > 0 ? "+" : ""}${strength.main_net_pct.toFixed(1)}%`
-                  : "—"}
-                ：超大单/主力净买入占当日成交额比例，越高说明机构买盘越占主导（免费源口径）。
-              </span>
-            </div>
             <div className="flex items-start gap-1.5">
               <span className="mt-0.5 shrink-0 text-status-info">①</span>
               <span>
