@@ -34,6 +34,7 @@ export const CN_ENDPOINTS = {
   recommendLive: endpoint(`/api/v1/cn/recommend/live`),
   scoreTop10: endpoint(`/api/v1/cn/score-top10`),
   tradePlan: endpoint(`/api/v1/cn/trade-plan`),
+  dailyReviewArchive: endpoint(`/api/v1/cn/daily-review/reports.json`),
 } as const;
 
 export type ScoreTop10Item = {
@@ -49,19 +50,6 @@ export type ScoreTop10Item = {
   industry?: string | null;
   industry_l1?: string | null;
   money_phase_label?: string | null;
-  channel_reject?: boolean;
-  downtrend_channel?: boolean;
-  not_uptrend_channel?: boolean;
-  price_below_ma20?: boolean;
-  main_net?: number | null;
-  // 三路融合综合分（模型分 + 资金流 + 板块热度）
-  _fusion_weight?: number | null;
-  _fusion_scores?: {
-    vm25?: number;
-    fund_flow?: number;
-    sector_heat?: number;
-  } | null;
-  _sector_l2?: string | null;
 };
 
 export type ScoreTop10Response = {
@@ -98,10 +86,6 @@ export type ScreenerItem = {
   sector_change_pct?: number | null;
   money_phase?: string | null;
   money_phase_label?: string | null;
-  channel_reject?: boolean;
-  downtrend_channel?: boolean;
-  not_uptrend_channel?: boolean;
-  price_below_ma20?: boolean;
   score_label?: string | null;
   score_rank_pct?: number | null;
   change_pct?: number | null;
@@ -144,10 +128,6 @@ export type TradePlanBuy = {
   stop_price?: number | null;
   sector?: string | null;
   money_phase_label?: string | null;
-  channel_reject?: boolean;
-  downtrend_channel?: boolean;
-  not_uptrend_channel?: boolean;
-  price_below_ma20?: boolean;
   weight_pct?: number;
   weight_of_book?: number;
   action?: "buy" | "skip" | string;
@@ -528,6 +508,24 @@ export function sectorResearchUrl(date: string, session: string) {
   return `/cn/sectors/research/${date}/${session}/`;
 }
 
+/** 每日复盘报告归档：读取服务器维护的 reports.json（按日期倒序） */
+export type DailyReviewEntry = {
+  date: string;
+  file: string;
+};
+
+export async function fetchDailyReviewArchive(): Promise<DailyReviewEntry[]> {
+  const url = `${CN_ENDPOINTS.dailyReviewArchive}?_t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`复盘归档加载失败 (${res.status})`);
+  const data = await res.json();
+  return Array.isArray(data?.reports) ? data.reports : [];
+}
+
+export function dailyReviewUrl(file: string) {
+  return `/api/v1/cn/daily-review/${file}`;
+}
+
 export async function postCNBacktest(cfg: {
   startDate: string;
   endDate: string;
@@ -675,10 +673,6 @@ export type CategorizedStock = {
   volume_ratio?: number | null;
   money_flow_pass?: boolean | null;
   money_phase_label?: string | null;
-  channel_reject?: boolean;
-  downtrend_channel?: boolean;
-  not_uptrend_channel?: boolean;
-  price_below_ma20?: boolean;
   overheat_warning?: string | null;
   accumulation_signal?: string | null;
   new_low_warning?: string | null;
@@ -792,7 +786,6 @@ export type PaperTradingPosition = {
   days_held: number;
   strategy_id: string;
   buy_date: string;
-  entry_mode?: string;
 };
 
 export type PaperTradingSignal = {
@@ -805,7 +798,6 @@ export type PaperTradingSignal = {
   quantity: number;
   strategy_id: string;
   reason: string;
-  entry_mode?: string;
 };
 
 export type PaperTradingStrategy = {
@@ -847,7 +839,6 @@ export type TradeLogEntry = {
   strategy_id: string;
   pnl_pct?: number;
   skip?: string;
-  entry_mode?: string;
 };
 
 export type PaperLoopSummary = {
@@ -890,62 +881,6 @@ export type PaperTradingData = {
 
 export async function fetchPaperTrading(): Promise<PaperTradingData> {
   return apiFetch<PaperTradingData>("/api/v1/cn/paper-trading");
-}
-
-// ── 盘中机构资金盯盘 ──
-export type InstitutionalWatchRow = {
-  symbol: string;
-  name: string;
-  source: string;
-  price: number | null;
-  change_pct: number | null;
-  main_net_yi: number | null;
-};
-
-export type InstitutionalWatchAlert = {
-  symbol: string;
-  name: string;
-  type: string;
-  severity: string;
-  msg: string;
-};
-
-export type InstitutionalWatchData = {
-  ts: string | null;
-  n_symbols: number;
-  snapshot: Record<string, InstitutionalWatchRow>;
-  alerts: InstitutionalWatchAlert[];
-  n_alerts: number;
-  note?: string;
-};
-
-export async function fetchInstitutionalWatch(): Promise<InstitutionalWatchData> {
-  return apiFetch<InstitutionalWatchData>("/api/v1/cn/institutional-watch");
-}
-
-// ── 盘中资金强度结论（嵌入选股卡片） ──
-export type FundStrengthItem = {
-  symbol: string;
-  name: string;
-  source: string;
-  rank_pct: number | null;
-  speed_ratio: number | null;
-  limit_up_prob: number | null;
-  label: string | null;
-  today_net_yi: number | null;
-  main_net_pct?: number | null;
-  super_net_pct?: number | null;
-};
-
-export type FundStrengthData = {
-  ts: string | null;
-  n_items: number;
-  items: Record<string, FundStrengthItem>;
-  note?: string;
-};
-
-export async function fetchFundStrength(): Promise<FundStrengthData> {
-  return apiFetch<FundStrengthData>("/api/v1/cn/fund-strength");
 }
 
 export async function updatePaperTrading(payload: any): Promise<any> {
