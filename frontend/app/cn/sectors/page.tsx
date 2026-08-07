@@ -100,6 +100,7 @@ export default function SectorsPage() {
               title="A股每日复盘报告"
               className="block w-full"
               style={{ height: "1600px", border: "none" }}
+              onError={() => setIframeFailed(true)}
             />
           )}
         </div>
