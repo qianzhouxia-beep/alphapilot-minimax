@@ -2,25 +2,28 @@
 
 Two responsibilities:
 1. Attribution — scan historical closed trades, break down win rate / PnL by
-   direction, symbol, exit reason, hour bucket, and per-direction threshold band.
-   Flag any (symbol, direction) bucket that has lost money consistently and is
-   statistically unlikely to be noise.
-2. Adaptive thresholds — from attribution, propose per-symbol short/long score
-   floor adjustments (raising the bar for losing buckets, never lowering the
-   global floor too far). Applies bounds so the system can't over-react.
-
-This is deliberately *conservative*: it never changes what the model predicts,
-only how eager the trader is to act on low-confidence signals. The model itself
-is still retrained daily by sg_pipeline.
+   direction, symbol, exit reason, hour bucket, hold duration bucket, entry
+   session, and entry score band. Flag any bucket that has lost money
+   consistently and is statistically unlikely to be noise.
+2. Adaptive rules — from attribution, propose:
+     - per-symbol/direction entry-score floor lifts (eager=raise bar for losers)
+     - session gates (disable entry during a persistently losing time window)
+     - score-band calibration (low-confidence trades winning much worse than
+       high-confidence → raises the global floor)
+   All adaptive state is persisted to adaptive_state.json and is conservative:
+   it never changes what the model predicts, only how eager the trader is to
+   act. The model itself is still retrained daily by sg_pipeline.
 """
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from .config import MODEL_DIR, PAPER
 
@@ -32,11 +35,30 @@ class AttributionReport:
     n_trades: int = 0
     overall_win_rate: float = 0.0
     overall_pnl: float = 0.0
-    by_direction: dict = field(default_factory=dict)   # dir -> stats
-    by_symbol_dir: dict = field(default_factory=dict)  # (symbol, dir) -> stats
-    by_exit_reason: dict = field(default_factory=dict) # reason -> stats
-    by_hour: dict = field(default_factory=dict)        # hour -> stats
-    flags: list = field(default_factory=list)          # actionable warnings
+    by_direction: dict = field(default_factory=dict)    # dir -> stats
+    by_symbol_dir: dict = field(default_factory=dict)   # (symbol, dir) -> stats
+    by_exit_reason: dict = field(default_factory=dict)  # reason -> stats
+    by_hour: dict = field(default_factory=dict)         # hour -> stats
+    by_hold_bucket: dict = field(default_factory=dict)  # hold-hours bucket -> stats
+    by_session: dict = field(default_factory=dict)      # entry session -> stats
+    by_score_band: dict = field(default_factory=dict)   # entry score band -> stats
+    flags: list = field(default_factory=list)           # actionable warnings
+
+
+# Hold-duration buckets (hours). Max hold is 48h, so 48h+ is the overflow.
+HOLD_BUCKETS = [
+    (0, 4, "0-4h"), (4, 8, "4-8h"), (8, 16, "8-16h"),
+    (16, 24, "16-24h"), (24, 48, "24-48h"), (48, 1e9, "48h+"),
+]
+# Entry sessions by UTC hour of entry_time
+SESSION_BUCKETS = {"asia": (0, 8), "europe": (8, 16), "us": (16, 24)}
+
+
+def _session_of(hour: int) -> str:
+    for name, (lo, hi) in SESSION_BUCKETS.items():
+        if lo <= hour < hi:
+            return name
+    return "asia"
 
 
 def _bucket_stats(pnls: list[float]) -> dict:
@@ -52,11 +74,7 @@ def _bucket_stats(pnls: list[float]) -> dict:
 
 
 def _prob_losing(pnls: list[float]) -> float:
-    """Bootstrap-ish estimate: probability that true win rate < 0.5.
-
-    Uses a normal approximation of the binomial test. Returns 0..1.
-    A bucket is 'consistently losing' when p > 0.9 AND n >= 10.
-    """
+    """Probability that the true win rate is below 0.5 (normal approx of binomial)."""
     n = len(pnls)
     if n == 0:
         return 0.0
@@ -65,10 +83,20 @@ def _prob_losing(pnls: list[float]) -> float:
     se = np.sqrt(max(p_hat * (1 - p_hat), 1e-6) / n)
     if se <= 0:
         return 0.0
-    z = (0.5 - p_hat) / se  # how far below 50% are we, in SEs
-    from math import erf, sqrt
+    z = (0.5 - p_hat) / se
+    return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
-    return 0.5 * (1 + erf(z / sqrt(2)))
+
+def _hold_hours(t: dict) -> float | None:
+    """Held hours from entry_time/exit_time, or None if unparseable."""
+    try:
+        et = t.get("entry_time", "")
+        xt = t.get("exit_time", "")
+        if not et or not xt:
+            return None
+        return (pd.Timestamp(xt) - pd.Timestamp(et)).total_seconds() / 3600.0
+    except Exception:
+        return None
 
 
 def run_attribution(trades: list[dict], min_bucket_n: int = 10) -> AttributionReport:
@@ -82,11 +110,13 @@ def run_attribution(trades: list[dict], min_bucket_n: int = 10) -> AttributionRe
     rep.overall_pnl = round(float(sum(pnls)), 2)
     rep.overall_win_rate = round(100 * sum(1 for p in pnls if p > 0) / len(pnls), 1)
 
-    # direction
     by_dir: dict[str, list[float]] = {}
     by_sd: dict[tuple, list[float]] = {}
     by_exit: dict[str, list[float]] = {}
     by_hour: dict[int, list[float]] = {}
+    by_hold: dict[str, list[float]] = {}
+    by_session: dict[str, list[float]] = {}
+    by_band: dict[str, list[float]] = {}
 
     for t in trades:
         d = t.get("direction", "?")
@@ -98,19 +128,47 @@ def run_attribution(trades: list[dict], min_bucket_n: int = 10) -> AttributionRe
         by_sd.setdefault((sym, d), []).append(pnl)
         by_exit.setdefault(reason, []).append(pnl)
 
-        # hour bucket from exit_time
-        try:
-            et = str(t.get("exit_time", ""))
-            if len(et) >= 13:
+        # hour & session from exit/entry time
+        et = str(t.get("exit_time", ""))
+        if len(et) >= 13:
+            try:
                 hour = int(et[11:13])
                 by_hour.setdefault(hour, []).append(pnl)
-        except Exception:
-            pass
+            except Exception:
+                pass
+        ent = str(t.get("entry_time", ""))
+        if len(ent) >= 13:
+            try:
+                by_session.setdefault(_session_of(int(ent[11:13])), []).append(pnl)
+            except Exception:
+                pass
+
+        # hold duration
+        hh = _hold_hours(t)
+        if hh is not None:
+            for lo, hi, name in HOLD_BUCKETS:
+                if lo <= hh < hi:
+                    by_hold.setdefault(name, []).append(pnl)
+                    break
+
+        # entry score band (only present on trades entered after v2 deploy)
+        sc = t.get("entry_score")
+        if sc is not None:
+            if sc < 0.50:
+                band = "low(<0.50)"
+            elif sc < 0.55:
+                band = "mid(0.50-0.55)"
+            else:
+                band = "high(>=0.55)"
+            by_band.setdefault(band, []).append(pnl)
 
     rep.by_direction = {k: _bucket_stats(v) for k, v in sorted(by_dir.items())}
     rep.by_symbol_dir = {f"{s}:{d}": _bucket_stats(v) for (s, d), v in sorted(by_sd.items())}
     rep.by_exit_reason = {k: _bucket_stats(v) for k, v in sorted(by_exit.items())}
     rep.by_hour = {f"{h:02d}h": _bucket_stats(v) for h, v in sorted(by_hour.items())}
+    rep.by_hold_bucket = {k: _bucket_stats(v) for k, v in sorted(by_hold.items())}
+    rep.by_session = {k: _bucket_stats(v) for k, v in sorted(by_session.items())}
+    rep.by_score_band = {k: _bucket_stats(v) for k, v in sorted(by_band.items())}
 
     # Flags: consistently losing (symbol, direction) buckets
     for (s, d), pnls in sorted(by_sd.items()):
@@ -121,16 +179,61 @@ def run_attribution(trades: list[dict], min_bucket_n: int = 10) -> AttributionRe
                 rep.flags.append({
                     "type": "losing_bucket",
                     "bucket": f"{s}:{d}",
-                    "n": st["n"],
-                    "pnl": st["pnl"],
-                    "win_rate": st["win_rate"],
+                    "n": st["n"], "pnl": st["pnl"], "win_rate": st["win_rate"],
                     "prob_losing": round(p, 3),
-                    "suggestion": f"consider raising {d} threshold for {s} or disabling",
+                    "suggestion": f"raise {d} threshold for {s} or disable",
                 })
+
+    # Flags: persistently losing session (entries during a time window)
+    for name, pnls in sorted(by_session.items()):
+        st = _bucket_stats(pnls)
+        if st["n"] >= min_bucket_n and st["pnl"] < 0:
+            p = _prob_losing(pnls)
+            if p > 0.9:
+                rep.flags.append({
+                    "type": "losing_session",
+                    "bucket": f"session:{name}",
+                    "n": st["n"], "pnl": st["pnl"], "win_rate": st["win_rate"],
+                    "prob_losing": round(p, 3),
+                    "suggestion": f"disable entries during {name} session (UTC {SESSION_BUCKETS[name][0]}-{SESSION_BUCKETS[name][1]}h)",
+                })
+
+    # Flags: persistently losing hold-duration bucket (hint to shorten max_hold)
+    for name, pnls in sorted(by_hold.items()):
+        st = _bucket_stats(pnls)
+        if st["n"] >= min_bucket_n and st["pnl"] < 0:
+            p = _prob_losing(pnls)
+            if p > 0.9:
+                rep.flags.append({
+                    "type": "losing_hold",
+                    "bucket": f"hold:{name}",
+                    "n": st["n"], "pnl": st["pnl"], "win_rate": st["win_rate"],
+                    "prob_losing": round(p, 3),
+                    "suggestion": f"shorten max_hold or trail earlier for holds {name}",
+                })
+
+    # Score-band calibration: low-confidence wins notably worse than high-confidence
+    if len(by_band) >= 2:
+        low = by_band.get("low(<0.50)", [])
+        high = by_band.get("high(>=0.55)", [])
+        if len(low) >= 8 and len(high) >= 8:
+            low_wr = 100 * sum(1 for p in low if p > 0) / len(low)
+            high_wr = 100 * sum(1 for p in high if p > 0) / len(high)
+            low_pnl = float(sum(low))
+            if low_wr < high_wr - 12 and low_pnl < 0:
+                rep.flags.append({
+                    "type": "low_conf_degraded",
+                    "bucket": "score_band:low",
+                    "n": len(low), "pnl": round(low_pnl, 2), "win_rate": round(low_wr, 1),
+                    "high_win_rate": round(high_wr, 1),
+                    "prob_losing": round(_prob_losing(low), 3),
+                    "suggestion": "raise the global min_signal_score floor",
+                })
+
     return rep
 
 
-# ─── Adaptive thresholds ───
+# ─── Adaptive rules ───
 
 @dataclass
 class AdaptiveDecision:
@@ -138,67 +241,78 @@ class AdaptiveDecision:
     baseline_long: float
     baseline_short: float
     per_symbol: dict = field(default_factory=dict)  # symbol -> {"long": floor, "short": floor}
+    session_gates: dict = field(default_factory=dict)  # session name -> since ISO
     notes: list = field(default_factory=list)
 
 
-# Max per-bucket adjustment from the global floor (keeps it conservative).
-MAX_LIFT = 0.08
-STEP = 0.01
+MAX_LIFT = 0.08   # max per-bucket lift from the global floor
+STEP = 0.01       # per-flag step
+MIN_BAND_RAISE = 0.005  # when low-confidence bucket flagged, nudge the global floor
 
 
 def adapt_thresholds(rep: AttributionReport, state: dict | None = None) -> AdaptiveDecision:
-    """Compute per-symbol threshold lifts from attribution.
-
-    Rule: for each (symbol, dir) bucket with n >= min_n and pnl < 0 and
-    prob_losing > 0.9, raise that symbol+dir entry floor by STEP per flag
-    (capped at MAX_LIFT). Never lowers the global baseline.
-    """
+    """Compute adaptive rules from attribution, carrying forward prior state."""
     dec = AdaptiveDecision(
         asof=datetime.now().isoformat(),
         baseline_long=PAPER.min_signal_score,
         baseline_short=PAPER.min_signal_score_short,
     )
 
-    # load current per-symbol state (if any) to carry forward prior lifts
-    per_sym: dict[str, dict] = {}
     path = MODEL_DIR / "adaptive_state.json"
+    prev = {}
     if path.exists():
         try:
             prev = json.loads(path.read_text(encoding="utf-8"))
-            per_sym = prev.get("per_symbol", {})
-            dec.notes.append(f"loaded prior adaptive state ({len(per_sym)} symbols)")
+            dec.per_symbol = prev.get("per_symbol", {})
+            dec.session_gates = prev.get("session_gates", {})
+            if prev.get("baseline_long"):
+                dec.baseline_long = prev["baseline_long"]
+            if prev.get("baseline_short"):
+                dec.baseline_short = prev["baseline_short"]
+            dec.notes.append(f"loaded prior adaptive state ({len(dec.per_symbol)} symbols, "
+                             f"{len(dec.session_gates)} session gates)")
         except Exception:
             pass
 
     for fl in rep.flags:
-        if fl["type"] != "losing_bucket":
-            continue
-        bucket = fl["bucket"]
-        if ":" not in bucket:
-            continue
-        sym, d = bucket.rsplit(":", 1)
-        if d not in ("long", "short"):
-            continue
+        # 1) Per-symbol/direction floor lift
+        if fl["type"] == "losing_bucket":
+            bucket = fl["bucket"]
+            if ":" not in bucket:
+                continue
+            sym, d = bucket.rsplit(":", 1)
+            if d not in ("long", "short"):
+                continue
+            base = dec.baseline_short if d == "short" else dec.baseline_long
+            cur = dec.per_symbol.setdefault(sym, {"long": None, "short": None})
+            cur_val = cur[d] if cur[d] is not None else base
+            new_val = min(cur_val + STEP, base + MAX_LIFT)
+            if new_val != cur_val:
+                dec.per_symbol[sym][d] = round(new_val, 3)
+                dec.notes.append(f"raised {sym} {d} floor {cur_val:.3f} -> {new_val:.3f} "
+                                 f"(n={fl['n']}, wr={fl['win_rate']}%)")
 
-        cur = per_sym.setdefault(sym, {"long": None, "short": None})
-        cur_val = cur[d]
-        if cur_val is None:
-            cur_val = dec.baseline_short if d == "short" else dec.baseline_long
-        new_val = min(cur_val + STEP, dec.baseline_short + MAX_LIFT if d == "short"
-                      else dec.baseline_long + MAX_LIFT)
-        if new_val != cur_val:
-            per_sym[sym][d] = round(new_val, 3)
-            dec.notes.append(f"raised {sym} {d} floor {cur_val:.3f} -> {new_val:.3f} "
-                             f"(n={fl['n']}, wr={fl['win_rate']}%)")
+        # 2) Session gates (disable a whole entry window)
+        elif fl["type"] == "losing_session":
+            name = fl["bucket"].split(":", 1)[1]
+            if name not in dec.session_gates:
+                dec.session_gates[name] = datetime.now().isoformat()
+                dec.notes.append(f"gated entries during {name} session (wr={fl['win_rate']}%, "
+                                 f"pnl={fl['pnl']:+.2f})")
 
-    dec.per_symbol = per_sym
+        # 3) Low-confidence degradation → nudge global floor up
+        elif fl["type"] == "low_conf_degraded":
+            dec.baseline_long = round(min(dec.baseline_long + MIN_BAND_RAISE, PAPER.min_signal_score + MAX_LIFT), 3)
+            dec.baseline_short = round(min(dec.baseline_short + MIN_BAND_RAISE, PAPER.min_signal_score_short + MAX_LIFT), 3)
+            dec.notes.append(f"raised global floors (low-conf wr={fl['win_rate']}% vs high "
+                             f"{fl['high_win_rate']}%) -> long={dec.baseline_long:.3f} short={dec.baseline_short:.3f}")
 
-    # persist
     path.write_text(json.dumps({
         "asof": dec.asof,
         "baseline_long": dec.baseline_long,
         "baseline_short": dec.baseline_short,
-        "per_symbol": per_sym,
+        "per_symbol": dec.per_symbol,
+        "session_gates": dec.session_gates,
     }, ensure_ascii=False, indent=2), encoding="utf-8")
 
     return dec
@@ -214,6 +328,13 @@ def resolve_entry_threshold(sym: str, direction: str, dec: AdaptiveDecision | No
     return val if val is not None else base
 
 
+def session_gate_disabled(session_name: str, dec: AdaptiveDecision | None = None) -> bool:
+    """Whether entries are currently gated for a session."""
+    if dec is None:
+        dec = load_adaptive()
+    return session_name in dec.session_gates
+
+
 def load_adaptive() -> AdaptiveDecision:
     path = MODEL_DIR / "adaptive_state.json"
     if path.exists():
@@ -224,6 +345,7 @@ def load_adaptive() -> AdaptiveDecision:
                 baseline_long=data.get("baseline_long", PAPER.min_signal_score),
                 baseline_short=data.get("baseline_short", PAPER.min_signal_score_short),
                 per_symbol=data.get("per_symbol", {}),
+                session_gates=data.get("session_gates", {}),
             )
         except Exception:
             pass
@@ -237,7 +359,6 @@ def load_adaptive() -> AdaptiveDecision:
 # ─── Report writer ───
 
 def write_learning_report(rep: AttributionReport, dec: AdaptiveDecision) -> Path:
-    """Persist a human-readable learning report to MODEL_DIR/learning_report.json."""
     out = {
         "asof": datetime.now().isoformat(),
         "attribution": {
@@ -248,11 +369,15 @@ def write_learning_report(rep: AttributionReport, dec: AdaptiveDecision) -> Path
             "by_symbol_dir": rep.by_symbol_dir,
             "by_exit_reason": rep.by_exit_reason,
             "by_hour": rep.by_hour,
+            "by_hold_bucket": rep.by_hold_bucket,
+            "by_session": rep.by_session,
+            "by_score_band": rep.by_score_band,
         },
         "adaptive": {
             "baseline_long": dec.baseline_long,
             "baseline_short": dec.baseline_short,
             "per_symbol": dec.per_symbol,
+            "session_gates": dec.session_gates,
             "notes": dec.notes,
         },
         "flags": rep.flags,
@@ -286,13 +411,26 @@ if __name__ == "__main__":
     print("\nby direction:")
     for k, v in rep.by_direction.items():
         print(f"  {k}: {v}")
+    if rep.by_session:
+        print("\nby session:")
+        for k, v in rep.by_session.items():
+            print(f"  {k}: {v}")
+    if rep.by_hold_bucket:
+        print("\nby hold bucket:")
+        for k, v in rep.by_hold_bucket.items():
+            print(f"  {k}: {v}")
+    if rep.by_score_band:
+        print("\nby score band:")
+        for k, v in rep.by_score_band.items():
+            print(f"  {k}: {v}")
     print("\nflags:")
     for f in rep.flags:
-        print(f"  {f['bucket']}: n={f['n']} pnl={f['pnl']:+.2f} wr={f['win_rate']}% "
+        print(f"  [{f['type']}] {f['bucket']}: n={f['n']} pnl={f['pnl']:+.2f} wr={f['win_rate']}% "
               f"p_losing={f['prob_losing']}")
-    print("\nadaptive per_symbol:")
-    for s, d in dec.per_symbol.items():
-        print(f"  {s}: {d}")
+    print("\nadaptive:")
+    print(f"  baselines: long={dec.baseline_long} short={dec.baseline_short}")
+    print(f"  per_symbol: {dec.per_symbol}")
+    print(f"  session_gates: {dec.session_gates}")
     print("\nnotes:")
     for n in dec.notes:
         print(f"  {n}")

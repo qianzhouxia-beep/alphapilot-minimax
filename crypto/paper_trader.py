@@ -31,7 +31,7 @@ if str(_APP_ROOT) not in sys.path:
     sys.path.insert(0, str(_APP_ROOT))
 
 from crypto import config as C
-from crypto.learning import load_adaptive, resolve_entry_threshold
+from crypto.learning import load_adaptive, resolve_entry_threshold, session_gate_disabled
 
 # ─── Constants (mirrors grid_backtest.py) ───
 MAKER_FEE = C.MAKER_FEE
@@ -248,6 +248,7 @@ def _close_batch(pos: dict, exit_price: float, ts: pd.Timestamp) -> dict:
         "entry_time": pos["entry_time"], "entry_price": pos["entry_price"],
         "direction": direction, "batch_size": pos["batch_size"],
         "exit_time": ts.isoformat(), "exit_price": exit_price,
+        "entry_score": pos.get("entry_score"),
         "pnl_pct": round(pnl_pct, 6), "pnl_usdt": round(pnl_usdt - fee, 4),
         "exit_reason": reason, "fee_usdt": round(fee, 4),
     }
@@ -263,6 +264,15 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
     adaptive = load_adaptive()
     thr_l = resolve_entry_threshold(sym, "long", adaptive)
     thr_s = resolve_entry_threshold(sym, "short", adaptive)
+
+    # Session gate: skip entries during a persistently-losing UTC window
+    try:
+        hour = ts.hour
+        sess = "asia" if hour < 8 else ("europe" if hour < 16 else "us")
+        if session_gate_disabled(sess, adaptive):
+            return
+    except Exception:
+        pass
 
     best_signal, best_dir = 0.0, None
     if prob_l > thr_l and prob_l > best_signal:
@@ -293,6 +303,7 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
             "batch_size": batch_size, "level": level,
             "batch_id": state["next_batch_id"],
             "entry_time": ts.isoformat(), "exit_reason": "",
+            "entry_score": best_signal, "entry_atr_pct": atr_pct,
             "entry_fee": batch_size * MAKER_FEE, "entry_fee_rate": MAKER_FEE,
         })
         state["next_batch_id"] += 1
