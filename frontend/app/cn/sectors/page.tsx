@@ -1,40 +1,40 @@
-// AlphaPilot 板块研报 — 每日复盘（主）+ 深度研报归档（次）
+// AlphaPilot 板块研报 — 每日复盘（主）+ 每日复盘报告归档（次）
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { HeaderBar } from "@/components/HeaderBar";
 import {
-  fetchSectorResearchArchive,
-  sectorResearchUrl,
-  type SectorResearchEntry,
+  fetchDailyReviewArchive,
+  dailyReviewUrl,
+  type DailyReviewEntry,
 } from "@/lib/cn-api";
 
 // 每日复盘报告（自动化任务每日收盘后生成并刷新 latest.html）
 const DAILY_REVIEW_URL = "/api/v1/cn/daily-review/latest.html";
 
 export default function SectorsPage() {
-  const [researchLoading, setResearchLoading] = useState(true);
-  const [researchErr, setResearchErr] = useState<string | null>(null);
-  const [researchArchive, setResearchArchive] = useState<SectorResearchEntry[]>([]);
+  const [archiveLoading, setArchiveLoading] = useState(true);
+  const [archiveErr, setArchiveErr] = useState<string | null>(null);
+  const [archive, setArchive] = useState<DailyReviewEntry[]>([]);
   const [iframeFailed, setIframeFailed] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setResearchLoading(true);
-      setResearchErr(null);
+      setArchiveLoading(true);
+      setArchiveErr(null);
       try {
-        const list = await fetchSectorResearchArchive();
+        const list = await fetchDailyReviewArchive();
         if (cancelled) return;
-        setResearchArchive(list);
+        setArchive(list);
       } catch (e) {
         if (!cancelled) {
-          setResearchErr(e instanceof Error ? e.message : "研报加载失败");
+          setArchiveErr(e instanceof Error ? e.message : "归档加载失败");
         }
       } finally {
-        if (!cancelled) setResearchLoading(false);
+        if (!cancelled) setArchiveLoading(false);
       }
     })();
     return () => {
@@ -57,7 +57,7 @@ export default function SectorsPage() {
           板块研报 · 每日复盘
         </h1>
         <p className="mt-1 text-[13px] text-text-secondary">
-          A 股每日收盘三维复盘 · 盘中/盘后深度研报
+          A 股每日收盘三维复盘 · 历史复盘报告归档
         </p>
       </header>
 
@@ -111,45 +111,43 @@ export default function SectorsPage() {
         </p>
       </section>
 
-      {/* 次区块：深度研报归档（保留） */}
+      {/* 次区块：每日复盘报告归档 */}
       <section className="mt-6 card p-6 sm:p-8">
-        <h2 className="mb-1 text-[15px] font-semibold text-text-primary">深度研报归档</h2>
+        <h2 className="mb-1 text-[15px] font-semibold text-text-primary">每日复盘报告归档</h2>
         <p className="mb-4 text-[12px] text-text-tertiary">
-          选择日期与场次，整页查看完整研报
+          收盘后自动生成 · 按日期归档 · 点击查看完整复盘
         </p>
-        {researchLoading && (
+        {archiveLoading && (
           <div className="flex flex-col items-center gap-3 py-16">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-primary border-t-transparent" />
-            <p className="text-[13px] text-text-secondary">正在加载深度研报归档…</p>
+            <p className="text-[13px] text-text-secondary">正在加载复盘归档…</p>
           </div>
         )}
-        {researchErr && (
+        {archiveErr && (
           <div className="rounded-xl bg-status-danger/5 px-4 py-3 text-[13px] text-status-danger">
-            {researchErr}
+            {archiveErr}
           </div>
         )}
-        {!researchLoading && !researchErr && researchArchive.length === 0 && (
+        {!archiveLoading && !archiveErr && archive.length === 0 && (
           <div className="py-10 text-center text-[13px] text-text-tertiary">
-            暂无研报，等待盘中/盘后任务生成
+            暂无归档，等待收盘后任务生成
           </div>
         )}
-        {!researchLoading && researchArchive.length > 0 && (
+        {!archiveLoading && archive.length > 0 && (
           <ul className="space-y-2">
-            {researchArchive.flatMap((e) =>
-              e.sessions.map((s) => (
-                <li key={`${e.date}-${s}`}>
-                  <a
-                    href={sectorResearchUrl(e.date, s)}
-                    className="flex items-center justify-between rounded-xl border border-border-subtle bg-bg-secondary px-4 py-3 text-[13px] text-text-primary no-underline transition-colors hover:border-purple-primary/40 hover:bg-purple-light/40"
-                  >
-                    <span>
-                      {e.date} · {s === "afternoon" ? "下午场" : "上午场"}
-                    </span>
-                    <span className="text-[12px] font-medium text-purple-primary">打开 →</span>
-                  </a>
-                </li>
-              ))
-            )}
+            {archive.map((e) => (
+              <li key={e.file}>
+                <a
+                  href={dailyReviewUrl(e.file)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-xl border border-border-subtle bg-bg-secondary px-4 py-3 text-[13px] text-text-primary no-underline transition-colors hover:border-purple-primary/40 hover:bg-purple-light/40"
+                >
+                  <span>{e.date}</span>
+                  <span className="text-[12px] font-medium text-purple-primary">打开 →</span>
+                </a>
+              </li>
+            ))}
           </ul>
         )}
       </section>
