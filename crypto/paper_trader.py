@@ -31,6 +31,7 @@ if str(_APP_ROOT) not in sys.path:
     sys.path.insert(0, str(_APP_ROOT))
 
 from crypto import config as C
+from crypto.learning import load_adaptive, resolve_entry_threshold
 
 # ─── Constants (mirrors grid_backtest.py) ───
 MAKER_FEE = C.MAKER_FEE
@@ -258,10 +259,15 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
     if active >= MAX_POSITIONS_PER_SYM * BATCHES:
         return
 
+    # Adaptive per-symbol/direction floors (learned from attribution loop)
+    adaptive = load_adaptive()
+    thr_l = resolve_entry_threshold(sym, "long", adaptive)
+    thr_s = resolve_entry_threshold(sym, "short", adaptive)
+
     best_signal, best_dir = 0.0, None
-    if prob_l > C.PAPER.min_signal_score and prob_l > best_signal:
+    if prob_l > thr_l and prob_l > best_signal:
         best_signal, best_dir = prob_l, "long"
-    if prob_s > C.PAPER.min_signal_score_short and prob_s > best_signal:
+    if prob_s > thr_s and prob_s > best_signal:
         best_signal, best_dir = prob_s, "short"
     if best_dir is None:
         return
@@ -329,6 +335,15 @@ def _main_loop():
          f"{len(C.SYMBOLS)} symbols, 2h timeframe, "
          f"direction={'long+short' if C.USE_SHORT_MODEL else 'long-only'}")
 
+    # Load adaptive state (per-symbol threshold lifts from learning loop)
+    try:
+        from crypto.learning import load_adaptive
+        _adaptive = load_adaptive()
+        if _adaptive.per_symbol:
+            log(f"Adaptive floors loaded: {_adaptive.per_symbol}")
+    except Exception:
+        pass
+
     state = _load_state()
 
     # Preload model
@@ -371,6 +386,13 @@ def _main_loop():
                 if new_factors:
                     factors = new_factors
                 reload_countdown = RELOAD_INTERVAL
+                # Self-improvement pass: attribute recent trades → adapt thresholds
+                try:
+                    from crypto.learning import run_learning_loop
+                    _, _, _lpath = run_learning_loop(state.get("trades", []))
+                    log(f"Learning pass done ({len(state.get('trades', []))} trades) → {_lpath}")
+                except Exception as _e:
+                    log(f"Learning pass failed: {_e}")
 
             df_cache = _main_cycle(state, df_cache, factors)
             cycle_count += 1

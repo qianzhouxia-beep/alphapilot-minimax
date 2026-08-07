@@ -284,6 +284,105 @@ def add_volume_profile(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ─── Beheading / "断头铡刀" (bearish candle cutting through MAs) ───
+def add_beheading(df: pd.DataFrame) -> pd.DataFrame:
+    """'断头铡刀' (beheading guillotine) bearish reversal factors.
+
+    Classic retail setup: a big bearish candle simultaneously breaks through
+    the 5/10/20-period MAs after the MA fan has converged, ideally on volume.
+    Quantified as:
+      - ma_bear_align: MA alignment (negative = bearish stack)
+      - ma_converge:   MA fan convergence (small = tight range, breakout fuel)
+      - beheading:     binary signal — bearish candle breaks all three MAs
+      - beheading_vol: same signal but volume-confirmed
+      - beheading_hold: price stays below broken MAs next bar (confirmation)
+    """
+    for w in [5, 10, 20]:
+        df[f"beh_ma_{w}"] = df["close"].rolling(w).mean()
+
+    # MA stack alignment: how far below the fast MA is price relative to slow MAs
+    df["beh_ma5_ma20"] = (df["beh_ma_5"] - df["beh_ma_20"]) / (df["beh_ma_20"] + 1e-10)
+    df["beh_ma10_ma20"] = (df["beh_ma_10"] - df["beh_ma_20"]) / (df["beh_ma_20"] + 1e-10)
+    # bear alignment: fast MAs below slow MAs = bearish stack (negative)
+    df["ma_bear_align"] = (df["beh_ma_5"] / (df["beh_ma_20"] + 1e-10) - 1) * -1
+    # fan convergence: std of the three MA levels normalized by price
+    df["ma_converge"] = (
+        df[["beh_ma_5", "beh_ma_10", "beh_ma_20"]].std(axis=1) / (df["close"] + 1e-10)
+    )
+
+    # bearish candle: close < open, body larger than threshold
+    body = (df["open"] - df["close"]).clip(lower=0)
+    rng = df["high"] - df["low"] + 1e-10
+    bearish = (df["close"] < df["open"]) & (body / rng > 0.5)
+
+    # breaks all three MAs from above
+    broke_all = (
+        (df["close"].shift(1) > df["beh_ma_5"].shift(1))
+        & (df["close"].shift(1) > df["beh_ma_10"].shift(1))
+        & (df["close"].shift(1) > df["beh_ma_20"].shift(1))
+        & (df["close"] < df["beh_ma_5"])
+        & (df["close"] < df["beh_ma_10"])
+        & (df["close"] < df["beh_ma_20"])
+    )
+    # volume confirmation: today volume > 1.5× 20-bar avg
+    vol_conf = df["volume"] / (df["volume"].rolling(20).mean() + 1e-10) > 1.5
+
+    df["beheading"] = (bearish & broke_all).astype(float)
+    df["beheading_vol"] = (bearish & broke_all & vol_conf).astype(float)
+    # confirmation: price still below broken MAs next bar
+    below_hold = (
+        (df["close"] < df["beh_ma_5"])
+        & (df["close"] < df["beh_ma_10"])
+        & (df["close"] < df["beh_ma_20"])
+    )
+    df["beheading_hold"] = df["beheading"].shift(1) * below_hold.astype(float)
+    # 3-bar momentum after signal (for ICIR evaluation)
+    df["beheading_fwd_ret"] = df["close"].shift(-3) / df["close"] - 1
+    return df
+
+
+# ─── "神奇基准线" (Magic baseline) mean-reversion factors ───
+def add_magic_line(df: pd.DataFrame) -> pd.DataFrame:
+    """'神奇基准线' (magic baseline) factors.
+
+    Original 通达信 formula:
+        XX2 = MA(CLOSE, 80) - MA(CLOSE, 13) / 3
+        magic = MA((CLOSE - XX2) / XX2, 1)
+    Buy signal when magic crosses above 0 (price returns above baseline),
+    or extreme-low reversal (magic at N-bar low then turning up with a green candle).
+
+    Quantified here:
+      - magic_line:  the deviation ratio itself (signal 1: crosses 0)
+      - magic_line_z: rolling z-score (extreme readings → reversal candidates)
+      - magic_baseline: the baseline price level itself
+      - magic_cross_0: binary — magic crosses above 0 (trend-strength return)
+      - magic_extreme_low: binary — magic at 20-bar low then turning up
+    """
+    ma80 = df["close"].rolling(80).mean()
+    ma13 = df["close"].rolling(13).mean()
+    baseline = ma80 - ma13 / 3.0
+    df["magic_baseline"] = baseline
+    deviation = (df["close"] - baseline) / (baseline + 1e-10)
+    df["magic_line"] = deviation.rolling(1).mean()
+    df["magic_line_z"] = _rolling_zscore(df["magic_line"], 40)
+
+    # cross above 0 (from below) — trend return signal
+    above = (df["magic_line"] > 0).astype(float)
+    prev_above = (df["magic_line"].shift(1) > 0).astype(float)
+    df["magic_cross_0"] = (above - prev_above).clip(lower=0)
+
+    # extreme low: magic at 20-bar low then turning up with a green candle
+    is_low = df["magic_line"] == df["magic_line"].rolling(20).min()
+    prev_not_low = (df["magic_line"].shift(1) != df["magic_line"].rolling(20).min().shift(1)).astype(float)
+    green = (df["close"] > df["open"]).astype(float)
+    df["magic_extreme_low"] = (is_low & (prev_not_low > 0) & (green > 0)).astype(float)
+
+    # forward returns for ICIR eval
+    df["magic_fwd_ret_3"] = df["close"].shift(-3) / df["close"] - 1
+    df["magic_fwd_ret_6"] = df["close"].shift(-6) / df["close"] - 1
+    return df
+
+
 # ─── Labels (forward-looking, single group) ───
 def add_labels(df: pd.DataFrame, forward: int = 4, threshold: float = 0.02) -> pd.DataFrame:
     """Wrapper — forwards to single-group version."""
@@ -315,6 +414,8 @@ ALL_FACTORS = [
     add_price_action,
     add_open_range,
     add_volume_profile,
+    add_beheading,
+    add_magic_line,
 ]
 
 FACTOR_COLUMNS: list[str] = []  # populated at runtime

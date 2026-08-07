@@ -140,6 +140,22 @@ rp = MODEL_DIR / "sg_server_report.json"
 rp.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 log(f"Report: {rp}")
 
+# 10. Self-improvement: attribute recent paper trades → adapt thresholds
+log("Running self-improvement loop (attribution → adaptive thresholds)...")
+from crypto.learning import run_learning_loop
+_state_path = MODEL_DIR / "paper_state.json"
+_trades = []
+if _state_path.exists():
+    _state = json.loads(_state_path.read_text(encoding="utf-8"))
+    _trades = _state.get("trades", [])
+_lrep, _ldec, _lpath = run_learning_loop(_trades)
+log(f"Learning: {len(_trades)} trades, flags={len(_lrep.flags)}")
+for _fl in _lrep.flags[:10]:
+    log(f"  FLAG {_fl['bucket']}: n={_fl['n']} pnl={_fl['pnl']:+.2f} wr={_fl['win_rate']}%")
+for _n in _ldec.notes[:10]:
+    log(f"  {_n}")
+log(f"Learning report: {_lpath}")
+
 with open(str(MODEL_DIR / "train_history.jsonl"), "a") as f:
     f.write(json.dumps({
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
