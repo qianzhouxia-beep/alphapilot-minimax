@@ -34,7 +34,7 @@ export const CN_ENDPOINTS = {
   recommendLive: endpoint(`/api/v1/cn/recommend/live`),
   scoreTop10: endpoint(`/api/v1/cn/score-top10`),
   tradePlan: endpoint(`/api/v1/cn/trade-plan`),
-  dailyReviewArchive: endpoint(`/api/v1/cn/daily-review/reports.json`),
+  dailyReviewArchive: endpoint(`/api/v1/cn/daily-review/list`),
 } as const;
 
 export type ScoreTop10Item = {
