@@ -883,6 +883,31 @@ export async function fetchPaperTrading(): Promise<PaperTradingData> {
   return apiFetch<PaperTradingData>("/api/v1/cn/paper-trading");
 }
 
+// ── 盘中资金强度结论（嵌入选股卡片） ──
+export type FundStrengthItem = {
+  symbol: string;
+  name: string;
+  source: string;
+  rank_pct: number | null;
+  speed_ratio: number | null;
+  limit_up_prob: number | null;
+  label: string | null;
+  today_net_yi: number | null;
+  main_net_pct?: number | null;
+  super_net_pct?: number | null;
+};
+
+export type FundStrengthData = {
+  ts: string | null;
+  n_items: number;
+  items: Record<string, FundStrengthItem>;
+  note?: string;
+};
+
+export async function fetchFundStrength(): Promise<FundStrengthData> {
+  return apiFetch<FundStrengthData>("/api/v1/cn/fund-strength");
+}
+
 export async function updatePaperTrading(payload: any): Promise<any> {
   return apiFetch<any>("/api/v1/cn/paper-trading/update", {
     method: "POST",
