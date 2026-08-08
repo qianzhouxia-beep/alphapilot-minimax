@@ -32,6 +32,13 @@ if str(_APP_ROOT) not in sys.path:
 
 from crypto import config as C
 from crypto.learning import load_adaptive, resolve_entry_threshold, session_gate_disabled
+from crypto.smc_gate import (
+    direction_allowed,
+    explain,
+    trend_state,
+    is_counter_trend,
+    counter_trend_min_signal,
+)
 
 # ─── Constants (mirrors grid_backtest.py) ───
 MAKER_FEE = C.MAKER_FEE
@@ -267,7 +274,7 @@ def _close_batch(pos: dict, exit_price: float, ts: pd.Timestamp) -> dict:
 
 
 def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float, ts: pd.Timestamp,
-               atr_pct: float | None = None):
+               atr_pct: float | None = None, trend: str = "chop", trend_breakdown: dict | None = None):
     active = sum(1 for p in state["positions"] if p.get("symbol") == sym)
     if active >= MAX_POSITIONS_PER_SYM * BATCHES:
         return
@@ -293,6 +300,26 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
         best_signal, best_dir = prob_s, "short"
     if best_dir is None:
         return
+
+    # SMC Layer ① — selective trend gate (backtest-validated):
+    #   with-trend → keep original thresholds
+    #   counter-trend → require much stronger signal (≥0.65)
+    #   chop (no clear HTF structure) → no trade is a position
+    if C.SMC_ENABLED:
+        if is_counter_trend(best_dir, trend):
+            if best_signal < counter_trend_min_signal():
+                state.setdefault("smc", {}).setdefault("blocks", {}).setdefault("counter_trend", 0)
+                state["smc"]["blocks"]["counter_trend"] += 1
+                log(f"  SMC-GATE BLOCK {sym.replace('/USDT:USDT','')} {best_dir} "
+                    f"(counter-trend sig={best_signal:.3f}<{counter_trend_min_signal():.2f} "
+                    f"[{explain(trend_breakdown or {})}])")
+                return
+        elif not direction_allowed(best_dir, trend):
+            state.setdefault("smc", {}).setdefault("blocks", {}).setdefault("chop", 0)
+            state["smc"]["blocks"]["chop"] += 1
+            log(f"  SMC-GATE BLOCK {sym.replace('/USDT:USDT','')} {best_dir} "
+                f"(chop [{explain(trend_breakdown or {})}])")
+            return
 
     last = state["last_signal_by_sym"].get(sym, -C.SIGNAL_COOLDOWN_BARS)
     if state["next_batch_id"] - last < C.SIGNAL_COOLDOWN_BARS:
@@ -503,6 +530,7 @@ def _main_cycle(state: dict, df_cache: pd.DataFrame, factors: list[str]) -> pd.D
                 f"pnl={ct['pnl_pct']*100:+.2f}% ${ct['pnl_usdt']:+.2f} ({ct['exit_reason']})")
 
     # 2. Entries (second pass, after exits processed)
+    trend_cache: dict = {}
     for i, row in latest.iterrows():
         sym = row["symbol"]
         price = float(row["close"])
@@ -510,7 +538,24 @@ def _main_cycle(state: dict, df_cache: pd.DataFrame, factors: list[str]) -> pd.D
         prob_s = float(probs_s[i]) if probs_s is not None else 0.0
         ts = row["timestamp"] if isinstance(row["timestamp"], pd.Timestamp) else latest_ts
         atr_pct = float(row.get("atr_pct", 0)) if "atr_pct" in row else None
-        _try_entry(state, sym, price, prob_l, prob_s, ts, atr_pct=atr_pct)
+
+        # SMC Layer ① — compute multi-timeframe trend direction for this symbol
+        trend, trend_score, trend_breakdown = "chop", 0.0, {}
+        if C.SMC_ENABLED:
+            trend, trend_score, trend_breakdown = trend_state(df_cache, sym, latest_ts)
+            trend_cache[sym] = {"trend": trend, "score": trend_score, "breakdown": trend_breakdown}
+
+        _try_entry(state, sym, price, prob_l, prob_s, ts, atr_pct=atr_pct,
+                   trend=trend, trend_breakdown=trend_breakdown)
+
+    if C.SMC_ENABLED and trend_cache:
+        log(f"SMC trends: " + "; ".join(
+            f"{s.replace('/USDT:USDT','')}={v['trend']}" for s, v in trend_cache.items()
+        )[:300])
+        state.setdefault("smc", {}).setdefault("last_trends", {})
+        for s, v in trend_cache.items():
+            state["smc"]["last_trends"][s] = v
+        state["smc"]["asof"] = latest_ts_str
 
     # Update & save
     state["capital"] = _recalc_capital(state)

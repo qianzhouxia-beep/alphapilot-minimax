@@ -74,6 +74,18 @@ PAPER = PaperConfig()
 # ─── Signal frequency (higher = more data) ───
 SIGNAL_COOLDOWN_BARS = 4   # min bars between entries per symbol (2h × 4 = 8h)
 
+# ─── SMC Layer ① selective trend gate (dynamic, no static symbol labels) ───
+# Backtest-validated (bt_smc_gate.py, full history, 4 arms):
+#   nogate     9462 trades  70.9% win  +8874%
+#   smc_dynamic 5929 trades 73.2% win  +2768%  (blanket with-trend only)
+#   selective  7744 trades  73.8% win  +7296%  ← BEST (with-trend normal
+#              threshold; counter-trend needs sig>=0.65; chop blocks all)
+#   static     8709 trades  69.5% win  +3784%  (static per-symbol bans)
+# Selective keeps the high-signal reversal trades while cutting weak
+# counter-trend leaks (NEAR-long & ADA-short band 50-60 win~33%).
+SMC_ENABLED = True
+SMC_COUNTER_TREND_MIN_SIGNAL = 0.65
+
 # ─── Slippage (per-side fractional cost) ───
 # Liquidity tiers: BTC/ETH deepest, small alts thinner.
 # Stress test: 0.1% costs erase ~77% of gross return; 0.5% kills the strategy.
