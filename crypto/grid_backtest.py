@@ -72,6 +72,7 @@ def grid_backtest(
     use_atr_sizing: bool = False,
     atr_risk_pct: float = 0.002,
     atr_max_batch_pct: float = 0.25,
+    global_max_position_pct: float | None = None,
     cooldown_bars: int = 6,
     slippage: float | dict | None = None,
 ) -> GridResult:
@@ -100,6 +101,8 @@ def grid_backtest(
         return slippage.get(sym, slippage_default)
     if min_score_short is None:
         min_score_short = min_score
+    if global_max_position_pct is None:
+        global_max_position_pct = getattr(C.PAPER, "global_max_position_pct", 0.80)
     if take_profit_levels is None:
         take_profit_levels = [0.01, 0.02, 0.03]  # 1%, 2%, 3% (was 0.5%, 1%, 2%)
     if stop_loss_levels is None:
@@ -185,6 +188,12 @@ def grid_backtest(
         # --- Entry — limit per symbol ---
         active_sym = sum(1 for p in positions if p["symbol"] == sym)
         if active_sym >= max_positions_per_sym * batches:
+            _append_grid_equity(equity, capital, positions, last_price_by_sym)
+            continue
+
+        # Global exposure cap (mirrors live trader's safety valve)
+        total_expo = sum(p["batch_size"] for p in positions)
+        if total_expo + batches * (capital * atr_max_batch_pct) > capital * global_max_position_pct:
             _append_grid_equity(equity, capital, positions, last_price_by_sym)
             continue
 
