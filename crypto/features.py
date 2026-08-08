@@ -336,8 +336,6 @@ def add_beheading(df: pd.DataFrame) -> pd.DataFrame:
         & (df["close"] < df["beh_ma_20"])
     )
     df["beheading_hold"] = df["beheading"].shift(1) * below_hold.astype(float)
-    # 3-bar momentum after signal (for ICIR evaluation)
-    df["beheading_fwd_ret"] = df["close"].shift(-3) / df["close"] - 1
     return df
 
 
@@ -376,10 +374,107 @@ def add_magic_line(df: pd.DataFrame) -> pd.DataFrame:
     prev_not_low = (df["magic_line"].shift(1) != df["magic_line"].rolling(20).min().shift(1)).astype(float)
     green = (df["close"] > df["open"]).astype(float)
     df["magic_extreme_low"] = (is_low & (prev_not_low > 0) & (green > 0)).astype(float)
+    return df
 
-    # forward returns for ICIR eval
-    df["magic_fwd_ret_3"] = df["close"].shift(-3) / df["close"] - 1
-    df["magic_fwd_ret_6"] = df["close"].shift(-6) / df["close"] - 1
+
+# ─── Smart Money Concepts: FVG + Order Blocks — ICT/SMC-inspired ───
+def add_fvg(df: pd.DataFrame) -> pd.DataFrame:
+    """Fair Value Gap (FVG) + Order Block factors — SMC / ICT quantized.
+
+    FVG: a 3-candle inefficiency where candle[i-2] and candle[i] do not overlap:
+      - Bullish FVG: high[i-2] < low[i]   (gap up, price often retraces into it)
+      - Bearish FVG: low[i-2]  > high[i]  (gap down, price often rallies into it)
+    Order Block (simplified): the last opposite-color candle before a 20-bar
+    breakout — a supply/demand zone that price tends to respect.
+
+    Factors:
+      - fvg_up_gap_pct / fvg_dn_gap_pct: size of most recent unfilled FVG / price
+      - dist_fvg_up / dist_fvg_dn: close relative to the zone edge of the most
+        recent unfilled FVG (negative = price already below/above the zone)
+      - fvg_up_retest / fvg_dn_retest: price traded inside the recent zone (binary)
+      - fvg_up_cnt_20 / fvg_dn_cnt_20: # of FVGs formed in the last 20 bars
+      - dist_ob_bull / dist_ob_bear: close relative to the most recent order block
+    """
+    h = df["high"].to_numpy()
+    l = df["low"].to_numpy()
+    o = df["open"].to_numpy()
+    c = df["close"].to_numpy()
+    n = len(df)
+
+    bull_gap_pct = np.full(n, np.nan)
+    bear_gap_pct = np.full(n, np.nan)
+    dist_bull = np.full(n, np.nan)
+    dist_bear = np.full(n, np.nan)
+    retest_bull = np.zeros(n)
+    retest_bear = np.zeros(n)
+
+    cur_bull_lo = cur_bull_hi = None
+    cur_bear_lo = cur_bear_hi = None
+    for i in range(n):
+        # update most recent unfilled FVG before any new formation at bar i
+        if cur_bull_hi is not None:
+            if l[i] <= cur_bull_lo:          # filled — price swept the zone low
+                cur_bull_lo = cur_bull_hi = None
+            else:
+                dist_bull[i] = (c[i] - cur_bull_lo) / cur_bull_lo
+                if l[i] <= cur_bull_hi:      # price traded into the zone → retest
+                    retest_bull[i] = 1.0
+        if cur_bear_hi is not None:
+            if h[i] >= cur_bear_hi:          # filled — price swept the zone high
+                cur_bear_lo = cur_bear_hi = None
+            else:
+                dist_bear[i] = (c[i] - cur_bear_hi) / cur_bear_hi
+                if h[i] >= cur_bear_lo:
+                    retest_bear[i] = 1.0
+
+        # new FVG formation between bar i-2 and bar i
+        if i >= 2:
+            if h[i - 2] < l[i]:
+                cur_bull_lo, cur_bull_hi = h[i - 2], l[i]
+                bull_gap_pct[i] = (l[i] - h[i - 2]) / c[i]
+            if l[i - 2] > h[i]:
+                cur_bear_lo, cur_bear_hi = h[i], l[i - 2]
+                bear_gap_pct[i] = (l[i - 2] - h[i]) / c[i]
+
+    # order blocks: last opposite-color candle before a 20-bar breakout
+    ob_bull_dist = np.full(n, np.nan)
+    ob_bear_dist = np.full(n, np.nan)
+    ob_bull_lo = ob_bull_hi = None
+    ob_bear_lo = ob_bear_hi = None
+    hi20 = np.full(n, np.nan)
+    lo20 = np.full(n, np.nan)
+    for i in range(n):
+        s = max(0, i - 20)
+        hi20[i] = h[s:i].max() if i > s else h[i]
+        lo20[i] = l[s:i].min() if i > s else l[i]
+    for i in range(1, n):
+        if ob_bull_hi is not None:
+            if l[i] <= ob_bull_lo:
+                ob_bull_lo = ob_bull_hi = None
+            else:
+                ob_bull_dist[i] = (c[i] - ob_bull_hi) / ob_bull_hi
+        if ob_bear_hi is not None:
+            if h[i] >= ob_bear_hi:
+                ob_bear_lo = ob_bear_hi = None
+            else:
+                ob_bear_dist[i] = (c[i] - ob_bear_lo) / ob_bear_lo
+        # new bull OB: close breaks 20-bar high, prior candle was red
+        if c[i] > hi20[i] and o[i - 1] > c[i - 1]:
+            ob_bull_lo, ob_bull_hi = l[i - 1], h[i - 1]
+        # new bear OB: close breaks 20-bar low, prior candle was green
+        if c[i] < lo20[i] and o[i - 1] < c[i - 1]:
+            ob_bear_lo, ob_bear_hi = l[i - 1], h[i - 1]
+
+    df["fvg_up_gap_pct"] = bull_gap_pct
+    df["fvg_dn_gap_pct"] = bear_gap_pct
+    df["dist_fvg_up"] = dist_bull
+    df["dist_fvg_dn"] = dist_bear
+    df["fvg_up_retest"] = retest_bull
+    df["fvg_dn_retest"] = retest_bear
+    df["fvg_up_cnt_20"] = (df["high"].shift(2) < df["low"]).rolling(20).sum()
+    df["fvg_dn_cnt_20"] = (df["low"].shift(2) > df["high"]).rolling(20).sum()
+    df["dist_ob_bull"] = ob_bull_dist
+    df["dist_ob_bear"] = ob_bear_dist
     return df
 
 
@@ -416,6 +511,7 @@ ALL_FACTORS = [
     add_volume_profile,
     add_beheading,
     add_magic_line,
+    add_fvg,
 ]
 
 FACTOR_COLUMNS: list[str] = []  # populated at runtime
@@ -446,7 +542,9 @@ def compute_features(
     if not FACTOR_COLUMNS:
         exclude = {"timestamp", "symbol", "timeframe", "open", "high", "low", "close", "volume",
                     "label_long", "label_short", "label_mid", "label_multiclass", "fwd_ret"}
-        FACTOR_COLUMNS = [c for c in df.columns if c not in exclude and df[c].dtype in ("float64", "float32", "int64")]
+        FACTOR_COLUMNS = [c for c in df.columns if c not in exclude
+                          and "fwd_ret" not in c
+                          and df[c].dtype in ("float64", "float32", "int64")]
     return df
 
 

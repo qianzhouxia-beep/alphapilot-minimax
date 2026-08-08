@@ -35,11 +35,15 @@ def run_icir_analysis(
         {factor_name: {ic_mean, ic_std, icir, ic_half_life, ...}}
     """
     df = df.copy()
-    factors = [c for c in df.columns if c not in {
+    # Hard-exclude any look-ahead / label-ish columns (defense in depth).
+    _hard_exclude = {
         "timestamp", "symbol", "timeframe", "open", "high", "low", "close", "volume",
         "funding_rate", "open_interest", "oi_value_usdt",
         "label_long", "label_short", "label_mid", "label_multiclass", "fwd_ret",
-    } and df[c].dtype in ("float64", "float32", "int64")]
+    }
+    factors = [c for c in df.columns if c not in _hard_exclude
+               and "fwd_ret" not in c
+               and df[c].dtype in ("float64", "float32", "int64")]
     
     # group by timeframe for separate analysis
     results = {}
