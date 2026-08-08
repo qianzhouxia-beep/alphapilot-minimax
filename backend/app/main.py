@@ -76,6 +76,34 @@ async def _proxy_to_backend(backend_path: str, request: Request) -> Response:
         )
 
 
+# Crypto dashboard backend (Singapore node)
+CRYPTO_URL = os.environ.get("CRYPTO_URL", "http://43.156.119.47:8899")
+
+
+async def _proxy_to_url(base_url: str, backend_path: str, request: Request) -> Response:
+    """Proxy a path to an arbitrary HTTP backend, preserving query string and headers."""
+    url = f"{base_url}{backend_path}"
+    try:
+        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+            body = await request.body() if request.method in ("POST", "PUT", "PATCH") else None
+            resp = await client.request(
+                method=request.method,
+                url=url,
+                params=request.query_params,
+                content=body,
+                headers={k: v for k, v in request.headers.items() if k.lower() not in HOP_BY_HOP},
+            )
+            headers = {k: v for k, v in resp.headers.items() if k.lower() not in HOP_BY_HOP}
+            if not any(k.lower() == "content-type" for k in headers):
+                headers["content-type"] = resp.headers.get("content-type", "application/octet-stream")
+            return Response(content=resp.content, status_code=resp.status_code, headers=headers)
+    except httpx.RequestError as e:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "Backend unreachable", "detail": str(e), "backend": base_url, "path": backend_path},
+        )
+
+
 # Local health endpoints must be registered BEFORE the /api proxy catch-all.
 @app.get("/api/v1/ping")
 async def ping():
@@ -115,6 +143,16 @@ async def proxy_sector_research(request: Request, path: str = ""):
         else f"/api/v1/cn/sectors/research/{suffix}/"
     )
     return await _proxy_to_backend(backend_path, request)
+
+
+# Crypto dashboard reverse proxy (SG 8899) -> https://alphapilot.api-tokenmaster.com/crypto/
+@app.api_route("/crypto", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], include_in_schema=False)
+@app.api_route("/crypto/", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], include_in_schema=False)
+@app.api_route("/crypto/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], include_in_schema=False)
+async def proxy_crypto_dashboard(request: Request, path: str = ""):
+    suffix = (path or "").strip("/")
+    backend_path = "/" if not suffix else f"/{suffix}"
+    return await _proxy_to_url(CRYPTO_URL, backend_path, request)
 
 
 # Serve static frontend files
