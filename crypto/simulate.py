@@ -61,8 +61,14 @@ def run_simulation(force_fetch: bool = False) -> dict:
     all_factors = list_factors()
     log(f"Features: {len(all_factors)} factors")
 
-    # 3. Use ICIR-selected factors (must match training)
-    if ICIR_PATH.exists():
+    # 3. Use exact training factors (must match model); fallback to ICIR top-K
+    mf_path = MODEL_DIR / "model_factors.json"
+    if mf_path.exists():
+        with open(mf_path) as f:
+            factors = json.load(f).get("factors", [])
+        factors = [f for f in factors if f in df.columns]
+        log(f"Using model factors ({len(factors)}) from model_factors.json")
+    elif ICIR_PATH.exists():
         with open(ICIR_PATH) as f:
             icir_data = json.load(f)
         ranked = sorted(icir_data.get("summary", {}).items(), key=lambda x: -x[1]["abs_icir"])
@@ -71,7 +77,7 @@ def run_simulation(force_fetch: bool = False) -> dict:
         log(f"Using ICIR top-{len(factors)} factors ({ICIR_PATH.name})")
     else:
         factors = all_factors
-        log("ICIR weights not found, using all factors")
+        log("No factor list found, using all factors")
 
     # 4. Fill NaN
     for col in factors:

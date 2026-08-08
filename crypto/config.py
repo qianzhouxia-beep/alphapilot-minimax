@@ -7,8 +7,12 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # ─── Trading pairs & timeframes ───
 SYMBOLS = [
+    # Majors
     "BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT", "XRP/USDT:USDT", "BNB/USDT:USDT",
+    # High-frequency alt picks
     "DOGE/USDT:USDT", "LINK/USDT:USDT", "ADA/USDT:USDT", "AVAX/USDT:USDT", "LTC/USDT:USDT",
+    # Diversification picks (deep liquidity, low correlation)
+    "SUI/USDT:USDT", "1000PEPE/USDT:USDT", "TON/USDT:USDT", "DOT/USDT:USDT", "NEAR/USDT:USDT",
 ]
 TIMEFRAMES = ["2h", "4h", "1d"]
 PRIMARY_TF = "2h"
@@ -62,8 +66,8 @@ class PaperConfig:
     min_signal_score_short: float = 0.50  # short entry threshold (higher — short AUC is noisier)
     # ATR-based dynamic sizing (Turtle-inspired)
     use_atr_sizing: bool = True     # enable ATR-adaptive position sizing
-    atr_risk_pct: float = 0.003     # risk 0.3% of capital per ATR unit (normalizes vol)
-    atr_max_batch_pct: float = 0.25 # cap single batch at 25% of capital
+    atr_risk_pct: float = 0.005     # risk 0.5% of capital per ATR unit (raised 0.3%→0.5% for more return; DD 11%→18%)
+    atr_max_batch_pct: float = 0.30 # cap single batch at 30% of capital (was 25%)
 
 PAPER = PaperConfig()
 
@@ -79,6 +83,8 @@ SLIPPAGE_BY_SYMBOL = {
     "BNB/USDT:USDT": 0.001, "SOL/USDT:USDT": 0.001, "XRP/USDT:USDT": 0.001,
     "LTC/USDT:USDT": 0.0015, "DOGE/USDT:USDT": 0.0015, "ADA/USDT:USDT": 0.0015,
     "LINK/USDT:USDT": 0.002, "AVAX/USDT:USDT": 0.002,    # thinnest books
+    "SUI/USDT:USDT": 0.0015, "TON/USDT:USDT": 0.0015, "DOT/USDT:USDT": 0.0015,
+    "NEAR/USDT:USDT": 0.002, "1000PEPE/USDT:USDT": 0.002,   # meme / thinner books
 }
 
 # ─── Execution model ───

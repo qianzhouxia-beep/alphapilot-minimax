@@ -53,6 +53,14 @@ if dead:
 t_2h = t_2h.dropna(subset=factors)
 log(f"Training (2h): {len(t_2h)} rows, {len(factors)} factors")
 
+# Record the exact factor list used for training — prediction must match.
+# (Some factors can be dropped as all-NaN for newly added symbols.)
+(MODEL_DIR / "model_factors.json").write_text(
+    json.dumps({"asof": datetime.now().isoformat(), "factors": factors}, ensure_ascii=False),
+    encoding="utf-8",
+)
+log(f"Saved model_factors.json ({len(factors)} factors)")
+
 # 5. Train with best params
 import shutil
 from crypto.train import train_model

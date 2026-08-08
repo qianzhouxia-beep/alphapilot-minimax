@@ -95,7 +95,19 @@ def _ensure_model():
 
 
 def _load_icir_factors() -> list[str]:
-    """Load ICIR top-K factors. Returns empty if ICIR file missing."""
+    """Load the exact factor list used for training (model_factors.json).
+
+    Falls back to ICIR top-K for backward-compat. Returns empty if none found.
+    """
+    mf = C.MODEL_DIR / "model_factors.json"
+    if mf.exists():
+        try:
+            with open(mf) as f:
+                factors = json.load(f).get("factors", [])
+            if factors:
+                return factors
+        except Exception:
+            pass
     if not C.ICIR_PATH.exists():
         return []
     with open(C.ICIR_PATH) as f:
