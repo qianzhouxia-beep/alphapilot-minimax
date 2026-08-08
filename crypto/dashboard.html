@@ -278,7 +278,7 @@ function render(s){
 }
 
 function refresh(){
-  fetch("/api/state",{cache:"no-store"}).then(r=>r.json()).then(s=>{
+  fetch("api/state",{cache:"no-store"}).then(r=>r.json()).then(s=>{
     render(s); startCountdown();
   }).catch(e=>{ serviceBadge(false); $("asof").textContent="连接服务器失败: "+e.message; });
 }
