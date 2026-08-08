@@ -209,6 +209,7 @@ def build_payload() -> dict:
             "total_entries": state.get("total_entries", 0),
             "total_exits": state.get("total_exits", 0),
             "last_bar": state.get("last_bar_ts", ""),
+            "smc": state.get("smc", {}),
         },
         "stats": {
             "total_pnl": round(total_pnl, 2), "win_rate": round(100 * wins / n, 1) if n else 0,
