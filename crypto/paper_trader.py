@@ -229,7 +229,7 @@ def _check_exits(state: dict, sym: str, price: float, ts: pd.Timestamp) -> list[
         try:
             entry_ts = pd.Timestamp(pos["entry_time"])
             bars_held = (ts - entry_ts).total_seconds() / 3600
-            if bars_held >= 48:
+            if bars_held >= C.EXIT.max_hold_bars * 2:  # bars × 2h timeframe
                 pos["exit_reason"] = "max_hold"
                 closed.append(_close_batch(pos, price, ts))
                 state["positions"].remove(pos)

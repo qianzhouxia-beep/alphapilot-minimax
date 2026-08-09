@@ -52,7 +52,7 @@ class ExitConfig:
     peel_pullback: float = 0.01    # cut half on 1% peak pullback (was 1.5%)
     hard_stop: float = -0.03       # -3% hard stop (was -8% — crypto is more volatile)
     take_profit: float = 0.03      # full close at 3% TP (was 6%)
-    max_hold_bars: int = 24        # max 24 bars on 2h = 48h
+    max_hold_bars: int = 18        # max 18 bars on 2h = 36h (was 24 bars/48h — learning flagged 48h+ holds losing)
 
 EXIT = ExitConfig()
 
