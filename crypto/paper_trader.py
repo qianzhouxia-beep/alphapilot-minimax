@@ -279,17 +279,6 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
     if active >= MAX_POSITIONS_PER_SYM * BATCHES:
         return
 
-    # Global exposure cap: never exceed global_max_position_pct of capital in open batches.
-    # With atr_max_batch_pct=0.40 × 3 batches, a single symbol can reach 120% — the global cap
-    # is the safety valve that keeps total exposure ≤ 80% across all symbols (no leverage).
-    try:
-        cap = state.get("capital", 0) or 1e-9
-        total_expo = sum(p.get("batch_size", 0) for p in state["positions"])
-        if total_expo + 3 * (cap * C.PAPER.atr_max_batch_pct) > cap * C.PAPER.global_max_position_pct:
-            return
-    except Exception:
-        pass
-
     # Adaptive per-symbol/direction floors (learned from attribution loop)
     adaptive = load_adaptive()
     thr_l = resolve_entry_threshold(sym, "long", adaptive)
@@ -345,6 +334,17 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
         batch_size = min(raw_batch, max_batch)
     else:
         batch_size = state["capital"] * C.PAPER.per_trade_risk / BATCHES
+
+    # Global exposure cap: never exceed global_max_position_pct of capital in open batches.
+    # Check AFTER sizing so we compare against the actual batch that would open (not a
+    # theoretical 3×atr_max_batch_pct which already exceeds the cap by construction).
+    try:
+        cap = state.get("capital", 0) or 1e-9
+        total_expo = sum(p.get("batch_size", 0) for p in state["positions"])
+        if total_expo + batch_size * BATCHES > cap * C.PAPER.global_max_position_pct:
+            return
+    except Exception:
+        pass
 
     for level in range(BATCHES):
         px = price * (1 - level * BATCH_SPREAD) if best_dir == "long" else price * (1 + level * BATCH_SPREAD)

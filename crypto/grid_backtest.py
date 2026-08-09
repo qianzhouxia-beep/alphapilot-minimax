@@ -191,12 +191,6 @@ def grid_backtest(
             _append_grid_equity(equity, capital, positions, last_price_by_sym)
             continue
 
-        # Global exposure cap (mirrors live trader's safety valve)
-        total_expo = sum(p["batch_size"] for p in positions)
-        if total_expo + batches * (capital * atr_max_batch_pct) > capital * global_max_position_pct:
-            _append_grid_equity(equity, capital, positions, last_price_by_sym)
-            continue
-
         best_signal, best_dir = 0.0, None
         if prob_l > min_score and prob_l > best_signal:
             best_signal, best_dir = prob_l, "long"
@@ -224,6 +218,14 @@ def grid_backtest(
             batch_size = min(raw_batch, max_batch)
         else:
             batch_size = capital * per_signal_risk / batches
+
+        # Global exposure cap (mirrors live trader's safety valve).
+        # Compare against the ACTUAL batch that would open, not the theoretical
+        # max (batches × atr_max_batch_pct can exceed global cap by construction).
+        total_expo = sum(p["batch_size"] for p in positions)
+        if total_expo + batch_size * batches > capital * global_max_position_pct:
+            _append_grid_equity(equity, capital, positions, last_price_by_sym)
+            continue
 
         for level in range(batches):
             if active_sym + level >= max_positions_per_sym * batches:
