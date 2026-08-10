@@ -140,6 +140,11 @@ def _load_state() -> dict:
         return _fresh_state()
     try:
         data = json.loads(STATE_PATH.read_text(encoding="utf-8"))
+        # Migration: pre-bar_seq states stored next_batch_id in last_signal_by_sym,
+        # which froze cooldown in quiet markets. Reset so bar_seq starts clean.
+        if "bar_seq" not in data:
+            data["bar_seq"] = 0
+            data["last_signal_by_sym"] = {}
         log(f"State loaded: {len(data.get('trades',[]))} trades, "
              f"{len(data.get('positions',[]))} open, capital=${data.get('capital',0):.2f}")
         return data
@@ -156,6 +161,7 @@ def _fresh_state() -> dict:
         "trades": [],
         "equity_curve": [1000.0],
         "next_batch_id": 0,
+        "bar_seq": 0,
         "last_bar_ts": "",
         "last_signal_by_sym": {},
         "last_price_by_sym": {},
@@ -321,11 +327,12 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
                 f"(chop [{explain(trend_breakdown or {})}])")
             return
 
+    # Cooldown between signals per symbol, measured in bars (matches backtest).
     last = state["last_signal_by_sym"].get(sym, -C.SIGNAL_COOLDOWN_BARS)
-    if state["next_batch_id"] - last < C.SIGNAL_COOLDOWN_BARS:
+    if state["bar_seq"] - last < C.SIGNAL_COOLDOWN_BARS:
         return
 
-    state["last_signal_by_sym"][sym] = state["next_batch_id"]
+    state["last_signal_by_sym"][sym] = state["bar_seq"]
 
     # ATR-based dynamic batch sizing (Turtle-inspired)
     if C.PAPER.use_atr_sizing and atr_pct is not None and atr_pct > 1e-6:
@@ -491,7 +498,11 @@ def _main_cycle(state: dict, df_cache: pd.DataFrame, factors: list[str]) -> pd.D
     if latest_ts_str == state.get("last_bar_ts", ""):
         return df_cache
     state["last_bar_ts"] = latest_ts_str
-    log(f"New bar: {latest_ts}")
+    # Cooldown timebase: bar sequence (matches grid_backtest's `i`). Using
+    # next_batch_id here was a bug — batch ids only advance on entries, so a
+    # quiet market froze cooldown forever and silently blocked new entries.
+    state["bar_seq"] = state.get("bar_seq", 0) + 1
+    log(f"New bar: {latest_ts} (seq={state['bar_seq']})")
 
     # Merge & recompute features
     df_cache = _merge_into_cache(df_cache, new_df)
