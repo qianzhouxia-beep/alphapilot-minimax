@@ -11,8 +11,11 @@ import { useAuth } from "@/lib/auth";
 import {
   fetchCNScreener, fetchWatchlist, addToWatchlist, removeFromWatchlist,
   fetchCategorizedRecommend, fetchLiveRecommend, fetchFundStrength,
+  fetchPipelineBoard, fetchScoreTop10,
   type ScreenerItem, type ScreenerResponse, type WatchlistItem,
   type CategorizedResponse, type FundStrengthData, type FundStrengthItem,
+  type PipelineBoardResponse, type PipelineBoardItem,
+  type ScoreTop10Response, type ScoreTop10Item, type TradePlan,
 } from "@/lib/cn-api";
 
 type PeFilter = "all" | "le_30" | "gt_30";
@@ -85,6 +88,10 @@ export default function CNDashboard() {
   const [wlMsg, setWlMsg] = useState<{ type: string; text: string } | null>(null);
   const [catData, setCatData] = useState<CategorizedResponse | null>(null);
   const [catLoading, setCatLoading] = useState(true);
+  const [pbData, setPbData] = useState<PipelineBoardResponse | null>(null);
+  const [top10, setTop10] = useState<ScoreTop10Response | null>(null);
+  const [pbLoading, setPbLoading] = useState(true);
+  const [top10Loading, setTop10Loading] = useState(true);
   const [priceDialog, setPriceDialog] = useState<{ item: any; price: string } | null>(null);
   const [priceDialogLoading, setPriceDialogLoading] = useState(false);
   // 实时状态标记
@@ -124,6 +131,23 @@ export default function CNDashboard() {
     }
   };
 
+  // 侧栏：管线评分榜 + 评分Top10 定格（独立加载，失败不影响主区）
+  const loadSidebar = useCallback(async () => {
+    try {
+      const [pb, t10] = await Promise.all([
+        fetchPipelineBoard(200).catch(() => null),
+        fetchScoreTop10().catch(() => null),
+      ]);
+      if (pb) setPbData(pb);
+      if (t10) setTop10(t10);
+    } catch {
+      // 侧栏数据失败时静默，主区不受影响
+    } finally {
+      setPbLoading(false);
+      setTop10Loading(false);
+    }
+  }, []);
+
   
   useEffect(() => {
     fetch("/api/v1/cn/overnight")
@@ -134,18 +158,23 @@ export default function CNDashboard() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.all([loadData(true)]).finally(() => {
-      if (!cancelled) { setLoading(false); setCatLoading(false); }
+    Promise.all([loadData(true), loadSidebar()]).finally(() => {
+      if (!cancelled) { setLoading(false); setCatLoading(false); setPbLoading(false); setTop10Loading(false); }
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [loadSidebar]);
 
   // 30 min auto refresh (全量评分+分类)
-
   useEffect(() => {
     const id = setInterval(() => loadData(false), 30 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
+
+  // 30 min auto refresh (侧栏：管线评分榜 + 评分Top10 定格)
+  useEffect(() => {
+    const id = setInterval(() => loadSidebar(), 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [loadSidebar]);
 
   // 收藏追踪与收藏页同源：交易时段每 60s 刷新一次（仅已登录）
   useEffect(() => {
@@ -440,7 +469,14 @@ export default function CNDashboard() {
         </div>
       )}
 
-      {data && (
+      {/* 两栏布局：左侧固定栏（管线评分榜 + 评分Top10 定格）+ 右侧主区 */}
+      <div className="flex flex-col-reverse lg:flex-row gap-6 items-start">
+        <aside className="w-full lg:w-[400px] lg:shrink-0 lg:sticky lg:top-4 space-y-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
+          <PipelineBoardPanel pbData={pbData} pbLoading={pbLoading} fundStrength={fundStrength} />
+          <ScoreTop10Panel top10={top10} top10Loading={top10Loading} fundStrength={fundStrength} />
+        </aside>
+        <div className="flex-1 min-w-0 space-y-5">
+          {data && (
         <>
         <div className="w-full h-px bg-gradient-to-r from-transparent via-purple-primary/25 to-transparent mb-6" />
         <section className="mb-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -483,6 +519,9 @@ export default function CNDashboard() {
         </section>
         </>
       )}
+
+      {/* 今日交易指令（从智能选股页并入主区） */}
+      {data && <TradePlanCard plan={(data as ScreenerResponse).trade_plan ?? null} />}
 
       <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 scan-line">
@@ -883,6 +922,8 @@ export default function CNDashboard() {
         <br />
         A 股内容仅供在美华人教育用途，非中国境内投顾服务。
       </footer>
+        </div>
+      </div>
 
       {priceDialog && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -1158,5 +1199,567 @@ function DataStatusCard() {
         {refreshing ? "刷新中..." : "刷新盘后数据"}
       </button>
     </div>
+  );
+}
+
+/* ─── 侧栏辅助函数（管线评分榜 / 评分Top10 / 交易指令） ─── */
+
+function symCode(s?: string) {
+  return String(s || "").replace(/\D/g, "").slice(-6);
+}
+
+/** 0–100 分颜色：与智能选股页评分榜一致 */
+const scoreColor100 = (s: number) =>
+  s >= 90 ? "text-status-success" : s >= 80 ? "text-status-info" : s >= 70 ? "text-status-warning" : "text-text-secondary";
+
+const chgColor100 = (v: number | null | undefined) =>
+  v == null ? "text-text-disabled" : v >= 0 ? "text-status-danger" : "text-status-success";
+
+function fmtYi(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(Number(v))) return "—";
+  const n = Number(v);
+  const yi = n / 1e8;
+  if (Math.abs(yi) >= 0.01) return `${yi > 0 ? "+" : ""}${yi.toFixed(2)}亿`;
+  return `${n > 0 ? "+" : ""}${(n / 1e4).toFixed(0)}万`;
+}
+
+function statusTone(code?: string) {
+  switch (code) {
+    case "buy":
+      return "border-status-success/35 bg-status-success/10 text-status-success";
+    case "half":
+    case "light":
+      return "border-status-info/35 bg-status-info/10 text-status-info";
+    case "awaiting":
+      return "border-status-warning/40 bg-status-warning/10 text-status-warning";
+    case "empty":
+    case "no_picks":
+      return "border-status-danger/35 bg-status-danger/10 text-status-danger";
+    default:
+      return "border-border-subtle bg-bg-secondary text-text-secondary";
+  }
+}
+
+/** 出场规则层级徽章配色：按 id 1–4 映射，未知回退循环。 */
+function layerBadgeTone(id: number | undefined, idx: number) {
+  const tones = [
+    "bg-status-info/10 text-status-info",
+    "bg-status-danger/10 text-status-danger",
+    "bg-status-warning/10 text-status-warning",
+    "bg-primary/10 text-primary",
+  ];
+  if (id != null && id >= 1 && id <= 4) return tones[id - 1];
+  return tones[idx % tones.length];
+}
+
+/** 盘中资金强度悬浮说明：解释 强度分位 / 流速 / 冲板概率。 */
+function FundStrengthTip({ strength }: { strength: { rank_pct?: number | null; speed_ratio?: number | null; limit_up_prob?: number | null } }) {
+  const [open, setOpen] = useState(false);
+  const rank = strength?.rank_pct;
+  const speed = strength?.speed_ratio;
+  const prob = strength?.limit_up_prob;
+  return (
+    <span
+      className="relative inline-flex cursor-help"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      <span className="flex items-center gap-1 text-text-secondary">
+        盘中资金
+        <svg
+          className="h-3 w-3 text-text-disabled"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8h.01M11 12h1v4h1" strokeLinecap="round" />
+        </svg>
+      </span>
+      {open && (
+        <span
+          className="absolute right-0 top-full z-30 mt-1.5 w-[230px] rounded-xl border border-border-subtle bg-bg-elevated/95 p-3 text-left shadow-xl backdrop-blur"
+          role="tooltip"
+        >
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-text-primary">盘中资金强度</span>
+            <span className="text-[9px] text-text-disabled">每 3 分钟更新</span>
+          </div>
+          <div className="space-y-1.5 text-[10px] leading-relaxed text-text-secondary">
+            <div className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-status-info">①</span>
+              <span>
+                <span className="font-semibold text-text-primary">强度分位</span>{" "}
+                {rank != null ? (
+                  <>前 {(rank * 100).toFixed(0)}%</>
+                ) : (
+                  "数据不足"
+                )}
+                ：今日资金量放回该股近 60 日里比，历史只有{" "}
+                {rank != null ? ((1 - rank) * 100).toFixed(0) : "—"}% 的日子更强。
+              </span>
+            </div>
+            <div className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-status-warning">②</span>
+              <span>
+                <span className="font-semibold text-text-primary">流速</span>{" "}
+                {speed != null ? `${speed.toFixed(1)}x` : "—"}：每分钟流入是历史平均的{" "}
+                {speed != null ? `${speed.toFixed(1)}` : "—"} 倍，&gt;1 说明在加速进场。
+              </span>
+            </div>
+            <div className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-status-danger">③</span>
+              <span>
+                <span className="font-semibold text-text-primary">冲板概率</span>{" "}
+                {prob != null ? `${(prob * 100).toFixed(1)}%` : "—"}：按全市场同强度档位的历史
+                统计，当日冲击涨停的概率。
+              </span>
+            </div>
+          </div>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/* ─── 管线评分榜：05:00 管线全量输出按评分降序（侧栏） ─── */
+function PipelineBoardPanel({
+  pbData,
+  pbLoading,
+  fundStrength,
+}: {
+  pbData: PipelineBoardResponse | null;
+  pbLoading: boolean;
+  fundStrength: FundStrengthData | null;
+}) {
+  const [peFilter, setPeFilter] = useState<PeFilter>("all");
+  const [trendFilter, setTrendFilter] = useState<"all" | "uptrend" | "downtrend">("all");
+  const [collapsed, setCollapsed] = useState(false);
+
+  const items = (pbData?.items ?? []) as PipelineBoardItem[];
+  const allCount = items.length;
+
+  // 管线综合分统一映射 0–100（模型分 + 资金流 + 板块热度，后端已算好 score）
+  const scoreOf = (it: PipelineBoardItem) => displayScore(it.score ?? it.lgb_score ?? 0);
+
+  const filtered = items.filter((it) => {
+    if (peFilter !== "all") {
+      const b = peBucketOf(it);
+      if (peFilter === "le_30" && b !== "le_30") return false;
+      if (peFilter === "gt_30" && b !== "gt_30") return false;
+    }
+    if (trendFilter === "uptrend" && (it.channel_reject === true || it.downtrend_channel === true)) return false;
+    if (trendFilter === "downtrend" && !(it.channel_reject === true || it.downtrend_channel === true)) return false;
+    return true;
+  });
+
+  const visible = collapsed ? filtered.slice(0, 10) : filtered;
+
+  return (
+    <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm overflow-hidden">
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-1 h-6 rounded-full bg-purple-primary"></div>
+          <h2 className="text-[16px] font-semibold text-text-primary">管线评分榜</h2>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-light text-purple-primary border border-purple-primary/20">
+            05:00 定格
+          </span>
+        </div>
+        <p className="mt-0.5 text-[11px] text-text-disabled">
+          全量 {allCount} 只 · 综合分降序
+          {pbData?.asof ? ` · 定格 ${pbData.asof.slice(5, 16)}` : ""}
+          {pbData?.model_version ? ` · ${pbData.model_version}` : ""}
+        </p>
+      </div>
+
+      {/* 筛选器 */}
+      <div className="px-4 pb-2 flex flex-wrap items-center gap-1.5">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-card p-0.5">
+          {([
+            { key: "all" as PeFilter, label: "全部" },
+            { key: "le_30" as PeFilter, label: "PE≤30" },
+            { key: "gt_30" as PeFilter, label: "PE>30" },
+          ]).map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setPeFilter(opt.key)}
+              className={`rounded-md px-2 py-1 text-[11px] transition-colors cursor-pointer whitespace-nowrap ${
+                peFilter === opt.key
+                  ? "bg-primary/15 text-text-primary border border-primary/30"
+                  : "text-text-secondary hover:text-text-primary border border-transparent"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-border-subtle bg-surface-card p-0.5">
+          {([
+            { key: "all" as const, label: "趋势:全部" },
+            { key: "uptrend" as const, label: "↑上升" },
+            { key: "downtrend" as const, label: "↓下跌" },
+          ]).map((opt) => (
+            <button key={opt.key} type="button" onClick={() => setTrendFilter(opt.key)}
+              className={`rounded-md px-2 py-1 text-[11px] transition-colors cursor-pointer whitespace-nowrap ${
+                trendFilter === opt.key
+                  ? "bg-primary/15 text-text-primary border border-primary/30"
+                  : "text-text-secondary hover:text-text-primary border border-transparent"
+              }`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {pbLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <div className="h-6 w-6 animate-spin rounded-full border-3 border-border-subtle border-t-purple-primary"></div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="py-8 text-center text-[12px] text-text-secondary">当前筛选下暂无标的</p>
+      ) : (
+        <ul className="divide-y divide-border-subtle/60 max-h-[520px] overflow-y-auto">
+          {visible.map((it, i) => {
+            const sym = symCode(it.symbol);
+            const sc = scoreOf(it);
+            const strength = fundStrength?.items?.[sym];
+            const fsRank = strength?.rank_pct ?? null;
+            const fsSpeed = strength?.speed_ratio ?? null;
+            const fsProb = strength?.limit_up_prob ?? null;
+            const chg = it.change_pct ?? null;
+            const pe = it.pe_ttm ?? it.pe;
+            const isDowntrend = it.channel_reject === true || it.downtrend_channel === true;
+            return (
+              <li key={sym} className="px-4 py-2.5 hover:bg-surface-container-low/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-display-numeric text-text-disabled w-[22px] shrink-0 text-center">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <Link href={`/cn/stock?symbol=${sym}`} className="min-w-0 flex-1 group">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[13px] font-semibold text-text-primary group-hover:text-status-info truncate transition-colors">
+                        {it.name || sym}
+                      </span>
+                      <span className="text-[10px] text-text-disabled shrink-0">{sym}</span>
+                      {isDowntrend && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-status-danger/15 text-status-danger border border-status-danger/20 shrink-0">↓</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-text-disabled truncate mt-0.5">
+                      {it.sector || it.industry || "—"}
+                      {pe != null && pe > 0 ? ` · PE ${Number(pe).toFixed(1)}` : ""}
+                    </div>
+                  </Link>
+                  <div className="text-right shrink-0">
+                    <div className={`font-display-numeric text-[15px] font-bold leading-none ${scoreColor100(sc)}`}>
+                      {sc}
+                    </div>
+                    <div className={`font-display-numeric text-[11px] mt-1 ${chgColor100(chg)}`}>
+                      {chg != null ? `${chg > 0 ? "+" : ""}${Number(chg).toFixed(2)}%` : "—"}
+                    </div>
+                  </div>
+                </div>
+                {strength && (fsRank != null || fsSpeed != null || fsProb != null) && (
+                  <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-text-secondary pl-[28px]">
+                    <span className="inline-flex items-center gap-1">
+                      <span className={`w-1.5 h-1.5 rounded-full ${fsRank != null && fsRank >= 0.7 ? "bg-status-danger" : fsRank != null && fsRank >= 0.5 ? "bg-status-warning" : "bg-text-disabled/50"}`} />
+                      强度 {fsRank != null ? `前${(fsRank * 100).toFixed(0)}%` : "—"}
+                    </span>
+                    <span className="text-text-disabled">·</span>
+                    <span>流速 {fsSpeed != null ? `${fsSpeed.toFixed(1)}x` : "—"}</span>
+                    <span className="text-text-disabled">·</span>
+                    <span className={fsProb != null && fsProb >= 0.3 ? "text-status-danger font-medium" : ""}>
+                      冲板 {fsProb != null ? `${(fsProb * 100).toFixed(1)}%` : "—"}
+                    </span>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {allCount > 10 && (
+        <button
+          type="button"
+          onClick={() => setCollapsed(c => !c)}
+          className="w-full border-t border-border-subtle/60 px-4 py-2 text-[11px] text-status-info hover:bg-surface-container-low/50 transition-colors cursor-pointer"
+        >
+          {collapsed ? `展开全部 ${allCount} 只` : `收起（显示前 10 只）`}
+        </button>
+      )}
+    </section>
+  );
+}
+
+/* ─── 评分 Top10 · 09:35 定格（侧栏） ─── */
+function ScoreTop10Panel({
+  top10,
+  top10Loading,
+  fundStrength,
+}: {
+  top10: ScoreTop10Response | null;
+  top10Loading: boolean;
+  fundStrength: FundStrengthData | null;
+}) {
+  const items = (top10?.items ?? []) as ScoreTop10Item[];
+  return (
+    <section className="rounded-2xl border border-border-subtle bg-surface-card shadow-sm overflow-hidden">
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-1 h-6 rounded-full bg-status-warning"></div>
+          <h2 className="text-[16px] font-semibold text-text-primary">评分 Top 10 · 09:35 定格</h2>
+        </div>
+        <p className="mt-0.5 text-[11px] text-text-disabled">
+          综合分降序（模型分 + 资金流 + 板块热度）
+          {top10?.asof ? ` · 定格 ${top10.asof.slice(5, 16)}` : ""}
+        </p>
+      </div>
+      {top10Loading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="h-6 w-6 animate-spin rounded-full border-3 border-border-subtle border-t-purple-primary"></div>
+        </div>
+      ) : items.length === 0 ? (
+        <p className="py-6 text-center text-[12px] text-text-secondary">暂无评分榜（等待管线写入）</p>
+      ) : (
+        <ul className="divide-y divide-border-subtle/60">
+          {items.map((it, i) => {
+            const sym = symCode(it.symbol);
+            const sc = displayScore(it.score ?? it.lgb_score ?? it._fusion_weight ?? 0);
+            const chg = it.change_pct ?? null;
+            const strength = fundStrength?.items?.[sym];
+            const fsRank = strength?.rank_pct ?? null;
+            return (
+              <li key={sym} className="px-4 py-2.5 hover:bg-surface-container-low/50 transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-display-numeric text-text-disabled w-[22px] shrink-0 text-center">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <Link href={`/cn/stock?symbol=${sym}`} className="min-w-0 flex-1 group">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[13px] font-semibold text-text-primary group-hover:text-status-info truncate transition-colors">
+                        {it.name || sym}
+                      </span>
+                      <span className="text-[10px] text-text-disabled shrink-0">{sym}</span>
+                    </div>
+                    <div className="text-[10px] text-text-disabled truncate mt-0.5">
+                      {it.sector || it.industry || "—"}
+                      {fsRank != null && (
+                        <span className={`ml-1 ${fsRank >= 0.7 ? "text-status-danger" : fsRank >= 0.5 ? "text-status-warning" : "text-text-disabled"}`}>
+                          强度前{(fsRank * 100).toFixed(0)}%
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="text-right shrink-0">
+                    <div className={`font-display-numeric text-[15px] font-bold leading-none ${scoreColor100(sc)}`}>
+                      {sc}
+                    </div>
+                    <div className={`font-display-numeric text-[11px] mt-1 ${chgColor100(chg)}`}>
+                      {chg != null ? `${chg > 0 ? "+" : ""}${Number(chg).toFixed(2)}%` : "—"}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/* ─── 今日交易指令（智能选股页并入） ─── */
+function TradePlanCard({ plan }: { plan: TradePlan | null }) {
+  if (!plan) {
+    return (
+      <section className="glass rounded-2xl p-5 border border-border-subtle">
+        <h2 className="text-[18px] font-semibold tracking-tight">今日交易指令</h2>
+        <p className="mt-2 text-[13px] text-text-disabled">指令尚未就绪，请稍后再刷新</p>
+      </section>
+    );
+  }
+
+  const status = plan.status || { code: "unknown", label: "—", detail: "" };
+  const buys = (plan.buys || []).filter((b) => b.action !== "skip");
+  const expo = Number(plan.position_exposure ?? 0);
+  const layers = plan.exit_layers || [];
+  const isAwaiting = status.code === "awaiting";
+
+  return (
+    <section className="glass rounded-2xl p-5 sm:p-6 border border-border-subtle overflow-hidden">
+      {/* 头部：标题 + 决策层 + 状态徽章 */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <h2 className="text-[18px] font-semibold tracking-tight flex items-center gap-2">
+            今日交易指令
+            <span className="hidden sm:inline-flex items-center rounded-md border border-purple-primary/20 bg-purple-primary/10 px-2 py-0.5 text-[11px] font-medium text-purple-primary">
+              决策层 · {plan.arm || "A1_permission"}
+            </span>
+          </h2>
+          <p className="mt-1 text-[12px] text-text-disabled">
+            <span className="sm:hidden">
+              决策层 · {plan.arm || "A1_permission"}
+              {plan.asof ? " · " : ""}
+            </span>
+            {plan.asof ? `信号 ${plan.asof}` : ""}
+          </p>
+        </div>
+        <div
+          className={`rounded-lg border px-3 py-1.5 text-[13px] font-semibold shrink-0 ${statusTone(status.code)}`}
+        >
+          {status.label}
+        </div>
+      </div>
+
+      {/* 状态提示：等待 / 就绪 */}
+      <div
+        className={`mb-5 rounded-xl border px-4 py-3 text-[13px] leading-relaxed ${
+          isAwaiting
+            ? "border-status-warning/25 bg-status-warning/5 text-text-secondary"
+            : "border-border-subtle bg-bg-secondary/60 text-text-secondary"
+        }`}
+      >
+        {status.detail && <p>{status.detail}</p>}
+        {plan.empty_reason_label && status.code === "awaiting" && (
+          <p className="mt-1 text-[12px] text-status-warning">
+            {plan.empty_reason_label}
+            {" · "}
+            <Link href="/cn/paper-trading" className="font-semibold underline underline-offset-2 hover:text-text-primary">
+              去模拟盘确认
+            </Link>
+          </p>
+        )}
+      </div>
+
+      {/* KPI 四格 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M7 15v2M12 11v6M17 7v10" />
+            </svg>
+            仓位曝光
+          </div>
+          <div className="font-display-numeric text-[22px] font-semibold text-text-primary leading-tight">
+            {(expo * 100).toFixed(0)}%
+          </div>
+        </div>
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="4" />
+            </svg>
+            买入只数
+          </div>
+          <div className="font-display-numeric text-[22px] font-semibold text-text-primary leading-tight">
+            Top {plan.trade_top_n ?? buys.length}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            执行窗口
+          </div>
+          <div className="text-[13px] font-medium text-text-primary leading-snug">
+            {plan.execution_window || "09:37 后"}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border-subtle bg-bg-secondary/70 p-3.5">
+          <div className="text-[11px] text-text-disabled mb-1 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12h14M13 6l6 6-6 6" />
+            </svg>
+            入场
+          </div>
+          <div className="font-mono text-[13px] font-medium text-text-primary">
+            {plan.entry_mode || "gap_soft"}
+          </div>
+        </div>
+      </div>
+
+      {/* 买谁 · 买多少 */}
+      <div className="mb-6">
+        <div className="text-[13px] font-semibold text-text-primary mb-2">买谁 · 买多少</div>
+        {buys.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border-subtle px-4 py-6 text-center">
+            <p className="text-[13px] text-text-disabled">今日无新开仓标的</p>
+            <p className="mt-1 text-[11px] text-text-tertiary">
+              等待 09:35 开盘终选后自动填充
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {buys.map((b) => {
+              const code = symCode(b.symbol);
+              return (
+                <li
+                  key={code}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border-subtle bg-bg-secondary/60 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/cn/stock?symbol=${code}`}
+                      className="font-mono text-[14px] font-semibold text-status-info hover:underline"
+                    >
+                      {code}
+                    </Link>
+                    <span className="ml-2 text-[13px] text-text-secondary">{b.name || "—"}</span>
+                    {b.sector ? (
+                      <span className="ml-2 text-[11px] text-text-disabled">{b.sector}</span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-3 text-[12px] font-display-numeric">
+                    <span className="text-text-secondary">
+                      {b.buy_price != null ? `参考 ${Number(b.buy_price).toFixed(2)}` : "—"}
+                    </span>
+                    <span className="rounded-md border border-status-info/30 px-2 py-0.5 text-status-info font-semibold">
+                      {(b.weight_pct ?? 0).toFixed(1)}% 仓
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* 出场规则（生产 peel 四层） */}
+      <div>
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-text-primary mb-3">
+          出场规则
+          <span className="rounded-full border border-border-subtle bg-bg-secondary/70 px-2 py-0.5 text-[11px] font-medium text-text-disabled">
+            生产 peel 四层
+          </span>
+        </div>
+        <ol className="space-y-2">
+          {layers.map((layer) => (
+            <li
+              key={layer.id}
+              className="flex gap-3 rounded-xl border border-border-subtle bg-bg-secondary/40 px-3 py-2.5"
+            >
+              <span
+                className={`mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-bold ${layerBadgeTone(layer.id, layers.indexOf(layer))}`}
+              >
+                {layer.id}
+              </span>
+              <span className="text-[12px] leading-relaxed min-w-0">
+                <span className="text-text-primary font-medium">{layer.name}</span>
+                <span className="text-text-secondary"> — {layer.rule}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
   );
 }

@@ -33,6 +33,7 @@ export const CN_ENDPOINTS = {
   recommendEODS2History: endpoint(`/api/v1/cn/recommend/eod-s2/history`),
   recommendLive: endpoint(`/api/v1/cn/recommend/live`),
   scoreTop10: endpoint(`/api/v1/cn/score-top10`),
+  pipelineBoard: endpoint(`/api/v1/cn/pipeline-board`),
   tradePlan: endpoint(`/api/v1/cn/trade-plan`),
   dailyReviewArchive: endpoint(`/api/v1/cn/daily-review/list`),
 } as const;
@@ -42,6 +43,10 @@ export type ScoreTop10Item = {
   symbol: string;
   name?: string;
   score: number;
+  lgb_score?: number | null;
+  model_proba?: number | null;
+  _fusion_weight?: number | null;
+  _fusion_scores?: { vm25?: number; fund_flow?: number; sector_heat?: number } | null;
   price?: number | null;
   change_pct?: number | null;
   pe_ttm?: number | null;
@@ -59,6 +64,55 @@ export type ScoreTop10Response = {
   n?: number;
   items: ScoreTop10Item[];
   recommend_compare?: ScoreTop10Item[];
+};
+
+// 管线评分榜：每日管线全量输出按评分降序（侧栏展示）
+export type PipelineBoardItem = {
+  rank?: number;
+  symbol: string;
+  name?: string;
+  score: number;
+  lgb_score?: number | null;
+  model_proba?: number | null;
+  price?: number | null;
+  live_price?: number | null;
+  change_pct?: number | null;
+  pe_ttm?: number | null;
+  pe?: number | null;
+  sector?: string | null;
+  industry?: string | null;
+  industry_l1?: string | null;
+  industry_l2?: string | null;
+  money_phase_label?: string | null;
+  channel_reject?: boolean;
+  downtrend_channel?: boolean;
+  not_uptrend_channel?: boolean;
+  price_below_ma20?: boolean;
+  main_net?: number | null;
+  buy_price?: number | null;
+  target_price?: number | null;
+  stop_price?: number | null;
+  score_label?: string | null;
+  score_rank_pct?: number | null;
+  active_buy_ratio?: number | null;
+};
+
+export type PipelineBoardResponse = {
+  status?: string;
+  asof?: string;
+  generated_at?: string;
+  pipeline_version?: string;
+  model_version?: string;
+  recommend_top_n?: number;
+  note?: string;
+  stats?: {
+    total_scanned?: number;
+    valid_scored?: number;
+    returned?: number;
+    truncated_to?: number;
+  };
+  items: PipelineBoardItem[];
+  n: number;
 };
 
 // 类型定义
@@ -337,6 +391,11 @@ export async function fetchTradePlan(): Promise<TradePlan> {
 
 export async function fetchScoreTop10(): Promise<ScoreTop10Response> {
   return apiFetch<ScoreTop10Response>(CN_ENDPOINTS.scoreTop10);
+}
+
+/** 管线评分榜：每日管线全量输出按评分降序（侧栏展示，非门控 Top10） */
+export async function fetchPipelineBoard(limit = 50): Promise<PipelineBoardResponse> {
+  return apiFetch<PipelineBoardResponse>(`${CN_ENDPOINTS.pipelineBoard}?limit=${limit}`);
 }
 
 export async function fetchCNMarketOverview(): Promise<MarketOverview> {
