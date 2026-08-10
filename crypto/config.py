@@ -13,6 +13,9 @@ SYMBOLS = [
     "DOGE/USDT:USDT", "LINK/USDT:USDT", "ADA/USDT:USDT", "AVAX/USDT:USDT", "LTC/USDT:USDT",
     # Diversification picks (deep liquidity, low correlation)
     "SUI/USDT:USDT", "1000PEPE/USDT:USDT", "TON/USDT:USDT", "DOT/USDT:USDT", "NEAR/USDT:USDT",
+    # Wave-2 additions (2026-08-10): liquid majors with strong perp volume
+    "UNI/USDT:USDT", "XLM/USDT:USDT", "ATOM/USDT:USDT", "TRX/USDT:USDT", "ETC/USDT:USDT",
+    "APT/USDT:USDT", "ARB/USDT:USDT", "INJ/USDT:USDT", "FIL/USDT:USDT", "WLD/USDT:USDT",
 ]
 TIMEFRAMES = ["2h", "4h", "1d"]
 PRIMARY_TF = "2h"
@@ -98,6 +101,11 @@ SLIPPAGE_BY_SYMBOL = {
     "LINK/USDT:USDT": 0.002, "AVAX/USDT:USDT": 0.002,    # thinnest books
     "SUI/USDT:USDT": 0.0015, "TON/USDT:USDT": 0.0015, "DOT/USDT:USDT": 0.0015,
     "NEAR/USDT:USDT": 0.002, "1000PEPE/USDT:USDT": 0.002,   # meme / thinner books
+    # Wave-2 additions: same liquidity tiers
+    "UNI/USDT:USDT": 0.0015, "XLM/USDT:USDT": 0.0015, "ATOM/USDT:USDT": 0.0015,
+    "TRX/USDT:USDT": 0.0015, "ETC/USDT:USDT": 0.002, "APT/USDT:USDT": 0.002,
+    "ARB/USDT:USDT": 0.002, "INJ/USDT:USDT": 0.002, "FIL/USDT:USDT": 0.002,
+    "WLD/USDT:USDT": 0.002,
 }
 
 # ─── Execution model ───
