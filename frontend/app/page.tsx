@@ -87,7 +87,7 @@ function Navbar() {
         <div className="hidden md:flex gap-8">
           {[
             { name: "首页", href: "/" },
-            { name: "选股", href: "/cn/screener" },
+            { name: "工作台", href: "/cn" },
             { name: "回测", href: "/cn/backtest" },
             { name: "资讯", href: "/cn/news" },
             { name: "策略全景", href: "/api/v1/cn/framework" },
