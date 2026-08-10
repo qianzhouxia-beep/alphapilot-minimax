@@ -23,7 +23,6 @@ type NavGroup = {
 };
 
 const SELECT_ITEMS: NavLink[] = [
-  { href: "/cn/screener", label: "智能选股" },
   { href: "/cn/backtest", label: "选股回测" },
 ];
 
