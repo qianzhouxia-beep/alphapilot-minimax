@@ -165,12 +165,15 @@ def precompute_trends(df: pd.DataFrame) -> dict:
 
 
 class Sim:
-    def __init__(self, name: str):
+    def __init__(self, name: str, tp_levels=None, sl_levels=None, max_hold_bars=24):
         self.name = name
         self.capital = INITIAL
         self.positions = []
         self.trades = []
         self.skipped = {"chop": 0, "counter_trend": 0, "static_ban": 0}
+        self.tp_levels = tp_levels or [0.01, 0.02, 0.03]
+        self.sl_levels = sl_levels or [-0.015, -0.025, -0.04]
+        self.max_hold_bars = max_hold_bars
 
     def equity(self, last_px):
         cap = self.capital + sum(
@@ -187,12 +190,15 @@ class Sim:
                 still_open.append(p)
                 continue
             pnl_pct = (px / p["entry"] - 1) * (1 if p["dir"] == "long" else -1)
+            level = min(p["level"], len(self.tp_levels) - 1)
+            tp = self.tp_levels[level]
+            sl = self.sl_levels[level]
             reason = None
-            if pnl_pct >= 0.03:
+            if pnl_pct >= tp:
                 reason = "take_profit"
-            elif pnl_pct <= -0.03:
+            elif pnl_pct <= sl:
                 reason = "stop_loss"
-            elif p["bars"] >= 24:
+            elif p["bars"] >= self.max_hold_bars:
                 reason = "max_hold"
             if reason:
                 fee = p["size"] * (MAKER_FEE if reason == "take_profit" else TAKER_FEE)
@@ -253,14 +259,15 @@ class Sim:
             px_lvl = px * (1 - lvl * BATCH_SPREAD) if best_dir == "long" else px * (1 + lvl * BATCH_SPREAD)
             self.positions.append({
                 "symbol": sym, "dir": best_dir, "entry": px_lvl,
-                "size": size / BATCHES, "bars": 0,
+                "size": size / BATCHES, "bars": 0, "level": lvl,
                 "cls": cls, "sig": sig if sig is not None else best_sig,
             })
 
 
-def run_backtest(df, models, factors, gate_mode, trends, start="2026-01-01"):
+def run_backtest(df, models, factors, gate_mode, trends, start="2026-01-01", end=None,
+                 tp_levels=None, sl_levels=None, max_hold_bars=24):
     ml, ms, _ = models
-    sim = Sim(gate_mode)
+    sim = Sim(gate_mode, tp_levels=tp_levels, sl_levels=sl_levels, max_hold_bars=max_hold_bars)
     last_px = {}
 
     df2 = df[df["timeframe"] == "2h"].copy().sort_values(["symbol", "timestamp"])
@@ -268,6 +275,8 @@ def run_backtest(df, models, factors, gate_mode, trends, start="2026-01-01"):
     all_bars = df2.groupby("symbol")
     ts_list = sorted(df2["timestamp"].unique())
     ts_list = [t for t in ts_list if str(t)[:10] >= start]
+    if end is not None:
+        ts_list = [t for t in ts_list if str(t)[:10] <= end]
 
     import xgboost as xgb
     t0 = time.time()
@@ -307,6 +316,18 @@ def run_backtest(df, models, factors, gate_mode, trends, start="2026-01-01"):
     eq = sim.equity(last_px)
     wins = sum(1 for t in sim.trades if t["pnl_usdt"] > 0)
     n = len(sim.trades)
+    # by-direction stats
+    longs = [t for t in sim.trades if t["dir"] == "long"]
+    shorts = [t for t in sim.trades if t["dir"] == "short"]
+    def _wr(ts):
+        return 100 * sum(1 for t in ts if t["pnl_usdt"] > 0) / len(ts) if ts else 0
+    def _pnl(ts):
+        return sum(t["pnl_usdt"] for t in ts)
+    # by-exit stats
+    by_exit = {}
+    for t in sim.trades:
+        by_exit.setdefault(t["exit"], []).append(t)
+    exit_stats = {k: {"n": len(v), "wr": round(_wr(v), 1), "pnl": round(_pnl(v), 2)} for k, v in by_exit.items()}
     return {
         "arm": gate_mode,
         "trades": n,
@@ -315,6 +336,9 @@ def run_backtest(df, models, factors, gate_mode, trends, start="2026-01-01"):
         "final_equity": round(eq, 2),
         "skipped": sim.skipped,
         "avg_pnl": round(sum(t["pnl_usdt"] for t in sim.trades) / n, 4) if n else 0,
+        "long": {"n": len(longs), "wr": round(_wr(longs), 1), "pnl": round(_pnl(longs), 2)},
+        "short": {"n": len(shorts), "wr": round(_wr(shorts), 1), "pnl": round(_pnl(shorts), 2)},
+        "by_exit": exit_stats,
     }
 
 

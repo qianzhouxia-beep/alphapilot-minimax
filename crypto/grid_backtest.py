@@ -74,6 +74,7 @@ def grid_backtest(
     atr_max_batch_pct: float = 0.25,
     global_max_position_pct: float | None = None,
     cooldown_bars: int = 6,
+    max_hold_bars: int = 96,
     slippage: float | dict | None = None,
 ) -> GridResult:
     """Run grid-style backtest with symmetric per-symbol position tracking.
@@ -104,9 +105,9 @@ def grid_backtest(
     if global_max_position_pct is None:
         global_max_position_pct = getattr(C.PAPER, "global_max_position_pct", 0.80)
     if take_profit_levels is None:
-        take_profit_levels = [0.01, 0.02, 0.03]  # 1%, 2%, 3% (was 0.5%, 1%, 2%)
+        take_profit_levels = [0.005, 0.01, 0.015]  # 0.5%, 1%, 1.5% (OOS win-rate study)
     if stop_loss_levels is None:
-        stop_loss_levels = [-0.015, -0.025, -0.04]  # -1.5%, -2.5%, -4% (was -1%, -2%, -4%)
+        stop_loss_levels = [-0.025, -0.03, -0.04]  # -2.5%, -3%, -4% (avoid 2h noise stops)
     if factors is None:
         raise ValueError("Need factors")
     if "symbol" not in df.columns:
@@ -173,7 +174,7 @@ def grid_backtest(
                 _close_batch(batch, price, trades, ts, _slip(batch["symbol"]), exit_type="taker")
                 positions.remove(batch)
                 continue
-            if (i - batch["entry_idx"]) >= 96:
+            if (i - batch["entry_idx"]) >= max_hold_bars:
                 batch["exit_reason"] = "max_hold"
                 _close_batch(batch, price, trades, ts, _slip(batch["symbol"]), exit_type="taker")
                 positions.remove(batch)

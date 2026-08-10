@@ -43,8 +43,12 @@ from crypto.smc_gate import (
 # ─── Constants (mirrors grid_backtest.py) ───
 MAKER_FEE = C.MAKER_FEE
 TAKER_FEE = C.TAKER_FEE
-TAKE_PROFIT_LEVELS = [0.01, 0.02, 0.03]
-STOP_LOSS_LEVELS = [-0.015, -0.025, -0.04]
+# Win-rate optimization (OOS-validated, 2026-08-10):
+#   tighter TP (0.5/1/1.5%) → 2h bars hit TP easily → win rate 64.8%→81.3% OOS
+#   wider SL (-2.5/-3/-4%)  → avoid stop-out by 2h noise
+#   max_hold 24 bars (48h)  → let winners breathe, cut stale losers
+TAKE_PROFIT_LEVELS = [0.005, 0.01, 0.015]
+STOP_LOSS_LEVELS = [-0.025, -0.03, -0.04]
 BATCHES = 3
 BATCH_SPREAD = 0.005
 MAX_POSITIONS_PER_SYM = C.PAPER.max_positions
