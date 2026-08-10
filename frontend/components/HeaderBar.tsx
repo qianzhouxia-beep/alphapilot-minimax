@@ -1,5 +1,6 @@
 // HeaderBar — client component, auth + nav
-// 2026-07-21: 公私分层主航 — 工作台 / 选股▾ / 研报▾ / 我的▾
+// 2026-07-21: 公私分层主航 — 工作台 / 策略全景 / 选股回测 / 研报▾ / 我的▾
+// 2026-08-11: 选股▾ 仅剩回测一项，取消下拉直接展示「选股回测」
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -22,10 +23,6 @@ type NavGroup = {
   items: NavLink[];
 };
 
-const SELECT_ITEMS: NavLink[] = [
-  { href: "/cn/backtest", label: "选股回测" },
-];
-
 const RESEARCH_ITEMS: NavLink[] = [
   { href: "/cn/chat", label: "深度研报" },
   { href: "/cn/sectors", label: "板块研报" },
@@ -37,7 +34,6 @@ const MINE_ITEMS: NavLink[] = [
 ];
 
 const NAV_GROUPS: NavGroup[] = [
-  { id: "select", label: "选股", items: SELECT_ITEMS },
   { id: "research", label: "研报", items: RESEARCH_ITEMS },
   { id: "mine", label: "我的", items: MINE_ITEMS },
 ];
@@ -201,6 +197,14 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
           >
             策略全景
           </a>
+          <Link
+            href="/cn/backtest"
+            className={`rounded-lg px-2.5 py-1.5 text-[11px] transition-colors cursor-pointer ${focusRing} ${
+              isActive("/cn/backtest") ? navActive : navIdle
+            }`}
+          >
+            选股回测
+          </Link>
 
           {NAV_GROUPS.map((group) => {
             const open = openGroup === group.id;
@@ -287,6 +291,13 @@ export function HeaderBar({ market = "us" }: { market?: "us" | "cn" }) {
                 >
                   策略全景
                 </a>
+                <Link
+                  href="/cn/backtest"
+                  onClick={() => setMenuOpen(false)}
+                  className={`block px-3 py-2.5 text-[12px] transition-colors ${isActive("/cn/backtest") ? navActive : navIdle}`}
+                >
+                  选股回测
+                </Link>
               </div>
               {NAV_GROUPS.map((group) => (
                 <div key={group.id}>
