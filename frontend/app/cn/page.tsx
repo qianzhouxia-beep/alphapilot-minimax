@@ -482,8 +482,8 @@ export default function CNDashboard() {
       {/* 两栏布局：左侧固定栏（管线评分榜 + 评分Top10 定格）+ 右侧主区 */}
       <div className="flex flex-col-reverse lg:flex-row gap-6 items-start">
         <aside className="w-full lg:w-[400px] lg:shrink-0 lg:sticky lg:top-4 space-y-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
-          <PipelineBoardPanel pbData={pbData} pbLoading={pbLoading} fundStrength={fundStrength} />
           <ScoreTop10Panel top10={top10} top10Loading={top10Loading} fundStrength={fundStrength} />
+          <PipelineBoardPanel pbData={pbData} pbLoading={pbLoading} fundStrength={fundStrength} />
         </aside>
         <div className="flex-1 min-w-0 space-y-5">
           {data && (
