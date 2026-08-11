@@ -233,7 +233,17 @@ export default function CNDashboard() {
           }));
           setData((prev) => {
             if (!prev) return prev;
-            return { ...prev, recommendations: reranked };
+            // 从 trade_plan 提取今日交易 Top2，重排后仍保留「今日交易」标记
+            const tradeSyms = new Set(
+              (prev.trade_plan?.buys ?? [])
+                .filter((b: any) => b?.action !== "skip" && b?.symbol)
+                .map((b: any) => String(b.symbol).replace(/\D/g, "").slice(-6))
+            );
+            const withTradeMark = reranked.map((it: any) => {
+              const sym = String(it.symbol || "").replace(/\D/g, "").slice(-6);
+              return tradeSyms.has(sym) ? { ...it, is_trade_pick: true } : it;
+            });
+            return { ...prev, recommendations: withTradeMark };
           });
           console.log(`[rerank] ${new Date().toLocaleTimeString()} 动态重排完成`);
         } else if (live && live.data && live.data.length > 0) {
@@ -646,6 +656,12 @@ export default function CNDashboard() {
                     <Link href={`/cn/stock?symbol=${item.symbol}`} className="text-[15px] font-semibold text-text-primary hover:text-status-info truncate transition-colors">
                       {item.name}
                     </Link>
+                    {item.is_trade_pick && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-status-success/12 px-2 py-0.5 text-[10px] font-medium text-status-success border border-status-success/25 shrink-0">
+                        <span className="inline-block w-1 h-1 rounded-full bg-status-success animate-pulse" />
+                        今日交易
+                      </span>
+                    )}
                     {item.sector && (
                       <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary border border-primary/20 shrink-0">
                         {item.channel_reject ? <span className="text-status-danger font-semibold">↓下跌通道 </span> : item.downtrend_channel ? <span className="text-status-danger">↓偏弱 </span> : null}

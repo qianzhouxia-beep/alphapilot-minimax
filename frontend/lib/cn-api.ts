@@ -145,6 +145,7 @@ export type ScreenerItem = {
   change_pct?: number | null;
   pe_ttm?: number | null;
   pe?: number | null;
+  is_trade_pick?: boolean | null;
 };
 
 export type RecommendStats = {
