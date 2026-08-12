@@ -38,6 +38,7 @@ from crypto.smc_gate import (
     trend_state,
     is_counter_trend,
     counter_trend_min_signal,
+    chop_min_signal,
 )
 
 # ─── Constants (mirrors grid_backtest.py) ───
@@ -313,8 +314,8 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
 
     # SMC Layer ① — selective trend gate (backtest-validated):
     #   with-trend → keep original thresholds
-    #   counter-trend → require much stronger signal (≥0.65)
-    #   chop (no clear HTF structure) → no trade is a position
+    #   counter-trend → require stronger signal (≥0.55)
+    #   chop (no clear HTF structure) → allow only if signal strong (≥0.55)
     if C.SMC_ENABLED:
         if is_counter_trend(best_dir, trend):
             if best_signal < counter_trend_min_signal():
@@ -325,11 +326,13 @@ def _try_entry(state: dict, sym: str, price: float, prob_l: float, prob_s: float
                     f"[{explain(trend_breakdown or {})}])")
                 return
         elif not direction_allowed(best_dir, trend):
-            state.setdefault("smc", {}).setdefault("blocks", {}).setdefault("chop", 0)
-            state["smc"]["blocks"]["chop"] += 1
-            log(f"  SMC-GATE BLOCK {sym.replace('/USDT:USDT','')} {best_dir} "
-                f"(chop [{explain(trend_breakdown or {})}])")
-            return
+            if best_signal < chop_min_signal():
+                state.setdefault("smc", {}).setdefault("blocks", {}).setdefault("chop", 0)
+                state["smc"]["blocks"]["chop"] += 1
+                log(f"  SMC-GATE BLOCK {sym.replace('/USDT:USDT','')} {best_dir} "
+                    f"(chop sig={best_signal:.3f}<{chop_min_signal():.2f} "
+                    f"[{explain(trend_breakdown or {})}])")
+                return
 
     # Cooldown between signals per symbol, measured in bars (matches backtest).
     last = state["last_signal_by_sym"].get(sym, -C.SIGNAL_COOLDOWN_BARS)

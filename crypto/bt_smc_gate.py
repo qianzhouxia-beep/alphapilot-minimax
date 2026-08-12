@@ -165,7 +165,8 @@ def precompute_trends(df: pd.DataFrame) -> dict:
 
 
 class Sim:
-    def __init__(self, name: str, tp_levels=None, sl_levels=None, max_hold_bars=24):
+    def __init__(self, name: str, tp_levels=None, sl_levels=None, max_hold_bars=24,
+                 ct_min: float = 0.65, chop_min: float | None = None):
         self.name = name
         self.capital = INITIAL
         self.positions = []
@@ -174,6 +175,8 @@ class Sim:
         self.tp_levels = tp_levels or [0.01, 0.02, 0.03]
         self.sl_levels = sl_levels or [-0.015, -0.025, -0.04]
         self.max_hold_bars = max_hold_bars
+        self.ct_min = ct_min          # counter-trend min signal (selective gate)
+        self.chop_min = chop_min      # None=block all chop, else allow chop if sig >= this
 
     def equity(self, last_px):
         cap = self.capital + sum(
@@ -232,13 +235,14 @@ class Sim:
                 return
         elif gate_mode == "selective":
             # SMC selective gate: with-trend keeps original threshold,
-            # counter-trend requires a much stronger signal.
+            # counter-trend requires a stronger signal.
             if not direction_allowed(best_dir, trend):
                 if trend == "chop":
-                    self.skipped["chop"] += 1
-                    return
-                # counter-trend — allow only if signal is strong
-                if best_sig < counter_trend_min_signal():
+                    # default: block all chop; optional: allow strong signals in chop
+                    if self.chop_min is None or best_sig < self.chop_min:
+                        self.skipped["chop"] += 1
+                        return
+                elif best_sig < self.ct_min:
                     self.skipped["counter_trend"] += 1
                     return
         elif gate_mode == "static":
@@ -265,9 +269,11 @@ class Sim:
 
 
 def run_backtest(df, models, factors, gate_mode, trends, start="2026-01-01", end=None,
-                 tp_levels=None, sl_levels=None, max_hold_bars=24):
+                 tp_levels=None, sl_levels=None, max_hold_bars=24,
+                 ct_min: float = 0.65, chop_min: float | None = None):
     ml, ms, _ = models
-    sim = Sim(gate_mode, tp_levels=tp_levels, sl_levels=sl_levels, max_hold_bars=max_hold_bars)
+    sim = Sim(gate_mode, tp_levels=tp_levels, sl_levels=sl_levels, max_hold_bars=max_hold_bars,
+              ct_min=ct_min, chop_min=chop_min)
     last_px = {}
 
     df2 = df[df["timeframe"] == "2h"].copy().sort_values(["symbol", "timestamp"])

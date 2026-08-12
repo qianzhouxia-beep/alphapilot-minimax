@@ -87,8 +87,13 @@ SIGNAL_COOLDOWN_BARS = 4   # min bars between entries per symbol (2h × 4 = 8h)
 #   static     8709 trades  69.5% win  +3784%  (static per-symbol bans)
 # Selective keeps the high-signal reversal trades while cutting weak
 # counter-trend leaks (NEAR-long & ADA-short band 50-60 win~33%).
+# Aug-12 retune (smc_tune_bt.py): relaxing ct threshold to 0.55 and allowing
+# strong chop signals (>=0.55) raises recent trade count +33% while win rate
+# improves 63.5%→65.2% on the current model — trade frequency was frozen by
+# the original strict gate (0-3 entries/day vs 10-31/day pre-SMC).
 SMC_ENABLED = True
-SMC_COUNTER_TREND_MIN_SIGNAL = 0.65
+SMC_COUNTER_TREND_MIN_SIGNAL = 0.55   # was 0.65 (Aug-12 tune: +26% trades, win rate 63.5%→64.7%)
+SMC_CHOP_MIN_SIGNAL = 0.55            # allow entries in chop regime if signal >= this (tune: +33% trades, wr 65.2%)
 
 # ─── Slippage (per-side fractional cost) ───
 # Liquidity tiers: BTC/ETH deepest, small alts thinner.
