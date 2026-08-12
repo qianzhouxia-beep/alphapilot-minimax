@@ -124,9 +124,9 @@ tbody tr:hover{background:#f8fafc}
     <h3>说明</h3>
     <div class="note">方向层先定趋势（1d/4h/2h 结构对齐）：<br>
       · 顺势 → 维持原信号阈值<br>
-      · 逆势 → 需信号 ≥0.55（较强反转才进）<br>
-      · 震荡 → 信号 ≥0.55 才开仓<br>
-      8/12 调参：交易频次 +33%，近两周胜率 63.5%→65.2%</div>
+      · 逆势 → 需信号 ≥0.50（较强反转才进）<br>
+      · 震荡 → 信号 ≥0.50 才开仓<br>
+      8/12 二轮调参：SMC 阈值 0.55→0.50、基础阈值 0.45/0.50→0.42/0.48，提升成交频次</div>
   </div>
 </div>
 
@@ -284,7 +284,7 @@ function renderSmc(s){
   const smc=(s.state&&s.state.smc)||{};
   const trends=smc.last_trends||{};
   const blocks=smc.blocks||{};
-  let html='<div class="note">SMC 分层趋势闸门（顺势原阈值 / 逆势≥0.55 / 震荡≥0.55）</div>';
+  let html='<div class="note">SMC 分层趋势闸门（顺势原阈值 / 逆势≥0.50 / 震荡≥0.50）</div>';
   const lbl={up:"🟢 上行",down:"🔴 下行",chop:"⚪ 震荡"};
   const entries=Object.entries(trends);
   if(entries.length){

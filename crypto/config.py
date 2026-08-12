@@ -65,8 +65,8 @@ class PaperConfig:
     initial_capital: float = 1000.0  # USDT
     max_positions: int = 3           # 3 batches per symbol (more data for analysis)
     per_trade_risk: float = 0.10    # 10% of capital per signal (fallback when ATR sizing off)
-    min_signal_score: float = 0.45  # long entry threshold
-    min_signal_score_short: float = 0.50  # short entry threshold (higher — short AUC is noisier)
+    min_signal_score: float = 0.42  # long entry threshold (was 0.45 — Aug-12 freq tune)
+    min_signal_score_short: float = 0.48  # short entry threshold (was 0.50; short AUC is noisier)
     # ATR-based dynamic sizing (Turtle-inspired)
     use_atr_sizing: bool = True     # enable ATR-adaptive position sizing
     atr_risk_pct: float = 0.008     # risk 0.8% of capital per ATR unit (sizing study: ret +6214%, DD -28%, Sharpe 2.07 — sweet spot)
@@ -92,8 +92,8 @@ SIGNAL_COOLDOWN_BARS = 4   # min bars between entries per symbol (2h × 4 = 8h)
 # improves 63.5%→65.2% on the current model — trade frequency was frozen by
 # the original strict gate (0-3 entries/day vs 10-31/day pre-SMC).
 SMC_ENABLED = True
-SMC_COUNTER_TREND_MIN_SIGNAL = 0.55   # was 0.65 (Aug-12 tune: +26% trades, win rate 63.5%→64.7%)
-SMC_CHOP_MIN_SIGNAL = 0.55            # allow entries in chop regime if signal >= this (tune: +33% trades, wr 65.2%)
+SMC_COUNTER_TREND_MIN_SIGNAL = 0.50   # was 0.55 (Aug-12 freq tune v2: ct 0.55→0.50 releases more counter-trend)
+SMC_CHOP_MIN_SIGNAL = 0.50            # was 0.55 (allow chop entries if signal >= 0.50)
 
 # ─── Slippage (per-side fractional cost) ───
 # Liquidity tiers: BTC/ETH deepest, small alts thinner.

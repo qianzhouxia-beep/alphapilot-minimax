@@ -204,9 +204,9 @@ def counter_trend_min_signal() -> float:
     """
     try:
         from crypto import config as C
-        return float(C.SMC_COUNTER_TREND_MIN_SIGNAL)
+        return float(getattr(C, "SMC_COUNTER_TREND_MIN_SIGNAL", 0.50))
     except Exception:
-        return 0.65
+        return 0.50
 
 
 def chop_min_signal() -> float:
@@ -217,9 +217,9 @@ def chop_min_signal() -> float:
     """
     try:
         from crypto import config as C
-        return float(getattr(C, "SMC_CHOP_MIN_SIGNAL", 0.55))
+        return float(getattr(C, "SMC_CHOP_MIN_SIGNAL", 0.50))
     except Exception:
-        return 0.55
+        return 0.50
 
 
 def explain(breakdown: dict) -> str:
