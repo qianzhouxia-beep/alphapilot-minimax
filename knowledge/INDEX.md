@@ -20,6 +20,8 @@
 - [`strategies/buy_sell_rules.md`](./strategies/buy_sell_rules.md) — 买入/卖出/退出规则 + 回测依据（VWAP 回踩、T+2 收盘卖）
 - `strategies/position_exposure.md` — 仓位阶梯与市场环境门控（待建）
 - `strategies/index.md` — 全部策略一览（待建）
+- 策略评估：`docs/朋友策略评估报告_2026-08-15.md`（抓龙头打板策略 vs AlphaPilot，含融合建议）
+- 板块热度研究：`docs/板块热度时点研究_2026-08-15.md`（9:35/9:40/9:45 时点可靠性 + 板块热度稳定性）
 
 ### 数据源（data_sources/）
 - [`data_sources/index.md`](./data_sources/index.md) — 每个数据源：路径、更新 cron、覆盖度、延迟、可靠性、风险
