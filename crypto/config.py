@@ -71,7 +71,9 @@ class PaperConfig:
     use_atr_sizing: bool = True     # enable ATR-adaptive position sizing
     atr_risk_pct: float = 0.008     # risk 0.8% of capital per ATR unit (sizing study: ret +6214%, DD -28%, Sharpe 2.07 — sweet spot)
     atr_max_batch_pct: float = 0.40 # cap single batch at 40% of capital (was 30%)
-    global_max_position_pct: float = 0.80  # hard cap on total open exposure (sum of batch_size) — never over-leverage
+    global_max_position_pct: float = 0.90  # hard cap on total open exposure (sum of batch_size) — never over-leverage
+    # Aug-13 utilization study (30d/60d real backtest): cap 0.80→0.90 doubles
+    # return (22.8%→43.8% / 173%→258%) at the cost of ~+1.5pp max drawdown.
 
 PAPER = PaperConfig()
 

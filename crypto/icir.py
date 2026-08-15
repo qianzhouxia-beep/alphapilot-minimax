@@ -38,6 +38,7 @@ def run_icir_analysis(
     # Hard-exclude any look-ahead / label-ish columns (defense in depth).
     _hard_exclude = {
         "timestamp", "symbol", "timeframe", "open", "high", "low", "close", "volume",
+        "turnover", "trades", "taker_buy_vol", "taker_buy_amt",
         "funding_rate", "open_interest", "oi_value_usdt",
         "label_long", "label_short", "label_mid", "label_multiclass", "fwd_ret",
     }

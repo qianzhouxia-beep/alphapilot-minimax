@@ -4,102 +4,325 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AlphaPilot Crypto 监控驾驶舱</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f2f5f9; --card:#ffffff; --ink:#0f172a; --sub:#64748b; --line:#e2e8f0;
-  --up:#16a34a; --down:#dc2626; --accent:#2563eb; --warn:#d97706;
-  --radius:14px; --shadow:0 1px 3px rgba(15,23,42,.06),0 4px 16px rgba(15,23,42,.05);
+  /* AlphaPilot brand light theme — matches alphapilot.api-tokenmaster.com */
+  --bg:#f5f5f7;
+  --card:#ffffff;
+  --card-2:#fafafa;
+  --ink:#1d1d1f;
+  --ink-2:#3a3a40;
+  --sub:#7a7a80;
+  --line:#e6e6ec;
+  --line-2:#d4d4dd;
+  --up:#34c759;
+  --up-soft:rgba(52,199,89,.12);
+  --down:#ff3b30;
+  --down-soft:rgba(255,59,48,.10);
+  --brand:#7c5cfc;
+  --brand-soft:rgba(124,92,252,.12);
+  --warn:#f57c00;
+  --radius:14px;
+  --shadow:0 4px 16px rgba(0,0,0,.06);
+  --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14px;line-height:1.5;padding:16px}
-.wrap{max-width:1200px;margin:0 auto}
-header{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin-bottom:18px}
-header h1{font-size:20px;font-weight:700;letter-spacing:.3px}
-header h1 .dot{color:var(--up)}
-header .meta{margin-left:auto;color:var(--sub);font-size:12px}
-.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;margin-left:8px}
-.badge.on{background:#dcfce7;color:var(--up)}
-.badge.off{background:#fee2e2;color:var(--down)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
-.card .label{color:var(--sub);font-size:12px;margin-bottom:6px}
-.card .value{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  background-image:
+    radial-gradient(1000px 480px at 15% -8%, rgba(124,92,252,.07) 0%, transparent 60%),
+    radial-gradient(800px 420px at 95% -5%, rgba(124,92,252,.05) 0%, transparent 55%);
+  background-attachment:fixed;
+  color:var(--ink);
+  font-family:var(--font);
+  font-size:14px;
+  line-height:1.5;
+  padding:16px 16px 28px;
+  min-height:100vh;
+}
+.wrap{max-width:1240px;margin:0 auto}
+::selection{background:rgba(124,92,252,.20)}
+
+/* ── Sticky status bar ── */
+.statusbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:12px;
+  background:rgba(245,245,247,.88);
+  backdrop-filter:blur(10px);
+  border:1px solid var(--line);
+  border-bottom-color:var(--line-2);
+  border-radius:0 0 var(--radius) var(--radius);
+  padding:8px 14px;margin:0 0 16px;
+}
+.statusbar .sbrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;white-space:nowrap}
+.statusbar .sbrand img.logo{height:26px;width:auto;display:block}
+.statusbar .sbrand .tagline{color:var(--sub);font-weight:400}
+.statusbar .right{margin-left:auto;display:flex;align-items:center;gap:12px;color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;
+  border:1px solid var(--line);white-space:nowrap;
+}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%}
+.badge.on{background:var(--up-soft);color:#1f9d4a;border-color:rgba(52,199,89,.4)}
+.badge.on::before{background:var(--up);box-shadow:0 0 8px var(--up);animation:pulse 2.2s ease-in-out infinite}
+.badge.off{background:var(--down-soft);color:#e0322a;border-color:rgba(255,59,48,.4)}
+.badge.off::before{background:var(--down)}
+.badge.stale{background:rgba(245,124,0,.10);color:var(--warn);border-color:rgba(245,124,0,.35)}
+.badge.stale::before{background:var(--warn)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* refresh ring */
+.refresh{display:flex;align-items:center;gap:6px;color:var(--sub);font-size:12px}
+.refresh svg{transform:rotate(-90deg)}
+.refresh .ring-bg{stroke:var(--line-2)}
+.refresh .ring-fg{stroke:var(--brand);transition:stroke-dashoffset 1s linear}
+
+/* ── KPI cards: main tier ── */
+.cards-main{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:10px}
+.cards-sub{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px 16px;
+  transition:border-color .2s ease,box-shadow .2s ease;
+  position:relative;overflow:hidden;
+}
+.card:hover{border-color:var(--line-2);box-shadow:0 6px 20px rgba(0,0,0,.09)}
+.card.hero{
+  background:linear-gradient(160deg,#f6f3ff,var(--card));
+  border-color:rgba(124,92,252,.25);
+}
+.card.hero::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(260px 130px at 100% 0%, rgba(124,92,252,.09), transparent 70%);
+}
+.card.sub{padding:10px 12px}
+.card .label{color:var(--sub);font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.card .value{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.card.sub .value{font-size:17px}
 .card .value.sm{font-size:18px}
 .card .sub{color:var(--sub);font-size:12px;margin-top:4px}
-.up{color:var(--up)} .down{color:var(--down)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.card.sub .sub{font-size:11px;margin-top:2px}
+.up{color:#1f9d4a} .down{color:#e0322a}
+.brand{color:var(--brand)}
+
+/* tick flash */
+.tick{transition:background-color .3s ease,color .3s ease;border-radius:4px;padding:0 2px}
+.tick.fp{background:var(--up-soft);color:#1f9d4a}
+.tick.fn{background:var(--down-soft);color:#e0322a}
+.tick.fz{background:rgba(0,0,0,.05);color:var(--sub)}
+
+/* ── Panels ── */
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;margin-bottom:20px}
 .grid.cols2{grid-template-columns:1fr 1fr}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px}
-.panel h3{font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.panel h3 .tag{font-size:11px;color:var(--sub);font-weight:400}
-canvas{width:100%;height:280px;display:block}
+.grid>*{min-width:0}
+.panel{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px;
+}
+.panel h3{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:var(--ink);text-transform:uppercase;letter-spacing:.4px}
+.panel h3::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--brand)}
+.panel h3 .tag{font-size:11px;color:var(--sub);font-weight:400;letter-spacing:0}
+canvas{width:100%;height:280px;display:block;cursor:crosshair}
+
+/* ── Tables ── */
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--sub);font-weight:600;font-size:12px;position:sticky;top:0;background:var(--card)}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
-tbody tr:hover{background:#f8fafc}
-.tbl{max-height:420px;overflow:auto}
-.flag{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--sub);font-weight:600;font-size:11px;position:sticky;top:0;background:var(--card);z-index:1;letter-spacing:.3px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12px}
+tbody tr{transition:background .15s ease}
+tbody tr:hover{background:rgba(0,0,0,.03)}
+.tbl{max-height:400px;overflow:auto;border-radius:8px}
+.tbl::-webkit-scrollbar{width:8px;height:8px}
+.tbl::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+.tbl::-webkit-scrollbar-track{background:transparent}
+/* strength bar background on pnl cells */
+.strength{position:relative}
+.strength::before{
+  content:"";position:absolute;top:1px;bottom:1px;right:0;border-radius:4px;pointer-events:none;opacity:.15;
+}
+.strength.pos::before{left:55%;background:linear-gradient(90deg,transparent,var(--up))}
+.strength.neg::before{left:0;background:linear-gradient(90deg,var(--down),transparent)}
+.strength .txt{position:relative;z-index:1}
+
+/* ── Misc ── */
+.flag{
+  background:rgba(245,124,0,.06);border:1px solid rgba(245,124,0,.22);
+  border-left-width:3px;border-left-color:var(--warn);
+  border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:var(--ink-2);
+}
+.flag.err{background:rgba(255,59,48,.06);border-color:rgba(255,59,48,.22);border-left-color:var(--down)}
 .flag b{color:var(--warn)}
 .note{color:var(--sub);font-size:12px;margin-bottom:6px}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
-.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px}
-.bar-row .name{width:110px;flex-shrink:0;color:var(--sub)}
-.bar-track{flex:1;height:16px;background:#f1f5f9;border-radius:8px;overflow:hidden;position:relative}
-.bar-fill{height:100%;border-radius:8px}
-.bar-val{width:90px;text-align:right;font-variant-numeric:tabular-nums}
-.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.kv .k{color:var(--sub);font-size:12px}
-.kv .v{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.note.ok{color:#1f9d4a}
+.mono{font-family:var(--mono);font-size:12px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px}
+.bar-row .name{width:84px;flex-shrink:0;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.bar-track{flex:1;height:18px;background:#f0f0f4;border:1px solid var(--line);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:11px;color:#fff;font-family:var(--mono);min-width:0}
+.bar-fill.neg{justify-content:flex-start;padding-left:6px}
+.bar-val{width:52px;text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:11px;color:var(--sub)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.kv .k{color:var(--sub);font-size:11px}
+.kv .v{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* exit reasons single-line */
+.exitline{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px}
+.exitline .seg{display:flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-weight:600}
+.exitline .seg.tp{background:var(--up-soft);color:#1f9d4a}
+.exitline .seg.sl{background:var(--down-soft);color:#e0322a}
+.exitline .seg.mh{background:rgba(0,0,0,.05);color:var(--ink-2)}
+.exitline .seg .n{font-family:var(--mono)}
+.exitline .mini{flex:1;height:6px;border-radius:3px;background:#f0f0f4;overflow:hidden;display:flex;gap:1px}
+.exitline .mini i{display:block;height:100%}
+
+/* SMC trend matrix */
+.smc-summary{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.smc-summary .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.smc-summary .chip.up{background:var(--up-soft);color:#1f9d4a}
+.smc-summary .chip.down{background:var(--down-soft);color:#e0322a}
+.smc-summary .chip.chop{background:rgba(0,0,0,.05);color:var(--ink-2)}
+.smc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.smc-cell{
+  border:1px solid var(--line);border-radius:8px;padding:7px 8px;position:relative;
+  cursor:default;transition:border-color .15s ease,transform .15s ease;
+  overflow:hidden;
+}
+.smc-cell::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+.smc-cell:hover{border-color:var(--line-2);transform:translateY(-1px)}
+.smc-cell .sym{font-size:11px;font-weight:600;color:var(--ink);font-family:var(--mono)}
+.smc-cell .scr{font-size:10px;color:var(--sub);font-family:var(--mono);margin-top:2px}
+.smc-cell.up{background:rgba(52,199,89,.07)}
+.smc-cell.up::before{background:var(--up)}
+.smc-cell.down{background:rgba(255,59,48,.07)}
+.smc-cell.down::before{background:var(--down)}
+.smc-cell.chop{background:rgba(0,0,0,.025)}
+.smc-cell.chop::before{background:var(--sub)}
+.smc-block{margin-top:10px;font-size:12px}
+.smc-block .pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;background:var(--down-soft);color:#e0322a;border:1px solid rgba(255,59,48,.22);margin-right:6px}
+.smc-block .pill .n{font-family:var(--mono);font-weight:700}
+
+/* guardrail timeline */
+.gh-item{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:5px;color:var(--ink-2)}
+.gh-item .d{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.gh-item .d.accept{background:var(--up);box-shadow:0 0 6px var(--up)}
+.gh-item .d.reject{background:var(--down);box-shadow:0 0 6px var(--down)}
+
+/* AUC progress */
+.auc{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.auc .item .k{color:var(--sub);font-size:11px;margin-bottom:3px}
+.auc .item .v{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.auc .bar{height:5px;border-radius:3px;background:#f0f0f4;position:relative;margin-top:5px;overflow:hidden}
+.auc .bar .mid{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line-2)}
+.auc .bar i{position:absolute;top:0;bottom:0;border-radius:3px;background:var(--brand);opacity:.9}
+
+/* learning timeline */
+.tl{list-style:none;margin:0}
+.tl li{position:relative;padding:0 0 8px 16px;font-size:12px;color:var(--ink-2)}
+.tl li::before{content:"";position:absolute;left:3px;top:5px;width:7px;height:7px;border-radius:50%;background:var(--brand)}
+.tl li:not(:last-child)::after{content:"";position:absolute;left:6px;top:13px;bottom:-1px;width:1px;background:var(--line-2)}
+
+/* small threshold table */
+.thr{width:100%;border-collapse:collapse;font-size:12px}
+.thr th,.thr td{padding:3px 6px;border-bottom:1px solid var(--line);font-family:var(--mono)}
+.thr th{color:var(--sub);font-weight:600;text-align:left;font-size:11px;position:static}
+
+details.note{background:var(--card);border:1px dashed var(--line-2);border-radius:8px;padding:8px 10px}
+details.note summary{cursor:pointer;color:var(--ink-2);font-size:12px;font-weight:600}
+details.note[open] summary{margin-bottom:8px}
+
+/* direction chips */
+.chip{display:inline-block;padding:1px 8px;border-radius:6px;font-size:12px;font-weight:600}
+.chip.long{background:var(--up-soft);color:#1f9d4a}
+.chip.short{background:var(--down-soft);color:#e0322a}
+.chip.neutral{background:rgba(0,0,0,.05);color:var(--ink-2)}
+
+footer{color:var(--sub);font-size:12px;text-align:center;margin:22px 0 4px}
+footer .sep{color:var(--line-2);margin:0 6px}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+  .badge.on::before{animation:none}
+}
+
 @media(max-width:820px){
   .grid,.grid.cols2{grid-template-columns:1fr}
-  .cards{grid-template-columns:repeat(2,1fr)}
-  header .meta{margin-left:0;width:100%}
-  .card .value{font-size:20px}
-  .bar-row .name{width:80px}
-  .bar-val{width:70px}
+  .smc-grid{grid-template-columns:repeat(4,1fr)}
+  .statusbar .sbrand .tagline{display:none}
 }
 @media(max-width:480px){
-  .cards{grid-template-columns:repeat(2,1fr)}
-  .card .value{font-size:18px}
+  .cards-main{grid-template-columns:repeat(2,1fr)}
+  .cards-main .card:nth-child(-n+2) .value{font-size:22px}
+  .cards-sub{grid-template-columns:repeat(2,1fr)}
+  .smc-grid{grid-template-columns:repeat(4,1fr)}
   th,td{font-size:12px;padding:6px}
+  .statusbar{padding:7px 10px}
+  .statusbar .right{gap:8px}
+  .statusbar #asof{display:none}
+  /* positions table -> card list on mobile */
+  #posTable thead{display:none}
+  #posTable tbody tr{display:block;padding:8px 4px;border-bottom:1px solid var(--line)}
+  #posTable tbody tr:last-child{border-bottom:none}
+  #posTable td{display:block;border:none;padding:0;white-space:normal}
+  #posTable td:nth-child(1){font-weight:700;font-size:14px}
+  #posTable td:nth-child(3){font-size:18px;font-weight:700;color:#1f9d4a}
+  #posTable td:nth-child(3).down{color:#e0322a}
+  #posTable td:nth-child(4),#posTable td:nth-child(5){display:inline-block;font-size:12px;color:var(--sub);margin-top:4px;margin-right:10px}
+  .bar-row .name{width:64px}
+  .bar-val{width:44px}
+  .bar-fill{padding-right:4px;font-size:10px}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
-<header>
-  <h1><span class="dot">●</span> AlphaPilot Crypto 监控驾驶舱</h1>
+<div class="statusbar">
+  <div class="sbrand"><img class="logo" src="logo.png" alt="AlphaPilot" onerror="this.style.display='none'"><span class="tagline">· 自进化量化 24/7</span></div>
   <span id="serviceBadge" class="badge">…</span>
-  <div class="meta"><span id="asof"></span> · <span id="countdown"></span></div>
-</header>
+  <div class="right">
+    <span id="asof"></span>
+    <span class="refresh"><svg width="16" height="16" viewBox="0 0 16 16"><circle class="ring-bg" cx="8" cy="8" r="6.5" fill="none" stroke-width="2"/><circle id="ringFg" class="ring-fg" cx="8" cy="8" r="6.5" fill="none" stroke-width="2" stroke-dasharray="40.84" stroke-dashoffset="0" stroke-linecap="round"/></svg><span id="countdown"></span></span>
+  </div>
+</div>
 
-<section class="cards" id="cards"></section>
+<section class="cards-main" id="cardsMain"></section>
+<section class="cards-sub" id="cardsSub"></section>
 
 <div class="grid">
   <div class="panel"><h3>资金曲线 <span class="tag" id="eqRange"></span></h3><canvas id="eqChart"></canvas></div>
   <div class="panel">
-    <h3>分币种盈亏</h3>
-    <div id="bySymbol"></div>
-    <h3 style="margin-top:16px">平仓原因</h3>
-    <div id="byExit"></div>
+    <h3>当前持仓 <span class="tag" id="posCount"></span></h3>
+    <div class="tbl"><table id="posTable">
+      <thead><tr><th>币种</th><th>方向</th><th class="num">入场价</th><th class="num">浮盈%</th><th class="num">浮盈$</th><th class="num">持仓h/信号</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
   </div>
 </div>
 
 <div class="grid cols2">
-  <div class="panel">
-    <h3>当前持仓 <span class="tag" id="posCount"></span></h3>
-    <div class="tbl"><table id="posTable">
-      <thead><tr><th>币种</th><th>方向</th><th class="num">入场价</th><th class="num">仓位</th><th class="num">浮盈亏</th><th class="num">浮盈%</th><th class="num">持仓h</th><th class="num">信号</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-  </div>
   <div class="panel">
     <h3>最近成交 <span class="tag" id="tradeCount"></span></h3>
     <div class="tbl"><table id="tradeTable">
       <thead><tr><th>时间</th><th>币种</th><th>方向</th><th>原因</th><th class="num">盈亏%</th><th class="num">盈亏USDT</th></tr></thead>
       <tbody></tbody>
     </table></div>
+  </div>
+  <div class="panel">
+    <h3>归因分析</h3>
+    <div style="margin-bottom:12px"><div class="note" style="margin-bottom:6px">分币种盈亏</div><div id="bySymbol"></div></div>
+    <div class="note" style="margin-bottom:6px">平仓原因</div>
+    <div id="byExit"></div>
   </div>
 </div>
 
@@ -110,8 +333,8 @@ tbody tr:hover{background:#f8fafc}
   </div>
   <div class="panel">
     <h3>模型 & 护栏</h3>
-    <div class="kv" id="model"></div>
-    <div id="guardHist" style="margin-top:12px"></div>
+    <div id="model"></div>
+    <div id="guardHist" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -122,50 +345,81 @@ tbody tr:hover{background:#f8fafc}
   </div>
   <div class="panel">
     <h3>说明</h3>
-    <div class="note">方向层先定趋势（1d/4h/2h 结构对齐）：<br>
-      · 顺势 → 维持原信号阈值<br>
-      · 逆势 → 需信号 ≥0.50（较强反转才进）<br>
-      · 震荡 → 信号 ≥0.50 才开仓<br>
-      8/12 二轮调参：SMC 阈值 0.55→0.50、基础阈值 0.45/0.50→0.42/0.48，提升成交频次</div>
+    <details class="note" open>
+      <summary>方向层先定趋势（1d/4h/2h 结构对齐）</summary>
+      <div style="margin-top:8px">
+        · 顺势 → 维持原信号阈值<br>
+        · 逆势 → 需信号 ≥0.50（较强反转才进）<br>
+        · 震荡 → 信号 ≥0.50 才开仓<br>
+        <br>
+        8/12 二轮调参：SMC 阈值 0.55→0.50、基础阈值 0.45/0.50→0.42/0.48，提升成交频次<br>
+        8/13 cap90：全球敞口上限 80%→90%，收益翻倍（回测），回撤 +1.5pp
+      </div>
+    </details>
   </div>
 </div>
 
-<footer style="color:var(--sub);font-size:12px;text-align:center;margin:24px 0 8px">
-  AlphaPilot Crypto Self-Improving Quant · 数据每 30 秒自动刷新
+<footer>
+  AlphaPilot Crypto Self-Improving Quant<span class="sep">·</span>数据每 30 秒自动刷新<span class="sep">·</span>按 <b>R</b> 手动刷新
 </footer>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 const fmt = (v, d=2) => Number(v||0).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtK = v => { if(Math.abs(v)>=1000) return (v/1000).toFixed(1)+"K"; return fmt(v,0); };
 const pnlCls = v => v>0?"up":(v<0?"down":"");
 const pnlStr = v => (v>0?"+":"")+fmt(v);
+const dirChip = d => `<span class="chip ${d==="long"?"long":(d==="short"?"short":"neutral")}">${d==="long"?"做多":(d==="short"?"做空":"中性")}</span>`;
+const RING = 2*Math.PI*6.5; // r=6.5
 let timer = null;
+let lastVals = {};
 
-function serviceBadge(ok){
+function serviceBadge(ok, stale=false){
   const el = $("serviceBadge");
-  el.textContent = ok ? "仿真运行中" : "状态未知";
-  el.className = "badge " + (ok ? "on" : "off");
+  el.className = "badge " + (ok ? (stale?"stale":"on") : "off");
+  el.textContent = ok ? (stale?"更新延迟":"实盘模拟") : "状态未知";
+}
+
+/* ── tick flash: diff against last render ── */
+function flash(id, val, digits=2, prefix="", suffix=""){
+  const el = $(id);
+  if(!el) return "";
+  const key = id;
+  const prev = lastVals[key];
+  const txt = prefix + fmt(val,digits) + suffix;
+  el.textContent = txt;
+  if(prev!==undefined && prev!==val){
+    const cls = val>prev ? "fp" : (val<prev ? "fn" : "fz");
+    el.classList.remove("fp","fn","fz"); void el.offsetWidth;
+    el.classList.add("tick",cls);
+    setTimeout(()=>el.classList.remove("tick","fp","fn","fz"),650);
+  }
+  lastVals[key]=val;
+  return txt;
 }
 
 function renderCards(s){
   const c = s.state, st = s.stats;
   const ret = (s.state.equity/s.state.initial_capital-1)*100;
-  const cards = [
-    {label:"当前权益", value:"$"+fmt(c.equity), sub:"本金 $"+fmt(c.initial_capital,0)},
-    {label:"累计收益", value:pnlStr(st.total_pnl)+" USDT", sub:"收益率 "+pnlStr(ret)+"%", cls:pnlCls(ret)},
-    {label:"今日盈亏", value:pnlStr(st.today.pnl)+" USDT", sub:st.today.n+" 笔平仓", cls:pnlCls(st.today.pnl)},
-    {label:"昨日盈亏", value:pnlStr(st.yesterday.pnl)+" USDT", sub:st.yesterday.n+" 笔平仓", cls:pnlCls(st.yesterday.pnl)},
-    {label:"胜率", value:fmt(st.win_rate,1)+"%", sub:st.n_wins+"胜 / "+st.n_losses+"负"},
-    {label:"最大回撤", value:fmt(st.max_drawdown_pct,2)+"%", cls:st.max_drawdown_pct<0?"down":""},
-    {label:"当前持仓", value:c.open_positions, sub:"已平 "+c.closed_trades+" 笔"},
-    {label:"累计手续费", value:"$"+fmt(st.total_fees,2), sub:"止盈/止损自动管理"},
-  ];
-  $("cards").innerHTML = cards.map(x=>
-    `<div class="card"><div class="label">${x.label}</div><div class="value ${x.cls||""}">${x.value}</div><div class="sub">${x.sub||""}</div></div>`
-  ).join("");
+  const dd = st.max_drawdown_pct;
+  // main tier: equity (hero), cumulative, today, max drawdown
+  $("cardsMain").innerHTML = [
+    `<div class="card hero"><div class="label">当前权益</div><div class="value">${flash("cEquity",c.equity)}</div><div class="sub">本金 $${fmt(c.initial_capital,0)} · 浮动 ${pnlStr(c.open_pnl)}</div></div>`,
+    `<div class="card"><div class="label">累计收益</div><div class="value ${pnlCls(st.total_pnl)}">${pnlStr(st.total_pnl)} USDT</div><div class="sub">收益率 ${pnlStr(ret)}%</div></div>`,
+    `<div class="card"><div class="label">今日盈亏</div><div class="value ${pnlCls(st.today.pnl)}">${pnlStr(st.today.pnl)} USDT</div><div class="sub">${st.today.n} 笔平仓</div></div>`,
+    `<div class="card"><div class="label">最大回撤</div><div class="value ${dd<0?"down":""}">${fmt(dd,2)}%</div><div class="sub">基于资金曲线</div></div>`,
+  ].join("");
+  // sub tier
+  $("cardsSub").innerHTML = [
+    `<div class="card sub"><div class="label">昨日盈亏</div><div class="value ${pnlCls(st.yesterday.pnl)}">${pnlStr(st.yesterday.pnl)}</div><div class="sub">${st.yesterday.n} 笔</div></div>`,
+    `<div class="card sub"><div class="label">胜率</div><div class="value">${fmt(st.win_rate,1)}%</div><div class="sub">${st.n_wins}胜 / ${st.n_losses}负</div></div>`,
+    `<div class="card sub"><div class="label">当前持仓</div><div class="value">${c.open_positions}</div><div class="sub">已平 ${c.closed_trades} 笔</div></div>`,
+    `<div class="card sub"><div class="label">累计手续费</div><div class="value">$${fmt(st.total_fees,2)}</div><div class="sub">TP/SL 自动管理</div></div>`,
+  ].join("");
 }
 
+/* ── equity chart: baseline + drawdown zones + legend + crosshair ── */
 function drawEquity(s){
   const cv = $("eqChart"), ctx = cv.getContext("2d");
   const dpr = window.devicePixelRatio||1;
@@ -174,46 +428,138 @@ function drawEquity(s){
   ctx.scale(dpr,dpr);
   ctx.clearRect(0,0,W,H);
   const pts = s.equity_curve||[];
-  if(pts.length<2){ ctx.fillStyle="#64748b"; ctx.font="14px sans-serif"; ctx.fillText("暂无资金数据",W/2-40,H/2); return; }
-  const padL=12,padR=12,padT=14,padB=24;
+  if(pts.length<2){ ctx.fillStyle="#7a7a80"; ctx.font="13px Inter,sans-serif"; ctx.fillText("暂无资金数据",W/2-40,H/2); return; }
+  const padL=52,padR=14,padT=22,padB=26;
   let min=Infinity,max=-Infinity;
   pts.forEach(p=>{min=Math.min(min,p.equity);max=Math.max(max,p.equity)});
+  const base = s.state.initial_capital;
+  min=Math.min(min,base); max=Math.max(max,base);
   const span=(max-min)||1;
   const X=i=>padL+(W-padL-padR)*i/(pts.length-1);
   const Y=v=>padT+(H-padT-padB)*(1-(v-min)/span);
-  // grid lines
-  ctx.strokeStyle="#e2e8f0"; ctx.fillStyle="#94a3b8"; ctx.font="11px sans-serif";
+
+  // grid + y labels (left)
+  ctx.strokeStyle="#e6e6ec"; ctx.fillStyle="#7a7a80"; ctx.font="11px JetBrains Mono,monospace"; ctx.textAlign="left";
   for(let g=0;g<=4;g++){
     const v=min+span*g/4, y=Y(v);
     ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();
-    ctx.fillText(fmt(v,0),W-padR-56,y-3);
+    ctx.fillText(fmtK(v),4,y+4);
   }
-  // area + line
+
+  // baseline (initial capital) dashed
+  const by=Y(base);
+  ctx.strokeStyle="rgba(58,58,64,.4)"; ctx.setLineDash([4,4]); ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(padL,by);ctx.lineTo(W-padR,by);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle="#7a7a80"; ctx.font="10px Inter,sans-serif"; ctx.textAlign="right";
+  ctx.fillText("本金 100%",W-padR,by-4);
+
+  // area + line (brand purple)
   ctx.beginPath();ctx.moveTo(X(0),Y(pts[0].equity));
   pts.forEach((p,i)=>ctx.lineTo(X(i),Y(p.equity)));
   ctx.lineTo(X(pts.length-1),Y(pts[pts.length-1].equity));
-  ctx.strokeStyle="#2563eb";ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle="#7c5cfc";ctx.lineWidth=2;ctx.stroke();
   ctx.lineTo(X(pts.length-1),H-padB);ctx.lineTo(X(0),H-padB);ctx.closePath();
-  ctx.fillStyle="rgba(37,99,235,.10)";ctx.fill();
-  // first/last labels
-  ctx.fillStyle="#64748b";
-  ctx.fillText(pts[0].ts.slice(0,16),padL,H-8);
-  ctx.fillText(pts[pts.length-1].ts.slice(0,16),W-padR-92,H-8);
+  const grad=ctx.createLinearGradient(0,padT,0,H-padB);
+  grad.addColorStop(0,"rgba(124,92,252,.16)");
+  grad.addColorStop(1,"rgba(124,92,252,0)");
+  ctx.fillStyle=grad;ctx.fill();
+
+  // red zone under current drawdown (from max peak to now if below peak)
+  const maxAt = pts.reduce((a,p)=>Math.max(a,p.equity),-Infinity);
+  const lastVal = pts[pts.length-1].equity;
+  if(lastVal<maxAt-1e-9){
+    const yTop=Y(maxAt), yBot=Y(lastVal);
+    ctx.fillStyle="rgba(255,59,48,.05)";
+    ctx.fillRect(padL,yTop,W-padL-padR,Math.max(yBot-yTop,2));
+  }
+
+  // last point glow
+  const lx=X(pts.length-1), ly=Y(pts[pts.length-1].equity);
+  ctx.beginPath();ctx.arc(lx,ly,3.2,0,Math.PI*2);ctx.fillStyle="#7c5cfc";ctx.fill();
+  ctx.beginPath();ctx.arc(lx,ly,7,0,Math.PI*2);ctx.fillStyle="rgba(124,92,252,.18)";ctx.fill();
+
+  // legend top-right
+  ctx.textAlign="right";
+  ctx.font="600 11px JetBrains Mono,monospace";
+  ctx.fillStyle="#7c5cfc"; ctx.fillRect(W-padR-150,8,8,8);
+  ctx.fillStyle="#1d1d1f";
+  const ret=(lastVal/base-1)*100;
+  ctx.fillText(`权益 $${fmt(lastVal)} · ${ret>=0?"+":""}${ret.toFixed(2)}%`, W-padR, 16);
+
+  // bottom time labels
+  ctx.fillStyle="#7a7a80"; ctx.font="11px JetBrains Mono,monospace"; ctx.textAlign="left";
+  ctx.fillText(pts[0].ts.slice(5,16).replace("T"," "),padL,H-8);
+  ctx.textAlign="right";
+  ctx.fillText(pts[pts.length-1].ts.slice(5,16).replace("T"," "),W-padR,H-8);
+
+  // store for crosshair + cache base image to offscreen canvas (avoid full redraw per mousemove)
+  cv._data={pts,W,H,padL,padR,padT,padB,X,Y};
+  if(!cv._base){ cv._base=document.createElement("canvas"); }
+  cv._base.width=cv.width; cv._base.height=cv.height;
+  cv._base.getContext("2d").drawImage(cv,0,0);
 }
 
-function bars(div, data, labelFn, maxPnl){
+function setupCrosshair(){
+  const cv=$("eqChart");
+  const paint=(d,drawCross)=>{
+    const ctx=cv.getContext("2d");
+    ctx.clearRect(0,0,d.W,d.H);
+    // NOTE: main ctx is scaled by dpr, so drawImage must specify CSS size
+    // (W,H) or the cached dpr-sized base would be blown up past the canvas.
+    if(cv._base) ctx.drawImage(cv._base,0,0,d.W,d.H);
+    if(!drawCross) return;
+    const {px,my,pt,bx,by,bw,bh}=drawCross;
+    ctx.strokeStyle="rgba(58,58,64,.5)"; ctx.setLineDash([3,3]); ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px,d.padT);ctx.lineTo(px,d.H-d.padB);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(d.padL,my);ctx.lineTo(d.W-d.padR,my);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="rgba(255,255,255,.96)"; ctx.strokeStyle="rgba(58,58,64,.3)";
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,bw,bh,6):ctx.rect(bx,by,bw,bh); ctx.fill(); ctx.stroke();
+    ctx.fillStyle="#1d1d1f"; ctx.font="11px JetBrains Mono,monospace"; ctx.textAlign="left";
+    ctx.fillText(pt.txt,bx+12,by+20);
+  };
+  cv.addEventListener("mousemove",e=>{
+    const d=cv._data; if(!d) return;
+    const r=cv.getBoundingClientRect();
+    const mx=e.clientX-r.left, my=e.clientY-r.top;
+    if(mx<d.padL||mx>d.W-d.padR||my<d.padT||my>d.H-d.padB) return;
+    const ctx=cv.getContext("2d");
+    const i=Math.round((mx-d.padL)/(d.W-d.padL-d.padR)*(d.pts.length-1));
+    const px=d.X(i);
+    const p=d.pts[i];
+    // measure text first so the box fits the content
+    ctx.font="11px JetBrains Mono,monospace";
+    const txt=`${p.ts.slice(5,16).replace("T"," ")}  $${fmt(p.equity)}`;
+    const tw=Math.ceil(ctx.measureText(txt).width);
+    const bw=tw+24, bh=32;
+    // place box beside cursor, flip near right/bottom edges, clamp inside canvas
+    let bx=mx+10, by=my-bh-12;
+    if(bx+bw>d.W-d.padR) bx=mx-bw-10;                 // flip left when near right edge
+    if(by<d.padT) by=my+12;                            // flip below when near top
+    bx=Math.max(d.padL,Math.min(bx,d.W-d.padR-bw));    // clamp horizontally
+    by=Math.max(d.padT,Math.min(by,d.H-d.padB-bh));    // clamp vertically
+    paint(d,{px,my,pt:{txt},bx,by,bw,bh});
+  });
+  cv.addEventListener("mouseleave",()=>{
+    if(!cv._data) return;
+    paint(cv._data,null);
+  });
+}
+
+function bars(div, data, labelFn, maxPnl, opts={}){
   if(!data || !Object.keys(data).length){ div.innerHTML='<div class="note">暂无数据</div>'; return; }
-  const mx = maxPnl || Math.max(...Object.values(data).map(v=>Math.abs(v.pnl||0)),1);
-  div.innerHTML = Object.entries(data).map(([k,v])=>{
+  let entries=Object.entries(data);
+  if(opts.sort!==false) entries.sort((a,b)=>(b[1].pnl||0)-(a[1].pnl||0));
+  const mx = maxPnl || Math.max(...entries.map(([,v])=>Math.abs(v.pnl||0)),1);
+  div.innerHTML = entries.map(([k,v])=>{
     const p=v.pnl||0;
-    const w=Math.max(2,Math.abs(p)/mx*100);
-    const color=p>=0?"var(--up)":"var(--down)";
-    const bar=`<div class="bar-fill" style="width:${w}%;background:${color}"></div>`;
-    const left = p>=0 ? `style="margin-left:50%"` : `style="margin-left:${50-w}%"`;
-    return `<div class="bar-row"><span class="name">${labelFn(k)}</span>
-      <div class="bar-track"><div class="bar-fill" ${left} style="width:${w}%;background:${color}"></div></div>
-      <span class="bar-val ${pnlCls(p)}">${pnlStr(p)}</span>
-      <span class="bar-val" style="width:60px;color:var(--sub)">${v.win_rate||0}%</span></div>`;
+    const w=Math.max(4,Math.abs(p)/mx*100);
+    const pos=p>=0;
+    const color=pos?"var(--up)":"var(--down)";
+    return `<div class="bar-row"><span class="name" title="${k}">${labelFn(k)}</span>
+      <div class="bar-track"><div class="bar-fill ${pos?"":"neg"}" style="width:${w}%;background:${color}">${pos?"+":""}${fmt(p)}</div></div>
+      <span class="bar-val">${v.win_rate||0}%</span></div>`;
   }).join("");
 }
 
@@ -221,17 +567,20 @@ function renderTables(s){
   const pos=s.open_positions||[], tr=s.recent_trades||[];
   $("posCount").textContent = pos.length+" 个";
   $("tradeCount").textContent = tr.length+" 笔";
-  $("posTable").querySelector("tbody").innerHTML = pos.map(p=>`
-    <tr><td>${p.symbol}</td><td style="color:${p.direction==="long"?"var(--up)":"var(--down)"}">${p.direction==="long"?"做多":"做空"}</td>
-    <td class="num">${fmt(p.entry_price,4)}</td><td class="num">$${fmt(p.size,1)}</td>
-    <td class="num ${pnlCls(p.upnl)}">${pnlStr(p.upnl)}</td><td class="num ${pnlCls(p.upnl_pct)}">${pnlStr(p.upnl_pct)}%</td>
-    <td class="num">${fmt(p.hold_h,1)}</td><td class="num">${p.entry_score?fmt(p.entry_score,2):"—"}</td></tr>`
-  ).join("");
+  $("posTable").querySelector("tbody").innerHTML = pos.map(p=>{
+    const pcls = p.upnl_pct>0?"pos":(p.upnl_pct<0?"neg":"");
+    return `<tr><td>${p.symbol}</td><td>${dirChip(p.direction)}</td>
+    <td class="num">${fmt(p.entry_price,4)}</td>
+    <td class="num strength ${pcls}"><span class="txt">${pnlStr(p.upnl_pct)}%</span></td>
+    <td class="num strength ${pcls}"><span class="txt">${pnlStr(p.upnl)}</span></td>
+    <td class="num">${fmt(p.hold_h,1)}h${p.entry_score?" · "+fmt(p.entry_score,2):""}</td></tr>`;
+  }).join("");
   const reasonTxt={take_profit:"止盈",stop_loss:"止损",max_hold:"超时"};
+  const reasonCls={take_profit:"tp",stop_loss:"sl",max_hold:"mh"};
   $("tradeTable").querySelector("tbody").innerHTML = tr.map(t=>`
     <tr><td>${t.exit_time}</td><td>${t.symbol}</td>
-    <td style="color:${t.direction==="long"?"var(--up)":"var(--down)"}">${t.direction==="long"?"多":"空"}</td>
-    <td>${reasonTxt[t.exit_reason]||t.exit_reason}</td>
+    <td>${dirChip(t.direction)}</td>
+    <td><span class="chip ${reasonCls[t.exit_reason]==="tp"?"long":(reasonCls[t.exit_reason]==="sl"?"short":"neutral")}">${reasonTxt[t.exit_reason]||t.exit_reason}</span></td>
     <td class="num ${pnlCls(t.pnl_pct)}">${pnlStr(t.pnl_pct)}%</td>
     <td class="num ${pnlCls(t.pnl)}">${pnlStr(t.pnl)}</td></tr>`
   ).join("");
@@ -240,20 +589,27 @@ function renderTables(s){
 function renderLearning(s){
   const l=s.learning, a=s.adaptive||{};
   let html="";
+  // alerts as status cards
   if(l.flags&&l.flags.length){
-    html += '<div class="note">⚠ 自动识别到持续亏损组合：</div>';
-    html += l.flags.map(f=>`<div class="flag"><b>${f.bucket||f.type}</b> — ${f.suggestion||""} (n=${f.n}, pnl=${pnlStr(f.pnl)}, 胜率 ${f.win_rate}%)</div>`).join("");
+    html += '<div style="margin-bottom:8px">';
+    html += l.flags.map(f=>`<div class="flag"><b>${f.bucket||f.type}</b> — ${f.suggestion||""} <span style="color:var(--sub)">(n=${f.n}, pnl=${pnlStr(f.pnl)}, 胜率 ${f.win_rate}%)</span></div>`).join("");
+    html += '</div>';
   } else {
-    html += '<div class="note">✓ 暂无持续亏损告警</div>';
+    html += '<div class="note ok" style="margin-bottom:8px">✓ 暂无持续亏损告警</div>';
   }
+  // recent adjustments timeline
   if(l.notes&&l.notes.length){
-    html += '<div class="note" style="margin-top:10px">最近调整：</div>';
-    html += l.notes.map(n=>`<div class="note mono">· ${n}</div>`).join("");
+    html += '<div class="note" style="margin-bottom:4px">最近调整</div><ul class="tl">';
+    html += l.notes.slice(0,3).map(n=>`<li class="mono">${n}</li>`).join("");
+    html += '</ul>';
   }
+  // adaptive thresholds table
   const ps=a.per_symbol;
   if(ps&&Object.keys(ps).length){
-    html += '<div class="note" style="margin-top:10px">自适应门槛：</div>';
-    html += Object.entries(ps).map(([k,v])=>`<div class="note mono">· ${k} → 多${v.long??"—"} / 空${v.short??"—"}</div>`).join("");
+    html += '<div class="note" style="margin:8px 0 4px">自适应门槛</div>';
+    html += '<div class="tbl" style="max-height:180px"><table class="thr"><thead><tr><th>币种</th><th class="num">多</th><th class="num">空</th></tr></thead><tbody>';
+    html += Object.entries(ps).slice(0,12).map(([k,v])=>`<tr><td>${k.replace("/USDT:USDT","")}</td><td class="num">${v.long??"—"}</td><td class="num">${v.short??"—"}</td></tr>`).join("");
+    html += '</tbody></table></div>';
   }
   const sg=a.session_gates;
   if(sg&&Object.keys(sg).length){
@@ -264,19 +620,24 @@ function renderLearning(s){
 
 function renderModel(s){
   const m=s.model, g=s.guardrail||{};
-  const rows=[
-    {k:"Long AUC", v:m.long_auc?fmt(m.long_auc,4):"—"},
-    {k:"Short AUC", v:m.short_auc?fmt(m.short_auc,4):"—"},
-    {k:"因子数", v:m.n_factors??"—"},
-    {k:"WFO Long (OOS)", v:g.long_oos_auc?fmt(g.long_oos_auc,4):"—"},
-    {k:"WFO Short (OOS)", v:g.short_oos_auc?fmt(g.short_oos_auc,4):"—"},
-    {k:"护栏决策", v:g.long_decision==="accept"?"✓ 通过":"—"},
+  const aucs=[
+    {k:"Long AUC", v:m.long_auc},
+    {k:"Short AUC", v:m.short_auc},
+    {k:"WFO Long (OOS)", v:g.long_oos_auc},
+    {k:"WFO Short (OOS)", v:g.short_oos_auc},
   ];
-  $("model").innerHTML = rows.map(r=>`<div><div class="k">${r.k}</div><div class="v">${r.v}</div></div>`).join("");
+  $("model").innerHTML = '<div class="auc">'+aucs.map(x=>{
+    const v=typeof x.v==="number"?x.v:null;
+    const pct = v===null?0:Math.max(0,Math.min(100,(v-0.5)*200)); // 0.5->0%, 0.6->20%
+    const good = v!==null && v>=0.55;
+    const col = good ? "var(--up)" : (v!==null&&v>=0.5 ? "var(--brand)" : "var(--sub)");
+    return `<div class="item"><div class="k">${x.k}</div><div class="v" style="color:${good?"var(--up)":""}">${v!==null?fmt(v,4):"—"}</div>
+      <div class="bar"><span class="mid"></span><i style="width:${pct}%;background:${col}"></i></div></div>`;
+  }).join('')+'</div>';
   const gh=s.guardrail_history||[];
   if(gh.length){
-    $("guardHist").innerHTML = '<div class="note">护栏历史（最近'+gh.length+'次）：</div>'+
-      gh.slice().reverse().map(x=>`<div class="note mono">· ${x.date} ${x.target}: OOS=${fmt(x.oos_auc,4)} ${x.decision==="accept"?"✓接受":"✗拒绝"}</div>`).join("");
+    $("guardHist").innerHTML = '<div class="note" style="margin-bottom:4px">护栏历史（最近'+gh.length+'次）</div>'+
+      gh.slice().reverse().map(x=>`<div class="gh-item"><span class="d ${x.decision==="accept"?"accept":"reject"}"></span><span class="mono">${x.date} ${x.target} · OOS=${fmt(x.oos_auc,4)}</span></div>`).join("");
   }
 }
 
@@ -285,48 +646,105 @@ function renderSmc(s){
   const trends=smc.last_trends||{};
   const blocks=smc.blocks||{};
   let html='<div class="note">SMC 分层趋势闸门（顺势原阈值 / 逆势≥0.50 / 震荡≥0.50）</div>';
-  const lbl={up:"🟢 上行",down:"🔴 下行",chop:"⚪ 震荡"};
   const entries=Object.entries(trends);
   if(entries.length){
-    html += entries.map(([sym,v])=>`
-      <div class="note mono">${sym.replace("/USDT:USDT","")} → <b>${lbl[v.trend]||v.trend}</b> <span class="num">(${fmt(v.score,1)})</span></div>`).join("");
+    // count summary
+    const cnt={up:0,down:0,chop:0};
+    entries.forEach(([,v])=>{ if(cnt[v.trend]!==undefined) cnt[v.trend]++; });
+    html += `<div class="smc-summary">
+      <span class="chip up">上行 ${cnt.up}</span>
+      <span class="chip down">下行 ${cnt.down}</span>
+      <span class="chip chop">震荡 ${cnt.chop}</span>
+    </div>`;
+    // matrix grid
+    html += '<div class="smc-grid">'+entries.map(([sym,v])=>{
+      const s2=sym.replace("/USDT:USDT","");
+      const tl=v.trend==="up"?"上行":(v.trend==="down"?"下行":"震荡");
+      return `<div class="smc-cell ${v.trend||"chop"}" title="${s2} ${tl} score=${fmt(v.score,1)}">
+        <div class="sym">${s2}</div><div class="scr">${fmt(v.score,1)}</div></div>`;
+    }).join('')+'</div>';
   } else {
     html += '<div class="note">等待下一根 2h bar 计算趋势…</div>';
   }
   if(blocks&&(blocks.counter_trend||blocks.chop)){
-    html += `<div class="note" style="margin-top:8px;color:var(--warn)">已拦截：逆势弱信号 ${blocks.counter_trend||0} 次 / 震荡 ${blocks.chop||0} 次</div>`;
+    html += `<div class="smc-block"><span class="pill">逆势拦截 <span class="n">${blocks.counter_trend||0}</span></span><span class="pill">震荡拦截 <span class="n">${blocks.chop||0}</span></span></div>`;
   }
   $("smc").innerHTML = html;
 }
 
+function renderExitLine(s){
+  const d=s.by_exit_reason||{};
+  const tp=d.take_profit, sl=d.stop_loss, mh=d.max_hold;
+  const total=(tp?.n||0)+(sl?.n||0)+(mh?.n||0);
+  if(!total){ $("byExit").innerHTML='<div class="note">暂无数据</div>'; return; }
+  const seg=(k,label,cls,v)=>{
+    const pct=Math.max(0,(v?.n||0)/total*100);
+    return `<span class="seg ${cls}">${label} <span class="n">${v?.n||0}</span><i style="opacity:.5">·${Math.round(pct)}%</i></span>`;
+  };
+  $("byExit").innerHTML = `<div class="exitline">
+    ${seg("tp","止盈","tp",tp)}${seg("sl","止损","sl",sl)}${seg("mh","超时","mh",mh)}
+    <div class="mini">${(tp?.n||0)?`<i style="width:${(tp.n/total*100).toFixed(1)}%;background:var(--up)"></i>`:""}${(sl?.n||0)?`<i style="width:${(sl.n/total*100).toFixed(1)}%;background:var(--down)"></i>`:""}${(mh?.n||0)?`<i style="width:${(mh.n/total*100).toFixed(1)}%;background:var(--sub)"></i>`:""}</div>
+  </div>`;
+}
+
 function render(s){
+  window.__initCapital = s.state.initial_capital;
+  window.__s = s;
   $("asof").textContent = "更新于 " + s.asof;
   serviceBadge(true);
   renderCards(s);
   drawEquity(s);
-  bars($("bySymbol"), s.by_symbol, k=>k, s.stats.total_pnl);
-  bars($("byExit"), s.by_exit_reason, k=>({take_profit:"止盈",stop_loss:"止损",max_hold:"超时"}[k]||k));
   renderTables(s);
+  bars($("bySymbol"), s.by_symbol, k=>k, s.stats.total_pnl);
+  renderExitLine(s);
   renderLearning(s);
   renderModel(s);
   renderSmc(s);
 }
 
 function refresh(){
-  fetch("api/state",{cache:"no-store"}).then(r=>r.json()).then(s=>{
+  fetch(dirPath()+"api/state",{cache:"no-store"}).then(r=>{
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return r.json();
+  }).then(s=>{
     render(s); startCountdown();
-  }).catch(e=>{ serviceBadge(false); $("asof").textContent="连接服务器失败: "+e.message; });
+  }).catch(e=>{
+    serviceBadge(false);
+    $("asof").textContent="连接服务器失败: "+e.message;
+  });
+}
+
+/* resolve API path relative to current mount point */
+function dirPath(){
+  const p=location.pathname;
+  if(p.endsWith("/")) return p;
+  const seg=p.slice(p.lastIndexOf("/")+1);
+  return seg.includes(".") ? p.slice(0,p.lastIndexOf("/")+1) : p+"/";
 }
 
 function startCountdown(){
-  let n=30; $("countdown").textContent=n+"s 后刷新";
+  let n=30; $("countdown").textContent=n+"s";
+  const fg=$("ringFg");
+  fg.style.strokeDasharray=RING;
+  fg.style.strokeDashoffset="0";
+  const step=()=>{
+    n--;
+    if(n<=0){ n=30; fg.style.strokeDashoffset="0"; }
+    $("countdown").textContent=n+"s";
+    fg.style.strokeDashoffset=(RING*(1-n/30)).toFixed(2);
+  };
   clearInterval(timer);
-  timer=setInterval(()=>{ n--; if(n<=0){n=30;} $("countdown").textContent=n+"s 后刷新"; },1000);
+  timer=setInterval(step,1000);
 }
+
+document.addEventListener("keydown",e=>{
+  if(e.key==="r"||e.key==="R"){ refresh(); }
+});
 
 refresh();
 setInterval(refresh, 30000);
 window.addEventListener("resize",()=>{ if(window.__s) drawEquity(window.__s); });
+setupCrosshair();
 </script>
 </body>
 </html>

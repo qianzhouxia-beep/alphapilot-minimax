@@ -95,7 +95,9 @@ if USE_SHORT_MODEL:
 else:
     log("Short model disabled (USE_SHORT_MODEL=False)")
 
-# 5b. Walk-forward guardrail — validate OOS before keeping the new models
+# 5b. Walk-forward guardrail — validate OOS before keeping the new models.
+#     Final keep/rollback is decided at step 7c AFTER the PSR/DSR statistical
+#     gate, so .bak files stay until both checks complete.
 log("Running walk-forward OOS guardrail...")
 from crypto.walkforward import run_walkforward, check_guardrail, append_guardrail_history
 wf_long = run_walkforward(t_2h, factors, "label_long", hyperparams=MODEL_PARAMS, n_folds=4)
@@ -109,21 +111,7 @@ if USE_SHORT_MODEL and sm is not None:
     log(f"WFO short: oos_auc={wf_short.get('oos_auc')} n_oos={wf_short.get('n_oos')} -> {guard_short['decision']}")
     append_guardrail_history(guard_short, "short")
 
-_guards_ok = guard_long["pass"] and (guard_short is None or guard_short["pass"])
-if not _guards_ok:
-    log("GUARDRAIL REJECTED the retrained model(s) — restoring previous models")
-    for _name in ["model_long.ubj", "model_short.ubj"]:
-        _bak = MODEL_DIR / f"{_name}.bak"
-        if _bak.exists():
-            shutil.copy2(_bak, MODEL_DIR / _name)
-            log(f"Restored {_name} from .bak")
-else:
-    log("Guardrail passed — keeping retrained models")
-    for _name in ["model_long.ubj", "model_short.ubj"]:
-        _bak = MODEL_DIR / f"{_name}.bak"
-        if _bak.exists():
-            _bak.unlink()
-            log(f"Removed {_name}.bak")
+_wfo_ok = guard_long["pass"] and (guard_short is None or guard_short["pass"])
 
 # 6. OOS peel backtest (2h entry, same TF)
 log("Running OOS peel backtest (all data, 2h entry)...")
@@ -142,6 +130,39 @@ gr = grid_backtest(df, factors=factors, min_score=PAPER.min_signal_score,
                     atr_max_batch_pct=PAPER.atr_max_batch_pct,
                     max_positions_per_sym=3, cooldown_bars=4)
 print_grid_result(gr)
+
+# 7b. Statistical guardrail — PSR/DSR on OOS per-trade returns (López de Prado)
+log("Running PSR/DSR statistical guardrail...")
+from crypto.stat_guardrail import (check_stat_guardrail, trades_to_returns,
+                                   print_stat_report, ENABLE_STAT_GATE, MIN_TRADES)
+stat_peel = check_stat_guardrail(trades_to_returns(bt.trades))
+stat_grid = check_stat_guardrail(trades_to_returns(gr.trades))
+print_stat_report(stat_peel, "peel")
+print_stat_report(stat_grid, "grid")
+if ENABLE_STAT_GATE:
+    _stat_ok = stat_peel["pass"] and stat_grid["pass"]
+    log(f"STAT GATE {'PASS' if _stat_ok else 'REJECT'} (enabled)")
+else:
+    _stat_ok = True
+    log(f"STAT GATE advisory only (ENABLE_STAT_GATE=False) — "
+        f"peel n={stat_peel.get('n_trades')}, grid n={stat_grid.get('n_trades')}")
+
+# 7c. Combined guardrail decision (WFO + optional stat gate) → keep or rollback
+_guards_ok = _wfo_ok and _stat_ok
+if not _guards_ok:
+    log("GUARDRAIL REJECTED the retrained model(s) — restoring previous models")
+    for _name in ["model_long.ubj", "model_short.ubj"]:
+        _bak = MODEL_DIR / f"{_name}.bak"
+        if _bak.exists():
+            shutil.copy2(_bak, MODEL_DIR / _name)
+            log(f"Restored {_name} from .bak")
+else:
+    log("Guardrail passed — keeping retrained models")
+    for _name in ["model_long.ubj", "model_short.ubj"]:
+        _bak = MODEL_DIR / f"{_name}.bak"
+        if _bak.exists():
+            _bak.unlink()
+            log(f"Removed {_name}.bak")
 
 # 8. Current signals
 log("Generating live signals...")
@@ -192,6 +213,12 @@ report = {
         "short_oos_auc": wf_short.get("oos_auc") if wf_short else None,
         "short_decision": guard_short["decision"] if guard_short else None,
         "floor": (guard_long or {}).get("floor"),
+        "combined_decision": "accept" if _guards_ok else "reject",
+        "stat_gate_enabled": ENABLE_STAT_GATE,
+    },
+    "stat_guardrail": {
+        "peel": stat_peel,
+        "grid": stat_grid,
     },
     "oos_backtest": {
         "n_trades": bt.n_trades, "total_return_pct": bt.total_return,
@@ -231,6 +258,11 @@ with open(str(MODEL_DIR / "train_history.jsonl"), "a") as f:
         "n_train": lm["n_train"],
         "guard_long": guard_long["decision"] if guard_long else None,
         "guard_short": guard_short["decision"] if guard_short else None,
+        "stat_psr_peel": stat_peel.get("psr"),
+        "stat_dsr_peel": stat_peel.get("dsr"),
+        "stat_psr_grid": stat_grid.get("psr"),
+        "stat_dsr_grid": stat_grid.get("dsr"),
+        "stat_gate_enabled": ENABLE_STAT_GATE,
         "n_flags": len(_lrep.flags),
     }) + "\n")
 

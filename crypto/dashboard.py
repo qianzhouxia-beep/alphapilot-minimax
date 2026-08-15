@@ -267,6 +267,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
             except Exception as e:
                 self._send(500, str(e).encode("utf-8"), "text/plain; charset=utf-8")
+        elif path == "/logo.png":
+            logo = Path(__file__).resolve().parent / "logo.png"
+            try:
+                self._send(200, logo.read_bytes(), "image/png")
+            except Exception:
+                self._send(404, b"not found", "text/plain")
         elif path == "/favicon.ico":
             self._send(204, b"", "image/x-icon")
         else:

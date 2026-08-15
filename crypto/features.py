@@ -168,6 +168,38 @@ def add_open_interest(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ─── OI state combination — OI cheat-sheet quantized (order-flow quant) ───
+def add_oi_state(df: pd.DataFrame) -> pd.DataFrame:
+    """Open-interest price-state combination factors.
+
+    Classic OI cheat-sheet, quantized to binaries + continuous z:
+      price up  + OI up   → fresh longs entering   → trend continuation
+      price up  + OI down → shorts covering        → rally exhausts
+      price dn  + OI up   → fresh shorts entering  → bearish continuation
+      price dn  + OI down → longs exiting          → capitulation flush
+    Plus: 5-bar OI change z-score and rolling price-OI correlation.
+    """
+    if "open_interest" not in df.columns or df["open_interest"].isna().all():
+        return df
+    oi = df["open_interest"]
+    oi_chg = oi.pct_change(5).fillna(0.0)
+    oi_chg_z = _rolling_zscore(oi_chg, 60)
+
+    ret5 = df["ret_5"].fillna(0.0)
+    up = ret5 > 0.0005
+    dn = ret5 < -0.0005
+    oi_up = oi_chg > 0.001
+    oi_dn = oi_chg < -0.001
+
+    df["oi_confirm_long"] = (up & oi_up).astype(float)   # fresh longs → continuation
+    df["oi_exhaust_long"] = (up & oi_dn).astype(float)   # shorts covering → fade rally
+    df["oi_confirm_short"] = (dn & oi_up).astype(float)  # fresh shorts → continuation
+    df["oi_exhaust_short"] = (dn & oi_dn).astype(float)  # longs exiting → flush
+    df["oi_chg_z_5"] = oi_chg_z
+    df["oi_ret_corr_20"] = df["ret_1"].rolling(20).corr(oi.pct_change())
+    return df
+
+
 # ─── Price action patterns ───
 def add_price_action(df: pd.DataFrame) -> pd.DataFrame:
     # Candle body / wick ratios
@@ -478,7 +510,194 @@ def add_fvg(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ─── Labels (forward-looking, single group) ───
+# ─── Order flow / CVD — Binance taker-buy volume (order-flow quant) ───
+def add_orderflow(df: pd.DataFrame) -> pd.DataFrame:
+    """Cumulative Volume Delta (CVD) order-flow factors.
+
+    delta = aggressive buys − aggressive sells per bar (taker_buy_vol is the
+    base-volume executed by market-buy orders; the rest of volume is passive).
+    CVD = cumulative delta — the running balance of who is pushing price.
+    Divergence: price new high while CVD fails to confirm → buyer exhaustion.
+
+    Factors:
+      - taker_buy_ratio:   share of volume that was aggressive buying
+      - delta:             net aggressive volume this bar (normalized)
+      - cvd:               cumulative delta (per symbol+tf reset by group)
+      - cvd_z:             rolling z-score of CVD
+      - cvd_slope:         short vs long CVD momentum
+      - cvd_div_top:       bearish divergence (price new high, CVD not) binary
+      - cvd_div_bot:       bullish divergence (price new low, CVD not) binary
+    """
+    if "taker_buy_vol" not in df.columns or df["taker_buy_vol"].isna().all():
+        return df
+
+    vol = df["volume"].clip(lower=1e-10)
+    tb = df["taker_buy_vol"].fillna(0.0)
+    df["taker_buy_ratio"] = (tb / vol).clip(-1, 1)
+
+    # net aggressive volume
+    delta_raw = 2 * tb - df["volume"]
+    vol_ma20 = df["volume"].rolling(20, min_periods=5).mean() + 1e-10
+    df["delta"] = delta_raw / vol_ma20
+
+    # cumulative delta normalized by typical volume
+    df["cvd"] = delta_raw.cumsum() / vol_ma20
+
+    # rolling z of CVD
+    df["cvd_z"] = _rolling_zscore(df["cvd"], 60)
+    # CVD short/long momentum ratio
+    cvd_ma_fast = df["cvd"].rolling(10).mean()
+    cvd_ma_slow = df["cvd"].rolling(40).mean()
+    df["cvd_slope"] = (cvd_ma_fast - cvd_ma_slow) / (df["cvd"].rolling(40).std() + 1e-10)
+
+    # Divergence (20-bar window)
+    hi20 = df["high"].rolling(20, min_periods=10).max()
+    lo20 = df["low"].rolling(20, min_periods=10).min()
+    cvd_hi20 = df["cvd"].rolling(20, min_periods=10).max()
+    cvd_lo20 = df["cvd"].rolling(20, min_periods=10).min()
+
+    price_new_high = df["close"] >= hi20
+    price_new_low = df["close"] <= lo20
+    cvd_not_high = df["cvd"] < cvd_hi20 * 0.999
+    cvd_not_low = df["cvd"] > cvd_lo20 * 1.001
+
+    # bearish divergence: price pushes to new high but buyers don't confirm
+    df["cvd_div_top"] = (price_new_high & cvd_not_high).astype(float)
+    # bullish divergence: price makes new low but sellers aren't confirming
+    df["cvd_div_bot"] = (price_new_low & cvd_not_low).astype(float)
+
+    # delta persistence: % of last 10 bars with positive net aggressive flow
+    df["delta_pos_ratio_10"] = (delta_raw > 0).rolling(10, min_periods=5).mean()
+    return df
+
+
+# ─── Cross-symbol macro factors — BTC dominance / market breadth ───
+def add_cross_symbol(df: pd.DataFrame) -> pd.DataFrame:
+    """BTC dominance + market breadth + relative strength (computed ACROSS symbols).
+
+    Must run AFTER per-symbol feature computation. Uses only point-in-time
+    data (rolling over past bars), no lookahead:
+      - btc_dom:      BTC turnover / total universe turnover
+      - btc_dom_z:    rolling z-score of BTC dominance (risk regime)
+      - btc_ret_20:   BTC's own 20-bar return (market-wide momentum)
+      - rel_btc_20:   symbol return − BTC return (relative strength vs market)
+      - market_breadth: fraction of universe above 20-bar SMA (breadth regime)
+      - breadth_z:    rolling z-score of breadth
+      - eth_btc_z:    ETH/BTC rolling z-score (risk-on/risk-off tilt)
+    """
+    if "symbol" not in df.columns or "timeframe" not in df.columns:
+        return df
+
+    parts = []
+    for tf, g in df.groupby("timeframe"):
+        g = g.sort_values("timestamp")
+        ts = g["timestamp"]
+        is_btc = g["symbol"].str.startswith("BTC")
+        is_eth = g["symbol"].str.startswith("ETH")
+
+        # 1) BTC dominance by turnover (fallback to volume)
+        val_col = "turnover" if "turnover" in g.columns and g["turnover"].notna().any() else "volume"
+        total_val = g.groupby("timestamp")[val_col].transform("sum")
+        btc_val = g[val_col].where(is_btc, 0.0).groupby(g["timestamp"]).transform("sum")
+        dom = btc_val / (total_val + 1e-10)
+        g["btc_dom"] = dom.to_numpy()
+        dom_uniq = dom.groupby(ts).first()
+        g["btc_dom_z"] = _rolling_zscore(dom_uniq, 60).reindex(ts).to_numpy()
+
+        # 2) BTC 20-bar return + symbol relative strength
+        btc_close = g["close"].where(is_btc)
+        btc_close_uniq = btc_close.groupby(ts).first()
+        btc_ret20 = btc_close_uniq.pct_change(20)
+        g["btc_ret_20"] = btc_ret20.reindex(ts).to_numpy()
+        sym_ret20 = g.groupby("symbol")["close"].transform(lambda s: s.pct_change(20))
+        g["rel_btc_20"] = (sym_ret20 - btc_ret20.reindex(ts).to_numpy()).to_numpy()
+
+        # 3) Market breadth: fraction of symbols above their 20-bar SMA
+        sma20 = g.groupby("symbol")["close"].transform(lambda s: s.rolling(20).mean())
+        above = (g["close"] > sma20).astype(float)
+        breadth = above.groupby(ts).transform("mean")
+        g["market_breadth"] = breadth.to_numpy()
+        g["breadth_z"] = _rolling_zscore(breadth.groupby(ts).first(), 60).reindex(ts).to_numpy()
+
+        # 4) ETH/BTC relative risk tilt
+        eth_close = g["close"].where(is_eth)
+        eth_uniq = eth_close.groupby(ts).first()
+        eb = eth_uniq / (btc_close_uniq + 1e-10)
+        g["eth_btc_z"] = _rolling_zscore(eb, 60).reindex(ts).to_numpy()
+
+        parts.append(g)
+
+    if not parts:
+        return df
+    return pd.concat(parts, ignore_index=True)
+
+
+# ─── Cross-sectional strength / rotation — rank in universe per timestamp ───
+def add_cross_sectional(df: pd.DataFrame) -> pd.DataFrame:
+    """Cross-sectional factors: each symbol's percentile rank in the universe.
+
+    Ranks rolling point-in-time stats (returns, momentum, vol, OI flow,
+    turnover flow) across all symbols at the same timestamp, so a factor of 1
+    means "strongest in universe", 0 = weakest. Captures rotation (which coins
+    are being bid) as opposed to single-symbol absolute strength.
+
+    Factors:
+      - xsec_ret_rank_20:  percentile rank of 20-bar return
+      - xsec_ret_rank_60:  percentile rank of 60-bar return
+      - xsec_mom_rank:     rank of (12-bar − 40-bar) return = momentum accel
+      - xsec_vol_rank:     rank of 20-bar volatility (low = stable)
+      - xsec_oi_rank:      rank of 5-bar OI change (capital inflow per coin)
+      - xsec_flow_rank:    rank of 5-bar turnover change (flow rotation)
+      - xsec_rank_chg_20:  how far the 20-bar rank moved over last 20 bars
+      - xsec_dispersion:   cross-sectional std of 20-bar returns (regime)
+    """
+    if "symbol" not in df.columns or "timeframe" not in df.columns:
+        return df
+
+    parts = []
+    for tf, g in df.groupby("timeframe"):
+        g = g.sort_values("timestamp")
+        ts = g["timestamp"]
+
+        ret20 = g.groupby("symbol")["close"].transform(lambda s: s.pct_change(20))
+        ret60 = g.groupby("symbol")["close"].transform(lambda s: s.pct_change(60))
+        ret12 = g.groupby("symbol")["close"].transform(lambda s: s.pct_change(12))
+        ret40 = g.groupby("symbol")["close"].transform(lambda s: s.pct_change(40))
+        vol20 = g.groupby("symbol")["close"].transform(lambda s: s.pct_change().rolling(20).std())
+
+        # percentile rank of each stat across symbols at the same timestamp
+        g["xsec_ret_rank_20"] = ret20.groupby(ts).rank(pct=True)
+        g["xsec_ret_rank_60"] = ret60.groupby(ts).rank(pct=True)
+        g["xsec_mom_rank"] = (ret12 - ret40).groupby(ts).rank(pct=True)
+        g["xsec_vol_rank"] = vol20.groupby(ts).rank(pct=True)
+
+        if "open_interest" in g.columns and g["open_interest"].notna().any():
+            oi_chg = g.groupby("symbol")["open_interest"].transform(lambda s: s.pct_change(5))
+            g["xsec_oi_rank"] = oi_chg.groupby(ts).rank(pct=True)
+        else:
+            g["xsec_oi_rank"] = np.nan
+
+        flow_col = "turnover" if "turnover" in g.columns and g["turnover"].notna().any() else None
+        if flow_col:
+            t_chg = g.groupby("symbol")[flow_col].transform(lambda s: s.pct_change(5))
+            g["xsec_flow_rank"] = t_chg.groupby(ts).rank(pct=True)
+        else:
+            g["xsec_flow_rank"] = np.nan
+
+        # rank momentum: how far the rank moved over 20 bars
+        g["xsec_rank_chg_20"] = g.groupby("symbol")["xsec_ret_rank_20"].transform(
+            lambda s: s - s.shift(20)
+        )
+
+        # dispersion regime: cross-sectional std of 20-bar returns
+        disp = ret20.groupby(ts).std()
+        g["xsec_dispersion"] = disp.reindex(ts).to_numpy()
+
+        parts.append(g)
+
+    if not parts:
+        return df
+    return pd.concat(parts, ignore_index=True)
 def add_labels(df: pd.DataFrame, forward: int = 4, threshold: float = 0.02) -> pd.DataFrame:
     """Wrapper — forwards to single-group version."""
     return add_labels_single(df, forward=forward, threshold=threshold)
@@ -512,6 +731,9 @@ ALL_FACTORS = [
     add_beheading,
     add_magic_line,
     add_fvg,
+    add_orderflow,
+    add_oi_state,
+    add_cross_sectional,
 ]
 
 FACTOR_COLUMNS: list[str] = []  # populated at runtime
@@ -538,9 +760,15 @@ def compute_features(
     else:
         df = _compute_group(df, forward=forward, threshold=threshold)
 
+    # Cross-symbol macro factors (must run after per-symbol features)
+    df = add_cross_symbol(df)
+    # Cross-sectional rank factors (same constraint — universe-wide at a timestamp)
+    df = add_cross_sectional(df)
+
     global FACTOR_COLUMNS
     if not FACTOR_COLUMNS:
         exclude = {"timestamp", "symbol", "timeframe", "open", "high", "low", "close", "volume",
+                    "turnover", "trades", "taker_buy_vol", "taker_buy_amt",
                     "label_long", "label_short", "label_mid", "label_multiclass", "fwd_ret"}
         FACTOR_COLUMNS = [c for c in df.columns if c not in exclude
                           and "fwd_ret" not in c

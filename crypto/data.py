@@ -42,33 +42,39 @@ def log(msg: str) -> None:
 
 
 # ─── Fetch OHLCV ───
+_KLINE_FIELDS = [
+    "timestamp", "open", "high", "low", "close", "volume",
+    "close_time", "turnover", "trades", "taker_buy_vol", "taker_buy_amt", "_ignore",
+]
+
+
 def fetch_klines(
     symbol: str,
     timeframe: str = "4h",
     limit: int = 500,
     since: str | None = None,
 ) -> pd.DataFrame:
-    """Fetch klines from Binance. Returns DataFrame with columns:
-    timestamp, open, high, low, close, volume, turnover, trades, taker_buy_vol, taker_buy_amt."""
+    """Fetch klines from Binance, including taker-buy volume for order-flow (CVD) factors.
+
+    Returns columns: timestamp, open, high, low, close, volume,
+    turnover, trades, taker_buy_vol, taker_buy_amt.
+    Uses the raw fapi REST endpoint (12 fields) instead of ccxt's 6-column
+    fetch_ohlcv so aggressive-buy volume is not dropped.
+    """
     ex = _exchange()
-    params = {}
+    market_id = symbol.replace("/", "").replace(":USDT", "").replace(":USDC", "").replace(":USD", "")
+    params = {"symbol": market_id, "interval": timeframe, "limit": min(limit, 1500)}
     if since:
-        params["since"] = ex.parse8601(since)
-    raw = ex.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit, params=params)
-    df = pd.DataFrame(
-        raw,
-        columns=[
-            "timestamp",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-        ],
-    )
+        params["startTime"] = ex.parse8601(since)
+    raw = ex.fapiPublicGetKlines(params)
+    df = pd.DataFrame(raw, columns=_KLINE_FIELDS)
+    for c in ["timestamp", "close_time"]:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-    for c in ["open", "high", "low", "close", "volume"]:
-        df[c] = df[c].astype(float)
+    for c in ["open", "high", "low", "close", "volume", "turnover", "taker_buy_vol", "taker_buy_amt"]:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    df["trades"] = pd.to_numeric(df["trades"], errors="coerce")
+    df = df.drop(columns=["close_time", "_ignore"])
     df = df.drop_duplicates("timestamp").sort_values("timestamp").reset_index(drop=True)
     return df
 
