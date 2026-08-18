@@ -28,6 +28,10 @@ const RESEARCH_ITEMS: NavLink[] = [
   { href: "/cn/sectors", label: "板块研报" },
 ];
 
+const FLOW_ITEMS: NavLink[] = [
+  { href: "/cn/funds", label: "资金流向看板" },
+];
+
 const MINE_ITEMS: NavLink[] = [
   { href: "/cn/watchlist", label: "收藏追踪", requireAuth: true },
   { href: "/cn/paper-trading", label: "量化模拟盘", badge: "模拟", requireAuth: true },
@@ -35,6 +39,7 @@ const MINE_ITEMS: NavLink[] = [
 
 const NAV_GROUPS: NavGroup[] = [
   { id: "research", label: "研报", items: RESEARCH_ITEMS },
+  { id: "flow", label: "资金", items: FLOW_ITEMS },
   { id: "mine", label: "我的", items: MINE_ITEMS },
 ];
 

@@ -7,8 +7,11 @@ AlphaPilot Zeabur Gateway
 import os
 from pathlib import Path
 
+import asyncio
+
 import httpx
-from fastapi import FastAPI, Request, Response
+import websockets
+from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -16,6 +19,7 @@ app = FastAPI(title="AlphaPilot Gateway", version="1.1.0")
 
 # Backend URL on Tencent Cloud (nginx proxying port 80 -> localhost:8000)
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://150.158.100.236")
+WS_BACKEND_URL = os.environ.get("WS_BACKEND_URL", "ws://150.158.100.236")
 FRONTEND_DIR = Path("/app/frontend/out")
 
 HOP_BY_HOP = {
@@ -118,6 +122,45 @@ async def health():
         "frontend_dir": str(FRONTEND_DIR),
         "frontend_exists": FRONTEND_DIR.exists(),
     }
+
+
+
+
+# CapitalPulse WebSocket 转发（/ws/sector-flow, /ws/stock-flow）-> 腾讯云 nginx -> uvicorn 8000
+@app.websocket("/ws/{ws_path:path}")
+async def proxy_ws(websocket: WebSocket, ws_path: str):
+    await websocket.accept()
+    upstream = f"{WS_BACKEND_URL}/ws/{ws_path}"
+    if websocket.query_params:
+        upstream += "?" + websocket.query_params
+    try:
+        async with websockets.connect(upstream) as client:
+            async def pump_up():
+                try:
+                    async for msg in client:
+                        if isinstance(msg, bytes):
+                            await websocket.send_bytes(msg)
+                        else:
+                            await websocket.send_text(msg)
+                except Exception:
+                    pass
+            task = asyncio.create_task(pump_up())
+            try:
+                while True:
+                    msg = await websocket.receive()
+                    if msg["type"] == "websocket.disconnect":
+                        break
+                    data = msg.get("text") or msg.get("bytes")
+                    if data is None:
+                        continue
+                    await client.send(data)
+            except Exception:
+                pass
+            finally:
+                task.cancel()
+    except Exception as exc:
+        await websocket.close(code=1011, reason=str(exc)[:120])
+
 
 
 # Proxy /api/* to Tencent Cloud backend
