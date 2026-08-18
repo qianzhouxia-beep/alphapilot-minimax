@@ -114,7 +114,7 @@ export default function PaperTradingPage() {
             </span>
           </h1>
           <p className="mt-1 text-[12px] text-text-disabled">
-            日频模拟交易 · 尾盘机会 · 盘中风控
+            日频精选 · 动态确认买入 · 盘中风控
           </p>
         </div>
         </div>
@@ -134,7 +134,7 @@ export default function PaperTradingPage() {
         <KPICard label="最大回撤" value={`${acc.max_drawdown.toFixed(2)}%`} sub="风险指标" color={acc.max_drawdown < -10 ? "#FF5D5D" : "#3EE6A8"} />
       </section>
 
-      {/* 策略详情：日频独立；尾盘狙击策略 + S2 合并同一板块 */}
+      {/* 策略详情：日频精选独立；尾盘狙击已暂停不再展示 */}
       <div className="space-y-6">
         {groupStrategies(data.strategies).map((group) => (
           <StrategyGroupCard
@@ -193,9 +193,6 @@ function KPICard({ label, value, sub, color }: { label: string; value: string; s
   );
 }
 
-/** 尾盘相关策略合并展示（eod_sniper / s2_eod） */
-const EOD_STRATEGY_IDS = new Set(["eod_sniper", "s2_eod", "eod_s2"]);
-
 type StrategyGroup = {
   key: string;
   title: string;
@@ -205,44 +202,19 @@ type StrategyGroup = {
 };
 
 function groupStrategies(strategies: PaperTradingData["strategies"]): StrategyGroup[] {
-  const eod: PaperTradingData["strategies"] = [];
-  const others: PaperTradingData["strategies"] = [];
-  for (const s of strategies) {
-    // 只展示运行中策略；已停止/暂停的策略不渲染卡片
-    if (s.status !== "active") continue;
-    const id = (s.id || "").toLowerCase();
-    const name = s.name || "";
-    if (
-      EOD_STRATEGY_IDS.has(id) ||
-      name.includes("尾盘狙击") ||
-      name.includes("S2尾盘") ||
-      name.includes("S2 尾盘")
-    ) {
-      eod.push(s);
-    } else {
-      others.push(s);
-    }
-  }
-  const groups: StrategyGroup[] = others.map((s) => ({
-    key: s.id,
-    title:
-      s.id === "v19_daily" || /VM2\.5|v19|模型 Top/i.test(s.name || "")
-        ? "日频精选"
-        : s.name,
-    subtitle: "",
-    strategies: [s],
-    merged: false,
-  }));
-  if (eod.length > 0) {
-    groups.push({
-      key: "eod_group",
-      title: "尾盘狙击",
+  // 只展示运行中策略；已停止/暂停的策略不渲染卡片（尾盘狙击已暂停，不展示）
+  return strategies
+    .filter((s) => s.status === "active")
+    .map((s) => ({
+      key: s.id,
+      title:
+        s.id === "v19_daily" || /VM2\.5|v19|模型 Top/i.test(s.name || "")
+          ? "日频精选"
+          : s.name,
       subtitle: "",
-      strategies: eod,
-      merged: true,
-    });
-  }
-  return groups;
+      strategies: [s],
+      merged: false,
+    }));
 }
 
 function StrategyGroupCard({
@@ -275,6 +247,7 @@ const signals = strategies.flatMap((s) =>
 );
 // 买入成交方式徽标
 const ENTRY_MODE_LABEL: Record<string, string> = {
+  dyn_confirm: "动态确认·放量上攻",
   vwap_dip: "低吸·VWAP回踩",
   hybrid_relax: "低吸·放宽",
   force_eod: "尾盘现价",
@@ -294,11 +267,9 @@ const ENTRY_MODE_LABEL: Record<string, string> = {
   const pnlColor = weightedPnl >= 0 ? "text-status-danger" : "text-status-success";
   const nextMap = typeof nextExecution === "string" ? {} : nextExecution || {};
   const nextHint =
-    nextMap["s2_eod"] ||
-    nextMap["eod_sniper"] ||
     nextMap[strategies[0]?.id] ||
     (typeof nextExecution === "string" ? nextExecution : null) ||
-    "每日 14:45 尾盘";
+    "每日 09:36 信号 · 盘中动态确认后成交";
 
   const gridCols =
     "grid-cols-[2.2fr_1fr_1fr_1fr_1.3fr_1.3fr_1.4fr_1.1fr]";
@@ -427,18 +398,23 @@ const ENTRY_MODE_LABEL: Record<string, string> = {
 
       {signals.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border-subtle">
-          <div className="text-[12px] text-text-disabled mb-2">今日买入信号（盘中低吸 · 回踩 VWAP 后成交）</div>
+          <div className="text-[12px] text-text-disabled mb-2">
+            今日候选池（Top10 先到先得 · 盘中动态确认放量上攻后成交 · 每日最多买 2 只）
+          </div>
           <div className="space-y-1.5">
-            {signals.slice(0, 6).map((s, i) => (
+            {signals.slice(0, 10).map((s, i) => (
               <div
                 key={i}
                 className="flex items-center justify-between text-[12px] bg-background rounded-lg p-2 border border-border-subtle"
               >
                 <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-text-disabled text-[10px] w-6 shrink-0 text-center">
+                    #{s.morning_pick_rank || i + 1}
+                  </span>
                   <span className="text-status-danger font-semibold">{s.name}</span>
                   <span className="text-text-disabled">{s.symbol}</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-status-warning/10 text-status-warning border border-status-warning/20">
-                    等待低吸
+                    待动态确认
                   </span>
                   {group.merged && s._strategyName ? (
                     <span className="text-[10px] text-text-disabled">{s._strategyName}</span>
