@@ -6,7 +6,7 @@ FROM node:20-slim AS frontend-build
 WORKDIR /fe
 
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install --no-audit --no-fund
+RUN npm install --no-audit --no-fund --registry=https://registry.npmjs.org
 
 COPY frontend/ ./
 
