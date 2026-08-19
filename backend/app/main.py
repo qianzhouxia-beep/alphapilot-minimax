@@ -132,7 +132,7 @@ async def proxy_ws(websocket: WebSocket, ws_path: str):
     await websocket.accept()
     upstream = f"{WS_BACKEND_URL}/ws/{ws_path}"
     if websocket.query_params:
-        upstream += "?" + websocket.query_params
+        upstream += "?" + str(websocket.query_params)
     try:
         async with websockets.connect(upstream) as client:
             async def pump_up():
