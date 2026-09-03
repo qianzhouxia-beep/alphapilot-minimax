@@ -213,21 +213,16 @@ def refresh_nday_old(ak, indicator: str, out_name: str, kind: str) -> bool:
     2026-09-04 修复：akshare 1.18.64 升版后 stock_sector_fund_flow_rank 移除
     "3日" indicator（只剩 今日/5日/10日），传 "3日" 必 KeyError；且 5日/10日走
     push2.eastmoney clist 易被风控断连。老接口走另一链路，凌晨实测 4 组合全通。
-    失败返回 False（不再软失败静默），由 main 汇总 exit code。
+    单次调用失败/空数据 → 抛异常，由调用方 _retry 决定重试（不再静默）。
     """
     fn_name = f"stock_fund_flow_{kind}"
-    try:
-        df = getattr(ak, fn_name)(symbol=indicator + "排行")
-        rows = _to_rows_old_rank(df, "nday")
-        if not rows:
-            print(f"WARN {out_name} empty, keep previous file", flush=True)
-            return False
-        _write(DATA / out_name, rows, f"akshare.{fn_name}", indicator=indicator)
-        print(f"OK {out_name} n={len(rows)} asof={_today()}", flush=True)
-        return True
-    except Exception as e:
-        print(f"FAIL {out_name} (old-api {fn_name} {indicator}排行): {e}", flush=True)
-        return False
+    df = getattr(ak, fn_name)(symbol=indicator + "排行")
+    rows = _to_rows_old_rank(df, "nday")
+    if not rows:
+        raise RuntimeError(f"{out_name} empty (no rows)")
+    _write(DATA / out_name, rows, f"akshare.{fn_name}", indicator=indicator)
+    print(f"OK {out_name} n={len(rows)} asof={_today()}", flush=True)
+    return True
 
 
 def _retry(fn, times: int = 3, sleep_sec: float = 2.0):
@@ -283,13 +278,17 @@ def main() -> int:
         ok = False
 
     if not args.skip_nday:
-        # 3/5 日榜 → 老接口（见 refresh_nday_old 注释）；失败计入 ok（非静默）
+        # 3/5 日榜 → 老接口（见 refresh_nday_old 注释）；重试 3 次，失败计入 ok（非静默）
         for ind, out, kind in [
             ("3日", "sector_flow_3day.json", "industry"),
             ("3日", "concept_flow_3day.json", "concept"),
             ("5日", "sector_flow_5day.json", "industry"),
         ]:
-            nday_ok = refresh_nday_old(ak, ind, out, kind)
+            try:
+                nday_ok = _retry(lambda: refresh_nday_old(ak, ind, out, kind), times=3, sleep_sec=3.0)
+            except Exception as e:
+                print(f"FAIL {out} after 3 retries: {e}", flush=True)
+                nday_ok = False
             if not nday_ok:
                 ok = False
 
