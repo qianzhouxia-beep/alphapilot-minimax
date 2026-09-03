@@ -174,19 +174,60 @@ def refresh_today_concept(ak) -> bool:
             return False
 
 
-def refresh_nday(ak, indicator: str, out_name: str, sector_type: str) -> bool:
-    """3/5/10 日榜；接口字段变更时软失败，不阻断当日榜。"""
+def _to_rows_old_rank(df, kind: str) -> list[dict]:
+    """老接口 stock_fund_flow_industry/concept(symbol='X日排行') → gate 兼容 rows。
+
+    列: 序号/行业(或概念)/公司家数/行业指数/阶段涨跌幅/流入资金/流出资金/净额
+    净额单位为「亿」。mainNetInflow 统一转「元」（gate load 时再 /1e8）。
+    """
+    rows: list[dict] = []
+    for _, r in df.iterrows():
+        name = str(r.get("行业") or r.get("概念") or r.get("名称") or "").strip()
+        if not name:
+            continue
+        net_yi = float(r.get("净额") or 0)  # 亿
+        chg_raw = r.get("阶段涨跌幅") or r.get("涨跌幅") or 0
+        try:
+            chg = float(str(chg_raw).replace("%", "").strip())  # 老接口 '6.69%' 去百分号
+        except (TypeError, ValueError):
+            chg = 0.0
+        rows.append(
+            {
+                "code": "",
+                "name": name,
+                "changePercent": chg,
+                "mainNetInflow": net_yi * 1e8,  # 亿 → 元
+                "mainNetInflowPercent": 0.0,
+                "kind": kind,
+                "asof": _today(),
+                "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        )
+    rows.sort(key=lambda x: -float(x["mainNetInflow"]))
+    return rows
+
+
+def refresh_nday_old(ak, indicator: str, out_name: str, kind: str) -> bool:
+    """3/5 日榜 → 老接口 stock_fund_flow_{industry|concept}(symbol='X日排行')。
+
+    2026-09-04 修复：akshare 1.18.64 升版后 stock_sector_fund_flow_rank 移除
+    "3日" indicator（只剩 今日/5日/10日），传 "3日" 必 KeyError；且 5日/10日走
+    push2.eastmoney clist 易被风控断连。老接口走另一链路，凌晨实测 4 组合全通。
+    失败返回 False（不再软失败静默），由 main 汇总 exit code。
+    """
+    fn_name = f"stock_fund_flow_{kind}"
     try:
-        df = ak.stock_sector_fund_flow_rank(indicator=indicator, sector_type=sector_type)
-        rows = _to_rows(df, ["名称", "行业", "概念"], "nday")
+        df = getattr(ak, fn_name)(symbol=indicator + "排行")
+        rows = _to_rows_old_rank(df, "nday")
         if not rows:
             print(f"WARN {out_name} empty, keep previous file", flush=True)
-            return True
-        _write(DATA / out_name, rows, "akshare.stock_sector_fund_flow_rank", indicator=indicator)
+            return False
+        _write(DATA / out_name, rows, f"akshare.{fn_name}", indicator=indicator)
+        print(f"OK {out_name} n={len(rows)} asof={_today()}", flush=True)
         return True
     except Exception as e:
-        print(f"WARN {out_name} soft-fail: {e}", flush=True)
-        return True
+        print(f"FAIL {out_name} (old-api {fn_name} {indicator}排行): {e}", flush=True)
+        return False
 
 
 def _retry(fn, times: int = 3, sleep_sec: float = 2.0):
@@ -242,12 +283,15 @@ def main() -> int:
         ok = False
 
     if not args.skip_nday:
-        for ind, out, st in [
-            ("3日", "sector_flow_3day.json", "行业资金流"),
-            ("3日", "concept_flow_3day.json", "概念资金流"),
-            ("5日", "sector_flow_5day.json", "行业资金流"),
+        # 3/5 日榜 → 老接口（见 refresh_nday_old 注释）；失败计入 ok（非静默）
+        for ind, out, kind in [
+            ("3日", "sector_flow_3day.json", "industry"),
+            ("3日", "concept_flow_3day.json", "concept"),
+            ("5日", "sector_flow_5day.json", "industry"),
         ]:
-            refresh_nday(ak, ind, out, st)
+            nday_ok = refresh_nday_old(ak, ind, out, kind)
+            if not nday_ok:
+                ok = False
 
     if args.require_today:
         ok = assert_today(DATA / "sector_flow_today.json", min_n=20) and ok
