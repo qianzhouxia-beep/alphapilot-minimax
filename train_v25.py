@@ -105,7 +105,9 @@ CHIP = {}
 for chip_path in ("chip_data_all.json", "data/chip_data_all.json"):
     if os.path.exists(chip_path):
         try:
-            CHIP = load_json_safe(chip_path, {})
+            _raw = load_json_safe(chip_path, {})
+            # 兼容 {ok, data} 包装（2026-08-24 起本地上传模板引入）
+            CHIP = _raw.get("data", _raw) if isinstance(_raw, dict) else _raw
             break
         except Exception:
             CHIP = {}
@@ -457,6 +459,23 @@ def main():
         print(f"⚠️ smoke: max-stocks={args.max_stocks}")
     print(f"全市场: {len(symbols)} 只 | 筹码快照: {len(CHIP)} 只 | 龙虎榜: {len(lhb_hist)} 只")
     coverage = report_data_coverage(symbols, fund_flow, margin, event, fundamentals, lhb_hist)
+
+    # ── 2026-08-29 fail-fast：数据契约破损时拒绝训练 ──
+    # 08-24 chip 结构漂移（{ok,data} 包装）导致 CHIP 只解出 2 只但训练照跑 5 天，
+    # 产出 AUC 退化模型被安全门拒。宁可当天不重训，也不训练垃圾模型。
+    n_eff = max(len(symbols), 1)
+    if args.max_stocks and args.max_stocks > 0:
+        chip_ok = True  # smoke 模式不拦（测试用）
+    else:
+        chip_cov = len([s for s in symbols if bare_code(s) in CHIP]) / n_eff
+        chip_ok = chip_cov >= 0.50
+    if not chip_ok:
+        print(
+            f"⛔ FAIL-FAST: 筹码覆盖 <50%（CHIP 解出 {len(CHIP)} 条，池 {n_eff}）→ "
+            "拒绝训练。检查 chip_data_all.json 结构（data_readiness_gate 应已告警）。",
+            flush=True,
+        )
+        return 1
 
     kline_cache = {}
     kf = Path("data/kline_cache/kline_all.parquet")

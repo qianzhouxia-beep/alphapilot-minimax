@@ -209,9 +209,10 @@ def run_daily_recommend(top_n: int = TOP_N) -> dict:
     # 2. 获取全A股列表
     print("\n2. 获取全A股列表...")
     stocks = get_stock_list()
-    # v3.1 漏斗：启动形态池 ∪ 主线行业旁路池（旁路缺省则仅启动池）
+    # v3.1 漏斗：启动形态池 ∪ 主线行业旁路池 ∪ 形态突破池（旁路缺省则仅启动池）
     _gc_path = "output/volume_gc_pool.json"
     _bypass_path = "output/hot_sector_bypass_pool.json"
+    _pattern_path = "output/pattern_breakout_pool.json"
     try:
         import json as _json
 
@@ -232,11 +233,18 @@ def run_daily_recommend(top_n: int = TOP_N) -> dict:
                 _pool |= {_bare_sym(x) for x in (_bp.get("symbols") or [])}
             elif isinstance(_bp, list):
                 _pool |= {_bare_sym(x) for x in _bp}
+        if os.path.exists(_pattern_path):
+            _pp = _json.load(open(_pattern_path, encoding="utf-8"))
+            if isinstance(_pp, dict) and _pp.get("enabled", True):
+                _pool |= {_bare_sym(x) for x in (_pp.get("symbols") or [])}
+                print(f"  形态突破池并入: {len(_pp.get('symbols') or [])} 只")
+            elif isinstance(_pp, list):
+                _pool |= {_bare_sym(x) for x in _pp}
         if _pool:
             _before = len(stocks)
             _sym_col = stocks["symbol"].astype(str).map(_bare_sym)
             stocks = stocks[_sym_col.isin(_pool)]
-            print(f"  评分池(启动∪旁路): {_before} → {len(stocks)} 只 (pool={len(_pool)})")
+            print(f"  评分池(启动∪旁路∪形态): {_before} → {len(stocks)} 只 (pool={len(_pool)})")
     except Exception as _e:
         print(f"  评分池裁剪跳过: {_e}")
     total = len(stocks)

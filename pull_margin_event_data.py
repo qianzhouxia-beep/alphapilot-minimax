@@ -97,17 +97,23 @@ def pull_margin(ak) -> dict:
 
 
 def pull_event(ak) -> dict:
+    """业绩预告：合并多个报告期（新→旧），不提前 break。
+
+    2026-08-07 修复：原实现按 (y,3),(y,6),... 顺序试，遇到第一个非空报告期就 break，
+    实际卡在旧季报（如 20260331 仅 214 只），漏掉中报/年报的更大覆盖
+    （20260630 → 1880 只，20251231 → 3071 只）。改为全部报告期合并、新报告期优先。
+    """
     yjyg_data = {}
-    # 东财业绩预告接口常用报告期：本季度末 / 上季度末
     today = datetime.now()
-    quarter_ends = []
     y, m = today.year, today.month
-    # 当前与最近两个季报截止日
-    for yy, mm in ((y, 3), (y, 6), (y, 9), (y, 12), (y - 1, 12), (y - 1, 9)):
-        if (yy, mm) <= (y, ((m - 1) // 3 + 1) * 3):
-            quarter_ends.append(f"{yy}{mm:02d}{(31 if mm in (3, 12) else 30):02d}")
-    # 也试今天
-    dates = [today.strftime("%Y%m%d")] + quarter_ends
+    # 报告期截止日，从新到旧；只保留已结束的报告期（截止日 < 今天）
+    report_ends = []
+    for yy, mm, dd in ((y, 6, 30), (y, 3, 31), (y - 1, 12, 31), (y - 1, 9, 30),
+                       (y - 1, 6, 30), (y - 1, 3, 31), (y - 2, 12, 31)):
+        if (yy, mm, dd) < (y, m, today.day):
+            report_ends.append(f"{yy}{mm:02d}{dd:02d}")
+    # 今天也试一次（当天可能已有增量预告）
+    dates = [today.strftime("%Y%m%d")] + report_ends
 
     for date in dates:
         try:
@@ -118,11 +124,13 @@ def pull_event(ak) -> dict:
         if yjyg is None or yjyg.empty:
             print(f"  业绩预告 {date}: 空")
             continue
-        print(f"  业绩预告 {date}: {len(yjyg)} 条")
+        added = 0
         for _, row in yjyg.iterrows():
             code = str(row.get("股票代码", "")).strip().zfill(6)[-6:]
             if not code or len(code) != 6:
                 continue
+            if code in yjyg_data:
+                continue  # 已有（更新报告期优先）
             chg = row.get("业绩变动幅度", row.get("预测上限", 0))
             try:
                 chg = float(chg or 0)
@@ -133,8 +141,8 @@ def pull_event(ak) -> dict:
                 "yjyg_max_change": chg,
                 "forecast_type": str(row.get("业绩变动", row.get("业绩变动原因", "")) or ""),
             }
-        if yjyg_data:
-            break
+            added += 1
+        print(f"  业绩预告 {date}: {len(yjyg)} 条, 合并新增 {added}")
     return yjyg_data
 
 

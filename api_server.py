@@ -5,6 +5,8 @@ v0.3.0 — 推荐接入实时资金门控(腾讯盘口主动买卖占比)
 """
 import json
 import os
+import sys
+import math
 import warnings
 import re
 from pathlib import Path
@@ -93,7 +95,7 @@ async def startup():
         wl_claim_legacy(int(owner["id"]))
     except Exception as e:
         print(f"[auth] claim legacy watchlist skipped: {e}")
-    screener.load_model()
+    screener.load_model("v25")
 
 
 def _bearer_token(authorization: Optional[str] = None) -> Optional[str]:
@@ -258,6 +260,29 @@ def _read_recommend_cache() -> dict:
     raise HTTPException(status_code=404, detail="暂无推荐结果，请先运行每日管线")
 
 
+
+def _is_stale_market_closed(data_date_str: str):
+    """Check if cached data is stale and market is closed."""
+    if not data_date_str or len(data_date_str) < 10:
+        return False, ""
+    try:
+        data_date = data_date_str[:10]
+        now = datetime.now()
+        today = now.strftime("%Y-%m-%d")
+        if data_date >= today:
+            return False, ""
+        weekday = now.weekday()
+        hour = now.hour
+        if weekday >= 5:
+            return True, "Weekend"
+        if hour < 9:
+            return True, "Pre-market"
+        if hour >= 15:
+            return True, "After hours"
+        return False, ""
+    except Exception:
+        return False, ""
+
 def _confidence_score(score: float) -> int:
     """把 0~1 模型概率映射为 75~99 信心分（仅展示，非考试百分制）。"""
     try:
@@ -363,6 +388,7 @@ def _normalize_recommend_item(item: dict) -> dict:
         "sector_gate": item.get("sector_gate"),
         "exposure": item.get("exposure"),
         "position_exposure": item.get("position_exposure"),
+        "is_trade_pick": item.get("is_trade_pick"),
     }
     # 辩论系统特有字段
     if "agent_votes" in item:
@@ -408,6 +434,20 @@ async def selection_framework_page():
     return FileResponse(
         path,
         media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/api/v1/cn/dashboard-guide")
+async def dashboard_guide_pdf():
+    """工作台板块解读与选股指南（PDF 下载）"""
+    path = Path(__file__).parent / "output" / "dashboard_guide.pdf"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="dashboard guide not found")
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename="工作台板块解读与选股指南.pdf",
         headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )
 
@@ -463,7 +503,8 @@ def _attach_live_quotes(items: list) -> list:
 
 @app.get("/api/v1/cn/score-top10")
 async def get_score_top10():
-    """评分榜 Top10：只按 score 降序，无资金/板块门槛（与门控推荐分离）。"""
+    """评分榜 Top10：只按 score 降序，无资金/板块门槛（与门控推荐分离）。
+    附趋势通道标记供前端筛选。"""
     path = Path("output/score_top10.json")
     if not path.exists():
         path = Path("/home/ubuntu/alphapilot/output/score_top10.json")
@@ -476,7 +517,10 @@ async def get_score_top10():
 
     items = _attach_live_quotes(list(data.get("items") or []))
 
-    # recommend_compare：实时从 daily_recommend.json 拉最新推荐（而非 score_top10 文件里的旧快照）
+    # ── 从 kline 缓存计算趋势通道标记（复用通用函数）──
+    items = _inject_trend_flags(items)
+
+    # recommend_compare：仅当日 09:35 开盘终选（05:00 隔夜不上页）
     rec_cmp = []
     try:
         _rec_paths = [
@@ -484,18 +528,37 @@ async def get_score_top10():
             Path("/home/ubuntu/alphapilot/output/daily_recommend.json"),
         ]
         for _rp in _rec_paths:
-            if _rp.exists():
-                _rd = json.loads(_rp.read_text(encoding="utf-8"))
-                _recs = _rd.get("recommendations") or _rd.get("items") or []
-                _top_n = int(_rd.get("recommend_top_n") or 2)
-                rec_cmp = [
-                    {**dict(x), "symbol": str(x.get("symbol", ""))[-6:]}
-                    for x in _recs[:_top_n]
-                    if x.get("symbol")
-                ]
-                break
+            if not _rp.exists():
+                continue
+            _rd = json.loads(_rp.read_text(encoding="utf-8"))
+            if not _is_opening_final_select(_rd):
+                _mp = _load_first_json(
+                    [
+                        Path("output/morning_live_picks.json"),
+                        Path("/home/ubuntu/alphapilot/output/morning_live_picks.json"),
+                    ]
+                )
+                today = datetime.now().strftime("%Y-%m-%d")
+                if str(_mp.get("asof") or "")[:10] == today and (_mp.get("picks") or []):
+                    _rd = {
+                        **_mp,
+                        "recommendations": _mp.get("picks") or [],
+                        "protocol": _mp.get("mode") or "morning_live",
+                        "generated_at": _mp.get("asof"),
+                        "opening_final": True,
+                    }
+                else:
+                    break
+            _recs = _rd.get("recommendations") or _rd.get("items") or []
+            _top_n = int(_rd.get("recommend_top_n") or 2)
+            rec_cmp = [
+                {**dict(x), "symbol": str(x.get("symbol", ""))[-6:]}
+                for x in _recs[:_top_n]
+                if x.get("symbol")
+            ]
+            break
     except Exception:
-        rec_cmp = _attach_live_quotes(list(data.get("recommend_compare") or []))
+        rec_cmp = []
     if rec_cmp:
         rec_cmp = _attach_live_quotes(rec_cmp)
 
@@ -503,7 +566,7 @@ async def get_score_top10():
         "asof": data.get("asof"),
         "mode": data.get("mode") or "score_only_no_threshold",
         "note": data.get("note")
-        or "按评分降序第1–10名，无门槛；推荐池为另一路门控结果",
+        or "按评分降序第1–10名，无门槛；推荐池仅 09:35 开盘终选（隔夜不上页）",
         "items": items[:10],
         "recommend_compare": rec_cmp,
         "n": min(10, len(items)),
@@ -529,7 +592,65 @@ _EMPTY_REASON_CN = {
     "position_exposure_zero": "核武空仓 — 今日不新开仓",
     "no_morning_picks": "盘中资金重排后无候选",
     "fallback_empty": "候选为空",
+    "awaiting_opening_final": "等待 09:35 开盘终选 — 05:00 隔夜池不上页",
 }
+
+
+def _rec_asof_day(data: dict) -> str:
+    """从推荐 JSON 抽出交易日 YYYY-MM-DD。"""
+    if not isinstance(data, dict):
+        return ""
+    for k in ("generated_at", "run_at", "asof", "scanned_at"):
+        v = str(data.get(k) or "")
+        if len(v) >= 10 and v[0].isdigit():
+            return v[:10]
+    stats = data.get("stats") if isinstance(data.get("stats"), dict) else {}
+    for k in ("scanned_at", "generated_at", "asof"):
+        v = str(stats.get(k) or "")
+        if len(v) >= 10 and v[0].isdigit():
+            return v[:10]
+    return ""
+
+
+def _is_opening_final_select(data: dict) -> bool:
+    """仅当内容为「当日 09:35 开盘终选」时为 True。
+
+    05:00 隔夜池（overnight / 管线初稿 daily_recommend）不得作为网页「今日推荐」。
+    终选标志：protocol/mode 含 live_momentum / morning_live，且 asof 为今天。
+    """
+    if not isinstance(data, dict) or not data:
+        return False
+    today = datetime.now().strftime("%Y-%m-%d")
+    day = _rec_asof_day(data)
+    if day != today:
+        return False
+    protocol = str(data.get("protocol") or "").lower()
+    mode = str(data.get("mode") or "").lower()
+    tracks = data.get("tracks") or []
+    if isinstance(data.get("stats"), dict):
+        tracks = tracks or data["stats"].get("tracks") or []
+    blob = " ".join(
+        [
+            protocol,
+            mode,
+            str(tracks),
+            str(data.get("selection") or ""),
+            str(data.get("pipeline_version") or ""),
+            str(data.get("scanner") or ""),
+        ]
+    ).lower()
+    if data.get("opening_final") is True:
+        return True
+    return any(
+        k in blob
+        for k in (
+            "live_momentum_fund_auction",
+            "live_momentum_scanner",
+            "morning_live_model",
+            "morning_live_fund",
+            "opening_final",
+        )
+    )
 
 
 def _expo_status(expo: float, empty_reason: str | None, n_picks: int) -> dict:
@@ -539,6 +660,12 @@ def _expo_status(expo: float, empty_reason: str | None, n_picks: int) -> dict:
             "code": "empty",
             "label": "空仓",
             "detail": "仓位曝光为 0（核武日），今日不新开仓",
+        }
+    if reason == "awaiting_opening_final":
+        return {
+            "code": "awaiting",
+            "label": "待开盘终选",
+            "detail": "等待 09:35 开盘终选；05:00 隔夜池不上页、不下单",
         }
     if reason == "awaiting_human_approval":
         return {
@@ -562,8 +689,8 @@ def _expo_status(expo: float, empty_reason: str | None, n_picks: int) -> dict:
 def _recommend_top_for_trade(rec: dict, top_n: int) -> tuple[list[dict], str]:
     """与「今日推荐」同口径：daily_recommend → 资金门控 → 按 score 取 TopN。
 
-    对应生产 09:35 live_momentum_scanner 全市场重选后的池子，而不是
-    过期的 morning_live_picks（旧 05:00 池资金截 Top2）。
+    对应生产 09:35 live_momentum_scanner 全市场终选后的池子
+    （含今日集合竞价与隔夜轻确认），而不是 05:00 隔夜池直接截 Top2。
     """
     items = rec.get("recommendations") or rec.get("items") or []
     if not isinstance(items, list):
@@ -571,7 +698,14 @@ def _recommend_top_for_trade(rec: dict, top_n: int) -> tuple[list[dict], str]:
     try:
         from money_flow_gate import apply_money_flow_gate
 
-        gated = apply_money_flow_gate(items, top_n=None)
+        # 签名自检（2026-08-24）：旧版 money_flow_gate 缺 min_change_pct/require_above_vwap
+        # 会走到 except 静默降级（不过滤），加日志便于发现部署漂移。
+        import inspect
+
+        _need = {"min_change_pct", "require_above_vwap"}
+        if not _need.issubset(set(inspect.signature(apply_money_flow_gate).parameters)):
+            print("[api_server] ⚠️ money_flow_gate 版本旧，资金门将静默降级（未过滤）", flush=True)
+        gated = apply_money_flow_gate(items, top_n=None, min_change_pct=0.0, require_above_vwap=True)
     except Exception:
         gated = items
     normalized = [_normalize_recommend_item(it) for it in gated if isinstance(it, dict)]
@@ -597,8 +731,9 @@ def _recommend_top_for_trade(rec: dict, top_n: int) -> tuple[list[dict], str]:
 def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
     """组装「今日交易指令」：买不买 / 买谁 / 买多少 / 出场四层。
 
-    标的与网页「今日推荐」对齐（09:35 全市场动量/ICIR 重选 + 资金门控），
-    不再优先使用可能过期的 morning_live_picks.json。
+    标的与网页「今日推荐」对齐：09:35 全市场终选
+    （资金动量 + ICIR + 今日集合竞价 + 隔夜轻确认）+ 资金门控 TopN；
+    05:00 隔夜池仅先验，不下单。
     """
     picks_raw = _load_first_json(
         [
@@ -661,14 +796,28 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
         else picks_raw.get("empty_reason")
     )
 
-    # 主源：与今日推荐同池同排序
-    raw_picks, rec_asof = _recommend_top_for_trade(rec, top_n if top_n > 0 else 2)
-    pick_source = "daily_recommend_gated"
-
-    # 仅当 morning picks 与推荐池同一交易日时，保留其 asof 备注（不覆盖标的）
-    morning_asof = str(picks_raw.get("asof") or "")
+    # 主源：当日 morning_live Top2 优先（与自动交易一致）；否则开盘终选池再门控
     today = datetime.now().strftime("%Y-%m-%d")
+    morning_asof = str(picks_raw.get("asof") or "")
     morning_same_day = bool(morning_asof) and morning_asof[:10] == today
+
+    if morning_same_day and (picks_raw.get("picks") or picks_raw.get("recommendations")):
+        mp = list(picks_raw.get("picks") or picks_raw.get("recommendations") or [])
+        raw_picks = [
+            _normalize_recommend_item(x)
+            for x in mp[: max(top_n, 0) or 2]
+            if isinstance(x, dict)
+        ]
+        rec_asof = morning_asof
+        pick_source = "morning_live_picks"
+    elif _is_opening_final_select(rec):
+        raw_picks, rec_asof = _recommend_top_for_trade(rec, top_n if top_n > 0 else 2)
+        pick_source = "opening_final_gated"
+    else:
+        raw_picks, rec_asof = [], ""
+        pick_source = "awaiting_opening_final"
+        # 开盘前优先于旧的人工确认/空池原因，避免误显示「待确认」
+        empty_reason = "awaiting_opening_final"
 
     sized = []
     n_buy = max(0, min(top_n, len(raw_picks))) if expo > 0 else 0
@@ -753,7 +902,7 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
         "trade_top_n": top_n,
         "empty_reason": empty_reason,
         "empty_reason_label": _EMPTY_REASON_CN.get(str(empty_reason or ""), None),
-        "execution_window": "09:37 后（09:35 全市场重选完成后）",
+        "execution_window": "09:37 后（09:25 竞价门控 + 09:35 全市场终选完成后）",
         "entry": entry_text,
         "entry_mode": exit_policy.get("entry_mode") or protocol.get("entry_mode") or "gap_soft",
         "market_env_flags": flags,
@@ -765,9 +914,9 @@ def _build_cn_trade_plan(rec_data: dict | None = None) -> dict:
             "pending_n": int(approval.get("pending_n") or 0),
             "note": approval.get("note"),
         },
-        "protocol_name": "live_momentum_full_universe",
+        "protocol_name": "live_momentum_fund_auction",
         "pick_source": pick_source,
-        "note": "标的与下方「今日推荐」同口径（09:35 全市场重选+资金门控 TopN）；非旧 morning_live_picks",
+        "note": "",
     }
 
 
@@ -781,45 +930,211 @@ async def get_trade_plan():
     return _build_cn_trade_plan(rec)
 
 
+def _inject_trend_flags(items: list[dict]) -> list[dict]:
+    """给推荐列表注入趋势通道标记（从日K缓存计算），供前端趋势筛选。"""
+    if not items:
+        return items
+    try:
+        import pandas as pd
+        from trend_prefer_boost import _bare as _trend_bare, calc_trend_flags
+
+        _kdf = None
+        for _kp in [
+            Path("data/kline_cache/kline_all.parquet"),
+            Path("/home/ubuntu/alphapilot/data/kline_cache/kline_all.parquet"),
+            Path("kline_all.parquet"),
+            Path("/home/ubuntu/alphapilot/kline_all.parquet"),
+        ]:
+            if _kp.exists():
+                _kdf = pd.read_parquet(_kp)
+                _kdf["symbol"] = _kdf["symbol"].astype(str).str.replace(
+                    r"^(sh|sz|bj)", "", regex=True
+                ).str[-6:]
+                break
+        if _kdf is None:
+            return items
+        for _it in items:
+            if _it.get("channel_reject") is not None:
+                continue  # 管线的趋势标记已生效，跳过
+            _code = _trend_bare(_it.get("symbol", ""))
+            _sd = _kdf[_kdf["symbol"] == _code].sort_values("date") if _code else pd.DataFrame()
+            if len(_sd) >= 60:
+                _tf = calc_trend_flags(_sd)
+                if _tf:
+                    _it["downtrend_channel"] = _tf.get("downtrend_channel")
+                    _it["not_uptrend_channel"] = _tf.get("not_uptrend_channel")
+                    _it["channel_reject"] = _tf.get("channel_reject")
+                    _it["price_below_ma20"] = _tf.get("price_below_ma20")
+    except Exception:
+        pass
+    return items
+
+
 @app.get("/api/v1/cn/recommend")
 async def get_recommend():
-    """获取最新推荐结果（已施加实时资金门控 + 加权）"""
+    """获取最新推荐结果（已施加实时资金门控 + 加权）。
+
+    网页「今日推荐」只展示当日 09:35 开盘终选；05:00 隔夜池不上页。
+    """
     data = _read_recommend_cache()
+    trade_plan = _build_cn_trade_plan(data)
+
+    display_policy = {
+        "show_overnight": False,
+        "source": "opening_final_0935",
+        "reason": "今日推荐仅展示 09:35 开盘终选；05:00 隔夜池不上页",
+    }
+
+    if not _is_opening_final_select(data):
+        picks_raw = _load_first_json(
+            [
+                Path(OUTPUT_DIR) / "morning_live_picks.json",
+                Path("output") / "morning_live_picks.json",
+                Path("/home/ubuntu/alphapilot/output/morning_live_picks.json"),
+            ]
+        )
+        today = datetime.now().strftime("%Y-%m-%d")
+        morning_asof = str(picks_raw.get("asof") or "")
+        if morning_asof[:10] == today and (picks_raw.get("picks") or []):
+            data = {
+                **picks_raw,
+                "recommendations": picks_raw.get("picks") or [],
+                "protocol": picks_raw.get("mode") or "morning_live",
+                "generated_at": morning_asof,
+                "opening_final": True,
+            }
+        else:
+            return {
+                "run_at": data.get("run_at", ""),
+                "generated_at": data.get("generated_at", ""),
+                "pipeline_version": data.get("pipeline_version", "v3.1_funnel_gated"),
+                "model_version": data.get("model_version", "v25"),
+                "position_exposure": data.get("position_exposure"),
+                "trade_plan": trade_plan,
+                "recommendations": [],
+                "display_policy": {
+                    **display_policy,
+                    "awaiting_opening_final": True,
+                },
+                "stats": {
+                    "total_scanned": data.get("stats", {}).get(
+                        "total_scanned",
+                        data.get("stats", {}).get("universe_n", 0),
+                    ),
+                    "universe_n": data.get("stats", {}).get("universe_n"),
+                    "valid_scored": 0,
+                    "money_flow_gated": True,
+                    "filtered_out": 0,
+                    "returned": 0,
+                    "awaiting_opening_final": True,
+                    "score_scale": "confidence_score 75-99 display; model_proba 0-1",
+                },
+            }
+    else:
+        # 开盘终选已就绪：网页「今日推荐」优先展示 morning_live Top2（与自动交易一致）
+        picks_raw = _load_first_json(
+            [
+                Path(OUTPUT_DIR) / "morning_live_picks.json",
+                Path("output") / "morning_live_picks.json",
+                Path("/home/ubuntu/alphapilot/output/morning_live_picks.json"),
+            ]
+        )
+        today = datetime.now().strftime("%Y-%m-%d")
+        morning_asof = str(picks_raw.get("asof") or "")
+        if morning_asof[:10] == today and (picks_raw.get("picks") or []):
+            data = {
+                **data,
+                "recommendations": picks_raw.get("picks") or [],
+                "generated_at": morning_asof,
+                "opening_final": True,
+            }
 
     items = data.get("recommendations", data.get("items", []))
-    # 实时资金门控：用腾讯真实盘口过滤弱资金流标的，并按主动买入占比加权
-    try:
-        gated = apply_money_flow_gate(items, top_n=None)
-    except Exception:
-        gated = items
-    normalized = [_normalize_recommend_item(it) for it in gated]
+    from_morning = bool(data.get("opening_final")) and len(items) <= 5
 
-    # 评分排名解释：把原始概率转换为相对排名（如 Top 1%）
-    all_scores = [float(it.get("score", 0) or 0) for it in gated]
-    sorted_scores = sorted(all_scores, reverse=True)
-    for it in normalized:
-        s = float(it.get("score", 0) or 0)
-        if sorted_scores:
-            rank = sorted_scores.index(s) + 1
-            pct = rank / len(sorted_scores) * 100
-            it["score_rank_pct"] = round(pct, 1)
-            it["score_label"] = f"Top {pct:.0f}%" if pct <= 5 else f"前 {pct:.0f}%"
+    if from_morning:
+        # 已是当日 morning_live 终选：网页「今日推荐」展示综合分 Top10（与侧栏评分榜同源），
+        # 其中属于今日交易 Top2 的标的打 is_trade_pick 标记，供前端卡片标注。
+        trade_symbols = {
+            str(it.get("symbol", ""))[-6:]
+            for it in items
+            if isinstance(it, dict) and it.get("symbol")
+        }
+        # 读取综合分 Top10（build_score_top10 产物，已按综合分降序）
+        _st_items = []
+        for _stp in [
+            Path(OUTPUT_DIR) / "score_top10.json",
+            Path("output") / "score_top10.json",
+            Path("/home/ubuntu/alphapilot/output/score_top10.json"),
+        ]:
+            try:
+                if _stp.exists():
+                    _st = json.loads(_stp.read_text(encoding="utf-8"))
+                    _st_items = _st.get("items") or []
+                    break
+            except Exception:
+                continue
+        if _st_items:
+            # 用综合分 Top10 作为推荐池，并标记今日交易 Top2
+            normalized = []
+            for it in _st_items[:10]:
+                if not isinstance(it, dict):
+                    continue
+                n = _normalize_recommend_item(it)
+                n["is_trade_pick"] = str(it.get("symbol", ""))[-6:] in trade_symbols
+                normalized.append(n)
+            for i, it in enumerate(normalized, 1):
+                it["score_rank_pct"] = float(i)
+                it["score_label"] = f"Top{i}"
+            passed_items = _attach_live_quotes(normalized)
+            passed_items = _inject_trend_flags(passed_items)
+            filtered_count = 0
+            money_gated = False
         else:
-            it["score_rank_pct"] = None
-            it["score_label"] = None
+            # 兜底：无综合分榜时退回 Top2（保持与自动交易一致）
+            normalized = [_normalize_recommend_item(it) for it in items if isinstance(it, dict)]
+            for i, it in enumerate(normalized, 1):
+                it["score_rank_pct"] = float(i)
+                it["score_label"] = f"Top{i}"
+                it["is_trade_pick"] = True
+            passed_items = _attach_live_quotes(normalized[:2])
+            passed_items = _inject_trend_flags(passed_items)
+            filtered_count = 0
+            money_gated = False
+    else:
+        # 实时资金门控：用腾讯真实盘口过滤弱资金流标的，并按主动买入占比加权
+        try:
+            # 签名自检（2026-08-24）：旧版 money_flow_gate 会静默降级，加日志便于发现漂移。
+            import inspect
 
-    # 只返回通过门控的股票（默认隐藏跌停/亏损/资金流出的）
-    # 通过资金门控的（有实时盘口数据的）
-    passed_items = [it for it in normalized if it.get("money_flow_pass") is True]
-    # 无实时盘口数据时的降级：按评分排序取 Top
-    if len(passed_items) == 0:
-        passed_items = sorted(normalized, key=lambda x: float(x.get("score", 0) or 0), reverse=True)
-    # 只返回 Top 10 最有可能涨的
-    MAX_RETURN = 10
-    passed_items = _attach_live_quotes(passed_items[:MAX_RETURN])
-    filtered_count = len(normalized) - len(passed_items)
+            _need = {"min_change_pct", "require_above_vwap"}
+            if not _need.issubset(set(inspect.signature(apply_money_flow_gate).parameters)):
+                print("[api_server] ⚠️ money_flow_gate 版本旧，资金门将静默降级（未过滤）", flush=True)
+            gated = apply_money_flow_gate(items, top_n=None, min_change_pct=0.0, require_above_vwap=True)
+        except Exception:
+            gated = items
+        normalized = [_normalize_recommend_item(it) for it in gated]
 
-    trade_plan = _build_cn_trade_plan(data)
+        all_scores = [float(it.get("score", 0) or 0) for it in gated]
+        sorted_scores = sorted(all_scores, reverse=True)
+        for it in normalized:
+            s = float(it.get("score", 0) or 0)
+            if sorted_scores:
+                rank = sorted_scores.index(s) + 1
+                pct = rank / len(sorted_scores) * 100
+                it["score_rank_pct"] = round(pct, 1)
+                it["score_label"] = f"Top {pct:.0f}%" if pct <= 5 else f"前 {pct:.0f}%"
+            else:
+                it["score_rank_pct"] = None
+                it["score_label"] = None
+
+        passed_items = [it for it in normalized if it.get("money_flow_pass") is True]
+        if len(passed_items) == 0:
+            passed_items = sorted(normalized, key=lambda x: float(x.get("score", 0) or 0), reverse=True)
+        MAX_RETURN = 10
+        passed_items = _attach_live_quotes(passed_items[:MAX_RETURN])
+        filtered_count = len(normalized) - len(passed_items)
+        money_gated = True
 
     return {
         "run_at": data.get("run_at", ""),
@@ -828,7 +1143,8 @@ async def get_recommend():
         "model_version": data.get("model_version", "v25"),
         "position_exposure": data.get("position_exposure"),
         "trade_plan": trade_plan,
-        "recommendations": passed_items,
+        "recommendations": _inject_trend_flags(passed_items),
+        "display_policy": display_policy,
         "stats": {
             "total_scanned": data.get("stats", {}).get(
                 "total_scanned",
@@ -839,9 +1155,10 @@ async def get_recommend():
             "model_pool_scored": data.get("stats", {}).get("model_pool_scored"),
             "valid_scored": data.get("stats", {}).get("valid_scored", data.get("stocks_passed", 0)),
             "elapsed_seconds": data.get("stats", {}).get("elapsed_seconds", data.get("elapsed_seconds", 0)),
-            "money_flow_gated": True,
+            "money_flow_gated": money_gated,
             "filtered_out": filtered_count,
             "returned": len(passed_items),
+            "awaiting_opening_final": False,
             "score_scale": "confidence_score 75-99 display; model_proba 0-1",
         },
     }
@@ -914,6 +1231,90 @@ async def get_recommend_categorized():
             "valid_scored": data.get("stats", {}).get("valid_scored", 0),
         },
     }
+
+
+@app.get("/api/v1/cn/pipeline-board")
+async def get_pipeline_board(limit: int = 50):
+    """管线评分榜：每日管线全量输出，按评分降序完整展示。
+
+    与门控推荐（recommend）分离：recommend 只返回资金门控后的 Top10；
+    本端点返回管线候选的完整排名（约 40–50 只），让用户能看到
+    「今日选了什么、排在第几」，而不是只看被门控筛选后的少量结果。
+
+    展示口径：
+      - 主排序：score（管线综合分，已含 05:00 模型分 + 板块资金等调整）
+      - 附实时行情：price / change_pct（腾讯行情）
+      - 附趋势通道标记：downtrend_channel / channel_reject（供前端趋势筛选）
+      - 盘中资金强度由前端另行调用 /fund-strength 按 symbol 合并
+
+    Query 参数:
+      limit: 返回条数上限（默认 50，最大 200）
+    """
+    try:
+        data = _read_recommend_cache()
+    except HTTPException:
+        return {
+            "status": "no_data", "asof": None, "items": [], "n": 0,
+            "note": "暂无管线输出，请先运行每日管线",
+        }
+    raw_items = data.get("recommendations", data.get("items", []))
+    if not isinstance(raw_items, list) or not raw_items:
+        return {
+            "status": "empty", "asof": data.get("asof") or data.get("run_at"),
+            "items": [], "n": 0,
+            "note": "管线输出为空",
+        }
+
+    # 统一 symbol 为 6 位裸代码（前端同款处理）
+    def _sc(it):
+        try:
+            return float(it.get("score") or it.get("lgb_score") or 0)
+        except Exception:
+            return 0.0
+
+    def _bare_code(it):
+        code = str(it.get("symbol") or "")
+        for p in ("sh", "sz", "bj", "SH", "SZ", "BJ"):
+            code = code.replace(p, "")
+        return code[-6:] if len(code) >= 6 else code
+
+    for it in raw_items:
+        it["symbol"] = _bare_code(it)
+
+    # 按评分降序（同一条管线数据，不重复计算融合分，保证口径一致）
+    raw_items = sorted(raw_items, key=_sc, reverse=True)
+
+    # 归一化 + 实时行情 + 趋势标记（与 recommend / score-top10 同款）
+    try:
+        normalized = [_normalize_recommend_item(it) for it in raw_items]
+        normalized = _attach_live_quotes(normalized)
+        normalized = _inject_trend_flags(normalized)
+    except Exception:
+        normalized = [_normalize_recommend_item(it) for it in raw_items]
+
+    limit = max(10, min(int(limit or 50), 200))
+    items = normalized[:limit]
+    # 序号注入
+    for i, it in enumerate(items, 1):
+        it["rank"] = i
+
+    return {
+        "status": "ok",
+        "asof": data.get("asof") or data.get("run_at") or data.get("generated_at"),
+        "generated_at": data.get("generated_at") or data.get("run_at"),
+        "pipeline_version": data.get("pipeline_version") or data.get("protocol"),
+        "model_version": data.get("model_version") or data.get("model"),
+        "recommend_top_n": data.get("recommend_top_n"),
+        "stats": {
+            "total_scanned": (data.get("stats") or {}).get("total_scanned", 0),
+            "valid_scored": (data.get("stats") or {}).get("valid_scored", 0),
+            "returned": len(normalized),
+            "truncated_to": len(items),
+        },
+        "items": items,
+        "n": len(items),
+    }
+
 
 @app.get("/api/v1/cn/news")
 async def get_news():
@@ -1586,8 +1987,21 @@ async def add_watchlist(payload: dict = {}, user: dict = Depends(get_current_use
     if not symbol or not entry_price:
         raise HTTPException(status_code=400, detail="symbol 和 entry_price 必填")
 
+    # Normalize model_score to 0-1 (前端可能传 raw lgb_score >1)
+    try:
+        ms = float(model_score)
+        if ms <= 0:
+            ms = 0.0
+        elif ms <= 1.0:
+            ms = round(ms, 4)
+        else:
+            # 用 sigmoid 把 >1 的原始分压到 0-1
+            ms = round(1.0 / (1.0 + math.exp(-ms / 2.0)), 4)
+    except (ValueError, TypeError):
+        ms = 0.0
+
     result = wl_add(
-        symbol, name, float(entry_price), float(model_score), notes, user_id=int(user["id"])
+        symbol, name, float(entry_price), ms, notes, user_id=int(user["id"])
     )
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
@@ -1884,7 +2298,7 @@ async def get_refresh_status():
 async def get_data_status():
     """获取各数据文件的更新时间"""
     files = {
-        "chip_data": "chip_data_all.json",
+        "chip_data": "data/chip_data_all.json",
         "fund_flow": "data/fund_flow_history.json",
         "daily_recommend": "output/daily_recommend.json",
     }
@@ -1907,7 +2321,7 @@ async def get_data_status():
 async def upload_chip_data(data: dict):
     """接收本地上传的筹码数据"""
     import json
-    path = "/home/ubuntu/alphapilot/chip_data_all.json"
+    path = "/home/ubuntu/alphapilot/data/chip_data_all.json"
     try:
         with open(path, "w") as f:
             json.dump(data, f)
@@ -2070,18 +2484,19 @@ async def get_paper_trading(user: dict = Depends(get_current_user)):
         pending = list_tickets(user, status="pending_review", today_only=True)
         data["pending_orders"] = pending
         data["approval_gate"] = {
-            "enabled": os.environ.get("REQUIRE_ORDER_APPROVAL", "1").strip() not in (
+            "enabled": os.environ.get("REQUIRE_ORDER_APPROVAL", "0").strip() not in (
                 "0",
                 "false",
                 "no",
                 "off",
+                "",
             ),
             "pending_n": len(pending),
         }
         data["broker_connection"] = public_broker_connection(load_broker_connection(user))
     except Exception as e:
         data["pending_orders"] = []
-        data["approval_gate"] = {"enabled": True, "pending_n": 0, "error": str(e)}
+        data["approval_gate"] = {"enabled": False, "pending_n": 0, "error": str(e)}
     
     # 实时价格 + 金额字段
     for s in data.get("strategies", []):
@@ -2322,11 +2737,12 @@ async def get_live_orders(
         "expired_n": len(expired),
         "expire_hhmm": os.environ.get("ORDER_TICKET_EXPIRE_HHMM", "14:55"),
         "broker": broker,
-        "approval_required": os.environ.get("REQUIRE_ORDER_APPROVAL", "1").strip() not in (
+        "approval_required": os.environ.get("REQUIRE_ORDER_APPROVAL", "0").strip() not in (
             "0",
             "false",
             "no",
             "off",
+            "",
         ),
     }
 
@@ -2517,3 +2933,85 @@ def _save_json(path, data):
             return _json.load(f)
     except Exception:
         return {"sentiment_score": 0, "judgment": "暂无隔夜数据", "fetched_at": ""}
+
+
+@app.get("/api/v1/cn/institutional-watch")
+async def get_institutional_watch():
+    """盘中机构/主力资金盯盘快照 + 异动告警。
+
+    数据源: output/institutional_watch.json（institutional_watch.py 每3分钟刷新）
+    公开只读（含代码/名称/价格/涨跌/主力净额/告警）。
+    """
+    st = _load_json(_fl_path("/home/ubuntu/alphapilot/output/institutional_watch.json"))
+    if not st:
+        return {
+            "ts": None, "n_symbols": 0, "snapshot": {}, "alerts": [],
+            "n_alerts": 0, "trading": False, "note": "盘中机构资金监控未启动或暂无数据",
+        }
+    snapshot = st.get("snapshot") or {}
+    # 只保留展示字段，避免透传无关数据
+    clean = {}
+    for sym, row in snapshot.items():
+        clean[sym] = {
+            "symbol": row.get("symbol"),
+            "name": row.get("name"),
+            "source": row.get("source"),
+            "price": row.get("price"),
+            "change_pct": row.get("change_pct"),
+            "main_net_yi": row.get("main_net_yi"),
+            "super_net_yi": row.get("super_net_yi"),
+            "main_net_pct": row.get("main_net_pct"),
+            "super_net_pct": row.get("super_net_pct"),
+        }
+    alerts = [
+        {
+            "symbol": a.get("symbol"),
+            "name": a.get("name"),
+            "type": a.get("type"),
+            "severity": a.get("severity"),
+            "msg": a.get("msg"),
+        }
+        for a in (st.get("alerts") or [])
+    ]
+    return {
+        "ts": st.get("ts"),
+        "n_symbols": st.get("n_symbols", 0),
+        "snapshot": clean,
+        "alerts": alerts,
+        "n_alerts": len(alerts),
+        "note": "盘中机构资金盯盘（每3分钟刷新）",
+    }
+
+
+@app.get("/api/v1/cn/fund-strength")
+async def get_fund_strength():
+    """盘中资金强度结论（分位/流速/冲板概率）— 嵌入选股卡片。
+
+    数据源: output/fund_strength.json（institutional_watch.py 每3分钟附带更新）
+    """
+    fs = _load_json(_fl_path("/home/ubuntu/alphapilot/output/fund_strength.json"))
+    if not fs or not fs.get("items"):
+        return {
+            "ts": None, "n_items": 0, "items": {},
+            "note": "资金强度分析未运行",
+        }
+    items = {}
+    for sym, it in (fs.get("items") or {}).items():
+        items[sym] = {
+            "symbol": it.get("symbol"),
+            "name": it.get("name"),
+            "source": it.get("source"),
+            "rank_pct": it.get("rank_pct"),
+            "speed_ratio": it.get("speed_ratio"),
+            "limit_up_prob": it.get("limit_up_prob"),
+            "label": it.get("label"),
+            "today_net_yi": it.get("today_net_yi"),
+            "main_net_pct": it.get("main_net_pct"),
+            "super_net_pct": it.get("super_net_pct"),
+        }
+    return {
+        "ts": fs.get("ts"),
+        "n_items": fs.get("n_items", 0),
+        "items": items,
+        "note": fs.get("note"),
+    }

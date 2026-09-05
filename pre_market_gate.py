@@ -10,9 +10,9 @@
   4. 板块聚合：按 industry_l1 汇总竞价 gap → sector 强弱判定
   5. 门控规则（严格）:
      - gap >= +9% 近涨停不推
-     - gap < -2%  硬剔除（低开过多）
+     - 个股低开不再因 -2% 硬剔除（振幅小，可能拉回；走降权）
      - gap < 0 且 所在板块 gap_mean < -1.5% → 硬剔除（双重弱）
-     - gap = 0~-2% → 降权
+     - gap < -0.5% → 降权
      - 板块集中度: Top20 同板块最多 3 只
   6. 写回 daily_recommend.json（含 pre_market_* 字段）
 
@@ -40,8 +40,7 @@ sys.path.insert(0, str(ROOT))
 REC_PATH = ROOT / "output/daily_recommend.json"
 INDUSTRY_MAP_PATH = ROOT / "data/stock_industry_map.json"
 CALL_AUCTION_TOP_N = 100       # 只看 Top~100 的集合竞价
-GAP_HARD_DROP = -2.0           # gap < -2% 硬剔除（之前 -5% 太松）
-GAP_DEMOTE = -0.5              # gap < -0.5% 开始降权
+GAP_DEMOTE = -0.5              # gap < -0.5% 开始降权（含原 -2% 硬踢档，只降权不剔除）
 GAP_LIMIT_UP = 9.0             # gap > 9% 视为近涨停不推
 
 # 板块集中度限制
@@ -346,14 +345,7 @@ def run_pre_market_gate() -> int:
             elimination_reasons["near_limit"] += 1
             continue
 
-        # ── 规则2: gap < -2% 硬剔除 ──
-        if gap_pct < GAP_HARD_DROP:
-            it["pre_market_adjusted_score"] = 0
-            it["pre_market_action"] = "eliminated"
-            it["pre_market_note"] = f"gap={gap_pct}% <{GAP_HARD_DROP}%"
-            eliminated.append(it)
-            elimination_reasons["gap_too_low"] += 1
-            continue
+        # ── 规则2: 个股低开不硬剔除（2026-08-22）。-2% 振幅小，走规则4降权。
 
         # ── 规则3: gap < 0 且 板块弱 → 硬剔除 ──
         if gap_pct < 0 and sector_weak:
@@ -369,7 +361,7 @@ def run_pre_market_gate() -> int:
         # ── 规则4: gap < -0.5% 降权 ──
         base_score = float(it.get("score", 0))
         if gap_pct < GAP_DEMOTE:
-            # gap -0.5% → 降权 5%; gap -1.9% → 降权 ~25%
+            # gap -0.5% → 降权 5%; gap -2.7%+ → 封顶 35%（不再因 -2% 踢掉）
             penalty = max(0.05, min(0.35, abs(gap_pct) * 0.13))
             adj_score = base_score * (1 - penalty)
             it["pre_market_adjusted_score"] = round(max(0, adj_score), 4)
@@ -442,8 +434,15 @@ def run_pre_market_gate() -> int:
 
     diversity_drops = len(survivors) - len(final_pool)
 
-    # ── 写回 ──
-    recs["recommendations"] = final_pool
+    # ── 保留未参与竞价的股票（保持完整 500 只池供 09:35 scanner 使用）──
+    remaining = items[CALL_AUCTION_TOP_N:]
+    if remaining:
+        log(f"  保留未竞价股票: {len(remaining)} 只（保持池完整）")
+        merged_pool = list(final_pool) + list(remaining)
+        merged_pool.sort(key=lambda x: -float(x.get("score") or x.get("pre_market_adjusted_score") or 0))
+        recs["recommendations"] = merged_pool
+    else:
+        recs["recommendations"] = final_pool
     recs["pre_market_gate"] = {
         "run_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "n_checked": len(valid_quotes),
@@ -465,7 +464,7 @@ def run_pre_market_gate() -> int:
             for x in eliminated[:20]
         ],
         "rules": [
-            f"gap<{GAP_HARD_DROP}% → 硬剔除",
+            "个股低开不硬剔除（gap<-0.5% 只降权）",
             "gap<0 且 板块weak → 硬剔除",
             f"gap<{GAP_DEMOTE}% → 降权(penalty~|gap|*0.13)",
             f"Top10 同板块上限 {MAX_SAME_SECTOR_IN_TOP10} 只",

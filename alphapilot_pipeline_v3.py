@@ -247,16 +247,16 @@ def apply_sector_gate(items: list) -> list:
     return apply_sector_rotation(items)
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 4: LLM 双重审核（Top 50）
+# STEP 4: LLM 双重审核（Top N，可由调用方指定范围）
 # ═══════════════════════════════════════════════════════════════
-def llm_review(items: list) -> list:
-    """LLM新闻情绪审核 Top 50"""
-    log(f"▶ LLM双重审核: {min(50, len(items))} 只...")
+def llm_review(items: list, scope_n: int = 50) -> list:
+    """LLM新闻情绪审核 Top scope_n"""
+    log(f"▶ LLM双重审核: {min(scope_n, len(items))} 只...")
 
     if not items:
         return items
 
-    top50 = items[:50]
+    scope = items[:scope_n]
     bonus_count = 0
 
     def review_one(item):
@@ -323,7 +323,7 @@ def llm_review(items: list) -> list:
         return None
 
     with ThreadPoolExecutor(max_workers=5) as ex:
-        futs = {ex.submit(review_one, it): it for it in top50}
+        futs = {ex.submit(review_one, it): it for it in scope}
         llm_results = {}
         for fut in as_completed(futs):
             r = fut.result()
@@ -378,6 +378,20 @@ def run():
 
     t_start = time.time()
 
+    # ── 0. 凌晨预检门（2026-08-29 数据契约防护）：读取 00:30 preflight_checkpoint.json ──
+    # 不阻断管线（04:50 data_readiness_gate 是权威闸门），但失败必须醒目告警。
+    try:
+        pf = json.loads(open("output/preflight_checkpoint.json", encoding="utf-8").read())
+        if pf.get("ready_for_pipeline"):
+            log(f"✅ 凌晨预检门通过 (asof={pf.get('asof')}) fail={pf.get('fail_count')}")
+        else:
+            log(
+                f"⚠️⚠️ 凌晨预检门【未通过】 fail={pf.get('fail_count')} "
+                f"fails={pf.get('fails')} → 查看 output/preflight_checkpoint.json / output/data_alerts.json"
+            )
+    except Exception as e:
+        log(f"⚠️ 凌晨预检门缺失: {e}（00:30 cron 未产出 checkpoint）")
+
     # 0. 增强美股因子收集（前置数据）+ 隔夜映射落盘 + 新鲜度巡检
     ok = run_step("增强美股因子收集", "python3 us_enhanced_collector.py", 30)
     ok_ov = run_step(
@@ -392,6 +406,11 @@ def run():
     )
     if not ok_ov:
         log("  ⚠️ 隔夜落盘失败，选股将缺少外盘加权（已告警）")
+    # 0b. 情报层扩源采集（A50/恒指/金银铜油/国内快讯 → intel_prebrief.json）
+    #     只产出上下文，不改选股结果（INTEL_SECTOR_BOOST 默认 0）；任何异常不阻断管线
+    ok_intel = run_step("情报层扩源采集", "python3 intel_sweep.py", 60)
+    if not ok_intel:
+        log("  ⚠️ 情报层采集失败（不阻断选股，盘前简报缺失）")
 
     # 1. 全市场启动形态扫描（asof=最近收盘日 → 预测下一交易日）
     gc_set = scan_volume_gc()
@@ -408,6 +427,16 @@ def run():
         bypass_bare = load_bypass_symbols()
     except Exception as e:
         log(f"  ⚠️ 主线旁路构建失败（不阻断 A 臂）: {e}")
+
+    # 1c. 上涨→横盘→下长影十字星 形态突破池（research 2026-08-19）
+    #     全市场扫描命中票，并入 recommend.py 评分宇宙（recommend.py 内部会读取 pool json）
+    try:
+        from pattern_breakout_boost import build_pattern_breakout_pool
+
+        pb_meta = build_pattern_breakout_pool(log=log)
+        log(f"  形态突破池: {pb_meta.get('n')} 只 (asof={pb_meta.get('asof')})")
+    except Exception as e:
+        log(f"  ⚠️ 形态突破池构建失败（不阻断 A 臂）: {e}")
 
     # 2. V2.2 评分 + 隔夜情绪（recommend.py 内部已有）
     ok = run_step("VM2.5模型选股", "python3 -u recommend.py", 1200)
@@ -519,6 +548,25 @@ def run():
     except Exception as e:
         log(f"  ⚠️ K位置模块跳过: {e}")
 
+    # 6c. 跟庄书 C 档 Gate（MA30 向下剔除 + 高位大阴线>6%剔除）— 2026-08-03
+    # WorkBuddy 验证: 规则过滤不受日线 AUC 天花板限制, 立即可上线。
+    # 同时附加 book_price_quantile_250 供 Top50→Top2 二次重排。
+    try:
+        from book_gate import apply_book_gate
+
+        before_bk = len(items)
+        try:
+            book_asof = (recs.get("asof") or recs.get("date") or "")[:10] or None
+        except Exception:
+            book_asof = None
+        items = apply_book_gate(items, asof=book_asof, hard=True)
+        if len(items) < before_bk:
+            log(f"  跟庄书C档Gate: {before_bk} → {len(items)} 只（剔除 {before_bk - len(items)}）")
+        else:
+            log(f"  跟庄书C档Gate: {len(items)} 只（无剔除）")
+    except Exception as e:
+        log(f"  ⚠️ 跟庄书C档Gate跳过: {e}")
+
     # 7. 草木皆兵软加分（不删票）→ 趋势首选软加分 → 按池大小截断 → LLM / S2
     try:
         from caomujiebing_factor import apply_caomujiebing_soft_boost
@@ -551,8 +599,24 @@ def run():
     except Exception as e:
         log(f"  ⚠️ 热门板块优先跳过: {e}")
 
+    # 7c. 上涨→横盘→下长影十字星 形态突破软加分（research 2026-08-19，默认开启，纯软加分不删票）
+    try:
+        from pattern_breakout_boost import apply_pattern_breakout_boost
+
+        before_pb = len(items)
+        items = apply_pattern_breakout_boost(items, log=log)
+        n_pb = sum(1 for x in items if x.get("pattern_breakout"))
+        if n_pb:
+            log(f"  形态突破软加分后: {len(items)} 只（命中 {n_pb}，加分 {sum(1 for x in items if x.get('pattern_breakout_delta', 0) > 0)}）")
+        else:
+            log(f"  形态突破软加分后: {len(items)} 只（无命中）")
+    except Exception as e:
+        log(f"  ⚠️ 形态突破软加分跳过: {e}")
+
     pool_n = int(mkt_meta.get("recommend_pool_n") or 50)
     trade_n = int(mkt_meta.get("recommend_top_n") or 2)
+    # 2026-07-31: 改为保存全部门控通过股票（500只），供 09:25/09:35 二次筛选
+    FULL_POOL_SIZE = 500
 
     # 8. 执行层：近涨停不报，但向下补位（避免热门票被踢后池子只剩冷票）
     def _limit_frac(sym: str) -> float:
@@ -565,7 +629,7 @@ def run():
     exec_notes = []
     filtered = []
     for it in items_sorted:
-        if pool_n > 0 and len(filtered) >= pool_n:
+        if len(filtered) >= FULL_POOL_SIZE:
             break
         chg = it.get("change_pct") or it.get("pct_chg") or it.get("signal_chg")
         try:
@@ -582,16 +646,32 @@ def run():
         filtered.append(it)
     top_pool = filtered
     if exec_notes:
-        log(f"  近涨停跳过并补位: drop={len(exec_notes)} pool={len(top_pool)}/{pool_n}")
+        log(f"  近涨停跳过并补位: drop={len(exec_notes)} pool={len(top_pool)}（目标{FULL_POOL_SIZE}）")
 
-    # 可选 LLM / S2（在已补位池上）
+    # LLM / S2：只跑 Top50（控制成本），其余保持原始评分
     if top_pool:
-        top_pool = llm_review(top_pool)
-        top_pool = apply_s2_weight(top_pool)
-        top_pool = sorted(top_pool, key=lambda x: -float(x.get("score") or 0))[:pool_n] if pool_n > 0 else top_pool
+        top_pool.sort(key=lambda x: -float(x.get("score") or 0))
+        llm_scope = top_pool[:200]
+        rest = top_pool[200:]
+        llm_scope = llm_review(llm_scope, scope_n=200)
+        llm_scope = apply_s2_weight(llm_scope)
+        top_pool = llm_scope + rest
+        top_pool = sorted(top_pool, key=lambda x: -float(x.get("score") or 0))[:FULL_POOL_SIZE]
 
 
-    # 9. 保存最终结果（池=pool_n；下单只数见 recommend_top_n）
+    # 9. 保存最终结果（FULL_POOL_SIZE=500 供二次筛选；recommend_top_n 仍用于下单）
+    # ── ST/退市风险警示硬过滤（2026-08-25 事故：*ST威领被 Track B 买入）──
+    _st_pool = [x for x in top_pool
+                if "ST" in str(x.get("name") or "").upper()
+                or str(x.get("name") or "").startswith("退")
+                or "退市" in str(x.get("name") or "")]
+    if _st_pool:
+        top_pool = [x for x in top_pool
+                    if not ("ST" in str(x.get("name") or "").upper()
+                            or str(x.get("name") or "").startswith("退")
+                            or "退市" in str(x.get("name") or ""))]
+        log(f"⚠️ ST/退市硬过滤剔除 {len(_st_pool)} 只: "
+            + ", ".join(f"{x.get('name')}({x.get('symbol')})" for x in _st_pool[:10]))
     recs["recommendations"] = top_pool
     recs["pipeline_version"] = "v3.1_funnel_gated"
     recs["model_version"] = recs.get("model_version") or "v25"

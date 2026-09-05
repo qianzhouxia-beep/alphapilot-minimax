@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 
 # ── 环境开关 ──
-KELLY_ENABLE = os.environ.get("KELLY_ENABLE", "0").strip().lower() in (
+KELLY_ENABLE = os.environ.get("KELLY_ENABLE", "1").strip().lower() in (
     "1", "true", "yes", "on")
 KELLY_FRAC = float(os.environ.get("KELLY_FRAC", "0.5") or 0.5)
 KELLY_MAX_POS = float(os.environ.get("KELLY_MAX_POS", "0.25") or 0.25)

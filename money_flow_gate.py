@@ -15,6 +15,49 @@ from enriched_data import get_quotes_batch, get_mootdx_finance_fundamentals
 from config import OUTPUT_DIR
 
 
+def _bare6(sym) -> str:
+    """统一 symbol 为裸 6 位代码：002437.SZ / sz002437 / SH600519 → 002437 / 600519。
+
+    get_quotes_batch（腾讯）要求裸 6 位，带交易所后缀会匹配失败返回空，
+    导致资金门回退到 rec 自带字段（可能为 THS/akshare 表头漂移的垃圾值，
+    如 abr=22298681 / chg=273），最终把垃圾数据当 pass 导出。
+    """
+    s = str(sym or "").strip().lower()
+    s = s.split(".")[0]          # 先去掉 .SZ/.SH 后缀
+    for p in ("sh", "sz", "bj"):  # 再去掉 sh/sz/bj 前缀
+        s = s.replace(p, "")
+    return s[-6:] if len(s) >= 6 else s
+
+
+def _is_st(rec: dict) -> bool:
+    """ST/退市风险警示判断：名称含 ST/*ST/S*ST/退 即视为风险警示股。
+
+    A股风控红线：ST（其他风险警示）与 *ST（退市风险警示）严禁买入。
+    名称缺失时保守按非 ST 处理（不误杀，但客户端仍有二次防护）。
+    """
+    name = str(rec.get("name") or "").strip()
+    if not name:
+        return False
+    up = name.upper()
+    return "ST" in up or up.startswith("退") or "退市" in up
+
+
+def _is_abr_plausible(v) -> bool:
+    """主动买占比合理性：应为 [0,1]。THS 表头漂移时会把净额/成交额塞进来。"""
+    try:
+        return 0.0 <= float(v) <= 1.0
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_chg_plausible(v) -> bool:
+    """涨跌幅合理性：应为 [-30,30]。表头漂移时会出现 273 / -311 等垃圾。"""
+    try:
+        return -30.0 <= float(v) <= 30.0
+    except (TypeError, ValueError):
+        return False
+
+
 def _pe_ttm_hard_enabled() -> bool:
     """PE 硬阀总开关。默认关闭——估值交给客户前端筛选，不再系统硬淘。
 
@@ -68,11 +111,17 @@ def apply_money_flow_gate(
     check_fundamentals: bool = True,
     hard_main_net_5d: bool = True,
     max_pe_ttm: float | None = None,
+    min_change_pct: float = None,
+    require_above_vwap: bool = False,
 ) -> list:
     """对推荐列表施加资金门控 + 多日趋势过滤 + 加权
 
     估值：默认不硬淘（ENABLE_PE_TTM_HARD=0）。始终写入 pe_ttm / pe_bucket
     供前端「PE≤30 / PE>30」客户自选。仅当硬阀开启时才按 max_pe_ttm 出局。
+
+    require_above_vwap：与客户端 P2 的 `c > vwap` 同口径——价格须站上当日均价，
+    用于识别「日内下跌过程中」（如 002437 08-19：09:35 时红盘但已从高点 5.01
+    回落到均价下方，P2 靠 vwap 拦住，服务器靠本参数对齐）。
     """
     if not recs:
         return recs
@@ -81,9 +130,24 @@ def apply_money_flow_gate(
     pe_gate_on = max_pe_ttm is not None and float(max_pe_ttm) > 0
     if not pe_gate_on:
         print("  money_flow_gate pe_ttm hard: OFF (客户自选 PE≤30/PE>30)", flush=True)
-    syms = [r.get("symbol") for r in recs if r.get("symbol")]
 
-    # 1. 实时资金流
+    # ── ST/退市风险警示硬过滤（2026-08-25 事故：*ST威领被 Track B 买入）──
+    # A股风控红线：ST 与 *ST 严禁进入候选。名称缺失不误杀（交给客户端二次防护）。
+    st_dropped = [r for r in recs if _is_st(r)]
+    if st_dropped:
+        recs = [r for r in recs if not _is_st(r)]
+        print(
+            f"  money_flow_gate ST hard drop {len(st_dropped)}: "
+            + ", ".join(f"{r.get('name')}({_bare6(r.get('symbol'))})" for r in st_dropped[:10]),
+            flush=True,
+        )
+    if not recs:
+        print("  money_flow_gate: ST 过滤后候选为空", flush=True)
+        return recs
+
+    syms = [_bare6(r.get("symbol")) for r in recs if r.get("symbol")]
+
+    # 1. 实时资金流（腾讯批量，需裸 6 位代码，带后缀会匹配失败）
     try:
         quotes = get_quotes_batch(syms)
     except Exception:
@@ -127,8 +191,9 @@ def apply_money_flow_gate(
     out = []
     for r in recs:
         sym = r.get("symbol")
-        q = quotes.get(sym)
+        q = quotes.get(_bare6(sym))
         feats = r.get("features", {})
+        data_error = False
 
         # ── 资金信号（今日） ──
         pe_ttm = None
@@ -150,9 +215,32 @@ def apply_money_flow_gate(
             money_pass = (abr >= min_active_buy) and (min_turnover <= to <= max_turnover) and (vr >= min_vol_ratio)
             chg = q.get("change_pct", 0) or 0
             r["change_pct"] = round(chg, 2)
+            # 垃圾值防御：腾讯行情异常时不得据此放行
+            if not _is_abr_plausible(abr):
+                money_pass = False
+                data_error = True
+                r["data_error"] = f"abr={abr} 异常(应∈[0,1])"
+            if not _is_chg_plausible(chg):
+                money_pass = False
+                data_error = True
+                r["data_error"] = (r.get("data_error") or "") + f" chg={chg} 异常"
             if chg < max_drop_pct:
                 money_pass = False
                 r["drop_reason"] = f"当日跌幅 {round(chg,1)}% 超过阈值"
+            # 当日非下跌硬门（与客户端 P2 `c >= prev_close` 对齐）
+            if min_change_pct is not None and chg < min_change_pct:
+                money_pass = False
+                r["drop_reason"] = f"当日非上涨 chg={round(chg,1)}% < {min_change_pct}%"
+            # 跌破当日均价 = 日内下跌过程中（与客户端 P2 `c > vwap` 对齐）。
+            # 覆盖「红盘但一路回落」：chg>0 不代表不在下跌过程中，
+            # 例如 002437 08-19 09:35 红盘但已从高点跌破均价。
+            if require_above_vwap:
+                _vwap = q.get("vwap") or 0.0
+                _price = q.get("price") or 0.0
+                if _vwap > 0 and _price > 0 and _price < _vwap:
+                    money_pass = False
+                    r["drop_reason"] = f"跌破当日均价(日内下跌中) price={_price} < vwap={round(_vwap,2)}"
+                    r["below_vwap"] = True
             raw_pe = q.get("pe_ttm", q.get("pe"))
             if raw_pe is not None:
                 try:
@@ -180,6 +268,19 @@ def apply_money_flow_gate(
                     pe_ttm = float(raw_pe)
                 except (TypeError, ValueError):
                     pe_ttm = None
+            # 腾讯行情缺失时：若 rec 自带字段是垃圾值（THS 表头漂移），不得放行
+            if not _is_abr_plausible(r.get("active_buy_ratio")):
+                money_pass = False
+                data_error = True
+                r["data_error"] = f"abr={r.get('active_buy_ratio')} 异常(应∈[0,1])"
+            if not _is_chg_plausible(chg):
+                money_pass = False
+                data_error = True
+                r["data_error"] = (r.get("data_error") or "") + f" chg={chg} 异常"
+            # 当日非下跌硬门（数据缺失时用 rec 自带 chg，语义与客户端 P2 对齐）
+            if min_change_pct is not None and _is_chg_plausible(chg) and chg < min_change_pct:
+                money_pass = False
+                r["drop_reason"] = f"当日非上涨 chg={round(chg,1)}% < {min_change_pct}%"
 
         if pe_ttm is not None:
             r["pe_ttm"] = round(pe_ttm, 2)
@@ -519,7 +620,10 @@ def apply_money_flow_gate(
             "yes",
         )
         if include_soft:
-            for r in failed_list:
+            # 数据错误（abr/chg 越界的垃圾值）直接出局，不得降权保留：
+            # 防止极端情况下（passed 为空回退全池）垃圾票仍被 A1/网页选中。
+            kept_failed = [r for r in failed_list if not r.get("data_error")]
+            for r in kept_failed:
                 if r.get("money_flow_pass") is not True:
                     try:
                         r["score"] = round(float(r.get("score") or 0) * 0.88, 4)
@@ -527,7 +631,7 @@ def apply_money_flow_gate(
                         pass
                     r["money_soft_demote"] = True
                     r["drop_reason"] = (r.get("drop_reason") or "") + "|soft_fail_demote"
-            result = passed_list + failed_list
+            result = passed_list + kept_failed
             result.sort(key=lambda x: x.get("score", 0), reverse=True)
         else:
             result = passed_list if passed_list else failed_list

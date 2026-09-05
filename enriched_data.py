@@ -59,34 +59,26 @@ def _parse_quote(body: str) -> dict:
             "volume": float(f[6]),          # 手
             "outer": float(f[7]),           # 外盘=主动买(手)
             "inner": float(f[8]),           # 内盘=主动卖(手)
-            "high": float(f[33]) if len(f) > 33 and f[33] else 0.0,
-            "low": float(f[34]) if len(f) > 34 and f[34] else 0.0,
-            # 腾讯 f[37] 为成交额（万）；统一成元便于 VWAP=amount/volume
-            "amount": (float(f[37]) * 10000.0) if len(f) > 37 and f[37] else 0.0,
             "change_pct": float(f[32]),
-            "amplitude": float(f[43]) if len(f) > 43 and f[43] else 0.0,
-            # 腾讯: f[44]≈流通市值(亿) f[45]≈总市值(亿)；历史代码用 total_mv 读 f[44]
-            "circ_mv": float(f[44]) if len(f) > 44 and f[44] else 0.0,     # 亿 流通
-            "total_mv": (
-                float(f[45]) if len(f) > 45 and f[45]
-                else (float(f[44]) if len(f) > 44 and f[44] else 0.0)
-            ),  # 亿 总市值（无 f45 时回退流通）
-            "volume_ratio": float(f[46]) if len(f) > 46 and f[46] else 0.0,
-            "high_limit": float(f[47]) if len(f) > 47 and f[47] else 0.0,
-            "low_limit": float(f[48]) if len(f) > 48 and f[48] else 0.0,
-            "turnover": float(f[38]) if len(f) > 38 and f[38] else 0.0,
+            "high": float(f[33]) if f[33] else 0.0,
+            "low": float(f[34]) if f[34] else 0.0,
+            "amplitude": float(f[43]) if f[43] else 0.0,
+            "total_mv": float(f[44]) if f[44] else 0.0,   # 亿
+            "volume_ratio": float(f[46]) if f[46] else 0.0,
+            "high_limit": float(f[47]) if f[47] else 0.0,
+            "low_limit": float(f[48]) if f[48] else 0.0,
+            "turnover": float(f[38]) if f[38] else 0.0,
         }
-        # 腾讯字段 39 ≈ 市盈率 TTM（亏损/无效时常为空）
-        if len(f) > 39 and f[39]:
-            try:
-                pe = float(f[39])
-                out["pe_ttm"] = pe
-                out["pe"] = pe
-            except ValueError:
-                pass
         # 主动买入占比
         tot = out["outer"] + out["inner"]
         out["active_buy_ratio"] = (out["outer"] / tot) if tot > 0 else 0.5
+        # 当日均价 VWAP = 累计成交额(元) / 累计成交量(股)；f[37]成交额(万元) f[36]成交量(手)
+        try:
+            _vol_hand = float(f[36])
+            _amt_wan = float(f[37])
+            out["vwap"] = (_amt_wan * 10000.0 / (_vol_hand * 100.0)) if _vol_hand > 0 else 0.0
+        except (ValueError, IndexError):
+            out["vwap"] = 0.0
         return out
     except (ValueError, IndexError):
         return {}
@@ -103,7 +95,7 @@ def get_quote(symbol: str, max_age_seconds: int = 300) -> dict | None:
                 return json.loads(cache.read_text(encoding="utf-8"))
             except Exception:
                 pass
-    sec = ("sh" if symbol.startswith(("6", "9")) else "bj" if symbol.startswith(("4", "8")) else "sz") + symbol
+    sec = ("sh" if symbol.startswith("6") else "sz") + symbol
 
     def _call():
         r = requests.get(_TENCENT, params={"q": sec}, headers=_HEADERS, timeout=8)
@@ -126,7 +118,7 @@ def get_quotes_batch(symbols: list[str], batch=80) -> dict:
     out = {}
     for i in range(0, len(symbols), batch):
         chunk = symbols[i : i + batch]
-        secs = [("sh" if s.startswith(("6", "9")) else "bj" if s.startswith(("4", "8")) else "sz") + s for s in chunk]
+        secs = [("sh" if s.startswith("6") else "sz") + s for s in chunk]
         q = ",".join(secs)
 
         def _call():

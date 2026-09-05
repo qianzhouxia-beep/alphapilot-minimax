@@ -16,6 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, "/home/ubuntu/alphapilot")
 
+from fusion_scorer import fusion_rerank
+
 ROOT = Path("/home/ubuntu/alphapilot")
 REC_PATH = ROOT / "output/daily_recommend.json"
 PICKS_PATH = ROOT / "output/morning_live_picks.json"
@@ -26,6 +28,115 @@ STRAT_NAME = "日频精选"
 VALID_PICK_MODES = frozenset(
     {"morning_live_model_top2", "morning_live_fund_top2"}
 )
+
+# ── V2 升级门控整合（2026-08-05 合并：原 v19_daily_v2 的四道升级因子并入 v19_daily）──
+MERGE_V2_GATES = os.environ.get("MERGE_V2_GATES", "1").strip().lower() not in (
+    "0", "false", "no", "off",
+)
+V2_VOL_GATE_MAX = float(os.environ.get("V2_VOL_GATE_MAX", "3.5"))
+V2_OPEN_GAP_ON = os.environ.get("V2_OPEN_GAP", "1") == "1"
+
+
+def _v2_sentiment_gate():
+    """升级4: 情绪周期门控。返回 (allowed, stage)，异常放行。"""
+    try:
+        import market_sentiment
+        r = market_sentiment.main()
+        return r["trade_allowed"], r["stage"]
+    except Exception as e:
+        print(f"  情绪门控异常(放行): {e}")
+        return True, "error"
+
+
+def _v2_vol_gate(picks):
+    """升级1: 波动率门控。返回 (kept, n_blocked)，异常放行。"""
+    if not picks:
+        return picks, 0
+    try:
+        from vol_gate import get_vol20
+        kept, blocked = [], []
+        for r in picks:
+            sym = str(r.get("symbol", "")).zfill(6)
+            vol = get_vol20(sym)
+            if vol is None or vol <= V2_VOL_GATE_MAX:
+                kept.append(r)
+            else:
+                blocked.append((sym, vol))
+        if blocked:
+            print("  vol_gate 拦截 {} 只高波动: {}".format(
+                len(blocked), ", ".join(f"{s}({v:.1f}%)" for s, v in blocked[:6])))
+        return kept, len(blocked)
+    except Exception as e:
+        print(f"  vol_gate 异常(放行): {e}")
+        return picks, 0
+
+
+def _v2_hard_filter(picks):
+    """升级2: 事实性硬删除 (ST/亏损/利空)。返回过滤后的候选。"""
+    try:
+        from hard_filter import hard_filter as hf
+        items = [(str(r.get("symbol", "")).zfill(6), r.get("name", "")) for r in picks]
+        keep_items, detail = hf(items)
+        keep_set = set((s, n) for s, n in keep_items)
+        kept = [p for p in picks if (str(p.get("symbol", "")).zfill(6), p.get("name", "")) in keep_set]
+        blocked = len(picks) - len(kept)
+        if blocked:
+            print("  hard_filter 硬删除 {} 只: ST={} 亏损={} 利空={}".format(
+                blocked, len(detail["st"]), len(detail["loss"]), len(detail["news"])))
+        return kept
+    except Exception as e:
+        print(f"  hard_filter 异常(放行): {e}")
+        return picks
+
+
+def _v2_multifactor(picks):
+    """升级3: 多因子打分 + Q1 差组过滤。返回过滤后的候选。"""
+    if not V2_OPEN_GAP_ON or not picks:
+        return picks
+    try:
+        from multifactor_score import batch_score
+        picks = batch_score(picks)
+    except Exception as e:
+        print(f"  multifactor 打分异常(原样返回): {e}")
+        return picks
+    _before = len(picks)
+    picks = [p for p in picks if float(p.get("_score_adj", 0) or 0) >= -0.05]
+    _dropped = _before - len(picks)
+    if _dropped:
+        print(f"  Q1差组过滤: 剔除 {_dropped} 只低分股")
+    return picks
+
+
+def apply_v2_gates(top, expo, top_n):
+    """合并后的统一门控链: 情绪 → 波动率 → 硬过滤 → 多因子/Q1。
+    返回过滤后的候选池(不做排名截取, 由主链 fusion_rerank + TopN 收尾)。
+    情绪拦截/空仓时返回空列表。"""
+    if not MERGE_V2_GATES or expo <= 0 or top_n <= 0:
+        return top
+    # 1. 情绪周期门控（全局面控）
+    sent_allowed, stage = _v2_sentiment_gate()
+    print(f"  情绪门控: stage={stage} allowed={sent_allowed}")
+    if not sent_allowed:
+        print("  ⚠️ 情绪门控拦截: 今日不开新仓")
+        return []
+    # 2. 候选池扩展: 原 picks + daily_recommend 前36只（给门控留过滤空间）
+    pool = list(top)
+    try:
+        d = json.loads(REC_PATH.read_text(encoding="utf-8"))
+        recs = sorted(d.get("recommendations") or [], key=lambda r: -float(r.get("score", 0) or 0))[:36]
+        seen = {r.get("symbol") for r in pool}
+        pool += [r for r in recs if r.get("symbol") not in seen]
+    except Exception:
+        pass
+    # 3. 波动率门控
+    pool, n_blocked = _v2_vol_gate(pool)
+    if n_blocked:
+        print(f"  波动率门控: 拦截 {n_blocked} 只, 剩余 {len(pool)}")
+    # 4. 硬过滤
+    pool = _v2_hard_filter(pool)
+    # 5. 多因子打分 + Q1 过滤
+    pool = _v2_multifactor(pool)
+    return pool
 
 
 EXCLUDE_PATH = ROOT / "config/exclude_symbols.json"
@@ -132,7 +243,13 @@ def _ensure_morning_picks() -> dict:
         try:
             from money_flow_gate import apply_money_flow_gate
 
-            items = apply_money_flow_gate(items, top_n=None)
+            # 签名自检（2026-08-24）：旧版 money_flow_gate 会静默降级，加日志便于发现漂移。
+            import inspect
+
+            _need = {"min_change_pct", "require_above_vwap"}
+            if not _need.issubset(set(inspect.signature(apply_money_flow_gate).parameters)):
+                print("[paper_trading_signals] ⚠️ money_flow_gate 版本旧，资金门将静默降级", flush=True)
+            items = apply_money_flow_gate(items, top_n=None, min_change_pct=0.0, require_above_vwap=True)
             passed = [x for x in items if x.get("money_flow_pass") is True]
             if passed:
                 items = passed
@@ -142,11 +259,13 @@ def _ensure_morning_picks() -> dict:
             key=lambda x: float(x.get("score") or x.get("ml_score") or 0),
             reverse=True,
         )
-        top = items[:DEFAULT_TOP_N] if expo > 0 else []
+        cand_n = int(os.environ.get("PICKS_CANDIDATE_N", "10"))
+        top = items[:cand_n] if expo > 0 else []
         return {
             "asof": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "position_exposure": expo,
-            "trade_top_n": len(top),
+            "trade_top_n": DEFAULT_TOP_N if expo > 0 else 0,
+            "candidate_top_n": len(top),
             "picks": top,
             "mode": "morning_live_model_top2",
             "rank_by": "score",
@@ -156,6 +275,53 @@ def _ensure_morning_picks() -> dict:
 
 def main():
     picks = _ensure_morning_picks()
+
+    # ── P3 交易前数据新鲜度闸门 ──
+    _skip_freshness_gate = os.environ.get("BYPASS_FRESHNESS_GATE", "0").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+    _block_reason = None
+    # 检查 1: health_alarm.json
+    _health = ROOT / "output/health_alarm.json"
+    if not _skip_freshness_gate and _health.exists():
+        try:
+            _ha = json.loads(_health.read_text(encoding="utf-8"))
+            if not _ha.get("healthy", True):
+                _block_reason = f"P3 gate: {_ha.get('summary', 'health check failed')}"
+                print(f"\n{'='*70}\n🚫 P3 闸门: 管线健康检查异常 — {_ha.get('summary')}\n详情: {_health}{'='*70}")
+        except Exception:
+            pass
+    # 检查 2: daily_recommend.json 新鲜度
+    if not _skip_freshness_gate and _block_reason is None and REC_PATH.exists():
+        try:
+            _rec = json.loads(REC_PATH.read_text(encoding="utf-8"))
+            _asof = str(_rec.get("run_at") or _rec.get("generated_at") or "")[:10]
+            _today = datetime.now().strftime("%Y-%m-%d")
+            if _asof != _today and _asof != "":
+                _n = len(_rec.get("recommendations", []))
+                _block_reason = f"P3 gate: daily_recommend asof={_asof} != today ({_today}), candidates={_n}"
+                print(f"\n{'='*70}\n🚫 P3 闸门: daily_recommend 过期 (asof={_asof}) 仅 {_n} 只候选\n{'='*70}")
+        except Exception:
+            pass
+    # 检查 3: morning_live_picks.json 新鲜度
+    if not _skip_freshness_gate and _block_reason is None and PICKS_PATH.exists():
+        try:
+            _pk = json.loads(PICKS_PATH.read_text(encoding="utf-8"))
+            _asof = str(_pk.get("asof") or "")[:10]
+            if _asof != datetime.now().strftime("%Y-%m-%d"):
+                _block_reason = f"P3 gate: morning_live_picks asof={_asof} != today"
+                print(f"\n{'='*70}\n🚫 P3 闸门: morning_live_picks 过期 (asof={_asof})\n{'='*70}")
+        except Exception:
+            pass
+    if _block_reason:
+        print(f"\n🚫 阻断交易: {_block_reason}")
+        print("设置 BYPASS_FRESHNESS_GATE=1 可跳过此检查\n")
+        pt = json.loads(PT_PATH.read_text(encoding="utf-8")) if PT_PATH.exists() else {}
+        pt["p3_gate_blocked"] = True
+        pt["p3_gate_reason"] = _block_reason
+        PT_PATH.write_text(json.dumps(pt, ensure_ascii=False, indent=2), encoding="utf-8")
+        return
+
     # 若存在数据预警，醒目打印（不阻断）
     alert_path = ROOT / "output/data_alerts.json"
     if alert_path.exists():
@@ -174,7 +340,32 @@ def main():
     expo = float(picks.get("position_exposure") or 0.0)
     top = list(picks.get("picks") or [])
     top_n = int(picks.get("trade_top_n") or (DEFAULT_TOP_N if expo > 0 else 0))
-    top = top[:top_n]
+
+    # ── V2 升级门控统一整合（情绪/波动率/硬过滤/多因子/Q1）──
+    top = apply_v2_gates(top, expo, top_n)
+    if top:
+        print(f"  V2 门控链完成: 候选池 {len(top)} 只")
+    if not top:
+        top = []
+
+    # ── Phase 2-3: 三路融合评分 + 按融合分重排 ──
+    try:
+        before = len(top)
+        top = fusion_rerank(top)
+        if top and top[0].get("_fusion_weight") is not None:
+            print(
+                "  融合排序完成: {} 只, top1 _fusion_weight={:.4f}".format(
+                    len(top), top[0]["_fusion_weight"]
+                )
+            )
+    except Exception as exc:
+        print(f"  ⚠️ fusion_rerank 异常 (skip): {exc}")
+
+    # 候选池大小: 先到先得需要完整候选池(默认10), 不再硬截断到 top_n
+    candidate_n = int(picks.get("candidate_top_n") or max(top_n, DEFAULT_TOP_N))
+    if len(top) > candidate_n:
+        top = top[:candidate_n]
+    print(f"  候选池: {len(top)} 只 (先到先得, 每日最多买 {top_n})")
 
     # 排除列表过滤（不交易、不计入统计）
     _excluded = _load_exclude_symbols()
@@ -184,7 +375,7 @@ def main():
         if len(top) < _before:
             print("  [排除] 过滤掉 {} 只黑名单股票, 剩余 {} 只备选".format(_before - len(top), len(top)))
             # 池子不够时从 recommend 补位
-            if len(top) < max(top_n, 1) and _excluded:
+            if len(top) < candidate_n and _excluded:
                 try:
                     d = json.loads(REC_PATH.read_text(encoding="utf-8"))
                     all_items = list(d.get("recommendations") or [])
@@ -193,11 +384,11 @@ def main():
                         sym = str(r.get("symbol", "")).zfill(6)
                         if sym not in held_syms and sym not in _excluded:
                             top.append(r)
-                            if len(top) >= top_n:
+                            if len(top) >= candidate_n:
                                 break
                 except Exception:
                     pass
-            top = top[:top_n]
+            top = top[:candidate_n]
 
     # ── 在线增量学习：每日更新 Kelly 模型 ──
     _kelly_hist_stats = None
@@ -220,6 +411,11 @@ def main():
         print(f"  KellyLearner 异常 (fallback 静态): {e}")
 
     # ── Kelly + 风险预算仓位分配 ──
+    # 预加载 pt (正常路径下尚未赋值, 需读取账户现金供 Kelly 使用)
+    try:
+        pt = json.loads(PT_PATH.read_text(encoding="utf-8")) if PT_PATH.exists() else {}
+    except Exception:
+        pt = {}
     try:
         from kelly_sizing import apply_kelly, calibrate_from_backtest, KELLY_ENABLE
 
@@ -338,7 +534,7 @@ def main():
             "默认等权（KELLY_ENABLE=0）；"
             "KELLY_ENABLE=1 时 Half-Kelly + 波动率调整 + 行业集中度约束"
         ),
-        "exit": "E2 hard-stop -10% close-confirm; peel if float>0; T+2 force with 1d fund-extend",
+        "exit": "Plan C: 分级止损-3%*3min减半/-5%全卖; 止盈+5%减半/+10%全卖; T+1强平14:50",
         "top_n": top_n,
         "pool_n": pool_n,
         "cost_rt": None,  # 动态成本，见 cost_model
@@ -358,6 +554,22 @@ def main():
     except Exception:
         pt["protocol"]["cost_rt"] = 0.0015
 
+    # ── 方案 C 出场策略（2026-08-03 对齐跟踪止盈，与 trade_executor/qmt_model_plan_c 一致）──
+    pt["exit_policy"] = {
+        "mode": "plan_C_trailing_tp",
+        "ladder_stop": "[[-0.03, 0.5]] consecutive 3min → sell half",
+        "stop_hard": "-0.05 → full clear",
+        "open_protection": "-0.07 during 09:35-09:45",
+        "limit_down": "-0.095 → immediate full clear",
+        "ladder_tp": "trailing TP: arm at +0.03 (record peak, do not sell); peel half on 1.5% pullback from peak (max 2 halves, 3rd → full clear); new high required after each half before next cut",
+        "book_a8a4_boost": "if yesterday high-position volume+RSI>=80 (A8) or high-position big bear >6% (A4) → sell half immediately when trailing armed (skip pullback wait)",
+        "trail_arm": 0.03,
+        "peel_pullback": 0.015,
+        "hard_stop_pct": -0.05,
+        "t1_force": "held>=1 day at 14:50; limit-up (bid1/vol>3x) extends to next 09:35",
+        "c_atr_adaptive": False,
+        "check_intraday": True,
+    }
 
     strat = ensure_daily_strategy(pt)
     strat["signals"] = []
@@ -425,6 +637,14 @@ def main():
     else:
         pt["empty_reason"] = None
         held = {p.get("symbol") for p in strat.get("positions", [])}
+        # ── 为 Kelly 增强特征预载 kline + 趋势 ──
+        _kelly_kdf = None
+        _kelly_trend_cache: dict[str, dict] = {}
+        try:
+            from trend_prefer_boost import _load_kline, calc_trend_flags, _bare as _tb
+            _kelly_kdf = _load_kline()
+        except Exception:
+            pass
         for r in top:
             sym = r.get("symbol") or ""
             if not sym or sym in held:
@@ -437,6 +657,73 @@ def main():
             score = float(r.get("score", 0) or 0)
             main_net = int(r.get("live_main_net") or r.get("main_net") or 0)
             phase = r.get("money_phase", "sideways")
+            # ── 计算增强特征 ──
+            # gap_pct: 用推荐价 vs kline 昨收估算
+            entry_gap_pct = 0.0
+            if _kelly_kdf is not None:
+                try:
+                    code = _tb(sym)
+                    g = _kelly_kdf[_kelly_kdf["symbol"] == code]
+                    if not g.empty:
+                        prev_close = float(g["close"].iloc[-1])
+                        if prev_close > 0:
+                            entry_gap_pct = (buy_price - prev_close) / prev_close
+                except Exception:
+                    pass
+            # money_phase: 从 label 映射到 phase code
+            phase_label = str(r.get("money_phase_label", "")).strip().lower()
+            if not phase_label:
+                entry_money_phase = phase
+            else:
+                # label → phase 逆向映射
+                _rev_map = {
+                    "诱空陷阱": "bear_trap", "诱空": "bear_trap",
+                    "吸筹": "accumulation", "吸筹末期": "accumulation_end",
+                    "震荡": "sideways", "震荡洗盘": "sideways",
+                    "右侧潜伏": "rightside_ambush", "右侧": "rightside_ambush",
+                    "拉升": "markup", "主升": "markup", "强拉升": "markup_strong",
+                    "回调": "pullback", "回踩": "pullback",
+                    "出货": "distribution", "诱多嫌疑": "suspicious",
+                    "诱多": "suspicious",
+                }
+                entry_money_phase = _rev_map.get(phase_label, phase)
+            # channel_reject: 利用趋势标志
+            entry_channel_reject = int(r.get("channel_reject") or 0)
+            if entry_channel_reject == 0 and _kelly_kdf is not None:
+                try:
+                    code = _tb(sym)
+                    g = _kelly_kdf[_kelly_kdf["symbol"] == code]
+                    if not g.empty:
+                        flags = calc_trend_flags(g)
+                        if flags and flags.get("channel_reject", False):
+                            entry_channel_reject = 1
+                except Exception:
+                    pass
+            entry_sector_heat = float(r.get("sector_heat") or r.get("theme_heat", 0.5))
+            entry_main_net = main_net
+
+            # ── Kelly 胜率反哺：8 维预测 → 置信度加权 ──
+            _kelly_wr = 0.5
+            _kelly_cv = 1.0
+            try:
+                _kelly_wr = _kl.predict_win_rate(
+                    score_pct=float(r.get("entry_score_pct") or r.get("_pct") or 0.5),
+                    vol=float(r.get("entry_vol") or r.get("_vol") or 0.3),
+                    expo=int(expo * 100),
+                    gap_pct=entry_gap_pct,
+                    money_phase=entry_money_phase,
+                    channel_reject=entry_channel_reject,
+                    sector_heat=entry_sector_heat,
+                    main_net=entry_main_net,
+                )
+                _kelly_cv = min(_kelly_wr / 0.5, 2.0) if _kelly_wr > 0 else 0.5
+            except Exception:
+                pass
+            # 置信度回写到 r，影响 entry_weight
+            old_w = float(r.get("entry_weight") or 0.7)
+            r["kelly_win_rate"] = round(_kelly_wr, 4)
+            r["kelly_conviction"] = round(_kelly_cv, 4)
+            r["entry_weight"] = round(min(old_w * _kelly_cv, 0.95), 4)
             reason = "model Top{} VM2.5={:.4f} {} 主力净{:+d}万 expo={:.0%}".format(
                 r.get("morning_pick_rank") or "",
                 score,
@@ -452,16 +739,40 @@ def main():
                     "money_phase": phase,
                     "action": "buy",
                     "price": buy_price,
-                    "target_price": target if target > buy_price else round(buy_price * 1.08, 2),
-                    "stop_price": stop if 0 < stop < buy_price else round(buy_price * 0.94, 2),
+                    "target_price": target if target > buy_price else round(buy_price * 1.10, 2),
+                    "stop_price": stop if 0 < stop < buy_price else round(buy_price * 0.95, 2),
                     "quantity": 0,
                     "strategy_id": STRAT_ID,
                     "position_exposure": expo,
                     "protocol": picks.get("mode") or "morning_live_model_top2",
                     "main_net": main_net,
                     "reason": reason,
+                    "entry_mode": "wait_dyn_confirm",
+                    "morning_pick_rank": r.get("morning_pick_rank"),
+                    "entry_score_pct": r.get("entry_score_pct") or r.get("_pct") or 0.5,
+                    "entry_vol": r.get("entry_vol") or r.get("_vol") or 0.3,
+                    "entry_gap_pct": entry_gap_pct,
+                    "entry_money_phase": entry_money_phase,
+                    "entry_channel_reject": entry_channel_reject,
+                    "entry_sector_heat": entry_sector_heat,
+                    "entry_main_net": entry_main_net,
+                    "kelly_win_rate": r.get("kelly_win_rate", 0.5),
+                    "kelly_conviction": r.get("kelly_conviction", 1.0),
                 }
             )
+
+    # ── Kelly 反哺摘要 ──
+    try:
+        _conv_list = [s.get("kelly_conviction", 1.0) for s in (strat.get("signals") or []) if s.get("kelly_conviction")]
+        if _conv_list:
+            avg_conv = sum(_conv_list) / len(_conv_list)
+            print(
+                "  Kelly 胜率反哺: {} 只, 平均置信度={:.2f}, entry_weight已调整".format(
+                    len(_conv_list), avg_conv
+                )
+            )
+    except Exception as exc:
+        print(f"  Kelly 反哺摘要异常 (skip): {exc}")
 
     pt["updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     PT_PATH.write_text(json.dumps(pt, ensure_ascii=False, indent=2), encoding="utf-8")

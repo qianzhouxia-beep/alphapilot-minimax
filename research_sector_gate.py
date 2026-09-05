@@ -23,6 +23,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 BIAS_PATH = ROOT / "output" / "sector_research_bias.json"
+AUCTION_HEAT_PATH = ROOT / "output" / "call_auction_sector_heat.json"
+BYPASS_POOL_PATH = ROOT / "output" / "hot_sector_bypass_pool.json"
 DATA = ROOT / "data"
 IND_MAP = DATA / "stock_industry_map.json"
 CONCEPT_MAP = DATA / "stock_concept_map.json"
@@ -133,31 +135,85 @@ def _hit_set(labels: list[str], name_set: set[str]) -> str | None:
     return None
 
 
+def _load_auction_hot_sectors(min_heat: float | None = None) -> set[str]:
+    """读取 09:25 集合竞价板块热度，返回 heat_score 达标的板块名集合（L1）。"""
+    if min_heat is None:
+        try:
+            min_heat = float(os.environ.get("AUCTION_SECTOR_HEAT_MIN", "0.15") or 0.15)
+        except (TypeError, ValueError):
+            min_heat = 0.15
+    d = _load_json(AUCTION_HEAT_PATH)
+    if not isinstance(d, dict):
+        return set()
+    hot = set()
+    for r in d.get("hot_sectors") or []:
+        try:
+            hs = float(r.get("heat_score") or 0)
+        except (TypeError, ValueError):
+            hs = 0.0
+        if hs >= min_heat:
+            sec = str(r.get("sector") or "").strip()
+            if sec:
+                hot.add(sec)
+    return hot
+
+
+def _load_bypass_industries() -> set[str]:
+    """读取 05:00 收盘资金流主线旁路池的强势行业（L2），返回名称集合。"""
+    d = _load_json(BYPASS_POOL_PATH)
+    if not isinstance(d, dict) or not d.get("enabled", True):
+        return set()
+    inds = set()
+    for r in d.get("industries") or []:
+        name = str(r.get("name") or "").strip()
+        if name:
+            inds.add(name)
+    return inds
+
+
 def apply_research_sector_gate(
     items: list[dict[str, Any]],
     bias: dict | None = None,
     mode: str | None = None,
     prefer_boost: float | None = None,
 ) -> list[dict[str, Any]]:
-    """对候选池应用研报偏好。
+    """对候选池应用研报偏好 + 竞价/资金主线加权。
 
-    定位（与外盘隔夜分工）：
-      - 收盘/盘前研报：用 1/2/3/5 日资金结构判断板块趋势梯队（prefer/avoid）
-      - 不声称能预测「明天瞬时净流入」；avoid 硬剔，prefer 做分数加权 + 优先排序
+    定位（与行业硬门分轨）：
+      - avoid 不再硬剔除（软降权），prefer 加分，避免把池子挤进冷票
+      - 竞价热点（call_auction_sector_heat，09:25）→ 硬加权
+      - 资金主线（hot_sector_bypass_pool，05:00 收盘）→ 硬加权
+      - 竞价 + 资金双命中 → 更高加权
 
     mode:
       off         — 不处理
-      avoid_only  — 只硬剔除 avoid
-      prefer_soft — avoid 不删；prefer 加分（不缩池）
-      hybrid      — avoid 硬剔除 + prefer 加分；若 prefer 命中≥1 则优先缩到 prefer
-                    （可用 RESEARCH_PREFER_NARROW=0 关闭缩池，只保留加分）
+      avoid_only  — 只硬剔除 avoid（旧兼容）
+      prefer_soft — avoid 不删；prefer 加分（旧兼容，无竞价/主线加权）
+      hybrid      — avoid 硬剔除 + prefer 加分（旧默认，兼容）
+      soft_hybrid — avoid 软降权 + prefer 加分 + 竞价/主线硬加权（新默认）
     """
-    mode = (mode or os.environ.get("RESEARCH_GATE_MODE", "hybrid")).strip().lower()
+    mode = (mode or os.environ.get("RESEARCH_GATE_MODE", "soft_hybrid")).strip().lower()
     if prefer_boost is None:
         try:
             prefer_boost = float(os.environ.get("RESEARCH_PREFER_BOOST", "0.08") or 0.08)
         except (TypeError, ValueError):
             prefer_boost = 0.08
+    try:
+        auction_boost = float(os.environ.get("AUCTION_SECTOR_BOOST", "0.18") or 0.18)
+    except (TypeError, ValueError):
+        auction_boost = 0.18
+    try:
+        bypass_boost = float(os.environ.get("BYPASS_SECTOR_BOOST", "0.18") or 0.18)
+    except (TypeError, ValueError):
+        bypass_boost = 0.18
+    try:
+        double_boost = float(os.environ.get("DOUBLE_SECTOR_BOOST", "0.25") or 0.25)
+    except (TypeError, ValueError):
+        double_boost = 0.25
+    try:
+        avoid_penalty = float(os.environ.get("RESEARCH_AVOID_PENALTY", "0.06") or 0.06)
+    except (TypeError, ValueError):
+        avoid_penalty = 0.06
     narrow_prefer = os.environ.get("RESEARCH_PREFER_NARROW", "1").strip().lower() not in (
         "0",
         "false",
@@ -184,6 +240,36 @@ def apply_research_sector_gate(
     # prefer 优先：同时出现在两边时不算 avoid
     avoid_set -= prefer_set
 
+    # 竞价热点 + 资金主线（soft_hybrid 才启用）
+    auction_hot_set: set[str] = set()
+    bypass_hot_set: set[str] = set()
+    conflict_set: set[str] = set()
+    if mode == "soft_hybrid":
+        auction_hot_set = _load_auction_hot_sectors()
+        bypass_hot_set = _load_bypass_industries()
+        if auction_hot_set:
+            print(
+                f"  research_sector_gate: 竞价热点 {len(auction_hot_set)} 个: {sorted(auction_hot_set)}",
+                flush=True,
+            )
+        if bypass_hot_set:
+            print(
+                f"  research_sector_gate: 资金主线 {len(bypass_hot_set)} 个: {sorted(bypass_hot_set)}",
+                flush=True,
+            )
+        # 信号源冲突板块（研报 vs 资金主线 vs 竞价）→ 自动降权
+        try:
+            from signal_conflict_detector import conflict_sectors
+
+            conflict_set = conflict_sectors()
+            if conflict_set:
+                print(
+                    f"  research_sector_gate: ⚠️ 信号矛盾板块 {len(conflict_set)} 个: {sorted(conflict_set)} → 降权",
+                    flush=True,
+                )
+        except Exception as e:
+            print(f"  research_sector_gate: 冲突检测跳过: {e}", flush=True)
+
     ind_raw = _load_json(IND_MAP) or {}
     ind_map: dict[str, dict] = {}
     for k, v in ind_raw.items():
@@ -198,16 +284,21 @@ def apply_research_sector_gate(
 
     kept: list[dict] = []
     dropped_avoid = 0
+    soft_avoid = 0
     prefer_hits = 0
+    auction_hits = 0
+    bypass_hits = 0
+    double_hits = 0
     dropped_rows: list[dict] = []
 
     for it in items:
         row = dict(it)
         labels = _item_labels(row, ind_map, concept_map)
         hit_avoid = _hit_set(labels, avoid_set) if mode in ("avoid_only", "hybrid") else None
-        hit_prefer = _hit_set(labels, prefer_set) if mode in ("prefer_soft", "hybrid") else None
+        hit_prefer = _hit_set(labels, prefer_set) if mode in ("prefer_soft", "hybrid", "soft_hybrid") else None
 
         if hit_avoid:
+            # 旧模式：硬剔除
             dropped_avoid += 1
             dropped_rows.append(
                 {
@@ -219,6 +310,73 @@ def apply_research_sector_gate(
                 }
             )
             continue
+
+        base = 0.0
+        try:
+            base = float(row.get("score") or 0)
+        except (TypeError, ValueError):
+            base = 0.0
+
+        mult = 1.0
+
+        if mode == "soft_hybrid":
+            # avoid → 软降权（不剔除）
+            hit_avoid_soft = _hit_set(labels, avoid_set)
+            if hit_avoid_soft:
+                soft_avoid += 1
+                row["research_avoid_hit"] = hit_avoid_soft
+                mult *= (1.0 - avoid_penalty)
+
+            # prefer → 加分
+            if hit_prefer:
+                prefer_hits += 1
+                row["research_prefer_hit"] = hit_prefer
+                row["research_tier"] = "prefer"
+                mult *= (1.0 + prefer_boost)
+            else:
+                row["research_tier"] = "other"
+
+            # 竞价热点 → 硬加权
+            hit_auction = _hit_set(labels, auction_hot_set) if auction_hot_set else None
+            # 资金主线 → 硬加权
+            hit_bypass = _hit_set(labels, bypass_hot_set) if bypass_hot_set else None
+            # 信号矛盾板块 → 降权
+            hit_conflict = _hit_set(labels, conflict_set) if conflict_set else None
+            if hit_conflict:
+                row["signal_conflict_hit"] = hit_conflict
+                mult *= 0.90
+
+            if hit_auction and hit_bypass:
+                double_hits += 1
+                row["auction_sector_hit"] = hit_auction
+                row["bypass_sector_hit"] = hit_bypass
+                mult *= (1.0 + double_boost)
+                row["sector_hard_boost"] = "auction+bypass"
+            elif hit_auction:
+                auction_hits += 1
+                row["auction_sector_hit"] = hit_auction
+                mult *= (1.0 + auction_boost)
+                row["sector_hard_boost"] = "auction"
+            elif hit_bypass:
+                bypass_hits += 1
+                row["bypass_sector_hit"] = hit_bypass
+                mult *= (1.0 + bypass_boost)
+                row["sector_hard_boost"] = "bypass"
+
+            if wind_prefer_set and _hit_set(labels, wind_prefer_set):
+                row["wind_prefer_hit"] = _hit_set(labels, wind_prefer_set)
+            if rotation_watch_set and _hit_set(labels, rotation_watch_set):
+                row["wind_rotation_watch"] = _hit_set(labels, rotation_watch_set)
+
+            if mult != 1.0:
+                row["score_before_research_prefer"] = round(base, 4)
+                row["score"] = round(base * mult, 4)
+                row["research_mult"] = round(mult, 4)
+
+            kept.append(row)
+            continue
+
+        # ── 旧模式（avoid_only / prefer_soft / hybrid）原逻辑 ──
         if hit_prefer:
             prefer_hits += 1
             row["research_prefer_hit"] = hit_prefer
@@ -227,10 +385,6 @@ def apply_research_sector_gate(
                 row["wind_prefer_hit"] = _hit_set(labels, wind_prefer_set)
             if rotation_watch_set and _hit_set(labels, rotation_watch_set):
                 row["wind_rotation_watch"] = _hit_set(labels, rotation_watch_set)
-            try:
-                base = float(row.get("score") or 0)
-            except (TypeError, ValueError):
-                base = 0.0
             row["score_before_research_prefer"] = round(base, 4)
             row["score"] = round(base * (1.0 + float(prefer_boost)), 4)
             row["research_prefer_boost"] = float(prefer_boost)
@@ -261,20 +415,24 @@ def apply_research_sector_gate(
         final = kept
         narrowed = False
 
-    # prefer 股排在同档前面（即便未缩池）
-    final = sorted(
-        final,
-        key=lambda x: (
-            0 if x.get("research_tier") == "prefer" else 1,
-            -float(x.get("score") or 0),
-        ),
-    )
+    # prefer/加权股排在同档前面（soft_hybrid 已直接用 score 排序）
+    if mode == "soft_hybrid":
+        final = sorted(final, key=lambda x: -float(x.get("score") or 0))
+    else:
+        final = sorted(
+            final,
+            key=lambda x: (
+                0 if x.get("research_tier") == "prefer" else 1,
+                -float(x.get("score") or 0),
+            ),
+        )
 
+    conflict_hits = sum(1 for x in kept if x.get("signal_conflict_hit"))
     print(
         f"  research_sector_gate[{mode}]: in={len(items)} avoid_drop={dropped_avoid} "
-        f"prefer_hits={prefer_hits} out={len(final)} "
-        f"narrowed={narrowed} boost={prefer_boost} "
-        f"bias_date={bias.get('date')} session={bias.get('session')}",
+        f"soft_avoid={soft_avoid} prefer_hits={prefer_hits} "
+        f"auction_hits={auction_hits} bypass_hits={bypass_hits} double_hits={double_hits} "
+        f"conflict_hits={conflict_hits} out={len(final)} narrowed={narrowed} boost={prefer_boost}",
         flush=True,
     )
     # 附加元数据供晨间脚本写淘汰清单
@@ -283,7 +441,12 @@ def apply_research_sector_gate(
     if final:
         final[0]["_research_gate_meta"] = {
             "avoid_drop": dropped_avoid,
+            "soft_avoid": soft_avoid,
             "prefer_hits": prefer_hits,
+            "auction_hits": auction_hits,
+            "bypass_hits": bypass_hits,
+            "double_hits": double_hits,
+            "conflict_hits": conflict_hits,
             "narrowed": narrowed,
             "prefer_boost": prefer_boost,
             "dropped": dropped_rows,

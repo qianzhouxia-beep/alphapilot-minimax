@@ -54,7 +54,12 @@ def _ma25_vol_mode() -> str:
     return "soft"
 
 
+_KLINE_CACHE: pd.DataFrame | None = None
+
 def _load_kline() -> pd.DataFrame | None:
+    global _KLINE_CACHE
+    if _KLINE_CACHE is not None:
+        return _KLINE_CACHE
     for p in (ROOT / "data/kline_cache/kline_all.parquet", ROOT / "kline_all.parquet"):
         if p.exists():
             try:
@@ -63,6 +68,7 @@ def _load_kline() -> pd.DataFrame | None:
                 df["symbol"] = (
                     df["symbol"].astype(str).str.replace(r"^(sh|sz|bj)", "", regex=True).str[-6:]
                 )
+                _KLINE_CACHE = df
                 return df
             except Exception:
                 continue

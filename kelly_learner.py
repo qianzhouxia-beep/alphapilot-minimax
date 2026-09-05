@@ -10,10 +10,16 @@ Online Incremental Learner for Kelly Position Sizing
   2. KellyLearner — trade 管理 / 训练 / 预测 / 持久化
   3. record_trade() — trade_executor 平仓时调用
 
-特征 (3 维)：
+特征 (8 维)：
   - score_pct (0~1)：当日候选池内百分位
   - vol_norm (0~1)：年化波动率归一化
-  - expo (0~3)：市场环境编码
+  - expo (0~3)：市场环境编码（0=normal 1=weak 2=severe 3=crash_day）
+  - gap_pct_norm (0~1)：集合竞价缺口归一化（0=gap≤0%, 1=gap≥10%）
+  - money_phase (0~1)：资金阶段编码（bear_trap=0.1 / accumulation=0.3 /
+    rightside_ambush=0.6 / markup=0.7 / distribution=0.05 / sideways=0.4）
+  - channel_reject (0/1)：是否为下跌通道
+  - sector_heat (0~1)：板块热度
+  - main_net_norm (0~1)：主力净流入归一化（-1亿→0, 0→0.5, +1亿→1）
 
 持久化路径：
   data/kelly_learner_trades.json — trade 原始记录
@@ -51,7 +57,39 @@ MODEL_PATH = ROOT / "data" / "kelly_learner_model.json"
 
 MAX_TRADES = 2000  # 滚动窗口上限
 MIN_TRADES_TO_TRAIN = 30  # 最少样本数才开始 ML 预测
-N_FEATURES = 3  # score_pct, vol_norm, expo
+N_FEATURES = 8  # score_pct, vol_norm, expo, gap_pct_norm, money_phase, channel_reject, sector_heat, main_net_norm
+
+
+# ── 资金阶段编码 ─────────────────────────────────────
+_MONEY_PHASE_MAP: dict[str, float] = {
+    "bear_trap": 0.10,       # 诱空陷阱
+    "accumulation": 0.30,    # 吸筹
+    "accumulation_end": 0.35, # 吸筹末期
+    "sideways": 0.40,        # 震荡
+    "rightside_ambush": 0.60, # 右侧潜伏
+    "markup": 0.70,          # 拉升
+    "pullback": 0.20,        # 回调
+    "distribution": 0.05,    # 出货
+    "suspicious": 0.15,      # 诱多嫌疑
+    "markup_strong": 0.85,   # 强拉升
+}
+
+
+def _encode_money_phase(phase: str) -> float:
+    """资金阶段字符串 → 0~1 数值编码。"""
+    return _MONEY_PHASE_MAP.get(str(phase).strip().lower(), 0.40)
+
+
+def _main_net_norm(main_net: float) -> float:
+    """主力净流入归一化：±1亿映射到 0~1。"""
+    clipped = max(-100_000_000, min(100_000_000, float(main_net)))
+    return (clipped + 100_000_000) / 200_000_000
+
+
+def _gap_pct_norm(gap_pct: float) -> float:
+    """缺口归一化：0%~10% → 0~1。"""
+    g = max(0.0, min(0.10, float(gap_pct)))
+    return g / 0.10
 
 
 # ═══════════════════════════════════════════════════════════
@@ -110,7 +148,10 @@ class OnlineLogisticRegression:
         }
 
     def set_params(self, params: dict) -> None:
-        self.w = np.array(params.get("w", [0.0] * self.n_features), dtype=np.float64)
+        w = params.get("w", [0.0] * self.n_features)
+        if len(w) != self.n_features:
+            return  # 维度不匹配不恢复，让 train() 重置
+        self.w = np.array(w, dtype=np.float64)
         self.b = float(params.get("b", 0.0))
         self.steps = int(params.get("steps", 0))
         self.lr = float(params.get("lr", self.lr))
@@ -166,6 +207,7 @@ class KellyLearner:
                     "model": self.model.get_params(),
                     "n_trades": len(self.trades),
                     "updated_at": time.strftime("%Y-%m-%d %H:%M"),
+                    "n_features": N_FEATURES,
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -185,8 +227,14 @@ class KellyLearner:
         sell_action: str,
         buy_date: str = "",
         sell_date: str = "",
+        entry_gap_pct: float = 0.0,
+        entry_money_phase: float = 0.4,
+        entry_channel_reject: int = 0,
+        entry_sector_heat: float = 0.5,
+        entry_main_net: float = 0.0,
+        fusion_scores: dict | None = None,
     ) -> None:
-        """追加一条已平仓记录，立即持久化。"""
+        """追加一条已平仓记录，包含增强特征，立即持久化。"""
         trade = {
             "symbol": symbol,
             "entry_score": round(entry_score, 4),
@@ -200,11 +248,21 @@ class KellyLearner:
             "buy_date": str(buy_date)[:10],
             "sell_date": str(sell_date)[:10],
             "ts": time.time(),
+            # 增强特征
+            "entry_gap_pct": entry_gap_pct,
+            "entry_money_phase": min(1.0, max(0.0, float(entry_money_phase))),
+            "entry_channel_reject": int(entry_channel_reject),
+            "entry_sector_heat": min(1.0, max(0.0, float(entry_sector_heat))),
+            "entry_main_net": float(entry_main_net),
+            # 三路融合评分
+            "_fusion_scores": fusion_scores or {},
         }
         self.trades.append(trade)
         # 在线更新 LR —— 只用最近 MAX_TRADES 条
         recent = self.trades[-MAX_TRADES:]
         feats = self._trades_to_X(recent)
+        if feats.shape[1] != N_FEATURES:
+            return  # 维度异常跳过在线更新，等 train() 重建
         labels = np.array([t["win"] for t in recent], dtype=np.int64)
         self.model.partial_fit(feats, labels)
         self.save()
@@ -213,18 +271,28 @@ class KellyLearner:
 
     @staticmethod
     def _trades_to_X(trades: list[dict]) -> np.ndarray:
-        """从 trade 记录构建特征矩阵 (n, 3)。"""
+        """从 trade 记录构建特征矩阵 (n, 8)。
+
+        旧数据缺失增强特征时自动用默认值补齐（兼容 3→8 迁移）。
+        """
         rows = []
         for t in trades:
             sp = float(t.get("entry_score_pct") or 0.5)
             sp = max(0.0, min(1.0, sp))
             ev = float(t.get("entry_vol") or 0.3)
-            # vol 归一化：假设 0.1~1.0 映射到 0~1
-            ev_norm = max(0.0, min(1.0, (ev - 0.1) / 0.9))
+            ev_norm = max(0.0, min(1.0, (ev - 0.1) / 0.9)) if ev > 0.1 else 0.0
             ex = int(t.get("expo") or 0)
             ex_norm = min(1.0, ex / 3.0)
-            rows.append([sp, ev_norm, ex_norm])
-        return np.array(rows, dtype=np.float64) if rows else np.empty((0, N_FEATURES), dtype=np.float64)
+            gp = _gap_pct_norm(float(t.get("entry_gap_pct") or 0.0))
+            mp = float(t.get("entry_money_phase") or 0.40)
+            mp = max(0.0, min(1.0, mp))
+            cr = float(int(t.get("entry_channel_reject") or 0))
+            sh = float(t.get("entry_sector_heat") or 0.5)
+            sh = max(0.0, min(1.0, sh))
+            mn = _main_net_norm(float(t.get("entry_main_net") or 0.0))
+            rows.append([sp, ev_norm, ex_norm, gp, mp, cr, sh, mn])
+        nf = N_FEATURES
+        return np.array(rows, dtype=np.float64) if rows else np.empty((0, nf), dtype=np.float64)
 
     # ── 训练（在已有 trades 上 full-batch 重训 LR）───────
 
@@ -232,12 +300,14 @@ class KellyLearner:
         """在全部 trades（滚动窗口）上重置并重训 LR。
 
         每次信号生成前调用，确保模型始终反映最新数据分布。
-        partial_fit 方向相同，但 full re-train 更干净。
+        自动检测旧模型维度并重建。
         """
         recent = self.trades[-MAX_TRADES:]
         if len(recent) < MIN_TRADES_TO_TRAIN:
             return
         feats = self._trades_to_X(recent)
+        if feats.shape[1] != N_FEATURES:
+            return
         labels = np.array([t["win"] for t in recent], dtype=np.int64)
         # 重置并多 epoch 训练
         self.model = OnlineLogisticRegression(n_features=N_FEATURES)
@@ -249,19 +319,34 @@ class KellyLearner:
 
     @staticmethod
     def _build_feature_row(
-        score_pct: float, vol: float, expo: int = 0
+        score_pct: float, vol: float, expo: int = 0,
+        gap_pct: float = 0.0, money_phase: float = 0.4,
+        channel_reject: int = 0, sector_heat: float = 0.5,
+        main_net: float = 0.0,
     ) -> np.ndarray:
-        """单候选 → 特征向量 (1, 3)。"""
+        """单候选 → 特征向量 (1, 8)。"""
         sp = max(0.0, min(1.0, float(score_pct)))
         ev = max(0.0, min(1.0, (float(vol) - 0.1) / 0.9)) if vol else 0.3
         ex = min(1.0, int(expo) / 3.0)
-        return np.array([[sp, ev, ex]], dtype=np.float64)
+        gp = _gap_pct_norm(float(gap_pct))
+        mp = max(0.0, min(1.0, float(money_phase)))
+        cr = float(int(channel_reject))
+        sh = max(0.0, min(1.0, float(sector_heat)))
+        mn = _main_net_norm(float(main_net))
+        return np.array([[sp, ev, ex, gp, mp, cr, sh, mn]], dtype=np.float64)
 
-    def predict_win_rate(self, score_pct: float, vol: float, expo: int = 0) -> float:
+    def predict_win_rate(
+        self, score_pct: float, vol: float, expo: int = 0,
+        gap_pct: float = 0.0, money_phase: float = 0.4,
+        channel_reject: int = 0, sector_heat: float = 0.5,
+        main_net: float = 0.0,
+    ) -> float:
         """ML 预测胜率，返回 0~1。"""
         if not self._loaded or len(self.trades) < MIN_TRADES_TO_TRAIN:
             return 0.5
-        X = self._build_feature_row(score_pct, vol, expo)
+        X = self._build_feature_row(score_pct, vol, expo, gap_pct, money_phase, channel_reject, sector_heat, main_net)
+        if X.shape[1] != self.model.n_features:
+            return 0.5
         return float(self.model.predict_proba(X)[0])
 
     # ── 生成 hist_stats ──────────────────────────────────
@@ -274,7 +359,7 @@ class KellyLearner:
             "map": {score_pct_thr: (win_rate, payoff), ...},
             "overall_win_rate": ...,
             "overall_payoff": ...,
-            "ml_ready": bool,    # 是否达到最小训练样本
+            "ml_ready": bool,
             "n_trades": ...,
           }
         """
@@ -346,11 +431,11 @@ def record_trade(
     pos: dict,
     sell_row: dict,
 ) -> None:
-    """trade_executor 平仓时调用，自动提取字段并持久化。
+    """trade_executor 平仓时调用，自动提取增强特征并持久化。
 
     Args:
         pt:   paper_trading.json 完整 dict（需含 position_exposure）
-        pos:  被平仓的 position dict
+        pos:  被平仓的 position dict（含 entry_gap_pct / entry_money_phase 等增强字段）
         sell_row: append_sell 返回的 trade_log row
     """
     try:
@@ -359,7 +444,13 @@ def record_trade(
             return  # 零盈亏不记录
         learner = _get_learner()
         expo = int(pt.get("position_exposure") or pt.get("account", {}).get("position_exposure") or 0)
-        # expo 典型值: 0=normal, 1=weak, 2=severe, 3=crash_day
+        # 提取增强特征（旧数据缺失时默认值）
+        gap_pct = float(pos.get("entry_gap_pct") or 0.0)
+        money_phase = _encode_money_phase(str(pos.get("entry_money_phase") or ""))
+        channel_reject = int(pos.get("entry_channel_reject") or 0)
+        sector_heat = float(pos.get("entry_sector_heat") or 0.5)
+        main_net = float(pos.get("entry_main_net") or 0.0)
+        fusion_scores = pos.get("_fusion_scores") or {}
         learner.add_trade(
             symbol=str(pos.get("symbol", "")),
             entry_score=float(pos.get("entry_score") or 0),
@@ -371,6 +462,12 @@ def record_trade(
             sell_action=str(sell_row.get("action", "")),
             buy_date=str(pos.get("buy_date") or ""),
             sell_date=str(sell_row.get("time", "")),
+            entry_gap_pct=gap_pct,
+            entry_money_phase=money_phase,
+            entry_channel_reject=channel_reject,
+            entry_sector_heat=sector_heat,
+            entry_main_net=main_net,
+            fusion_scores=fusion_scores,
         )
     except Exception as e:
         print(f"  KellyLearner record_trade skip: {e}")

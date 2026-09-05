@@ -104,8 +104,18 @@ class VM25Scorer:
                 break
         for cp in (ROOT / "chip_data_all.json", ROOT / "data" / "chip_data_all.json"):
             if cp.exists():
-                self.chip = _load_json(cp, {})
+                _raw = _load_json(cp, {})
+                # 兼容 {ok, data} 包装（2026-08-24 起本地上传模板引入）
+                self.chip = _raw.get("data", _raw) if isinstance(_raw, dict) else _raw
                 break
+        # 2026-08-29 契约告警：chip 解出数异常低时醒目提示（08-24 结构漂移事故教训）
+        if len(self.chip) < 1000:
+            print(
+                f"  ⚠️ 筹码契约告警: chip 仅解出 {len(self.chip)} 条 (期望>=1000)。"
+                "检查 chip_data_all.json 结构是否被 {ok,data} 包装破坏；"
+                "打分将缺筹码特征，建议先修数据再继续。",
+                flush=True,
+            )
         lh = _load_json(ROOT / "data" / "lhb_history.json", {})
         self.lhb_hist = {_bare(k): v for k, v in lh.items() if isinstance(v, dict)}
         self._side_loaded = True
