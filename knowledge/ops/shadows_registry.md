@@ -34,6 +34,7 @@
 
 | 观察 | cron | 输出 | 状态 | 下次看 |
 |---|---|---|---|---|
+| **🛡️ 影子健康体检(防空转)** | **16:55 工作日(当天闭环) + 09:10 周二~六(上交易日闭环+双跑CSV)** | output/logs/shadow_daily_health.{log,json} | ✅ **2026-09-06 上线**：逐项核对所有影子在目标日写新记录，FAIL 才企微告警(PASS 静默)；疑似非交易日自动 SKIP；脚本 `rd_workshop/shadow_daily_health.py`（`--dry` 可演练） | 每日自动；若有告警 → 企微群 + 查 registry 对应行 | 不是 rd_health(那是模型/单位健康)；只在"影子没写"时报 |
 | shadow_top2 主影子(RD 候选模型) | 09:35 写入 + 16:26 report | output/shadow_top2_history.jsonl（15 天）→ report.json/.md + wecom | ✅ 每日 append；报告/Excel 推送 ok=True | 攒够 8 到期日下 CAND/PROD 结论 |
 | reversal 弱转强影子 | 14:50 scanner + 16:30 report | output/reversal_shadow_history.jsonl（9 天）+ reversal_shadow/{date}.json | ✅ | 满样本后再评 |
 | top2_t1t5 结算 | 16:25 | output/top2_t1t5.json + report.md | ✅ 09-04 正常 | — |
@@ -61,6 +62,7 @@
 - 16:30 后：`ls output/logs/breakout_monitor.log output/logs/top2_excess.log` 已建
 - 22:20 后：turnover CSV 第 6 行（09-07）；次晨 01:30：weakscore CSV 第 4 行
 - 交易端（用户侧）：4 sim 端复制后日志现 [SHADOW-B1]/[SHADOW-B3]/[SHADOW-CALL]
+- **🛡️ 不再靠人工盯**：16:55 影子健康体检 cron 自动核对以上服务器侧全部项，FAIL 才企微告警
 
 ## 曾空转记录（勿重蹈）
 
