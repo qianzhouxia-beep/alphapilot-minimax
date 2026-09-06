@@ -1,7 +1,20 @@
 # AlphaPilot 项目长期记忆（Cursor ↔ WorkBuddy 共享）
 
 > 双方 Agent 必读。结论性规则写这里；详细论证见 `knowledge/` / `docs/`。
-> 最后更新：2026-08-28
+> 最后更新：2026-09-06
+
+---
+
+## 服务器操作分工约定（2026-09-06 用户拍板）
+
+**原则：需要上传服务器 / 在服务器上做变动的，Agent 直接执行，不再询问、不交给用户。**
+
+- 背景：服务器（上海 ECS `/home/ubuntu/alphapilot`）的上传/变更历来由 Agent 完成，用户从未参与。
+  如果让用户手动操作，容易漏传（资金三角影子 9 天空转的根因之一就是模块漏传服务器）。
+- 适用范围：**服务器端一切文件与操作**（scp 覆盖、补传模块、cron 变更、运行脚本等）→ Agent 直接做。
+- 例外（仍由用户手动）：**交易端文件**（QMT python 目录 / TDX `PYPlugins\user`）— 见
+  `.cursor/rules/production-strategies.mdc` 规则 5「部署由用户手动执行」，用户会自行复制/导入模拟端与实盘端。
+- 执行纪律：Agent 每次服务器变更后照常自验（py_compile / md5 比对 / 关键字段计数），并在 CHANGELOG / checkpoint 留痕。
 
 ---
 
