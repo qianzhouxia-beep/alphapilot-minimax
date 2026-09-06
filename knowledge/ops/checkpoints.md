@@ -6,6 +6,7 @@
 
 可视化扫一眼（旁路快照，以本文件为准）：打开 Cursor 里的 checkpoint canvas。
 **开放待办总览（Excel 旁路视图，2026-09-06 生成）**：`knowledge/ops/open_todos.xlsx`——本表所有"待部署/影子积累/待拍板/待办/观察"项的分组清单（含下次看/不要混/锚点），改状态后请同步更新该 Excel（脚本 `bt_research/_gen_open_todos_xlsx.py`，重新生成即可）。
+**影子/观察/监控注册表（2026-09-06 建）**：`knowledge/ops/shadows_registry.md`——现在有哪些影子在跑、输出路径、积累状态、判定门槛、下次看；体检/新增影子先对照本表（A 09:35 旁路 / B RD 双跑 / C 盘后 monitor / D 交易端 sim）。
 
 ## 怎么记（流程）
 
