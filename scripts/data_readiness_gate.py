@@ -33,6 +33,7 @@ OUT_PATH = ROOT / "output" / "data_readiness.json"
 ALERT_PATH = ROOT / "output" / "data_alerts.json"
 ALERT_LOG = ROOT / "output" / "logs" / "data_alerts.log"
 PICKS_PATH = ROOT / "output" / "morning_live_picks.json"
+WECOM_STATE = ROOT / "output" / "data_readiness_wecom.state.json"
 
 
 def _now() -> datetime:
@@ -153,8 +154,84 @@ def check_kline_max_date(max_lag_days: int | None = None) -> dict:
     return out
 
 
-def check_chip_asof_vs_kline() -> dict:
-    """筹码快照日应与 K 线最新日一致（推演依赖 K 线）。"""
+def _chip_records(raw: object) -> dict:
+    """Unwrap {"ok": true, "data": {...}} or flat code->record map."""
+    if not isinstance(raw, dict):
+        return {}
+    inner = raw.get("data")
+    if isinstance(inner, dict) and inner:
+        return inner
+    return raw
+
+
+def check_chip_consumer_contract(min_records: int = 4000, min_cover_pct: float = 0.90) -> dict:
+    """筹码契约：当前生产消费者（train_v25/vm25_scorer，2026-08-29 起兼容
+    {ok,data} 包装）能否解出足够筹码，且最新日期覆盖足够。
+
+    08-24 事故：上传模板把 chip 改写成 {ok,data}，data_readiness 用兼容路径
+    通过，但消费者取顶层读不到 → 静默降质 5 天。08-29 已把消费者修到兼容；
+    此检查持续守护「兼容路径必须能解出足够数据」，防止任何一侧再漂移：
+      - 上传脚本改回平铺 + 消费者 get("data") 落空
+      - 文件损坏 / 半截上传（只覆盖部分股票）
+      - 结构再次变成不可解的形式
+    """
+    out = {
+        "path": "chip_data_all.json",
+        "critical": True,
+        "ok": False,
+        "level": "fail",
+        "records": 0,
+        "latest_cover": 0.0,
+        "chip_date": None,
+        "reason": None,
+        "repair": "chip",
+    }
+    chip_p = ROOT / "chip_data_all.json"
+    if not chip_p.exists():
+        chip_p = ROOT / "data" / "chip_data_all.json"
+    if not chip_p.exists():
+        out["reason"] = "chip_missing"
+        return out
+    try:
+        raw = json.loads(chip_p.read_text(encoding="utf-8", errors="ignore"))
+        records = _chip_records(raw)  # 消费者实际路径（兼容 unwrap）
+        records = {k: v for k, v in records.items() if isinstance(v, dict) and v.get("date")}
+        n = len(records)
+        out["records"] = n
+        if n < min_records:
+            out["reason"] = (
+                f"consumer_records_{n}<{min_records} — 结构不可解或覆盖不足，train/vm25 筹码特征落空"
+            )
+            return out
+        from collections import Counter
+
+        dates = [str(v.get("date"))[:10] for v in records.values()]
+        cnt = Counter(dates)
+        chip_d = cnt.most_common(1)[0][0]
+        cover = cnt[chip_d] / n
+        out["latest_cover"] = round(cover, 4)
+        out["chip_date"] = chip_d
+        if cover < min_cover_pct:
+            out["reason"] = (
+                f"latest_cover_{cover:.0%}<{min_cover_pct:.0%} (date={chip_d}) — "
+                "半截数据（部分股票缺最新日），消费者会用过期筹码"
+            )
+            return out
+        out["ok"] = True
+        out["level"] = "ok"
+        out["repair"] = None
+    except Exception as e:
+        out["reason"] = f"read_error:{e}"
+    return out
+
+
+def check_chip_asof_vs_kline(min_cover_pct: float = 0.95) -> dict:
+    """筹码快照日应与 K 线最新日一致，且最新日覆盖率必须 >= 阈值。
+
+    2026-08-24 根治：旧逻辑用「众数日」对照——半截数据（3800只08-24 + 1192只08-21）
+    的众数是 08-24，与 K 线最新日一致 → 误判通过。现改为查「最新日覆盖率」，
+    3800/4992=76% < 95% 会被拦下。
+    """
     out = {
         "path": "chip_data_all.json",
         "critical": True,
@@ -162,6 +239,8 @@ def check_chip_asof_vs_kline() -> dict:
         "level": "fail",
         "chip_date": None,
         "kline_date": None,
+        "chip_latest_cover": None,
+        "chip_total": None,
         "reason": None,
         "repair": "chip",
     }
@@ -180,28 +259,37 @@ def check_chip_asof_vs_kline() -> dict:
         import pandas as pd
 
         raw = json.loads(chip_p.read_text(encoding="utf-8", errors="ignore"))
+        records = _chip_records(raw)
         dates = [
             str(v.get("date"))[:10]
-            for v in raw.values()
+            for v in records.values()
             if isinstance(v, dict) and v.get("date")
         ]
         if not dates:
             out["reason"] = "chip_no_dates"
             return out
-        # 众数日（多数票的最新交易日）
         from collections import Counter
 
-        chip_d = Counter(dates).most_common(1)[0][0]
+        cnt = Counter(dates)
+        chip_d = cnt.most_common(1)[0][0]  # 众数日（兼容旧字段语义）
+        n_latest = cnt[chip_d]
+        total = len(dates)
+        cover = n_latest / total if total else 0.0
         kdf = pd.read_parquet(kline_p, columns=["date"])
         kline_d = str(kdf["date"].astype(str).str[:10].max())
         out["chip_date"] = chip_d
         out["kline_date"] = kline_d
-        if chip_d == kline_d:
+        out["chip_latest_cover"] = round(cover, 4)
+        out["chip_total"] = total
+        # 两个条件必须同时满足：日期一致 + 最新日覆盖足够
+        if chip_d == kline_d and cover >= min_cover_pct:
             out["ok"] = True
             out["level"] = "ok"
             out["repair"] = None
         else:
-            out["reason"] = f"chip_asof_{chip_d}_ne_kline_{kline_d}"
+            out["reason"] = (
+                f"chip_asof_{chip_d}_ne_kline_{kline_d}_or_cover_{cover:.0%}<{min_cover_pct:.0%}"
+            )
     except Exception as e:
         out["reason"] = f"read_error:{e}"
     return out
@@ -248,7 +336,10 @@ REPAIR_CMDS = {
     "fund_flow": f"{sys.executable} build_fund_flow_history.py",
     "kline": "python3 cache_kline.py update",
     "fundamentals": f"{sys.executable} scripts/build_fundamental_data.py",
-    "chip": f"{sys.executable} -u scripts/pull_chip_from_kline.py --workers 1",
+    # 生产 chip 由 WorkBuddy 本地拉东财真实 CYQ 筹码后合并上传（_upload_chip_*.py）。
+    # 不能用 pull_chip_from_kline 覆盖（那是 K 线推演口径，会污染真实筹码）——
+    # 服务器侧只能告警等待 WorkBuddy 补批次，见 scripts/chip_missing_alert.py。
+    "chip": f"{sys.executable} scripts/chip_missing_alert.py",
     "margin_event": f"{sys.executable} pull_margin_event_data.py",
     "lhb": f"{sys.executable} scripts/pull_lhb_history.py",
 }
@@ -285,6 +376,7 @@ def build_report() -> dict:
             alt="data/chip_data_all.json",
         ),
         "chip_asof": check_chip_asof_vs_kline(),
+        "chip_consumer_contract": check_chip_consumer_contract(),
         "fundamentals": check_file(
             "fundamental_data.json",
             critical=True,
@@ -441,6 +533,72 @@ def emit_alert(report: dict, repaired: dict | None = None) -> None:
         print(f"✅ 数据预警清除: {ALERT_PATH}", flush=True)
 
 
+def _wecom_push_enabled() -> bool:
+    return os.environ.get("WECOM_READINESS_PUSH", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def maybe_wecom_push_fail(report: dict) -> None:
+    """PASS 静默：仅 critical fail 时推企业微信（warn 不推）。"""
+    fails = report.get("fails") or []
+    if not fails or not _wecom_push_enabled():
+        return
+
+    sig = "|".join(sorted(fails))
+    state = {}
+    if WECOM_STATE.exists():
+        try:
+            state = json.loads(WECOM_STATE.read_text(encoding="utf-8"))
+        except Exception:
+            state = {}
+    # 同一交易日、同一组 fail 只推一次（18:15 与 04:50 不重复轰炸）
+    day = str(report.get("asof") or "")[:10]
+    if state.get("day") == day and state.get("sig") == sig:
+        print("wecom push skip: same fail signature already pushed today", flush=True)
+        return
+
+    lines = [
+        f"AlphaPilot 数据闸门 FAIL ({report.get('asof', '')})",
+        f"ready=False  fail={len(fails)}  warn={report.get('warn_count', 0)}",
+        "",
+    ]
+    for k in fails[:10]:
+        c = (report.get("checks") or {}).get(k) or {}
+        reason = c.get("reason") or "unknown"
+        repair = c.get("repair") or "-"
+        lines.append(f"[{k}] {reason}  fix={repair}")
+    if len(fails) > 10:
+        lines.append(f"... +{len(fails) - 10} more")
+    lines += ["", "detail: output/data_alerts.json"]
+
+    try:
+        try:
+            from scripts.wecom_push import send_text
+        except ImportError:
+            from wecom_push import send_text
+    except Exception as e:
+        print(f"wecom push skip: import failed {e}", flush=True)
+        return
+
+    ok, err = send_text("\n".join(lines))
+    print(f"wecom push fail-only: ok={ok} err={err}", flush=True)
+    if ok:
+        WECOM_STATE.parent.mkdir(parents=True, exist_ok=True)
+        WECOM_STATE.write_text(
+            json.dumps({"day": day, "sig": sig, "at": report.get("asof")}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+
+def maybe_wecom_clear_state(report: dict) -> None:
+    if report.get("ready_for_trade"):
+        WECOM_STATE.unlink(missing_ok=True)
+
+
 def try_repair(report: dict) -> dict:
     """对失败/告警项执行对应修复命令（去重）。"""
     actions = []
@@ -523,6 +681,8 @@ def main() -> int:
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     emit_alert(report, repaired)
+    maybe_wecom_clear_state(report)
+    maybe_wecom_push_fail(report)
 
     print(
         f"data_readiness ready={report['ready_for_trade']} "

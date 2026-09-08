@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlphaPilot — 模型全链路文案（预测模型 × 量化交易）</title>
+<style>
+/* ==========================================================================
+   AlphaPilot Design Tokens（与 AlphaPilot_Framework_CN.html 同源）
+   单一事实来源。所有样式引用 token，禁止硬编码色值/字号/间距。
+   ========================================================================== */
+:root {
+  --ap-primitive-violet-50:  #EDE9FE;
+  --ap-primitive-violet-100: #DDD6FE;
+  --ap-primitive-violet-400: #A78BFA;
+  --ap-primitive-violet-500: #8B5CF6;
+  --ap-primitive-violet-brand: #7C5CFC;
+  --ap-primitive-violet-600: #7C3AED;
+  --ap-primitive-violet-700: #6D3AEA;
+  --ap-primitive-violet-900: #5B21B6;
+  --ap-primitive-red-50:   #FEF2F2;
+  --ap-primitive-red-100:  #FEE2E2;
+  --ap-primitive-red-600:  #DC2626;
+  --ap-primitive-red-700:  #C62828;
+  --ap-primitive-red-800:  #991B1B;
+  --ap-primitive-green-50:   #ECFDF5;
+  --ap-primitive-green-100:  #D1FAE5;
+  --ap-primitive-green-600:  #059669;
+  --ap-primitive-green-700:  #166534;
+  --ap-primitive-green-800:  #1E7A35;
+  --ap-primitive-amber-50:   #FEF3C7;
+  --ap-primitive-amber-600:  #D97706;
+  --ap-primitive-amber-700:  #B45309;
+  --ap-primitive-gray-50:  #FAFAFA;
+  --ap-primitive-gray-100: #F5F5F7;
+  --ap-primitive-gray-200: #EEEEF2;
+  --ap-primitive-gray-300: #E2E2E7;
+  --ap-primitive-gray-400: #D0D0D7;
+  --ap-primitive-gray-500: #86868B;
+  --ap-primitive-gray-600: #55555B;
+  --ap-primitive-gray-700: #3A3A40;
+  --ap-primitive-gray-800: #1D1D1F;
+  --ap-primitive-blue-50:  #DBEAFE;
+  --ap-primitive-blue-600: #2563EB;
+  --ap-primitive-blue-800: #1A6FC4;
+  --ap-primitive-white:  #FFFFFF;
+
+  --ap-primitive-black-4:   rgba(0, 0, 0, 0.04);
+  --ap-primitive-black-6:   rgba(0, 0, 0, 0.06);
+  --ap-primitive-black-8:   rgba(0, 0, 0, 0.08);
+  --ap-primitive-black-12:  rgba(0, 0, 0, 0.12);
+  --ap-primitive-violet-8:  rgba(124, 92, 252, 0.08);
+
+  --ap-primitive-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ap-primitive-font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+  --ap-primitive-font-xs:   12px;
+  --ap-primitive-font-sm:   13px;
+  --ap-primitive-font-base: 14px;
+  --ap-primitive-font-md:   15px;
+  --ap-primitive-font-lg:   17px;
+  --ap-primitive-font-xl:   20px;
+  --ap-primitive-font-2xl:  22px;
+  --ap-primitive-font-3xl:  24px;
+  --ap-primitive-font-4xl:  28px;
+  --ap-primitive-font-5xl:  44px;
+
+  --ap-primitive-radius-xs:  4px;
+  --ap-primitive-radius-sm:  8px;
+  --ap-primitive-radius-md:  12px;
+  --ap-primitive-radius-lg:  16px;
+  --ap-primitive-radius-xl:  20px;
+  --ap-primitive-radius-full: 9999px;
+
+  --ap-primitive-space-1: 4px;
+  --ap-primitive-space-2: 8px;
+  --ap-primitive-space-3: 12px;
+  --ap-primitive-space-4: 16px;
+  --ap-primitive-space-5: 20px;
+  --ap-primitive-space-6: 24px;
+  --ap-primitive-space-8: 32px;
+
+  --ap-primitive-shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
+  --ap-primitive-shadow-elevated: 0 4px 20px rgba(0,0,0,0.06);
+
+  /* 语义层 */
+  --ap-semantic-brand: var(--ap-primitive-violet-brand);
+  --ap-semantic-brand-strong: var(--ap-primitive-violet-600);
+  --ap-semantic-brand-light: var(--ap-primitive-violet-50);
+  --ap-semantic-brand-subtle: var(--ap-primitive-violet-8);
+  --ap-semantic-up: var(--ap-primitive-red-700);
+  --ap-semantic-up-light: var(--ap-primitive-red-50);
+  --ap-semantic-down: var(--ap-primitive-green-700);
+  --ap-semantic-down-light: var(--ap-primitive-green-50);
+  --ap-semantic-warning: var(--ap-primitive-amber-700);
+  --ap-semantic-warning-light: var(--ap-primitive-amber-50);
+  --ap-semantic-bg: var(--ap-primitive-gray-100);
+  --ap-semantic-bg-tertiary: var(--ap-primitive-gray-50);
+  --ap-semantic-surface: var(--ap-primitive-white);
+  --ap-semantic-text: var(--ap-primitive-gray-800);
+  --ap-semantic-text-secondary: var(--ap-primitive-gray-700);
+  --ap-semantic-text-tertiary: var(--ap-primitive-gray-500);
+  --ap-semantic-border: var(--ap-primitive-black-6);
+  --ap-semantic-data-font: var(--ap-primitive-font-mono);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: var(--ap-semantic-bg);
+  --surface: var(--ap-semantic-surface);
+  --text-primary: var(--ap-semantic-text);
+  --text-secondary: var(--ap-semantic-text-secondary);
+  --text-tertiary: var(--ap-semantic-text-tertiary);
+  --purple: var(--ap-semantic-brand);
+  --purple-500: var(--ap-primitive-violet-500);
+  --purple-600: var(--ap-primitive-violet-600);
+  --purple-light: var(--ap-semantic-brand-light);
+  --green: var(--ap-semantic-down);
+  --blue: var(--ap-primitive-blue-800);
+  --gold: var(--ap-semantic-warning);
+  --red: var(--ap-semantic-up);
+  --border-subtle: var(--ap-semantic-border);
+  --border-medium: var(--ap-primitive-black-8);
+  --shadow: var(--ap-primitive-shadow-card);
+  --radius: var(--ap-primitive-radius-lg);
+  --radius-sm: var(--ap-primitive-radius-md);
+  --font: var(--ap-primitive-font-sans);
+  --mono: var(--ap-primitive-font-mono);
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text-primary); line-height: 1.7; -webkit-font-smoothing: antialiased; }
+
+/* ── Header ── */
+.site-header {
+  background: var(--surface); border-bottom: 1px solid var(--border-subtle);
+  position: sticky; top: 0; z-index: 50;
+}
+.site-header-inner {
+  max-width: 1120px; margin: 0 auto; height: 56px;
+  display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+}
+.site-header .brand { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--text-primary); }
+.site-header .brand span { color: var(--purple); }
+.site-header .doc-meta { font-size: 12px; color: var(--text-tertiary); }
+.header-actions { display: flex; gap: 8px; }
+.header-actions a {
+  font-size: 12px; font-weight: 600; text-decoration: none; color: var(--purple-600);
+  background: var(--purple-light); padding: 6px 14px; border-radius: var(--ap-primitive-radius-full);
+  transition: transform .15s, opacity .15s;
+}
+.header-actions a:hover { transform: translateY(-1px); opacity: .9; }
+.header-actions .print-btn { background: var(--text-primary); color: #fff; }
+
+/* ── Layout ── */
+.container { max-width: 1120px; margin: 0 auto; padding: 40px 24px 60px; }
+
+/* ── Cover ── */
+.page-intro { text-align: center; margin-bottom: 40px; }
+.page-intro h1 { font-size: 36px; font-weight: 800; letter-spacing: -.03em; line-height: 1.3; }
+.page-intro h1 span { color: var(--purple); }
+.page-intro .subtitle { color: var(--text-tertiary); font-size: 15px; margin-top: 12px; max-width: 680px; margin-left: auto; margin-right: auto; }
+.intro-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--purple-light); color: var(--purple-600);
+  font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 100px; margin-bottom: 16px;
+}
+
+/* ── KPI Row ── */
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 40px; }
+.kpi-card {
+  background: var(--surface); border-radius: var(--radius); padding: 20px;
+  border: 1px solid var(--border-subtle); box-shadow: var(--shadow); text-align: center;
+}
+.kpi-card .kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -.02em; font-family: var(--mono); }
+.kpi-card .kpi-label { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; font-weight: 500; }
+.kpi-purple .kpi-value { color: var(--purple-500); }
+.kpi-green .kpi-value { color: var(--green); }
+.kpi-blue .kpi-value { color: var(--blue); }
+.kpi-gold .kpi-value { color: var(--gold); }
+
+/* ── Section ── */
+.section { margin-bottom: 48px; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.section-header .num {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--purple); color: #fff; font-size: 14px; font-weight: 700; flex-shrink: 0;
+}
+.section-header h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.section-desc { color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; max-width: 760px; }
+
+/* ── Card ── */
+.card {
+  background: var(--surface); border-radius: var(--radius); padding: 24px;
+  border: 1px solid var(--border-subtle); box-shadow: var(--shadow); margin-bottom: 16px;
+}
+.card-title {
+  font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title .dot { width: 4px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+.card-title .chip-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--purple-600); background: var(--purple-light); padding: 2px 8px; border-radius: 100px; }
+.card-body { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+
+/* ── Table ── */
+.table-wrap { overflow-x: auto; margin: 12px 0 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead th {
+  text-align: left; background: var(--ap-semantic-bg-tertiary);
+  color: var(--text-tertiary); font-weight: 600; font-size: 12px;
+  padding: 9px 12px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap;
+}
+tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); vertical-align: top; }
+tbody tr:hover { background: var(--ap-semantic-brand-subtle); }
+td.mono, .num-cell { font-family: var(--mono); }
+td.strong { color: var(--text-primary); font-weight: 600; }
+.up { color: var(--red); } .down { color: var(--green); } .warn { color: var(--gold); }
+
+/* ── Pipeline Flowchart (SVG) ── */
+.pipeline-flow { margin: 24px 0 8px; overflow-x: auto; }
+.pipeline-flow svg { width: 100%; min-width: 640px; height: auto; display: block; }
+.chart-caption { font-size: 11px; color: var(--text-tertiary); text-align: center; margin-top: 8px; }
+
+/* ── Gate Chain ── */
+.gate-chain { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; margin-bottom: 20px; }
+.gate-item {
+  flex-shrink: 0; width: 150px; background: var(--surface); border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle); box-shadow: var(--shadow); padding: 14px 12px;
+  position: relative; text-align: center;
+}
+.gate-item .gate-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%; background: var(--purple-light); color: var(--purple-600);
+  font-size: 11px; font-weight: 700; margin-bottom: 6px;
+}
+.gate-item .gate-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.gate-item .gate-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+.gate-arrow { flex-shrink: 0; display: flex; align-items: center; color: var(--text-tertiary); font-size: 18px; }
+
+/* ── Fusion box ── */
+.fusion-box {
+  background: linear-gradient(135deg, var(--purple-600), var(--purple));
+  color: #fff; border-radius: var(--radius); padding: 22px 24px;
+  text-align: center; font-size: 15px; font-weight: 600; letter-spacing: 0.5px;
+  box-shadow: 0 4px 20px rgba(124,92,252,0.3); white-space: nowrap; overflow-x: auto;
+}
+
+/* ── Timeline ── */
+.timeline { position: relative; margin: 16px 0 8px; padding-left: 40px; }
+.timeline::before {
+  content: ""; position: absolute; left: 16px; top: 8px; bottom: 8px;
+  width: 2px; background: linear-gradient(to bottom, var(--purple-light), var(--purple)); border-radius: 1px;
+}
+.tl-item { position: relative; margin-bottom: 20px; }
+.tl-item::before {
+  content: ""; position: absolute; left: -30px; top: 6px;
+  width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--purple); background: var(--surface);
+}
+.tl-item .tl-time {
+  display: inline-block; font-size: 12px; font-weight: 700; color: var(--purple);
+  background: var(--purple-light); padding: 1px 8px; border-radius: 4px; margin-bottom: 4px;
+  font-family: var(--mono);
+}
+.tl-item .tl-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.tl-item .tl-desc { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ── Bullets ── */
+.bullets { list-style: none; padding: 0; }
+.bullets li {
+  position: relative; padding-left: 20px; margin-bottom: 10px;
+  font-size: 13px; color: var(--text-secondary); line-height: 1.7;
+}
+.bullets li::before {
+  content: ""; position: absolute; left: 4px; top: 9px;
+  width: 6px; height: 6px; border-radius: 50%; background: var(--purple); opacity: .5;
+}
+.bullets li strong { color: var(--text-primary); font-weight: 600; }
+
+/* ── Track grid ── */
+.track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.track-card {
+  background: var(--surface); border-radius: var(--radius); padding: 20px;
+  border: 1px solid var(--border-subtle); box-shadow: var(--shadow);
+}
+.track-card.track-a { border-top: 3px solid var(--purple-500); }
+.track-card.track-b { border-top: 3px solid var(--gold); }
+.track-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.track-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+.track-card .track-tag {
+  display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px;
+}
+.track-a .track-tag { background: var(--purple-light); color: var(--purple-600); }
+.track-b .track-tag { background: var(--ap-primitive-amber-50); color: var(--ap-semantic-warning); }
+
+/* ── Grid 2-col ── */
+.adv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+/* ── Highlight gradient card ── */
+.gradient-card {
+  border: 1.5px solid transparent;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box,
+              linear-gradient(135deg, var(--purple-500), var(--blue), var(--green)) border-box;
+}
+
+/* ── Footer ── */
+.site-footer { text-align: center; padding: 32px 24px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-tertiary); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .container { padding: 24px 16px 40px; }
+  .page-intro h1 { font-size: 26px; }
+  .kpi-row { grid-template-columns: repeat(2,1fr); }
+  .track-grid { grid-template-columns: 1fr; }
+  .adv-grid, .grid-3 { grid-template-columns: 1fr; }
+  .gate-chain { flex-wrap: wrap; }
+  .gate-item { width: calc(50% - 6px); }
+  .gate-arrow { display: none; }
+  .doc-meta { display: none; }
+}
+@media (max-width: 480px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi-card { padding: 14px; }
+  .kpi-card .kpi-value { font-size: 22px; }
+}
+
+/* ── Print / PDF ── */
+@media print {
+  .site-header { position: static; }
+  .header-actions { display: none; }
+  body { background: #fff; }
+  .kpi-card, .card, .track-card, .gate-item { break-inside: avoid; }
+  .section { break-inside: auto; }
+  table { font-size: 11px; }
+  .container { max-width: 100%; padding: 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ Header ═══ -->
+<header class="site-header">
+  <div class="site-header-inner">
+    <div class="brand">Alpha<span>Pilot</span></div>
+    <div class="doc-meta">模型全链路文案 · 2026-08-09</div>
+    <div class="header-actions">
+      <a href="javascript:window.print()" class="print-btn">打印 / 导出 PDF</a>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ Main ═══ -->
+<main class="container">
+
+  <!-- ═══════ Cover ═══════ -->
+  <div class="page-intro">
+    <div class="intro-badge">AlphaPilot · 模型全链路 · 预测 × 量化</div>
+    <h1>从 <span>116 维因子</span> 到 <span>一笔成交</span>，全链路透明可解释</h1>
+    <p class="subtitle">预测模型（VM2.5 XGBoost 集成）负责「选出什么」，量化交易模型（门控 → 融合 → Kelly → 动态确认 → Plan C）负责「怎么买、怎么卖」。每条数据、每个因子、每一分权重，都在这里。</p>
+  </div>
+
+  <!-- ═══════ KPI Row ═══════ -->
+  <div class="kpi-row">
+    <div class="kpi-card kpi-purple"><div class="kpi-value">116</div><div class="kpi-label">模型特征维度</div></div>
+    <div class="kpi-card kpi-green"><div class="kpi-value">0.7176</div><div class="kpi-label">验证 AUC</div></div>
+    <div class="kpi-card kpi-blue"><div class="kpi-value">4,987+</div><div class="kpi-label">全 A 股每日覆盖</div></div>
+    <div class="kpi-card kpi-gold"><div class="kpi-value">5:3:2</div><div class="kpi-label">三路融合权重</div></div>
+  </div>
+
+  <!-- ═══════ 0. 全景 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">0</div><h2>全景：两条链路如何咬合</h2></div>
+    <p class="section-desc">系统分两层：<strong>链路一（预测模型）</strong>每天 05:00 全市场扫描、09:35 定格选股；<strong>链路二（量化交易）</strong>在盘中完成动态确认买入与 Plan C 分级出场。两者通过「三路融合评分」与「交易反馈闭环」咬合成一个自进化系统。</p>
+    <div class="pipeline-flow">
+      <svg viewBox="0 0 860 300" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pgrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--ap-semantic-brand-light)"/>
+            <stop offset="100%" stop-color="var(--ap-semantic-brand)"/>
+          </linearGradient>
+          <filter id="shadow"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(0,0,0,0.08)"/></filter>
+        </defs>
+
+        <!-- 链路一标题 -->
+        <text x="30" y="22" font-size="13" font-weight="700" fill="var(--ap-primitive-violet-600)">链路一 · 预测模型（选股）</text>
+
+        <rect x="16" y="34" width="96" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="64" y="53" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">全A股</text>
+        <text x="64" y="68" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">4,987+</text>
+
+        <line x1="112" y1="56" x2="138" y2="56" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="136,52 143,56 136,60" fill="#ccc"/>
+
+        <rect x="144" y="34" width="96" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="192" y="53" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">四类形态</text>
+        <text x="192" y="68" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">启动扫描</text>
+
+        <line x1="240" y1="56" x2="266" y2="56" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="264,52 271,56 264,60" fill="#ccc"/>
+
+        <rect x="272" y="34" width="96" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="320" y="53" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">116维特征</text>
+        <text x="320" y="68" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">10大板块</text>
+
+        <line x1="368" y1="56" x2="394" y2="56" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="392,52 399,56 392,60" fill="#ccc"/>
+
+        <rect x="400" y="34" width="96" height="44" rx="10" fill="var(--ap-semantic-brand-light)" stroke="var(--ap-semantic-brand)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="448" y="53" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-primitive-violet-600)">XGBoost</text>
+        <text x="448" y="68" text-anchor="middle" font-size="10" fill="var(--ap-primitive-violet-600)">三模型集成</text>
+
+        <line x1="496" y1="56" x2="522" y2="56" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="520,52 527,56 520,60" fill="#ccc"/>
+
+        <rect x="528" y="34" width="104" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="580" y="53" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">四道门控</text>
+        <text x="580" y="68" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">资金/环境/板块/LLM</text>
+
+        <line x1="632" y1="56" x2="658" y2="56" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="656,52 663,56 656,60" fill="#ccc"/>
+
+        <rect x="664" y="34" width="104" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="716" y="53" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">Top50 池</text>
+        <text x="716" y="68" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">daily_recommend</text>
+
+        <line x1="768" y1="56" x2="794" y2="56" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="792,52 799,56 792,60" fill="#ccc"/>
+
+        <rect x="800" y="34" width="48" height="44" rx="10" fill="var(--ap-semantic-down-light)" stroke="var(--ap-semantic-down)" stroke-width="1.5" filter="url(#shadow)"/>
+        <text x="824" y="59" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ap-semantic-down)">Top10</text>
+
+        <!-- 融合 -->
+        <rect x="250" y="96" width="340" height="30" rx="15" fill="var(--ap-semantic-brand)"/>
+        <text x="420" y="115" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">三路融合评分 = 模型×50% + 资金×30% + 板块×20%</text>
+
+        <!-- 链路二标题 -->
+        <text x="30" y="162" font-size="13" font-weight="700" fill="var(--ap-primitive-amber-600)">链路二 · 量化交易（执行）</text>
+
+        <rect x="16" y="174" width="104" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="68" y="193" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">四道交易门</text>
+        <text x="68" y="208" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">情绪/波动/硬滤/Q1</text>
+
+        <line x1="120" y1="196" x2="146" y2="196" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="144,192 151,196 144,200" fill="#ccc"/>
+
+        <rect x="152" y="174" width="104" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="204" y="193" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">融合重排</text>
+        <text x="204" y="208" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">5:3:2 加权</text>
+
+        <line x1="256" y1="196" x2="282" y2="196" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="280,192 287,196 280,200" fill="#ccc"/>
+
+        <rect x="288" y="174" width="104" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="340" y="193" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">Kelly 仓位</text>
+        <text x="340" y="208" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">胜率反哺</text>
+
+        <line x1="392" y1="196" x2="418" y2="196" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="416,192 423,196 416,200" fill="#ccc"/>
+
+        <rect x="424" y="174" width="104" height="44" rx="10" fill="var(--ap-semantic-warning-light)" stroke="var(--ap-semantic-warning)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="476" y="193" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-warning)">P2 动态确认</text>
+        <text x="476" y="208" text-anchor="middle" font-size="10" fill="var(--ap-semantic-warning)">放量上攻触发</text>
+
+        <line x1="528" y1="196" x2="554" y2="196" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="552,192 559,196 552,200" fill="#ccc"/>
+
+        <rect x="560" y="174" width="104" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="612" y="193" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">Plan C 出场</text>
+        <text x="612" y="208" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">分级止损/追踪止盈</text>
+
+        <line x1="664" y1="196" x2="690" y2="196" stroke="#ccc" stroke-width="1.5"/>
+        <polygon points="688,192 695,196 688,200" fill="#ccc"/>
+
+        <rect x="696" y="174" width="112" height="44" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
+        <text x="752" y="193" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">IC 反馈闭环</text>
+        <text x="752" y="208" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">权重 EMA 更新</text>
+
+        <!-- 反馈回路箭头 -->
+        <path d="M752 218 V260 H420" stroke="var(--ap-primitive-violet-500)" stroke-width="1.5" fill="none" stroke-dasharray="5,4"/>
+        <polygon points="420,256 420,264 414,260" fill="var(--ap-primitive-violet-500)"/>
+        <line x1="420" y1="126" x2="420" y2="146" stroke="var(--ap-primitive-violet-500)" stroke-width="1.5" stroke-dasharray="5,4"/>
+        <polygon points="416,144 420,150 424,144" fill="var(--ap-primitive-violet-500)"/>
+        <text x="620" y="254" font-size="10" fill="var(--ap-semantic-text-tertiary)">每日收盘：交易 → IC 反馈 → 权重演化 → 次日选股</text>
+      </svg>
+    </div>
+    <div class="chart-caption">全链路：从 4,987+ 全 A 股 → 116 维特征 → 门控 → Top10 候选池 → 动态确认成交 → Plan C 出场 → 反馈进化</div>
+  </div>
+
+  <!-- ═══════ 链路一 ═══════ -->
+  <div class="section" style="margin-top:48px">
+    <div class="section-header"><div class="num">一</div><h2>链路一：预测模型（选股引擎）</h2></div>
+  </div>
+
+  <!-- 1. 数据层 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">1.1 数据层 — 每一个因子都吃「真数据」</h2></div>
+    <p class="section-desc">模型的全部输入来自每日自动更新的数据仓，覆盖全市场 4,987+ 只股票。数据就绪保证：每日 21:00-21:20 资金流与 RD 因子先行重建 → 05:00 管线开跑前全部拉齐且 100% 覆盖。</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>数据</th><th>内容</th><th>更新时机</th><th>在模型中的用途</th></tr></thead>
+        <tbody>
+          <tr><td class="strong">K线全量</td><td>日K OHLCV + 复权（kline_all.parquet）</td><td class="num-cell">每日 15:30 后</td><td>所有技术/量价/竞价因子的地基</td></tr>
+          <tr><td class="strong">集合竞价因子</td><td>竞价缺口、量能、强弱转换（call_auction_factors）</td><td class="num-cell">从日K实时计算</td><td>竞价异动识别，无需 Level-2</td></tr>
+          <tr><td class="strong">基本面</td><td>EPS/营收/净利/BPS/ROE/毛利率/PE/PB</td><td class="num-cell">每日 16:50</td><td>估值与盈利质量</td></tr>
+          <tr><td class="strong">资金流历史</td><td>主力净额 1/5/10 日（fund_flow_history.json）</td><td class="num-cell">每日 21:00</td><td>主力资金动向</td></tr>
+          <tr><td class="strong">筹码分布</td><td>90%成本集中度/获利盘/均价（chip_data_all.json）</td><td class="num-cell">每日更新</td><td>持仓成本结构</td></tr>
+          <tr><td class="strong">龙虎榜</td><td>机构买入席位计数（lhb_history.json）</td><td class="num-cell">每日更新</td><td>游资/机构动向</td></tr>
+          <tr><td class="strong">事件/业绩预告</td><td>预告类型与增幅（event_forecast.json）</td><td class="num-cell">每日更新</td><td>业绩催化</td></tr>
+          <tr><td class="strong">融资融券</td><td>融资余额/融资买入（margin_data.json）</td><td class="num-cell">每日更新</td><td>杠杆资金态度</td></tr>
+          <tr><td class="strong">RD 因子</td><td>10 个时序衍生因子（extra_factors.parquet）</td><td class="num-cell">每日 21:20 重建</td><td>波动/趋势/资金交互</td></tr>
+          <tr><td class="strong">隔夜美股因子</td><td>美股隔夜表现 → A股情绪</td><td class="num-cell">05:00 前</td><td>隔夜环境温度</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 2. 特征层 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">1.2 特征层 — 116 维因子全景</h2></div>
+    <p class="section-desc">模型输入为 116 维特征向量，按作用分为 10 大板块。每一组都标注了<b>作用、数据来源、维度数</b>。</p>
+
+    <!-- 核心技术 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple-500)"></span>① 核心技术因子 — 量价动能地基<span class="chip-count">8 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>作用</th><th>数据</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">ret_5d / ret_20d</td><td>短中期动量</td><td>K线收盘</td></tr>
+            <tr><td class="mono">amount_ratio_5/20</td><td>成交额相对均量倍数（放量识别）</td><td>K线成交额</td></tr>
+            <tr><td class="mono">vol_20d</td><td>20日波动率</td><td>K线收益</td></tr>
+            <tr><td class="mono">vol_spike</td><td>放量且涨幅温和（吸筹特征）</td><td>K线</td></tr>
+            <tr><td class="mono">cmf_20</td><td>Chaikin 资金流（20日）</td><td>K线高低收</td></tr>
+            <tr><td class="mono">vpt_20</td><td>量价趋势累积</td><td>K线量价</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 集合竞价 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple-500)"></span>② 集合竞价因子 — 开盘情绪的「读心术」<span class="chip-count">22 维</span></div>
+      <div class="card-body" style="margin-bottom:10px">从日 K 线的开盘行为反推竞价强弱，<strong>无需 Level-2 也能捕捉竞价意图</strong>。</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>子类</th><th>因子</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td class="strong">缺口类</td><td class="mono">gap_pct / gap_abs / gap_volume_ratio / gap_momentum / consecutive_gap</td><td>缺口大小、量能、连续性</td></tr>
+            <tr><td class="strong">确认类</td><td class="mono">open_amt_ratio / gap_vol_confirm / volume_conviction</td><td>开盘量是否确认</td></tr>
+            <tr><td class="strong">强弱转换</td><td class="mono">weak_to_strong / strong_to_weak / stronger</td><td>竞价阶段多空反转</td></tr>
+            <tr><td class="strong">风险类</td><td class="mono">explosive_open / fake_gap / pump_exhaustion / fake_support / sector_collapse</td><td>炸板、假突破、主力出货、板块崩塌</td></tr>
+            <tr><td class="strong">综合</td><td class="mono">bull_score / bear_score / composite / composite_z</td><td>竞价多空总评分</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 技术指标 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple-500)"></span>③ 经典技术指标 — 趋势与动能<span class="chip-count">13 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">rsi_14</td><td>超买超卖</td></tr>
+            <tr><td class="mono">macd / macd_signal / macd_hist</td><td>趋势动能</td></tr>
+            <tr><td class="mono">bb_upper / bb_lower / bb_width</td><td>布林带与带宽</td></tr>
+            <tr><td class="mono">sma_5 / sma_20 / sma_60</td><td>短中长期均线</td></tr>
+            <tr><td class="mono">ma_dist_pct</td><td>乖离率</td></tr>
+            <tr><td class="mono">atr_14 / atr_pct</td><td>真实波幅 / 波动占比</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 量价结构 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>④ 量价与波动结构 — 资金行为指纹<span class="chip-count">11 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">turnover_ma_20 / turnover_ratio</td><td>换手率水平与相对倍数</td></tr>
+            <tr><td class="mono">vol_ma_ratio / amt_ma_ratio</td><td>量比 / 额比</td></tr>
+            <tr><td class="mono">vol_skew_20 / vol_kurt_20</td><td>收益分布偏态 / 峰度</td></tr>
+            <tr><td class="mono">up_down_vol_ratio</td><td>涨跌波动不对称</td></tr>
+            <tr><td class="mono">price_vol_corr_20</td><td>量价相关性</td></tr>
+            <tr><td class="mono">ret_range / ret_range_ma_20</td><td>振幅及其均值</td></tr>
+            <tr><td class="mono">gap_pct</td><td>跳空缺口</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 技术信号 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>⑤ 技术信号 — 形态确认<span class="chip-count">2 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">ma_cross_5_20 / ma_cross_20_60</td><td>均线金叉信号</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 基本面/事件/资金/龙虎榜/融资 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>⑥ 基本面 / 事件 / 资金 / 龙虎榜 / 融资 — 多维定价<span class="chip-count">21 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>板块</th><th>因子</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td class="strong">基本面 (11)</td><td class="mono">eps / revenue / net_profit / bps / roe / pe / pb / profit_margin / revenue_yoy / net_profit_yoy / gross_margin</td><td>估值与盈利质量</td></tr>
+            <tr><td class="strong">事件 (3)</td><td class="mono">has_forecast / yjyg_max_change_pct / forecast_type</td><td>业绩预告催化</td></tr>
+            <tr><td class="strong">资金流 (3)</td><td class="mono">main_net_today / main_net_5d / main_net_10d</td><td>主力净额短中长</td></tr>
+            <tr><td class="strong">龙虎榜 (2)</td><td class="mono">buy_inst_count / has_lhb</td><td>机构游资上榜</td></tr>
+            <tr><td class="strong">融资融券 (2)</td><td class="mono">margin_balance / margin_buy</td><td>杠杆资金态度</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 筹码 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--gold)"></span>⑦ 筹码因子 — 持仓成本结构<span class="chip-count">11 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>作用</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">chip_concentration / chip_concentration_70</td><td>90% / 70% 成本集中度</td></tr>
+            <tr><td class="mono">chip_profit_rate / chip_penetration</td><td>获利盘 / 穿透率</td></tr>
+            <tr><td class="mono">avg_cost_shift_5d / avg_cost_shift_10d</td><td>平均成本位移</td></tr>
+            <tr><td class="mono">z_chip_concentration</td><td>集中度标准化</td></tr>
+            <tr><td class="mono">chip_profit_trend</td><td>获利盘趋势</td></tr>
+            <tr><td class="mono">chip_distribution_width / shape</td><td>分布宽窄与形态</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 衍生 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue)"></span>⑧ 衍生因子 — 因子间交叉<span class="chip-count">8 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">volume_price</td><td>量价叉乘</td></tr>
+            <tr><td class="mono">vol_turnover</td><td>量 × 换手</td></tr>
+            <tr><td class="mono">money_flow_vol</td><td>资金 × 量</td></tr>
+            <tr><td class="mono">momentum_accel</td><td>动量加速度</td></tr>
+            <tr><td class="mono">trend_strength</td><td>趋势强度</td></tr>
+            <tr><td class="mono">conv_div</td><td>收敛 / 发散</td></tr>
+            <tr><td class="mono">price_dev</td><td>价格偏离</td></tr>
+            <tr><td class="mono">bull_confirmation</td><td>多头确认</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 技术优化 -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--purple-500)"></span>⑨ 技术优化因子 — 最优参数块<span class="chip-count">10 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">opt_ma_price_above_long / short_above_long / mid_above_vlong / long_slope / dist_long</td><td>均线排列与斜率（最优参数）</td></tr>
+            <tr><td class="mono">opt_macd_dif / hist / hist_slope / dif_pos / zero_above5</td><td>MACD 动能与持续性（最优参数）</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RD -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--gold)"></span>⑩ RD 因子 — 研发强化层<span class="chip-count">10 维</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>因子</th><th>含义</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">ret_range_ma_20__ma3 / __ma5 / __z20 / __diff3</td><td>振幅多尺度（3日/5日均、20日z-score、3日差分）</td></tr>
+            <tr><td class="mono">atr_pct__z20</td><td>波动率 20 日 z-score</td></tr>
+            <tr><td class="mono">turnover_x_atr_pct</td><td>换手 × 波动交互</td></tr>
+            <tr><td class="mono">rd_auction_open_atr_ratio__ma5</td><td>竞价强度 5 日平滑</td></tr>
+            <tr><td class="mono">profit_margin__ma5</td><td>盈利 5 日平滑</td></tr>
+            <tr><td class="mono">ret_20d__z20</td><td>动量 20 日 z-score</td></tr>
+            <tr><td class="mono">macd_hist__ma5</td><td>MACD 动能 5 日平滑</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 模型层 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">1.3 模型层 — XGBoost 三模型集成</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>项</th><th>配置</th></tr></thead>
+        <tbody>
+          <tr><td class="strong">算法</td><td>XGBoost（binary:logistic，AUC 评估）</td></tr>
+          <tr><td class="strong">集成</td><td><strong>3 个模型平均投票</strong>（不同随机种子）</td></tr>
+          <tr><td class="strong">训练样本</td><td class="num-cell">185 万+ 股票日（全市场时序）</td></tr>
+          <tr><td class="strong">标签定义</td><td>未来 1 日收益 &gt; +3% 为正样本（正样本率 <span class="num-cell">11.1%</span>）</td></tr>
+          <tr><td class="strong">正负平衡</td><td class="num-cell">scale_pos_weight = 8.0</td></tr>
+          <tr><td class="strong">迭代</td><td class="num-cell">300 轮 / 早停 50</td></tr>
+          <tr><td class="strong">维度</td><td class="num-cell">116 维（82 基础 + 8 衍生 + 6 筹码 + 10 技术优化 + 10 RD）</td></tr>
+          <tr><td class="strong">验证 AUC</td><td class="num-cell">0.7176（三模型 0.6956 / 0.7469 / 0.7104）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>训练体系</div>
+      <div class="card-body">滚动时序交叉验证 + A/B 对照（base vs opt），用每个模块的 <strong>边际增益</strong> 决定是否纳入；技术块 + RD 因子边际增益 +0.0009。</div>
+    </div>
+  </div>
+
+  <!-- 4. 融合层 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">1.4 融合层 — 三路信号加权（最终排名依据）</h2></div>
+    <p class="section-desc">单一模型打分只是「原始模型分」。最终排名（含「评分 Top10 · 09:35 定格」）由三路信号融合：</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>信号</th><th>含义</th><th>归一化</th><th>默认权重</th></tr></thead>
+        <tbody>
+          <tr><td class="strong">VM2.5 模型分</td><td>116 维 XGBoost 输出</td><td>min-max（池内归一化保区分度）</td><td class="num-cell strong">50%</td></tr>
+          <tr><td class="strong">资金流</td><td>主力净流入</td><td>tanh(main_net/1亿)，±1亿→0.24~0.88</td><td class="num-cell strong">30%</td></tr>
+          <tr><td class="strong">板块热度</td><td>板块当日涨幅 / 竞价热度</td><td>clamp ±5% 线性映射</td><td class="num-cell strong">20%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="fusion-box" style="margin-top:16px">终极评分 = 模型分 × 50% + 资金流 × 30% + 板块热度 × 20%</div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>动态权重 — 反馈闭环自动演化</div>
+      <div class="card-body">
+        每日收盘后，用当日成交记录的「三路信号 vs 实际盈亏」算 <strong>Spearman IC</strong>，以 <strong>EMA（α=0.10）</strong> 滚动更新权重——哪一路预测力强，自动获得更多话语权。权重约束在 [0.05, 0.85] 并归一化到和为 1。
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--gold)"></span>研报 × 资金 × 竞价 一致性加权</div>
+      <div class="card-body">
+        <ul class="bullets">
+          <li><strong>集合竞价强势板块</strong>（09:15-09:35 资金热）→ <strong>硬加权</strong>（加分）</li>
+          <li><strong>研报回避板块</strong> → <strong>软惩罚</strong>（降权而非剔除）</li>
+          <li><strong>研报 vs 资金主线 vs 竞价热度冲突</strong> → 额外 ×0.90 降权 + 自动预警</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 选股漏斗 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">1.5 选股漏斗 — 从 5,000+ 到 Top10 候选池</h2></div>
+    <div class="pipeline-flow">
+      <svg viewBox="0 0 860 120" xmlns="http://www.w3.org/2000/svg">
+        <defs><filter id="shad2"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="rgba(0,0,0,0.06)"/></filter></defs>
+        <g stroke="#ccc" stroke-width="1.5" fill="none">
+          <line x1="118" y1="45" x2="148" y2="45"/><polygon points="146,41 153,45 146,49" fill="#ccc"/>
+          <line x1="238" y1="45" x2="268" y2="45"/><polygon points="266,41 273,45 266,49" fill="#ccc"/>
+          <line x1="358" y1="45" x2="388" y2="45"/><polygon points="386,41 393,45 386,49" fill="#ccc"/>
+          <line x1="478" y1="45" x2="508" y2="45"/><polygon points="506,41 513,45 506,49" fill="#ccc"/>
+          <line x1="598" y1="45" x2="628" y2="45"/><polygon points="626,41 633,45 626,49" fill="#ccc"/>
+          <line x1="718" y1="45" x2="748" y2="45"/><polygon points="746,41 753,45 746,49" fill="#ccc"/>
+        </g>
+        <rect x="16" y="22" width="102" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad2)"/>
+        <text x="67" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">四类启动形态</text>
+        <text x="67" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">全市场扫描</text>
+        <rect x="154" y="22" width="84" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad2)"/>
+        <text x="196" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">资金门控</text>
+        <text x="196" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">A硬筛/B软加权</text>
+        <rect x="274" y="22" width="84" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad2)"/>
+        <text x="316" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">大盘环境</text>
+        <text x="316" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">仓位缩放</text>
+        <rect x="394" y="22" width="84" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad2)"/>
+        <text x="436" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">板块轮动</text>
+        <text x="436" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">研报多空加权</text>
+        <rect x="514" y="22" width="84" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad2)"/>
+        <text x="556" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">LLM 审核</text>
+        <text x="556" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">舆情/公告筛查</text>
+        <rect x="634" y="22" width="84" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad2)"/>
+        <text x="676" y="41" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">Top50 池</text>
+        <text x="676" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">daily_recommend</text>
+        <rect x="754" y="22" width="90" height="46" rx="10" fill="var(--ap-semantic-down-light)" stroke="var(--ap-semantic-down)" stroke-width="1.5" filter="url(#shad2)"/>
+        <text x="799" y="41" text-anchor="middle" font-size="12" font-weight="700" fill="var(--ap-semantic-down)">Top10 候选</text>
+        <text x="799" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-down)">09:35 定格</text>
+      </svg>
+    </div>
+    <div class="chart-caption">漏斗架构：全市场 → 形态 → 门控 → 环境 → 板块 → LLM → Top50 → Top10 候选池（09:35 三路融合重排）</div>
+  </div>
+
+  <!-- ═══════ 链路二 ═══════ -->
+  <div class="section" style="margin-top:48px">
+    <div class="section-header"><div class="num">二</div><h2>链路二：量化交易模型（执行引擎）</h2></div>
+  </div>
+
+  <!-- 2.1 四道门控 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">2.1 信号生成 — 四道门控（宁可空仓，不碰雷）</h2></div>
+    <p class="section-desc">每日 09:36 消费 Top10 候选池信号，经四道门控后才可交易：</p>
+    <div class="gate-chain">
+      <div class="gate-item"><div class="gate-num">1</div><div class="gate-name">情绪周期门</div><div class="gate-desc">冰点/亢奋决定开新仓</div></div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item"><div class="gate-num">2</div><div class="gate-name">波动率门</div><div class="gate-desc">20日波动率 &gt;3.5% 拦截</div></div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item"><div class="gate-num">3</div><div class="gate-name">硬过滤门</div><div class="gate-desc">ST/亏损/利空删除</div></div>
+      <div class="gate-arrow">→</div>
+      <div class="gate-item"><div class="gate-num">4</div><div class="gate-name">多因子/Q1门</div><div class="gate-desc">剔除最差 25% 分组</div></div>
+    </div>
+    <div class="card">
+      <div class="card-body"><strong>一票否决式过滤：</strong>任一门的拦截都会让该票不进信号；情绪门拦截则当日不开新仓（nuclear 空仓）。宁可空仓，不碰雷。</div>
+    </div>
+  </div>
+
+  <!-- 2.2 融合重排 + Kelly -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">2.2 融合重排 + Kelly 仓位分配</h2></div>
+    <div class="track-grid">
+      <div class="track-card track-a">
+        <div class="track-tag">步骤 1</div>
+        <h3>三路融合重排</h3>
+        <p>与选股同源的 <strong>fusion_rerank</strong>（VM2.5×50% + 资金×30% + 板块×20%），确保「推荐的就是要买的」。</p>
+      </div>
+      <div class="track-card track-b">
+        <div class="track-tag">步骤 2</div>
+        <h3>Kelly 仓位 — 胜率反哺权重</h3>
+        <p><strong>KellyLearner</strong> 每日在线重训逻辑回归，用 8 维特征预测胜率，反哺 entry_weight；Half-Kelly + 波动率调整 + 行业集中度约束，单笔上限 5 万。</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Kelly 输入特征（8 维）</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">score_pct</td><td>评分分位（模型置信度）</td></tr>
+          <tr><td class="mono">vol</td><td>波动率</td></tr>
+          <tr><td class="mono">expo</td><td>大盘仓位敞口</td></tr>
+          <tr><td class="mono">gap_pct</td><td>跳空幅度</td></tr>
+          <tr><td class="mono">money_phase</td><td>资金阶段（吸筹/拉升/出货…）</td></tr>
+          <tr><td class="mono">channel_reject</td><td>通道拒绝标志</td></tr>
+          <tr><td class="mono">sector_heat</td><td>板块热度</td></tr>
+          <tr><td class="mono">main_net</td><td>主力净额</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title"><span class="dot" style="background:var(--gold)"></span>人工确认闸门（默认开启）</div>
+      <div class="card-body">出票先进 <strong>pending_review</strong>，网页「今日待确认」确认后才写入买入信号。</div>
+    </div>
+  </div>
+
+  <!-- 2.3 P2 动态确认买入 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">2.3 买入执行 — Top10 先到先得 + P2 动态确认（放量上攻才买）</h2></div>
+    <p class="section-desc">放弃「9:35 信号价直接成交」，改为从 Top10 候选池中<strong>先到先得</strong>：盘中哪只先触发 P2 动态确认就买哪只，每日最多买 2 只（intraday_low.py + trade_executor.py，纯 HTTP 无第三方依赖）：</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>参数</th><th>值</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="strong">候选池</td><td class="mono">Top10（09:35 三路融合定格）</td><td>先到先得，每日最多买 2 只</td></tr>
+          <tr><td class="strong">触发条件</td><td class="mono">现价 &gt; 9:35 价 且 现价 &gt; VWAP</td><td>趋势确认（放量上攻）</td></tr>
+          <tr><td class="strong">量能确认</td><td class="mono">近 2 根 5 分钟 K 至少 1 根量比 &gt;1.3 且收阳</td><td>放量才有真突破</td></tr>
+          <tr><td class="strong">不追高</td><td class="mono">现价 ≤ 昨收×1.05</td><td>避免高位接盘</td></tr>
+          <tr><td class="strong">换手率过滤</td><td class="mono">当日换手率 ≤ 5%</td><td>高换手（&gt;5%）游资博弈/对倒出货，T+1 转弱，跳过（2026-08 寻优回测标定）</td></tr>
+          <tr><td class="strong">窗口</td><td class="num-cell">09:35 ~ 14:57 全天观察</td><td>未触发当日不买（空仓等待）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>回测验证（2026-04 ~ 2026-07）</div>
+      <div class="card-body"><strong>P2 触发率 46.5%</strong>（830 个候选信号中 386 个触发），触发后 T+1 均收益 <strong>+2.21%</strong>、胜率 <strong>68.7%</strong>，显著优于「固定 Top2 信号价买入」与「未触发兜底强买」两种旧方案。加入<strong>换手率≤5% 过滤</strong>后（保留 68% 候选池），T+1 均收益提升至 <strong>+3.42%</strong>、胜率提升至 <strong>79.1%</strong>（386 触发样本分档寻优，统计显著 z≈2.9）；换手&gt;10% 档 T+1 为 -1.8%、胜率 25%，确认高换手陷阱。成交价回写 paper_trading.json，前端展示真实成交价与 entry_mode（dyn_confirm / vwap_dip / force_eod / skip_high_turnover…）。</div>
+    </div>
+  </div>
+
+  <!-- 2.4 Plan C -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">2.4 出场执行 — Plan C 分级风控</h2></div>
+    <p class="section-desc">trade_executor.py 每 1 分钟扫描持仓，执行分级出场（与 QMT 实盘 qmt_model_plan_c 同源参数）：</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>规则</th><th>阈值</th><th>动作</th></tr></thead>
+        <tbody>
+          <tr><td class="strong">分级止损</td><td class="num-cell down">-3% 连续 3 分钟</td><td>卖一半</td></tr>
+          <tr><td class="strong">硬止损</td><td class="num-cell down">-5%</td><td>全卖</td></tr>
+          <tr><td class="strong">开盘保护</td><td class="num-cell down">09:35-09:45 内 -7%</td><td>全卖</td></tr>
+          <tr><td class="strong">跌停</td><td class="num-cell down">-9.5%</td><td>立即全清</td></tr>
+          <tr><td class="strong">追踪止盈</td><td class="num-cell up">创新高后回撤 6%</td><td>全卖（让利润奔跑）</td></tr>
+          <tr><td class="strong">涨停封单</td><td class="num-cell">买一/成交量 &gt; 3</td><td>延期持有</td></tr>
+          <tr><td class="strong">超期清理</td><td class="num-cell">持有 ≥15 日</td><td>防呆清仓</td></tr>
+          <tr><td class="strong">异常保护</td><td class="num-cell">|盈亏| &gt; 25%</td><td>疑似除权/数据错，不卖</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>QMT 实盘版额外增强</div>
+      <div class="card-body">
+        <ul class="bullets">
+          <li><strong>封单比分级决策</strong>（14:45 后）：封单&gt;3 隔夜持 / 封单&gt;1+低换手持 / 封单&lt;0.5 次日卖（回测 5,835 样本标定）</li>
+          <li><strong>A8/A4 早离场增强</strong>：昨高量+RSI≥80 或 高位大阴&gt;6% → 触发概率 2.2~2.6 倍 → 直接减半不等回撤</li>
+          <li><strong>主力行为 ML 信号</strong>（5分钟）：33 维特征 + 600 棵决策树预测买卖/持有三态，纯分析辅助盯盘</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2.5 反馈闭环 -->
+  <div class="section">
+    <div class="section-header" style="margin-left:0"><h2 style="font-size:18px">2.5 反馈闭环 — 交易 → 模型</h2></div>
+    <div class="pipeline-flow">
+      <svg viewBox="0 0 860 70" xmlns="http://www.w3.org/2000/svg">
+        <defs><filter id="shad3"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="rgba(0,0,0,0.06)"/></filter></defs>
+        <rect x="16" y="12" width="150" height="40" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad3)"/>
+        <text x="91" y="30" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">每日成交</text>
+        <text x="91" y="44" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">kelly_learner_trades</text>
+        <line x1="166" y1="32" x2="196" y2="32" stroke="#ccc" stroke-width="1.5"/><polygon points="194,28 201,32 194,36" fill="#ccc"/>
+        <rect x="202" y="12" width="160" height="40" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad3)"/>
+        <text x="282" y="30" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">16:15 IC 反馈</text>
+        <text x="282" y="44" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">Spearman IC × EMA(α=0.10)</text>
+        <line x1="362" y1="32" x2="392" y2="32" stroke="#ccc" stroke-width="1.5"/><polygon points="390,28 397,32 390,36" fill="#ccc"/>
+        <rect x="398" y="12" width="160" height="40" rx="10" fill="var(--ap-semantic-brand-light)" stroke="var(--ap-semantic-brand)" stroke-width="1" filter="url(#shad3)"/>
+        <text x="478" y="30" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-primitive-violet-600)">三路权重自动演化</text>
+        <text x="478" y="44" text-anchor="middle" font-size="10" fill="var(--ap-primitive-violet-600)">model_weights.json</text>
+        <line x1="558" y1="32" x2="588" y2="32" stroke="#ccc" stroke-width="1.5"/><polygon points="586,28 593,32 586,36" fill="#ccc"/>
+        <rect x="594" y="12" width="160" height="40" rx="10" fill="var(--ap-semantic-down-light)" stroke="var(--ap-semantic-down)" stroke-width="1.5" filter="url(#shad3)"/>
+        <text x="674" y="30" text-anchor="middle" font-size="11" font-weight="700" fill="var(--ap-semantic-down)">次日选股用新权重</text>
+        <text x="674" y="44" text-anchor="middle" font-size="10" fill="var(--ap-semantic-down)">预测力强的信号话语权更大</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ═══════ 三、风险控制 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">三</div><h2>风险控制与安全机制（异常即停）</h2></div>
+    <div class="adv-grid">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--red)"></span>P3 新鲜度闸门</div>
+        <div class="card-body">交易前校验 health_alarm / daily_recommend / morning_live_picks 新鲜度，任一过期 → <strong>阻断交易</strong>。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--red)"></span>评分质量门</div>
+        <div class="card-body">模型评分区分度/数量异常 → 标记 daily_recommend，当日不交易。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--gold)"></span>数据真实性审计</div>
+        <div class="card-body">data_quality_audit（零填充/覆盖率/双K线一致性）+ pseudo_signal_detector（资金与价格背离/诱多）+ signal_conflict_detector（研报×资金×竞价冲突）——盘中资金与研报冲突时自动预警。</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--blue)"></span>价格保护</div>
+        <div class="card-body">除权/数据异常（|盈亏|&gt;25%）不卖；开盘前不撮合；午休不撮合。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ 四、权重总表 ═══════ -->
+  <div class="section">
+    <div class="section-header"><div class="num">四</div><h2>权重总表（一页看懂比重）</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>环节</th><th>构成</th><th>权重 / 比重</th></tr></thead>
+        <tbody>
+          <tr><td class="strong">特征层</td><td>基础 82 / 衍生 8 / 筹码 6 / 技术优化 10 / RD 10</td><td class="num-cell strong">116 维</td></tr>
+          <tr><td class="strong">模型打分</td><td>VM2.5 模型概率 ×0.8 + 板块热度 ×0.2</td><td class="num-cell">8:2</td></tr>
+          <tr><td class="strong">最终排名</td><td>VM2.5 ×0.50 + 资金流 ×0.30 + 板块热度 ×0.20</td><td class="num-cell strong">5:3:2（EMA 动态）</td></tr>
+          <tr><td class="strong">门控链</td><td>情绪 / 波动率 / 硬过滤 / Q1</td><td class="num-cell">串联，一票否决式过滤</td></tr>
+          <tr><td class="strong">买入</td><td>Top10 候选池先到先得 + P2 动态确认（放量上攻）</td><td class="num-cell">每日最多 2 只</td></tr>
+          <tr><td class="strong">仓位</td><td>Half-Kelly + 波动率调整 + 集中度约束</td><td class="num-cell">胜率反哺权重</td></tr>
+          <tr><td class="strong">出场</td><td>-3%减半 / -5%全卖 / 峰值回撤6%止盈 / 涨停延期</td><td class="num-cell">Plan C 分级</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════ 结语 ═══════ -->
+  <div class="section">
+    <div class="card gradient-card">
+      <div class="card-title"><span class="dot" style="background:linear-gradient(135deg,var(--purple-500),var(--blue))"></span>AlphaPilot 的信念</div>
+      <div class="card-body" style="font-size:14px; line-height:1.9">
+        选股是概率问题，不是玄学。<strong>用 116 维特征还原市场的每一个切面</strong>，<strong>用三路融合对冲单一信号的风险</strong>，<strong>用 Kelly 控制每一次下注的尺度</strong>，<strong>用 Plan C 守住每一笔利润的底线</strong>——最终在数据、模型、风控三者之间，找到长期可复利的那个平衡点。
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══ Footer ═══ -->
+<footer class="site-footer">
+  <p>AlphaPilot · 模型全链路文案 · 预测模型 × 量化交易</p>
+  <p style="margin-top:4px">&copy; 2026 AlphaPilot</p>
+</footer>
+
+</body>
+</html>

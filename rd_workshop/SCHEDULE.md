@@ -9,7 +9,7 @@
 |----------------------|------|------|
 | **周六 02:00** | Track A | `track_a_current_model_uplift.py --sample 400 --top-k 10 --promote`：挖增量因子 → 候选训练 → 可交易 OOS → 写出 `promotion_report` |
 | **每月 1 日 03:00** | Track B 体检 | `track_b_rdagent_self_dev.py --doctor`：检查 RD-Agent 环境；有导出时人工 `--from-export --promote` |
-| **工作日（人工）** | Human Review | 对照 `rd_workshop/candidates/*/promotion_report.json` 与生产 OOS；勾选 `PROMOTION_CHECKLIST.md` 后才可 Promotion |
+| **工作日 10:00（周一至周六）** | RD monitor + 健康检查 | 刷新影子候选与最新期的真 OOS；`rd_health_check.py` 查重训/影子重复/误晋升 |
 
 ## 与生产的关系
 

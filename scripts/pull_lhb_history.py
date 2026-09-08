@@ -23,14 +23,29 @@ def bare(sym: str) -> str:
     return s.zfill(6)[-6:]
 
 
-def main(days: int = 40):
+def main(days: int = 250):
     import akshare as ak
 
     out: dict[str, dict] = {}
+    # 保留已有历史，只补充新日期（增量 + 回填）
+    path = ROOT / "data" / "lhb_history.json"
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(existing, dict):
+                out = existing
+        except Exception:
+            out = {}
+
     d0 = datetime.now()
+    seen_days = 0
     for i in range(days):
         d = (d0 - timedelta(days=i)).strftime("%Y%m%d")
         d_dash = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+        # 已有该日期的完整数据则跳过（节省请求）
+        already = all(d_dash in (slot.get("dates") or {}) for slot in out.values()) if out else False
+        if already:
+            continue
         try:
             df = ak.stock_lhb_detail_em(start_date=d, end_date=d)
         except Exception as e:
@@ -41,12 +56,13 @@ def main(days: int = 40):
         code_col = next((c for c in df.columns if "代码" in str(c)), None)
         if not code_col:
             continue
-        print(f"  {d}: {len(df)} rows")
+        seen_days += 1
+        if seen_days % 20 == 0:
+            print(f"  ...{d} 已处理 {seen_days} 个有数据交易日")
         for _, row in df.iterrows():
             code = bare(row[code_col])
             if len(code) != 6:
                 continue
-            # 买方机构家数（列名因接口版本而异）
             inst = 0
             for k in ("买方机构数", "买入营业部数量", "机构买入次数"):
                 if k in row.index:
@@ -61,11 +77,14 @@ def main(days: int = 40):
     for code, slot in out.items():
         slot["has_lhb_days"] = len(slot["dates"])
 
-    path = ROOT / "data" / "lhb_history.json"
     path.parent.mkdir(exist_ok=True)
     path.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
     print(f"saved {path} symbols={len(out)}")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--days", type=int, default=250)
+    args = ap.parse_args()
+    main(days=args.days)

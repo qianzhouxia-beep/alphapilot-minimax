@@ -456,7 +456,7 @@
  <span class="pill">在线增量 ML</span>
  <span class="pill green">Half-Kelly 仓位</span>
  <span class="pill blue">4 层动态出场</span>
- <span class="pill gold">GapSoft 入场</span>
+ <span class="pill gold">P2 动态确认</span>
  <span class="pill">全自动执行</span></div>
  <div class="cta-row">
  <a href="/cn/" class="btn-primary">进入终端 →</a>
@@ -521,8 +521,8 @@
  <div class="flow-arrow">→</div>
  <div class="flow-step">
  <div class="step-num">5</div>
- <div class="step-title">GapSoft 入场</div>
- <div class="step-desc">动态决策 + 资金确认 + 限价等待</div></div>
+ <div class="step-title">P2 动态确认入场</div>
+ <div class="step-desc">Top10 先到先得 + 放量上攻触发</div></div>
  <div class="flow-arrow">→</div>
  <div class="flow-step">
  <div class="step-num">6</div>
@@ -560,8 +560,8 @@
  <div class="card">
  
  <span class="tag tag-core">非对称入场</span>
-<h3>GapSoft + 资金确认</h3>
- <p>根据开盘涨幅动态决策：≤1.5% 全仓买，1.5–3% 限价等，3–5% 保守等，≥5% 跳过。叠加分时资金流确认——机构做盘前审核，AlphaPilot 盘中实时做。</p></div>
+<h3>P2 动态确认入场</h3>
+ <p>Top10 候选池盘中先到先得：现价站上 09:35 定格价与 VWAP、近 2 根 5 分钟 K 线放量收阳（量比 > 1.3）、不追高（现价 ≤ 昨收 +5%）才触发买入，每日最多买 2 只。未触发则耐心等待下一只，不追单。</p></div>
  <div class="card">
  
  <span class="tag tag-edge">自适应</span>
@@ -603,7 +603,7 @@
  <tr>
  <td class="dim">入场逻辑</td>
  <td class="bad">开盘价买入 / 固定条件触发</td>
- <td class="good">GapSoft 动态决策 + 分时资金流确认，不追高不盲买</td>
+ <td class="good">P2 动态确认（放量上攻）+ 分时资金确认，不追高不盲买</td>
  </tr>
  <tr>
  <td class="dim">出场逻辑</td>
@@ -657,7 +657,7 @@
  <div class="tl-item">
  <div class="tl-time">09:35–14:30</div>
  <div class="tl-title">盘中持续执行</div>
- <div class="tl-desc">GapSoft 入场 + 分时资金确认 → 动态止盈回撤减半 → 板块反转盘中巡检（10:00/11:00/13:30/14:30）</div></div>
+ <div class="tl-desc">P2 动态确认入场（放量上攻） → 动态止盈回撤减半 → 板块反转盘中巡检（10:00/11:00/13:30/14:30）</div></div>
  <div class="tl-item">
  <div class="tl-time">14:45+</div>
  <div class="tl-title">收盘风控窗</div>
@@ -677,7 +677,7 @@
  <div class="card" style="background: linear-gradient(to right, rgba(124,92,252,0.03), transparent);">
 <h3>VM2.5 模型评分引擎</h3>
  <p>
- <strong>模型评分：</strong>VM2.5 XGBoost 多因子模型，78+ 核心因子（技术 / 资金流 / 基本面 / 事件 / 集合竞价）+ 扩展因子库，全市场截面评分。<br><br>
+ <strong>模型评分：</strong>VM2.5 XGBoost 多因子模型，116 维核心因子（技术 / 资金流 / 基本面 / 事件 / 集合竞价 / RD 因子）+ 扩展因子库，全市场截面评分。<br><br>
  <strong>ICIR 加权：</strong>因子权重按信息系数 IC 自动化迭代，反馈闭环每日更新，不靠人工调参。<br><br>
  <strong>隔夜加权：</strong>美股隔夜情绪映射到 A 股，跳空风险先降一档。<br><br>
  <strong>三路融合（09:35）：</strong>模型分 ×50% + 实时资金流 ×30% + 板块热度 ×20%，确保既有模型价值又有真实资金兴趣。</p></div>
@@ -697,14 +697,14 @@
  <strong>③ T+2 强平：</strong>日频持仓 ≥2 天强制离场。资金净流入 + 现价 ≥ 成本 95% 可延期 1 天。<br><br>
  <strong>④ 板块反转盘中预警：</strong>盘中巡检，持仓板块从资金流入转为大幅流出时紧急市价卖出。</p></div>
  <div class="card" style="background: linear-gradient(to right, rgba(245,158,11,0.03), transparent);">
-<h3>GapSoft 非对称入场</h3>
+<h3>P2 动态确认入场</h3>
  <p>
- <strong>核心思想：</strong>根据开盘涨幅（gap）动态调整入场姿势和权重，不追高不盲买。<br><br>
- <strong>规则：</strong>gap ≤ 1.5% → 开盘全仓买（权重 1.0）<br>
- 1.5% < gap < 3% → 限价昨收×1.01，权重 0.7<br>
- 3% ≤ gap < 5% → 限价昨收×1.02，权重线性递减<br>
- gap ≥ 5% / 涨停 → 跳过<br><br>
- <strong>叠加资金确认：</strong>开盘 5 分钟主力资金流向不配合 → 降权或跳过。</p></div>
+ <strong>核心思想：</strong>不追开盘、不抢跑，等盘中「放量上攻」的确认信号出现才买入。<br><br>
+ <strong>候选池：</strong>09:35 三路融合生成 Top10 候选池，先到先得，每日最多买 2 只。<br><br>
+ <strong>触发条件：</strong>现价 > 09:35 定格价 且 现价 > VWAP（趋势确认）<br>
+ 近 2 根 5 分钟 K 线至少 1 根量比 > 1.3 且收阳（量能确认）<br>
+ 现价 ≤ 昨收 × 1.05（不追高）<br><br>
+ <strong>回测验证：</strong>Top10 先到先得 + P2 动态确认，T+1 平均收益 +2.57%、胜率 79%，显著优于固定 Top2。</p></div>
  <div class="card" style="background: linear-gradient(to right, rgba(229,57,53,0.03), transparent);">
 <h3>Expo 市场自适应</h3>
  <p>
@@ -717,9 +717,9 @@
  <div class="card" style="background: linear-gradient(to right, rgba(124,92,252,0.03), transparent);">
 <h3>全自动交易执行</h3>
  <p>
- <strong>每日 09:35 自动生成终选信号</strong> → 盘中逐笔自动执行<br><br>
- <strong>支持两种模式：</strong>日频量化（GapSoft 入场，T+2 到期强平） / 尾盘狙击（14:45 尾盘独立选股 + 资金确认，尾盘买入，走硬止损与动态止盈）<br><br>
- <strong>限价挂单：</strong>当 gap 超限时自动挂限价单等待回踩，盘中触发自动成交<br><br>
+ <strong>每日 09:35 自动生成 Top10 候选池</strong> → 盘中动态确认后逐笔自动执行<br><br>
+ <strong>买入模式：</strong>日频精选（Top10 先到先得 + P2 动态确认，T+2 到期强平）——尾盘狙击已暂停，不再产生信号<br><br>
+ <strong>动态确认：</strong>候选股现价 > 09:35 价且 > VWAP + 5 分钟放量收阳才触发成交，未触发则不追单<br><br>
  <strong>人工复核：</strong>信号默认进入待确认闸门，人工确认后自动下单，也可切换全自动；上海腾讯云服务器 7×24 运行</p></div></div></div>
 
  <!-- ═══════ 6. 数据源 ═══════ -->
@@ -745,7 +745,7 @@
  <div class="card">
  
 <h3>技术因子库</h3>
- <p>78+ 核心因子 + 扩展因子库：MACD 多周期、RSI、布林带、量价背离、均线排列、波动率锥、集合竞价量价因子。因子权重由 ICIR 信息系数自动化迭代。</p></div></div></div>
+ <p>116 维核心因子 + 扩展因子库：MACD 多周期、RSI、布林带、量价背离、均线排列、波动率锥、集合竞价量价因子、筹码分布、RD 因子。因子权重由 ICIR 信息系数自动化迭代。</p></div></div></div>
 
  <!-- ═══════ 7. 对比其他方案 ═══════ -->
  <div class="section">

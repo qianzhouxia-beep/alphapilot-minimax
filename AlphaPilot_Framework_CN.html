@@ -531,7 +531,7 @@
   <!-- ═══════ KPI Row ═══════ -->
   <div class="kpi-row">
     <div class="kpi-card kpi-purple"><div class="kpi-value">5,000+</div><div class="kpi-label">A 股每日覆盖</div></div>
-    <div class="kpi-card kpi-blue"><div class="kpi-value">78+</div><div class="kpi-label">核心因子库</div></div>
+    <div class="kpi-card kpi-blue"><div class="kpi-value">116</div><div class="kpi-label">模型因子维度</div></div>
     <div class="kpi-card kpi-green"><div class="kpi-value">7 级</div><div class="kpi-label">风控门链</div></div>
     <div class="kpi-card kpi-gold"><div class="kpi-value">Wind</div><div class="kpi-label">数据源 · 万得</div></div>
   </div>
@@ -587,7 +587,7 @@
         <!-- 2: 因子计算 -->
         <rect x="160" y="22" width="80" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
         <text x="200" y="40" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">因子计算</text>
-        <text x="200" y="56" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">78+ 因子</text>
+        <text x="200" y="56" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">116 维</text>
 
         <!-- 3: VM2.5 评分 -->
         <rect x="280" y="22" width="80" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
@@ -606,15 +606,15 @@
 
         <!-- 6: Top -->
         <rect x="640" y="22" width="80" height="46" rx="10" fill="var(--ap-semantic-down-light)" stroke="var(--ap-semantic-down)" stroke-width="1.5" filter="url(#shadow)"/>
-        <text x="680" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ap-semantic-down)">Top 50</text>
-        <text x="680" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">推荐池</text>
+        <text x="680" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="var(--ap-semantic-down)">Top 10</text>
+        <text x="680" y="57" text-anchor="middle" font-size="10" fill="var(--ap-semantic-text-tertiary)">候选池</text>
 
         <!-- 7: Execute  -->
         <rect x="760" y="22" width="40" height="46" rx="10" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shadow)"/>
         <text x="780" y="49" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">执行</text>
       </svg>
     </div>
-    <div class="chart-caption">精选漏斗流程：从 5,000+ 全市场到 Top 50 推荐池</div>
+    <div class="chart-caption">精选漏斗流程：从 5,000+ 全市场到 Top 10 候选池 → 动态确认执行</div>
   </div>
 
   <!-- ═══════ 2. 多源数据融合 ═══════ -->
@@ -622,7 +622,7 @@
     <div class="section-header"><div class="num">2</div><h2>多源数据融合</h2></div>
     <p class="section-desc">三大数据域的交叉，每个域贡献独特的信号维度：</p>
     <ul class="bullets">
-      <li><strong>基本面与因子数据</strong> — 78+ 维核心因子（技术、基本面、事件、资金流、集合竞价量价）+ 扩展因子库，从收盘价数据、季度财报、业绩预告中计算。因子权重通过 ICIR（信息系数均值/标准差）优化，反馈闭环自动迭代。</li>
+      <li><strong>基本面与因子数据</strong> — 116 维核心因子（技术、基本面、事件、资金流、集合竞价量价）+ 扩展因子库，从收盘价数据、季度财报、业绩预告中计算。因子权重通过 ICIR（信息系数均值/标准差）优化，反馈闭环自动迭代。</li>
       <li><strong>实时市场微观结构</strong> — 60 秒刷新的全市场资金流数据（万得实时行情），覆盖机构净流、主动买入比、换手率、量比等核心信号。</li>
       <li><strong>板块与行业资金流</strong> — 全天跟踪行业级资本运动，根据集合机构流量模式将板块划分为「偏好」「避开」「观察」三个档位。</li>
     </ul>
@@ -637,13 +637,13 @@
       <div class="track-card track-a">
         <div class="track-tag">主评分</div>
         <h3>模型评分 — VM2.5 XGBoost + ICIR 加权</h3>
-        <p>VM2.5 多因子模型（78+ 核心因子 + 扩展因子库），全市场截面评分，因子权重通过 ICIR（信息系数均值/标准差）优化——这是行业标准的因子一致性度量指标。叠加美股隔夜情绪加权，跳空风险先降一档。</p>
+        <p>VM2.5 多因子模型（116 维核心因子 + 扩展因子库），全市场截面评分，因子权重通过 ICIR（信息系数均值/标准差）优化——这是行业标准的因子一致性度量指标。叠加美股隔夜情绪加权，跳空风险先降一档。</p>
         <p style="margin-top:8px;font-size:12px;color:var(--purple-600);"><strong>自动化进化：</strong>因子权重随信息系数反馈闭环自动迭代，系统持续自我学习优化，无需人工干预。</p>
       </div>
       <div class="track-card track-b">
         <div class="track-tag">实时信号</div>
-        <h3>动量评分 — 实时资金流</h3>
-        <p>实时评分引擎，09:35 执行全市场扫描。评估每只股票的机构净流、主动买入压力、换手放量、价格动量。能捕捉到突然资金涌入但传统因子模型完全错过的股票。</p>
+        <h3>动量评分 — 实时资金流（双路径）</h3>
+        <p>09:35 动量引擎按隔夜池规模自动分叉：<strong>池 ≥100</strong> 时在隔夜候选内叠加实时资金重排；<strong>池 &lt;100</strong>（弱市常见）时走涨幅 Top~1000 资金轨，捕捉当日开盘热点。评估机构净流、主动买比、换手与价格动量——05:00 的「弱」不等于 09:35 不动。</p>
       </div>
     </div>
 
@@ -680,7 +680,7 @@
 
         <!-- Track B (right) -->
         <rect x="490" y="10" width="280" height="32" rx="8" fill="#fff" stroke="var(--ap-primitive-gray-300)" stroke-width="1" filter="url(#shad)"/>
-        <text x="630" y="30" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ap-semantic-text)">09:35 全市场资金扫描</text>
+        <text x="630" y="30" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ap-semantic-text)">09:35 动量/资金轨</text>
 
         <line x1="630" y1="42" x2="630" y2="52" stroke="var(--ap-primitive-amber-600)" stroke-width="1"/>
         <polygon points="626,50 630,55 634,50" fill="var(--ap-primitive-amber-600)"/>
@@ -779,7 +779,7 @@
       <div class="tl-item">
         <div class="tl-time">05:00</div>
         <div class="tl-title">隔夜先验（不下单）</div>
-        <div class="tl-desc">四类启动形态扫描 → VM2.5 模型评分 → ICIR/隔夜情绪加权 → 写出隔夜池与 ICIR 分数，供开盘融合；不作为最终买卖名单</div>
+        <div class="tl-desc">四类启动形态扫描 → VM2.5 模型评分 → 多层门控 → 写出隔夜池（N 不固定，弱市可仅数只，最多 500）与 ICIR 分数；<strong>不作为最终买卖名单</strong></div>
       </div>
       <div class="tl-item">
         <div class="tl-time">09:25:55</div>
@@ -788,8 +788,8 @@
       </div>
       <div class="tl-item">
         <div class="tl-time">09:35</div>
-        <div class="tl-title">全市场终选（唯一下单来源）</div>
-        <div class="tl-desc">实时资金流 → 动量评分 → 三路融合重排（模型 50 / 资金 30 / 板块 20）+ 集合竞价调整 + 隔夜轻确认 → 资金门控 Top 2 → 执行</div>
+        <div class="tl-title">Top10 候选池（唯一下单来源）</div>
+        <div class="tl-desc"><strong>双路径：</strong>隔夜池 ≥100 只 → 在池内 0.6 模型 + 0.4 实时动量重排；隔夜池 &lt;100 只 → 涨幅 Top~1000 资金轨（ICIR+动量+门控，弱市仍启用）。→ morning_live 资金门 → 三路融合 Top10 候选池 → 盘中动态确认后成交，每日最多买 2 只</div>
       </div>
       <div class="tl-item">
         <div class="tl-time">10:00</div>
@@ -809,7 +809,7 @@
       <div class="tl-item">
         <div class="tl-time">14:30</div>
         <div class="tl-title" style="color:var(--red)">收盘决策窗</div>
-        <div class="tl-desc">硬止损确认 / 日频 T+2 强平决策（尾盘模式不按日强平）</div>
+        <div class="tl-desc">硬止损确认 / 日频 T+2 强平决策</div>
       </div>
     </div>
 
@@ -846,7 +846,7 @@
       </div>
       <div class="card">
         <div class="card-title"><span class="dot" style="background:var(--gold)"></span>盘中自适应能力</div>
-        <div class="card-body">09:35 全市场终选（三路融合 + 今日集合竞价）保证系统从不拿隔夜名单直接下单。隔夜结果只作先验轻确认，开盘后完成自适应，单独消除一个主要的 alpha 衰减源。</div>
+        <div class="card-body">09:35 按隔夜池规模双路径刷新：大池在候选内融合实时资金；小池（弱市）走涨幅 Top~1000 资金轨捕捉当日热点。再经三路融合与动态确认生成 Top10，从不拿隔夜名单直接下单。</div>
       </div>
       <div class="card">
         <div class="card-title"><span class="dot" style="background:var(--blue)"></span>模块化架构</div>

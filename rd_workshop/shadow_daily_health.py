@@ -112,10 +112,14 @@ def build_checks(asof: str):
         ("shadow_top2 report(16:26)", "mtime", "shadow_top2_report.json"),
         ("top2_t1t5(16:25)", "mtime", "top2_t1t5.json"),
         ("market_tone(09:33)", "mtime", "market_tone.json"),
+        # 2026-09-06 Issue#6 D4/D5: 风险档 09:15 覆写(QMT 09:36 读)
+        ("alert_state 风险档(09:15)", "mtime", "qmt_scores/alert_state.json"),
         # ---- 归档 / C组日志 ----
         ("竞价归档 pre_market_archive(09:25)", "file", f"pre_market_archive/{asof}.json"),
         ("C1 breakout_monitor.log(16:28)", "log", "logs/breakout_monitor.log"),
         ("C2 top2_excess.log(16:29)", "log", "logs/top2_excess.log"),
+        # 2026-09-08 Issue#6 A: P1-DOWN 只读影子台账(16:50, 候选池 DOWN 事件)
+        ("P1-DOWN 影子(16:50)", "jsonl", "p1_down_shadow.jsonl"),
     ]
 
 

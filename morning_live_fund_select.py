@@ -530,6 +530,44 @@ def main() -> int:
             f"⚠️ ST/退市硬过滤剔除 {len(_st_pool)} 只: "
             + ", ".join(f"{it.get('name')}({_bare(it.get('symbol'))})" for it in _st_pool[:10])
         )
+
+    # ── 位置闸硬过滤（2026-09-06 老板拍板，Issue#6 后续：避免 002437 类高位派发票重现）──
+    # 依据回测（服务器真实 45 笔已成交 Top2 结算）：命中「up_low>0.5 且 dist_hi<-0.05」
+    # 的票 T+5 均值 -7.33%（n=12, 胜率25%），未命中 +4.58%（n=23, 胜率65%）；
+    # 002437 首笔好买(up_low=0.48)放行、后三笔高位追买全拦。
+    # 与 export_qmt_scores.py 同源同规则（position_gate.py 唯一实现），此处拦截后
+    # recommendations 重写/网页 Top10/归档 top2 均不再出现，交易端天然收不到。
+    # 失败时保守放行（与旧行为一致），绝不阻断 09:35 主流程。
+    # stamp_rows 原地打标并保留原 dict 身份（kept 元素即 pool 原对象）。
+    try:
+        from position_gate import stamp_rows
+
+        _stamped, _pg_vetoed = stamp_rows(ROOT, pool)
+        pool = [x for x in _stamped if not x.get("position_veto")] if _pg_vetoed else _stamped
+        if _pg_vetoed:
+            log(
+                f"⚠️ 位置闸剔除 {len(_pg_vetoed)} 只（高位派发，up_low>0.5且回落>5%）: "
+                + ", ".join(f"{x.get('name')}({_bare(x.get('symbol'))})"
+                            for x in _pg_vetoed[:10])
+            )
+            # 剔除审计落盘 → output/qmt_scores/position_veto_{date}.json
+            try:
+                _vd = ROOT / "output" / "qmt_scores"
+                _vd.mkdir(parents=True, exist_ok=True)
+                _vp = _vd / f"position_veto_{datetime.now().strftime('%Y%m%d')}.json"
+                _vp.write_text(json.dumps(
+                    {"date": datetime.now().strftime("%Y%m%d"),
+                     "rule": "up_low>0.5 and dist_hi<-0.05",
+                     "asof": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                     "vetoed": [{"symbol": x.get("symbol"), "name": x.get("name"),
+                                 "up_low": x.get("up_low"), "dist_hi": x.get("dist_hi")}
+                                for x in _pg_vetoed]},
+                    ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception as _pge:
+                log(f"位置闸审计落盘跳过: {_pge}")
+    except Exception as _pge:
+        log(f"⚠️ 位置闸跳过（保守放行）: {_pge}")
+
     pool_snapshot = [
         {
             "symbol": it.get("symbol"),

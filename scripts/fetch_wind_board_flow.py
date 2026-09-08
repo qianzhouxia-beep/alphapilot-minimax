@@ -260,6 +260,40 @@ def fetch_one(api_key: str, windcode: str) -> dict:
     }
 
 
+def fetch_updown_counts(api_key: str) -> dict:
+    """通过 Wind MCP data_market_overview 获取上涨/下跌家数。"""
+    try:
+        result = mcp_call(
+            api_key,
+            "data_market_overview",
+            {"type": "updown", "trade_date": datetime.now().strftime("%Y%m%d")},
+        )
+        content = result.get("content") if isinstance(result, dict) else None
+        text = None
+        if isinstance(content, list) and content:
+            text = content[0].get("text")
+        if not text:
+            return {}
+        inner = json.loads(text) if isinstance(text, str) else text
+        data = (inner or {}).get("data") or inner
+        rows = data.get("rows") if isinstance(data, dict) else None
+        columns = data.get("columns") if isinstance(data, dict) else None
+        if not rows or not columns:
+            return {}
+        col_names = [c.get("name") if isinstance(c, dict) else str(c) for c in columns]
+        row0 = rows[0]
+        updown = {col_names[i]: row0[i] for i in range(min(len(col_names), len(row0)))}
+        return {
+            "up_count": _i(updown.get("CNT_RED") or updown.get("上涨家数")),
+            "down_count": _i(updown.get("CNT_GREEN") or updown.get("下跌家数")),
+            "limit_up": _i(updown.get("CNT_LIMIT_UP") or updown.get("涨停家数")),
+            "limit_down": _i(updown.get("CNT_LIMIT_DOWN") or updown.get("跌停家数")),
+        }
+    except Exception as e:
+        print(f"[WARN] fetch_updown_counts failed: {e}", file=sys.stderr)
+        return {}
+
+
 def classify_rotation(item: dict, rot: dict) -> str:
     """轮动标签：基于连续净流入天数（App 口径）。"""
     days = item.get("consecutive_inflow_days")
@@ -462,6 +496,20 @@ def main() -> int:
             all_a["consecutive_source"] = src
         except Exception as e:
             all_a = {"windcode": wc, "error": str(e), "kind": "all_a"}
+
+    # 获取上涨/下跌家数（Wind 涨停统计），合并到 all_a
+    updown = fetch_updown_counts(api_key)
+    if updown:
+        if all_a is None:
+            all_a = {}
+        if isinstance(all_a, dict):
+            all_a["up_count"] = updown.get("up_count") or all_a.get("up_count", 0)
+            all_a["down_count"] = updown.get("down_count") or all_a.get("down_count", 0)
+            all_a["limit_up"] = updown.get("limit_up") or all_a.get("limit_up", 0)
+            all_a["limit_down"] = updown.get("limit_down") or all_a.get("limit_down", 0)
+        print(f"[OK] 上涨/下跌: {all_a.get('up_count')}/{all_a.get('down_count')} (Wind)", flush=True)
+    else:
+        print("[WARN] 上涨/下跌家数未获取到，Wind 数据可能缺失", flush=True)
 
     cons_use = [c for c in con_rows if not c.get("denoised") and not c.get("error")]
     views = build_consult_views(ind_rows, cons_use, all_a, rot)

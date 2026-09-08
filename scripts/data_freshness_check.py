@@ -114,17 +114,71 @@ def check(require_today: bool) -> dict:
             st = "warn"
         add("wind_candidate_flow.json", st, f"asof={asof} n={n} errors={wr.get('n_error')} mtime={_mtime(wf)}")
 
-    # kline / chip
+    # kline / chip — v2: 校验数据实际日期(不只 mtime)
+    import pandas as _pd
+    _today_d = _pd.Timestamp(today).date()
+
+    def _latest_kline_date(path):
+        try:
+            df = _pd.read_parquet(path)
+            if "date" in df.columns:
+                return _pd.to_datetime(df["date"]).max()
+        except Exception:
+            pass
+        return None
+
+    def _kline_status(p, rel):
+        if not p.exists():
+            return "fail", "missing"
+        d = _latest_kline_date(p)
+        if d is None:
+            return "warn", f"mtime={_mtime(p)} 无date列(旧格式?)"
+        d_date = _pd.Timestamp(d).date()
+        gap = (_today_d - d_date).days
+        detail = f"最新={d_date} mtime={_mtime(p)} gap={gap}天"
+        if gap <= 1:
+            return "ok", detail
+        if gap <= 3:
+            return "warn", f"stale {detail}"
+        return "fail", f"STALE {detail}"
+
     for rel in (
-        "data/kline_cache/kline_all.parquet",
+        "kline_all.parquet",                      # 根目录(16:00 东财源写入)
+        "data/kline_cache/kline_all.parquet",     # 缓存(软链同源)
         "chip_data_all.json",
         "data/chip_data_all.json",
     ):
         p = ROOT / rel
-        if p.exists():
-            add(rel, "ok", f"mtime={_mtime(p)} size={p.stat().st_size}")
+        st, det = _kline_status(p, rel) if "parquet" in rel else ("ok", "")
+        if "parquet" in rel:
+            add(rel, st, det)
         else:
-            add(rel, "warn" if "chip" in rel else "fail", "missing")
+            if p.exists():
+                add(rel, "ok", f"mtime={_mtime(p)} size={p.stat().st_size}")
+            else:
+                add(rel, "warn", "missing")
+
+    # 核心输出文件: 每日推荐 + 盘中选股 必须贴近今日
+    for rel in ("output/daily_recommend.json", "output/morning_live_picks.json"):
+        p = ROOT / rel
+        if not p.exists():
+            add(rel, "fail", "missing")
+            continue
+        try:
+            import json as _json
+            dd = _json.load(open(p))
+            _asof = None
+            if isinstance(dd, dict):
+                _asof = dd.get("asof") or dd.get("generated_at") or dd.get("updated_at")
+            if _asof:
+                _asd = _pd.Timestamp(str(_asof)[:10]).date()
+                _gap = (_today_d - _asd).days
+                st = "ok" if _gap <= 1 else ("warn" if _gap <= 3 else "fail")
+                add(rel, st, f"asof={_asof[:10]} gap={_gap}天 mtime={_mtime(p)}")
+            else:
+                add(rel, "warn", f"无asof mtime={_mtime(p)}")
+        except Exception as e:
+            add(rel, "warn", f"读取失败 {e}")
 
     fails = sum(1 for c in checks if c["status"] == "fail")
     warns = sum(1 for c in checks if c["status"] == "warn")
