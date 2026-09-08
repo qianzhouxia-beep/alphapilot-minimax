@@ -42,3 +42,4 @@ Thumbs.db
 # 一次性临时脚本/探针（PC 留档，不随仓库走）
 _tmp_*
 _smoke_*
+AlphaPiolot.pem
