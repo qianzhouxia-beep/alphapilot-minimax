@@ -28,6 +28,18 @@ git pull
 #   requirements 文件在 knowledge/ops/macbook-migration/requirements_pc_py314_full.txt
 ```
 
+### 0.1.1 全局知识库（跨项目长期记忆，已独立同步 2026-09-08）
+
+全局知识库 `C:\Users\elvisq\knowledge\`（含 catalog/inbox/scripts/rules/INDEX）**是独立 git 仓库**，remote = `https://github.com/qianzhouxia-beep/alphapilot-kb.git`（main 分支）。09-08 已全量提交 + push（`2869112`，173 文件，含 09-08 TrendState 落卡）。
+
+```bash
+# Mac 上：克隆到与 PC 相同的位置（Cursor/Claude 的 knowledge-inbox 规则引用此路径）
+git clone https://github.com/qianzhouxia-beep/alphapilot-kb.git ~/knowledge
+# 之后日常在两台机各自 commit + push/pull 合流（与 alphapilot-minimax 同法）
+```
+
+> 位置对齐：若你的知识库规则里写的是 `C:\Users\elvisq\knowledge\inbox\...`（绝对路径），Mac 上是 `~/knowledge/inbox/...`——macOS 用户目录即 `/Users/<你的用户名>`，Cursor 规则用 `$HOME`/相对引用时自动适配，硬编码 Windows 路径的规则需在 Mac 上改一版。
+
 **回测数据（K线/资金流/模型）按需从上海服务器拉**（不是从 Git，也不建议整盘拷 PC），见下方 §8.1 命令模板。
 
 ---
