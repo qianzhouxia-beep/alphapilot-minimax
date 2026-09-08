@@ -40,6 +40,31 @@ git clone https://github.com/qianzhouxia-beep/alphapilot-kb.git ~/knowledge
 
 > 位置对齐：若你的知识库规则里写的是 `C:\Users\elvisq\knowledge\inbox\...`（绝对路径），Mac 上是 `~/knowledge/inbox/...`——macOS 用户目录即 `/Users/<你的用户名>`，Cursor 规则用 `$HOME`/相对引用时自动适配，硬编码 Windows 路径的规则需在 Mac 上改一版。
 
+### 0.1.2 本机全部 skills / 用户级 rules（已入 `machine-setup` 私有仓，2026-09-08）
+
+PC 上全部用户级技能与规则（**敏感扫描零命中，不含 mcp.json/密钥**）已快照到新私有仓 **`qianzhouxia-beep/machine-setup`**（main `f2ef014`，429 文件）：
+
+| 子目录 | 来源（PC） | Mac 安装目标 |
+|---|---|---|
+| `cursor/skills/` | `C:\Users\elvisq\.cursor\skills\`（design/vision-bridge/workctl…20 个） | `~/.cursor/skills/` |
+| `cursor/skills-cursor/` | `C:\Users\elvisq\.cursor\skills-cursor\`（官方技能） | `~/.cursor/skills-cursor/` |
+| `cursor/rules/` | `C:\Users\elvisq\.cursor\rules\`（knowledge-inbox/ui-ux-pro-max） | `~/.cursor/rules/` |
+| `claude/skills/` | `C:\Users\elvisq\.claude\skills\` | `~/.claude/skills/` |
+| `agents/skills/` | `C:\Users\elvisq\.agents\skills\` | `~/.agents/skills/` |
+
+```bash
+# Mac 上安装（仓库自带 README 有完整说明）：
+git clone https://github.com/qianzhouxia-beep/machine-setup.git && cd machine-setup
+rsync -a cursor/skills/        ~/.cursor/skills/
+rsync -a cursor/skills-cursor/ ~/.cursor/skills-cursor/
+rsync -a cursor/rules/         ~/.cursor/rules/
+rsync -a claude/skills/        ~/.claude/skills/
+rsync -a agents/skills/        ~/.agents/skills/
+# 重开 Cursor / Claude Code 会话后生效
+```
+
+> 维护：任一台改技能 → 在 `machine-setup` 仓库对应子目录改并 push；另一台 pull + 重跑 rsync。PC 侧 staging 副本保留在 `C:\Users\elvisq\machine-setup-staging\`。
+
 **回测数据（K线/资金流/模型）按需从上海服务器拉**（不是从 Git，也不建议整盘拷 PC），见下方 §8.1 命令模板。
 
 ---
