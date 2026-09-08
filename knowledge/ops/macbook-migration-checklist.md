@@ -1,9 +1,34 @@
 # AlphaPilot 迁机移交清单 · PC → MacBook
 
-> 日期：2026-09-05  
+> 日期：2026-09-05（首版）/ **2026-09-08（交接执行，下方 §0.1 快照）**  
 > 原则：**本机 PC 原样保留，不删除；Mac 是另一套工作副本，按需同步。**  
 > 远程仓库：`https://github.com/qianzhouxia-beep/alphapilot-minimax.git`（当前分支 `master`）  
 > 生产服务器：仍是 `/home/ubuntu/alphapilot`（管线/cron 不动；迁 Mac ≠ 迁生产）
+
+---
+
+## 0.1 交接执行快照（2026-09-08 · 主控 Agent 已完成）
+
+**背景**：PC 因内存不足运行越来越慢，老板决定把日常研发/回测主战场移交 MacBook 的 Cursor。以下动作**已完成**：
+
+1. **`.gitignore` 已建立**（09-08）：排除 `__pycache__` / `output/*.csv|parquet|xlsx` / `node_modules` / `data/*.parquet` / `models/*.ubj` / `*.tar.gz` / 一次性 `_tmp_*` 等 → 之后 `git status` 大提速
+2. **3 个 commit 已分批提交并 push 到 `origin/master`**（`ab659e21..3f83d583`，共 9 个新 commit）：
+   - `b2415924` knowledge/ 近两周知识库（Issue#6/TrendState/位置闸落地、checkpoints、shadows_registry）+ `.cursor/rules/*.mdc` + 移除已跟踪 `__pycache__`
+   - `fda2818b` production_strategies/（sim **v2.42** / live **v2.38-tpl** 的 B 三条件解除 + C TSDOWN、server 新脚本 position_gate/pre_market_gate/shadow_p1_down_daily、CHANGELOG 09-07/09-08）
+   - `3f83d583` docs/ 67 篇研究文档与铁律 + scripts/ 更新 + `morning_live_fund_select.py` + `shadow_daily_health.py`
+   - **排除**：docs/*.pptx、一次性 `_` 脚本、`crypto/`（独立线）、`.cursor/mcp.json`（含密钥，**勿入仓**）
+3. **Git 换行统一**：PC 已设 `git config core.autocrlf false`（Mac 克隆后无需再处理；建议 Mac 也跑一次）
+
+**Mac 侧接手（现在就能做）**：
+```bash
+git clone https://github.com/qianzhouxia-beep/alphapilot-minimax.git
+# 或已有旧克隆：
+git pull
+# Python 3.14 环境（依赖清单已备）：
+#   requirements 文件在 knowledge/ops/macbook-migration/requirements_pc_py314_full.txt
+```
+
+**回测数据（K线/资金流/模型）按需从上海服务器拉**（不是从 Git，也不建议整盘拷 PC），见下方 §8.1 命令模板。
 
 ---
 
@@ -141,6 +166,8 @@ mkdir -p ~/alphapilot && tar -xzf backup_alphapilot_20260829.tar.gz -C ~/alphapi
 
 ---
 
+---
+
 ## 8. 下一步（你点头我再动手）
 
 可选，**都不强制删文件**：
@@ -150,3 +177,67 @@ mkdir -p ~/alphapilot && tar -xzf backup_alphapilot_20260829.tar.gz -C ~/alphapi
 3. 写一段 Mac 用的「从服务器拉 K 线/模型」命令模板  
 
 当前会话结论：迁 Mac = **Git 同步代码 + 按需拷/拉数据**；PC 可完整保留。
+
+---
+
+## 9. 2026-09-08 追加：Mac 从上海服务器拉回测数据模板
+
+生产服务器 `ssh shanghai-ecs`（`~/.ssh/config` 有别名；私钥在本机钥匙串/`~/.ssh`，**勿写进仓库**）。
+
+### 9.1 K线全量（本地回测主数据源，约 1-2GB parquet）
+
+```bash
+# 服务器上该文件每日 15:40+ 更新；Mac 拉到 ~/alphapilot/data/kline_cache/
+ssh shanghai-ecs "ls -lh /home/ubuntu/alphapilot/data/kline_cache/kline_all.parquet"
+mkdir -p ~/alphapilot/data/kline_cache
+scp shanghai-ecs:/home/ubuntu/alphapilot/data/kline_cache/kline_all.parquet ~/alphapilot/data/kline_cache/
+```
+
+> 注意：`.gitignore` 已忽略 `data/kline_cache/`，拉下来的数据不会污染 git。
+
+### 9.2 资金流 / 筹码 / 竞价快照
+
+```bash
+mkdir -p ~/alphapilot/data
+# 资金流历史（fund_flow_history.json 服务器端 09:35/15:00 更新）
+scp shanghai-ecs:/home/ubuntu/alphapilot/data/fund_flow_history.json ~/alphapilot/data/
+# 筹码
+scp shanghai-ecs:/home/ubuntu/alphapilot/data/chip_data_all.json ~/alphapilot/data/
+# 竞价归档（pre_market_archive，每日 09:25 覆盖到 09-07）
+rsync -av shanghai-ecs:/home/ubuntu/alphapilot/output/pre_market_archive/ ~/alphapilot/output/pre_market_archive/
+```
+
+### 9.3 模型权重（若要在 Mac 跑打分/回测）
+
+```bash
+mkdir -p ~/alphapilot/models
+scp shanghai-ecs:/home/ubuntu/alphapilot/models/v25_opt_ensemble_{1,2,3}.ubj ~/alphapilot/models/
+scp shanghai-ecs:/home/ubuntu/alphapilot/models/*.json ~/alphapilot/models/ 2>/dev/null
+```
+
+### 9.4 每日选股归档（研究 Top2/Top10 历史用）
+
+```bash
+# 09:40 起逐日归档，含 candidates/top2/top10_gated/ungated
+rsync -av shanghai-ecs:/home/ubuntu/alphapilot/output/daily_picks_archive/ ~/alphapilot/output/daily_picks_archive/
+```
+
+### 9.5 首次全量替代（可选，慢）
+
+如果不想逐个 rsync，可先 `rsync -av --exclude node_modules --exclude .git ... shanghai-ecs:/home/ubuntu/alphapilot/ ~/alphapilot/`，再删掉不需要的 `output/*.csv` 等大文件——但**默认建议按 9.1-9.4 按需拉**，避免拖入服务器上 GB 级产物。
+
+### 9.6 Mac 侧 git 换行对齐（避免 CRLF 噪音）
+
+```bash
+git config core.autocrlf false   # 与 PC 一致；仓库文件多为 LF
+```
+
+---
+
+## 10. 遗留（PC 工作区仍有，未 push，Mac 不需要或另定）
+
+- `crypto/` 13 个改动：**独立线**（虚拟币），未随本次交接 push；如需在 Mac 续做请单独确认
+- 根目录大量 `_` 前缀一次性脚本 / `backtest_*.py`：PC 留档即可，不入仓
+- `.cursor/mcp.json`、`hooks.json`：**本地配置含密钥，禁止入仓**；Mac 上按需重建
+- `AlphaPilot_Framework_CN.html` / `cn_quant_page.html`：本地静态页已随 commit3 入仓
+- PC `git status` 仍显示的零散 M（如 `.cursor/skills/data-report/SKILL.md`）：无关紧要，Mac 用 pull 到的版本即可
