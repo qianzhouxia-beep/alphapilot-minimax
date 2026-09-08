@@ -1,0 +1,43 @@
+---
+description: 09:35 live_momentum_scanner 双路径规则 — 修改前必读，禁止擅自改语义
+globs:
+  - live_momentum_scanner.py
+  - "**/morning_live_fund_select.py"
+  - "**/export_qmt_scores.py"
+alwaysApply: false
+---
+
+# live_momentum_scanner — 生产硬性规则（2026-08-25 定案，2026-08-28 恢复）
+
+## 权威文档
+
+动手前读：`knowledge/strategies/0935_momentum_scanner.md`
+
+## 不得违反的分叉逻辑
+
+```
+05:00 漏斗 → N 只（4/34/240/500 均正常，不凑 100）
+
+09:35 live_momentum_scanner:
+  N >= PIPELINE_MIN_CANDIDATES (100)  → 池内 0.6/0.4 重排
+  N <  100                            → _momentum_top1000_scan (涨幅 Top~1000 资金轨)
+```
+
+## 禁止事项（违反即 revert）
+
+1. **禁止**删除 `<100` → Top1000 分支
+2. **禁止**弱市 N<100 时「只在 N 只内重排」或 NO_TRADE（除非 `_quality.ok=False`）
+3. **禁止**把 Top1000 轨改回全市场 5000 `_fallback_full_scan` 语义
+4. **禁止**未经用户确认改成「05:00 + Top1000 merge 再重排」（8/28 审查有 downstream bug）
+5. 修改 `live_momentum_scanner.py` 后必须 `ast.parse` 语法校验；部署到服务器 `150.158.100.236:/home/ubuntu/alphapilot/`
+
+## Top1000 轨要点
+
+- `fetch_momentum_top1000()`：akshare 全量后按涨跌幅取 top N；失败则 THS zdf desc 分页 early-stop
+- 输出 `protocol=momentum_top1000_fund_flow`，保留 `position_exposure` 元数据
+- ST 硬过滤、近涨停剔除必须保留
+
+## 部署
+
+- 文件在仓库根目录 `live_momentum_scanner.py`（非 production_strategies 内，但是**活跃生产脚本**）
+- 09:35 cron 链：`live_momentum_scanner.py && morning_live_fund_select.py`

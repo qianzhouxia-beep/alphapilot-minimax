@@ -1,0 +1,44 @@
+# ---- AlphaPilot .gitignore（2026-09-08 建立，迁 Mac 前整理）----
+# 原则：只忽略垃圾与大文件，不忽略任何 .py/.md/.json 源码或知识文件
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# Node / 前端构建
+node_modules/
+.next/
+dist/
+build/
+_fe_verify/
+
+# 大体积数据（需要时从服务器拉，见 macbook-migration-checklist）
+data/kline_cache/
+data/*.parquet
+data/fund_flow_history*.json
+data/chip_data_all.json
+models/*.ubj
+models/*.pkl
+
+# 输出大文件（报告小 JSON 仍可提交；CSV/parquet/二进制不进 git）
+output/*.csv
+output/*.parquet
+output/*.xlsx
+output/*.tar.gz
+output/bt_port_*.pdf
+output/report*.html
+
+# 备份/归档
+*.tar.gz
+*.zip
+backups/
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+*.log
+
+# 一次性临时脚本/探针（PC 留档，不随仓库走）
+_tmp_*
+_smoke_*

@@ -1,0 +1,23 @@
+---
+description: 实质性改动必须追加 knowledge/ops/checkpoints.md，当作时间点目录
+alwaysApply: true
+---
+
+# Checkpoint 目录（必须回写）
+
+权威表：`knowledge/ops/checkpoints.md`。这是用户用来「过几天还记得做了啥」的 Excel 式目录，不要另开一份清单。
+
+## 什么时候写
+
+完成部署、定调、接线、否决，或留下「以后要盯」的事项时，在对应表**最上面**加一行。
+
+## 怎么写
+
+- **层**必须是：选股模型 / 买卖模型 / 数据 / 文档（禁止只写「策略」）
+- 易混事项填「不要和…混」列
+- 细节链到知识卡或 `production_strategies/CHANGELOG.md`，本表不写长文
+- 未完成放「待盯」，完成改状态，不删行
+
+## 用户问「上次 IC / 选股 / 交易端改了啥」
+
+先打开 `knowledge/ops/checkpoints.md`，再下钻详情。

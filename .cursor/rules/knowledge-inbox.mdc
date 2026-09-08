@@ -1,0 +1,47 @@
+---
+description: 任何对话产出重要结论时，把结论卡写入全局知识库 inbox，供跨项目/跨对话复用
+glob: "**"
+alwaysApply: true
+---
+
+# 全局知识库：结论回写 Inbox
+
+所有项目、所有对话的 Agent 都必须遵守。**产出重要结论 → 写结论卡到全局知识库。**
+
+## 什么是"重要结论"
+
+- 回测/实验结论（含样本量、胜率、平均收益）
+- 设计决策（含"为什么做 / 为什么没做"）
+- 数据源事实（覆盖度、延迟、可靠性、风险）
+- 策略/模型验证结果
+- 运营/市场结论
+
+## 写到哪里
+
+```
+C:\Users\elvisq\knowledge\inbox\YYYY-MM-DD-短横线描述.md
+```
+
+- 文件名用日期前缀 + 短横线描述，如 `2026-08-15-vwap-buy-loses-baseline.md`
+- **必须**带 frontmatter：`project` / `domain` / `title` / `date` / `status` / `tags`
+- `domain` 可选值：`architecture`（架构）、`crypto`（虚拟币量化）、`strategy`（策略）、`data`（数据）、`qmt`（QMT）、`marketing`（小红书运营）、`other`
+- `status` 可选值：`conclusion`（结论）、`decision`（决策）、`observation`（观察）、`todo`（待办）
+- 模板：`C:\Users\elvisq\knowledge\inbox\_TEMPLATE.md`
+
+## 何时写
+
+- 一次对话结束、形成明确结论时
+- 重大发现 / 否决 / 决策时（不必等对话结束）
+- 结论回写后，如果结论涉及**当前项目知识库**，也同步更新对应项目的 `knowledge/`
+
+## 归档
+
+结论卡留在 inbox 即可；由 `C:\Users\elvisq\knowledge\scripts\kb_sync_global.py` 定期归档到 `catalog/<domain>/`。Agent 也可以手动运行该脚本归档。
+
+## 读取
+
+任何对话开始前，先查全局库：
+
+- 总索引：`C:\Users\elvisq\knowledge\INDEX.md`
+- 领域：`C:\Users\elvisq\knowledge\catalog/<domain>/`
+- 未归档：`C:\Users\elvisq\knowledge\inbox/`

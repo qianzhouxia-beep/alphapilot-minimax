@@ -20,6 +20,7 @@
 - [`strategies/buy_sell_rules.md`](./strategies/buy_sell_rules.md) — 买入/卖出/退出规则 + 回测依据（VWAP 回踩、T+2 收盘卖）
 - [`strategies/selection_vs_execution.md`](./strategies/selection_vs_execution.md) — **选股模型 vs 买卖模型**（服务器选股 / QMT·通达信买卖；必须分开讲）
 - [`strategies/0935_momentum_scanner.md`](./strategies/0935_momentum_scanner.md) — **09:35 双路径**（≥100 池内重排 / &lt;100 Top1000 资金轨；弱市仍启用）
+- **位置闸（2026-09-06 上线）**：服务器端硬过滤高位派发票 `up_low>0.5 & dist_hi<-0.05`，命中票 T+5 -7.33%(n=12) vs 未命中 +4.58%(n=23)；export 三路 + morning_live 09:35 双保险。决策 `decisions/index.md` 09-06 位置闸行 + inbox `2026-09-06-position-gate-live.md`。**补充渠道（&lt;100 → Top1000 资金轨）也经同一闸**（汇合点后的 recommendations 过滤）
 - `strategies/position_exposure.md` — 仓位阶梯与市场环境门控（待建）
 - `strategies/index.md` — 全部策略一览（待建）
 - 策略评估：`docs/朋友策略评估报告_2026-08-15.md`（抓龙头打板策略 vs AlphaPilot，含融合建议）

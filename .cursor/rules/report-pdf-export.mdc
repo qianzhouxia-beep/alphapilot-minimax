@@ -1,0 +1,27 @@
+---
+description: Research/BT reports must ship PDF (not only HTML/Canvas)
+alwaysApply: false
+globs:
+  - output/**/*report*
+  - bt_research/**/*
+  - .cursor/skills/data-report/**
+---
+
+# 研究报告交付：默认出 PDF
+
+用户要求（2026-09-04）：这类可视化报告**以后都用 PDF 导出**。
+
+## 交付物
+
+1. `output/<name>_report.html` — 可预览 / 改版
+2. `output/<name>_report.pdf` — **主交付**（归档、转发）
+3. Canvas 可选，不能替代 PDF
+
+## 怎么导出
+
+```bash
+python scripts/html_to_pdf.py output/<name>_report.html
+# → 同目录同名 .pdf（Playwright + 本机 Chrome/Edge）
+```
+
+生成 HTML 后必须跑一遍上述命令，并在回复里给出 PDF 路径。

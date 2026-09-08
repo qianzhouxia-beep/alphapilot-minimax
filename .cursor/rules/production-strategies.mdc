@@ -1,0 +1,48 @@
+---
+description: 所有轨道A/轨道B生产策略代码的修改必须在本项目 production_strategies/ 归档文件夹内进行，并写 CHANGELOG
+glob: "**"
+alwaysApply: true
+---
+
+# 生产策略归档 — 唯一权威来源
+
+`production_strategies/` 是本项目**轨道 A + 轨道 B 全部落地生产代码的唯一权威来源（single source of truth）**。
+
+## 硬性规则（违反即违规）
+
+1. **所有修改只在本文件夹内进行**：`C:\Users\elvisq\Projects\alphapilot\production_strategies\`。项目根目录的同名文件（`qmt_model_full_chain_v2.py`、`track_b_*.py` 等）视为**历史快照，冻结，一律不改**。
+2. **每次修改必须追加写入 `production_strategies/CHANGELOG.md`**，按文件内的记录模板（修改人/Agent、涉及文件、版本变化、修改内容、原因/依据、验证、部署）。
+3. **QMT 文件必须纯 ASCII**（QMT 对非 ASCII 文件加密后会产生 `SyntaxError`）。修改后必须校验：
+   ```bash
+   python -c "import ast,pathlib; p=pathlib.Path(r'...'); b=p.read_bytes(); b.decode('ascii'); ast.parse(b.decode('ascii'))"
+   ```
+4. **任何 Agent**（本会话、其他 Cursor Agent、DeepSeek Harness、WorkBuddy、其他 AI）修改了生产文件后，必须把更新后的文件放回 `production_strategies/` 并写日志。
+5. **部署由用户手动执行（2026-08-29 固化）**：Agent 只更新 `production_strategies/` 内的文件，**禁止直接写交易端文件**（QMT python 目录 / TDX `PYPlugins\user`）。用户会自行复制/导入到 QMT 和通达信。Agent 只需在 CHANGELOG 写明"需要部署到哪些交易端"。
+6. 版本号：改选股/卖出逻辑 → 升版本号（v1.0→v1.1）；只改配置/注释 → 不改版本号，只在日志说明。
+
+## 目录速查
+
+```
+production_strategies/
+├── README.md                  # 权威规则 + 部署对照表 + 版本基线
+├── CHANGELOG.md               # 修改日志（必须追加）
+├── track_a/                   # TrackA_qmt_model_full_chain_v2.py / template / tdx_full_chain.py
+├── track_b/                   # TrackB_track_b_qmt_auction_sim.py / live / tdx_auction_sim.py
+├── server/                    # export_qmt_scores.py（--fullpool）
+└── docs/                      # DUAL_TRACK_BRIEFING.md / CODE_CROSSVALIDATION_BRIEFING.md / AGENT_RULES.md
+```
+
+## 命名约定（2026-08-16 起）
+
+轨道 A 策略文件以 `TrackA_` 前缀、轨道 B 以 `TrackB_` 前缀，文件名一眼可辨。
+`mootdx_feed.py` 同时服务 A/B 轨道且被测试 import，保持原名。
+部署目标见 `README.md` 部署对照表。
+
+## 交付清单（改完生产文件后自查）
+
+- [ ] 修改发生在 `production_strategies/` 内
+- [ ] `CHANGELOG.md` 已追加记录
+- [ ] QMT 文件 ASCII 校验通过（TDX 文件允许 UTF-8 中文注释）
+- [ ] 语法校验通过
+- [ ] sim/live 模板同步改动（如有逻辑变化）
+- [ ] 明确告知用户是否需要重新部署到交易端

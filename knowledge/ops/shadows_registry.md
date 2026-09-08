@@ -43,6 +43,7 @@
 | rd_health 健康检查 | 10:00 cron + 16:26 附带 | output/logs/rd_health.json | 🔶 09-06 修复告警链路（wecom import + auc_gate_rejected 降级），实测 RC=0 | 有真实告警应能推到企微 |
 | **C1 裸突破 T+5 超额周度衰减** | 16:28 工作日 | output/logs/breakout_monitor.log（**未建**） | ⚠️ 09-07 首跑建 log | ALERT 判定 roll8≈-1.9pp 阈值 |
 | **C2 Top2 T+5 超额累计** | 16:29 工作日 | output/top2_t1t5_excess.json + logs/top2_excess.log | ⚠️ 09-06 12:13 手动测试产物已存在；cron 首跑 09-07 | 周看累计超额 |
+| **P1-DOWN 影子（TrendState 只读，Issue#6 A 项）** | 16:50 工作日 | output/p1_down_shadow.jsonl（marker）+ rd_workshop/shadow_p1_down/events.jsonl + ledger.csv | ⚠️ **09-07 首写**：池 10→DOWN 5（本应被 P1 veto），T+5 未到账 pending | 09-21 复盘累计 **n≥30** 再议转正；期间每日 16:50 应 +1 marker | 只对 top10_ungated 打分**不产生交易动作**；DOWN 事件是"本应剔除"不是"应该买入" |
 
 ## D. 交易端 sim 只读影子（用户本地 QMT/TDX — Agent 无法覆盖，需用户复制后自查）
 
@@ -51,6 +52,9 @@
 | 竞价量只读 [SHADOW-CALL] | A QMT v2.38+/A TDX v2.31/B QMT v2.12/B TDX v1.20 | sim 运行日志逐行 | ⚠️ 服务器侧已就位（09-06 export/gate 部署 + 09-07 起归档）；**交易端 4 份待用户复制** | 日志现 `[SHADOW-CALL]` 行；服务器 09-07 起 `output/pre_market_archive/{date}.json` |
 | B3 止损 2% 只读 | A QMT sim v2.39+ | C:/alphapilot/shadow/qmt_sim_b3_stop_shadow.json | ⚠️ v2.40 已含；待用户复制 | 触发后日志 `[SHADOW-B3]` + json 生成 |
 | B1 P2 入场 5m 形态只读 | A QMT sim v2.40+ | C:/alphapilot/shadow/qmt_sim_b1_buy_shadow.json | ⚠️ v2.40 已含；待用户复制 | 日志 `[SHADOW-B1]` + json（含 dh_pct） |
+| **Issue#6 D1-D5+D8+B/C 生效版** | A QMT sim **v2.42**（09-06 v2.41 落码 D1 竞价否决/D2-2 VWAP回踩/D3-1 盘中止损/D3-2 冷却/D3-3 禁补/D4+D5 risk 缩放/D8 豁免；**09-08 v2.42 加 B 三条件解除 + C TSDOWN**） | cooldown.json/observe_list.json/alert_state 本地镜像 | ⚠️ **v2.42 已落码+单测 42/42，待用户复制**（服务器字段 09-07 09:36 起下发；B/C 需 09-08 版文件） | 日志 `[DAO1]`/`[D2W]`/`[COOL]`/`[RISK]`/`[OBSERVE]`/`[TSDOWN]`；卖出 reason=`stop_fixed`/`tsdown`；09-08 部署后满 1 日核对再谈同步 QMT B/TDX×2/live | **服务器端已生效≠交易端（要复制）**；D4/D5 用 0.5×POSITION_PCT 比例；TSDOWN 与 D8 豁免交互见 CHANGELOG 09-08 段 |
+| **D8 观察仓（observe_list.json，sim/live 同文件）** | 目标票 **002437 誉衡**（成本 4.23 = 09-04 补仓 12600 股摊薄 costP） | C:\alphapilot\observe_list.json | ✅ **已部署实盘（09-06 20:25 老板复制 v2.37-tpl，Issue#6 c5559197974）**；**floor_pct 勘误 -19.2→-15.8（=绝对 3.56，09-07 老板拍板 c5566718626）** / expire=2026-09-18 已写入文件；sim v2.42/live v2.38-tpl 同文件同结构 | 09-08 收盘后查 `[OBSERVE]` 豁免行 + 002437 TrendState（09-07 RANGE 40.3 距 DOWN 仅 0.3 分——C 项首个真实用例）；09-18 到期自动恢复 | 兜底 3.56（cost 4.2296 的 -15.8%）≠旧 3.546；兜底基准=QMT 最新摊薄 costP 勿用补仓前旧值；**D8 不免 C(转 DOWN 减半)** |
+| **C 止损协同 TSDOWN（Issue#6 C 项，live+sim 同时）** | A QMT sim **v2.42** + live **v2.38-tpl**（TrendState 引擎内嵌，与 `bt_research/_ts_engine.py` parity 一致） | sim/live 运行日志 | ⚠️ **已落码+单测 42/42 全绿，待老板复制**（sim 模拟盘 + live 实盘模板） | 持仓 State 确认切 DOWN → 次日 09:31-09:45 减半，日志 `[TSDOWN-SIM]`/`[TSDOWN-LIVE]`；与 -4% 止损、D8 3.56 兜底取先到者 | C(减仓)≠B(三条件解除观察)≠A(影子只读)；C 适用全部持仓含 D8 观察票 |
 | G1(weak 只买 rank1) | 未写码（regime 闸门回测唯一候选） | — | 📋 待 [SHADOW-B1] 攒 2-4 周真实 weak 样本后重判再立项 | — |
 
 ---
@@ -63,6 +67,13 @@
 - 22:20 后：turnover CSV 第 6 行（09-07）；次晨 01:30：weakscore CSV 第 4 行
 - 交易端（用户侧）：4 sim 端复制后日志现 [SHADOW-B1]/[SHADOW-B3]/[SHADOW-CALL]
 - **🛡️ 不再靠人工盯**：16:55 影子健康体检 cron 自动核对以上服务器侧全部项，FAIL 才企微告警
+- **P1-DOWN 影子 09-07 首写确认**：marker 现（池 10→DOWN 5）；幂等正常
+
+## 快查：09-08（周二）首验证清单
+
+- 09:36 后：A 组 8 影 append + `dao1_veto_20260908.json`（竞价额比>2% 审计，正常应为空或个别过火票）
+- 16:50 后：`p1_down_shadow.jsonl` +1 行（第 2 个交易日）
+- 交易端（用户侧）：老板复制 v2.42（sim）+ v2.38-tpl（live）后，盘后日志查 `[TSDOWN]`/`[OBSERVE]` 行 + 002437 TrendState（RANGE 40.3 距 DOWN 0.3 分）
 
 ## 曾空转记录（勿重蹈）
 
