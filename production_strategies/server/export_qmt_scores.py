@@ -30,6 +30,127 @@ FF_HIST_JSON = ROOT / "data" / "fund_flow_history.json"
 KLINE_PARQUET = ROOT / "data" / "kline_cache" / "kline_all.parquet"
 
 
+def _position_gate_pool(pool_rows: list):
+    """位置闸 (2026-09-06 老板拍板, Issue#6 后续): 剔除高位派发候选。
+
+    依据回测 (真实成交 Top2, 见 bt_research/bt_position_gate_p3/p5): 命中
+    「up_low>0.5 且 dist_hi<-0.05」的已成交票 T+5 均值 -7.33% (n=12, 胜率25%),
+    未命中票 +4.58% (n=23, 胜率65%); 002437 首笔好买(up_low=0.48)放行,
+    高位追买全拦。被剔除票 rank 顺延, 交易端 (QMT A/B, TDX) 当天不再收到。
+    kline 缺失/次新不足 30 根 → 该票放行 (不误杀), 绝不阻断导出主流程。
+    返回 (kept_rows, vetoed_list); 失败时返回 (原 pool, []) 保守放行。
+    """
+    try:
+        from position_gate import stamp_rows
+    except Exception as e:
+        print(f"[POSGATE] import skip: {e}", flush=True)
+        return pool_rows, []
+    try:
+        rows, vetoed = stamp_rows(_project_root(), [dict(x) for x in pool_rows])
+    except Exception as e:
+        print(f"[POSGATE] stamp skip: {e}", flush=True)
+        return pool_rows, []
+    if not vetoed:
+        return rows, []
+    kept = [r for r in rows if not r.get("position_veto")]
+    if len(kept) == len(rows):
+        # 没有任何物理剔除 (仅打标) -> 保守等同原池
+        return rows, vetoed
+    print(f"[POSGATE] veto {len(vetoed)} 只 (高位派发): "
+          + ", ".join(str(v.get("name")) + "(" + str(v.get("symbol")) + ")"
+                      for v in vetoed), flush=True)
+    return kept, vetoed
+
+
+def _write_position_veto_log(vetoed_rows: list) -> None:
+    """位置闸剔除审计落盘 → output/qmt_scores/position_veto_{YYYYMMDD}.json。
+
+    记录被剔票及闸因子明细 (runup60/up_low/dist_hi/ma60_pos), 供复盘核对
+    (对照 09-07 起每天 candidates.json 是否不再出现 002437 类高位派发票)。
+    落盘失败只 print, 绝不阻断主流程。
+    """
+    try:
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d")
+        rows = []
+        for v in vetoed_rows:
+            rows.append({
+                "symbol": str(v.get("symbol", "")),
+                "name": str(v.get("name", "")),
+                "runup60": v.get("runup60"),
+                "up_low": v.get("up_low"),
+                "dist_hi": v.get("dist_hi"),
+                "ma60_pos": v.get("ma60_pos"),
+            })
+        p = OUT_DIR / f"position_veto_{ts}.json"
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump({"date": ts,
+                       "rule": "up_low>0.5 and dist_hi<-0.05",
+                       "asof": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                       "vetoed": rows}, f, ensure_ascii=False, indent=2)
+        print(f"[POSGATE] 剔除审计已落盘 {len(rows)} 只 → {p}", flush=True)
+    except Exception as e:
+        print(f"[POSGATE] veto log skip: {e}", flush=True)
+
+
+def _write_dao1_veto_log(vetoed_rows: list) -> None:
+    """D1-1 竞价额比否决审计落盘 → output/qmt_scores/dao1_veto_{YYYYMMDD}.json。
+
+    2026-09-07 掌趣事故: dao1_veto 只打在 candidates.json 未物理剔除, 且实盘
+    live 端不读该字段 → 竞价额比 >2% 的票仍进 Top1。修复为服务器物理剔除,
+    此 log 记录被剔票明细供复盘。落盘失败只 print, 不阻断主流程。
+    """
+    try:
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d")
+        rows = []
+        for v in vetoed_rows:
+            rows.append({
+                "symbol": str(v.get("symbol", "")),
+                "name": str(v.get("name", "")),
+                "auction_amount_wan": v.get("auction_amount_wan"),
+                "auction_amt_ratio": v.get("auction_amt_ratio"),
+                "pre_market_gap_pct": v.get("pre_market_gap_pct"),
+            })
+        p = OUT_DIR / f"dao1_veto_{ts}.json"
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump({"date": ts,
+                       "rule": "auction_amt_ratio > 0.02 (2%)",
+                       "asof": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                       "vetoed": rows}, f, ensure_ascii=False, indent=2)
+        print(f"[DAO1] 否决审计已落盘 {len(rows)} 只 → {p}", flush=True)
+    except Exception as e:
+        print(f"[DAO1] veto log skip: {e}", flush=True)
+
+
+def _drop_dao1_veto(pool_rows: list) -> tuple:
+    """Issue#6 D1-1（竞价额比>2%当日否决）→ 服务器物理剔除（2026-09-07 补强）。
+
+    事故背景: 掌趣科技 300315 竞价额比 8.07% 被标 dao1_veto=True，但
+      1) {date}.json scores（网页/QMT Top2 顺序）在打标前构建 → 未剔除仍 Top1；
+      2) 实盘 live v2.37-tpl 只落 D8 不读 dao1_veto → 该字段对其无效。
+    老板拍板 server_remove：在 pool 层 stamp dao1_veto 后物理剔除，所有导出
+    （scores dict / candidates / fullpool_live）与所有交易端当天都收不到，
+    与位置闸同一模式。被剔票 rank 顺延。
+    失败 / archive 缺失（06:30 早于 09:25 竞价归档）→ 保守放行不阻断。
+    返回 (kept_rows, vetoed_rows)。
+    """
+    try:
+        rows = [dict(x) for x in pool_rows]
+        rows = _stamp_auction_d1(rows)
+    except Exception as e:
+        print(f"[DAO1] stamp skip: {e}", flush=True)
+        return pool_rows, []
+    vetoed = [r for r in rows if r.get("dao1_veto")]
+    if not vetoed:
+        return rows, []
+    kept = [r for r in rows if not r.get("dao1_veto")]
+    print(f"[DAO1] veto {len(vetoed)} 只 (竞价额比>2%): "
+          + ", ".join(str(r.get("name")) + "(" + str(r.get("symbol")) + ")"
+                      for r in vetoed), flush=True)
+    return kept, vetoed
+
+
 def _project_root() -> Path:
     """export 可能在仓库根或 production_strategies/server/；数据在仓库根。"""
     if (ROOT / "data" / "kline_cache" / "kline_all.parquet").exists():
@@ -379,6 +500,236 @@ def _market_env() -> dict:
         return {}
 
 
+def _load_auction_archive() -> dict:
+    """读当日 pre_market_archive/{date}.json → {bare6: {call_amount_wan, ...}}。
+
+    2026-09-06 (Issue#6 D1-1): daily_recommend 在 09:35 被 scanner/morning 重建时会丢掉
+    行内 pre_market_* 字段（09-04 已证实 candidates.json 里 pre_market_* 全 null），因此
+    竞价数据必须从 09:25 pre_market_gate 独立落盘的 archive 读（该文件之后无人改写）。
+    archive 缺失（周末/归档前）→ 返回 {}，导出行为与旧版一致（字段留 None，不否决）。
+    """
+    try:
+        root = _project_root()
+        d = datetime.now().strftime("%Y-%m-%d")
+        p = root / "output" / "pre_market_archive" / f"{d}.json"
+        if not p.exists():
+            return {}
+        data = json.loads(p.read_text(encoding="utf-8"))
+        out = {}
+        for s in data.get("stocks") or []:
+            sym = s.get("symbol")
+            if not sym:
+                continue
+            out[_bare(sym)] = s
+        return out
+    except Exception as e:
+        print(f"[D1] auction archive load skip: {e}", flush=True)
+        return {}
+
+
+def _prev_amount_wan(code6_set: set) -> dict:
+    """每只 code6 的『上一交易日』成交额(万元)。
+
+    从 kline_all.parquet 取最新交易日（即 T-1）amount(元) → /1e4。用于 auction_amt_ratio
+    分母（竞价额/前日全天成交额，D1-1 口径）。读不到返回 {}（该票 auction 比率置 None）。
+    """
+    if not code6_set:
+        return {}
+    try:
+        import pandas as pd
+    except Exception:
+        return {}
+    root = _project_root()
+    kline = root / "data" / "kline_cache" / "kline_all.parquet"
+    if not kline.exists():
+        return {}
+    try:
+        df = pd.read_parquet(kline, columns=["symbol", "date", "amount"])
+    except Exception:
+        return {}
+    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+    df["symbol"] = df["symbol"].map(_bare)
+    df = df[df["symbol"].isin(code6_set)]
+    if df.empty:
+        return {}
+    dates = sorted(df["date"].unique())
+    last = dates[-1]
+    sub = df[df["date"] == last]
+    return {str(s): (float(a) / 1e4) for s, a in zip(sub["symbol"], sub["amount"]) if a == a}
+
+
+def _stamp_auction_d1(rows: list) -> list:
+    """给导出行 stamp D1-1 竞价额比否决字段（只读字段，改动不参与排序）。
+
+    每行新增:
+      auction_amount_wan : 当日集合竞价成交额(万元, 来自 archive；无则 None)
+      auction_amt_ratio  : 竞价额/前日全天成交额 (0.02=2.0%)；缺任一 → None（客户端不否决）
+      dao1_veto          : auction_amt_ratio > 2.0% → True（QMT 端 D1-1「当日放弃」）
+    同时把 pre_market_call_amount_wan/gap_pct/... 的源修正为 archive（修复 SHADOW-CALL
+    因 scanner 重建丢字段而读不到的老问题）。
+    """
+    try:
+        if not rows:
+            return rows
+        codes = {_bare(r.get("symbol")) for r in rows if r.get("symbol")}
+        arch = _load_auction_archive()
+        prev = _prev_amount_wan(codes)
+        n_ratio = 0
+        for r in rows:
+            b = _bare(r.get("symbol"))
+            a = arch.get(b)
+            # 修复 SHADOW-CALL 字段源：archive 优先，行内兜底
+            if a:
+                if a.get("call_amount_wan") is not None:
+                    r["pre_market_call_amount_wan"] = a.get("call_amount_wan")
+                if a.get("call_volume_hand") is not None:
+                    r["pre_market_call_volume_hand"] = a.get("call_volume_hand")
+                if a.get("gap_pct") is not None:
+                    r["pre_market_gap_pct"] = a.get("gap_pct")
+                if a.get("action"):
+                    r["pre_market_action"] = a.get("action")
+                if a.get("note"):
+                    r["pre_market_note"] = a.get("note")
+            amt = a.get("call_amount_wan") if a else None
+            pv = prev.get(b)
+            r["auction_amount_wan"] = amt
+            ratio = None
+            if amt is not None and pv is not None and pv > 0:
+                ratio = round(float(amt) / float(pv), 4)
+                n_ratio += 1
+            r["auction_amt_ratio"] = ratio
+            r["dao1_veto"] = bool(ratio is not None and ratio > 0.02)
+        print(f"[D1] auction archive n={len(arch)} prev_amt_ok={len(prev)} ratio_calc={n_ratio}",
+              flush=True)
+    except Exception as e:
+        print(f"[D1] stamp skip (error): {e}", flush=True)
+    return rows
+
+
+def _stamp_pool_volratio_p90(rows: list, pool_rows: list | None = None) -> list:
+    """Issue#6 D1-2: 池内量比 p90（仅 09:32-09:45 一次性快照，服务器打标）。
+
+    背景: WB 口径 vol_ratio5 = 入场日全天量/前5日均量(其池内 p90≈3.15)。但 09:36 才开盘 6 分钟,
+    无法等全天量, 故用「速率外推」做可比较代理:
+        vol_ratio_est = (当日累计量_股 / 已过分钟数) / (前5日均量_股 / 240)
+    即「按当前每分钟速率跑满全天 ≈ 前5日均量的几倍」。09:36 早盘速率通常偏高, 绝对值无普适意义,
+    因此只取池内分位: ratio 超过池内 p90 的票标 pool_p90_flag=True → 客户端 D1-2「当日否决」。
+
+    池 = pool_rows(全候选池) or rows 自身。p90 在池上算, 再映射回 rows 打标。
+    同一交易日跨进程(候选Top10导出 + fullpool_live导出)共享同一量比快照: 谁先算谁落盘
+    output/qmt_scores/{date}.volratio.json, 后跑者直接读盘, 保证两路 p90 一致。
+
+    防守:
+      - 非 09:30-09:45 窗口 / 周末 / 抓取失败 / kline 缺失 → 全部不标(保守放行, 不误杀)。
+      - pandas/requests 均函数内 import, 失败即跳过, 绝不阻断导出主流程。
+    字段: pool_vol_ratio(估算量比) / pool_p90(池内90分位) / pool_p90_flag(超p90→当日放弃)。
+    """
+    try:
+        now = datetime.now()
+        now_min = now.hour * 60 + now.minute
+        open_min = 9 * 60 + 30
+        date8 = now.strftime("%Y%m%d")
+        snap = OUT_DIR / f"{date8}.volratio.json"
+        pool = pool_rows if pool_rows else rows
+        pool = [x for x in pool if x.get("symbol")]
+        if not pool:
+            return rows
+
+        ratios: dict = {}
+        p90 = None
+        # A) 先读当日快照盘
+        if snap.exists():
+            try:
+                d = json.loads(snap.read_text(encoding="utf-8"))
+                if d.get("p90") is not None:
+                    ratios = d.get("ratios") or {}
+                    p90 = float(d["p90"])
+            except Exception:
+                pass
+        # B) 未命中且处于有效窗口 → 抓取并落盘
+        if p90 is None and (open_min + 2 <= now_min <= open_min + 15):
+            import requests as _req
+            import pandas as _pd
+
+            codes = sorted({_bare(r.get("symbol")) for r in pool})
+            vol_now = {}  # bare6 -> 股(腾讯: 手 x100)
+            _TENCENT = "https://qt.gtimg.cn/q="
+            for i in range(0, len(codes), 80):
+                chunk = codes[i:i + 80]
+                secs = [("sh" if c.startswith(("6", "9")) else
+                         "bj" if c.startswith(("4", "8")) else "sz") + c for c in chunk]
+                try:
+                    r = _req.get(_TENCENT, params={"q": ",".join(secs)}, timeout=10)
+                    for line in r.text.strip().split(";"):
+                        if "=" not in line:
+                            continue
+                        sym = line.split("=")[0].replace("v_", "")[-6:]
+                        body = line.split('="', 1)[1].rsplit('"', 1)[0]
+                        f = body.split("~")
+                        if len(f) < 38:
+                            continue
+                        try:
+                            vol_now[sym] = float(f[6]) * 100.0
+                        except (ValueError, IndexError):
+                            continue
+                except Exception:
+                    continue
+            if vol_now:
+                kf = (KLINE_PARQUET if KLINE_PARQUET.exists()
+                      else _project_root() / "data" / "kline_cache" / "kline_all.parquet")
+                ma5: dict = {}
+                if kf.exists():
+                    try:
+                        df = _pd.read_parquet(kf, columns=["symbol", "date", "volume"])
+                        df["symbol"] = df["symbol"].map(_bare)
+                        df["date"] = _pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+                        df = df[df["symbol"].isin(set(vol_now))]
+                        if not df.empty:
+                            hist = (df.sort_values(["symbol", "date"])
+                                      .groupby("symbol").tail(5))
+                            ma5 = {s: float(g["volume"].mean())
+                                   for s, g in hist.groupby("symbol")}
+                    except Exception as e:
+                        print(f"[D1-2] kline ma5 skip: {e}", flush=True)
+                        ma5 = {}
+                elapsed = max(now_min - open_min, 1)
+                for c in codes:
+                    v = vol_now.get(c)
+                    m = ma5.get(c)
+                    if v is None or m is None or v <= 0 or m <= 0:
+                        continue
+                    ratios[c] = v / elapsed / (m / 240.0)
+                if ratios:
+                    vals = sorted(ratios.values())
+                    p90 = vals[min(len(vals) - 1, int(0.90 * len(vals)))]
+                    snap.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = snap.with_name(snap.name + ".tmp")
+                    tmp.write_text(json.dumps({
+                        "computed_at": now.isoformat(timespec="seconds"),
+                        "pool_n": len(pool), "p90": round(p90, 3), "ratios": ratios,
+                    }, ensure_ascii=False), encoding="utf-8")
+                    tmp.replace(snap)
+
+        if p90 is None:
+            return rows  # 无有效快照(窗口外/失败) → 不打标保守放行
+        n_flag = 0
+        for r in rows:
+            c = _bare(r.get("symbol"))
+            vr = ratios.get(c)
+            r["pool_vol_ratio"] = round(vr, 3) if vr is not None else None
+            r["pool_p90"] = round(float(p90), 3)
+            if vr is not None and vr > p90:
+                r["pool_p90_flag"] = True
+                n_flag += 1
+            else:
+                r["pool_p90_flag"] = False
+        print(f"[D1-2] pool_n={len(pool)} 量比可算={len(ratios)} p90={p90:.2f} "
+              f"rows={len(rows)} flag={n_flag}", flush=True)
+    except Exception as e:
+        print(f"[D1-2] stamp skip: {e}", flush=True)
+    return rows
+
+
 def _norm_code(sym: str) -> str:
     """统一为 QMT 需要的 '600000.SH' / '000001.SZ' 格式"""
     s = str(sym or "").strip().upper()
@@ -461,6 +812,10 @@ def export_fullpool():
     with open(REC_JSON, encoding="utf-8") as f:
         rec = json.load(f)
     pool = rec.get("recommendations") or rec.get("full_candidate_pool") or []
+    # 2026-09-06 位置闸 (Issue#6 后续, 老板拍板): 高位派发票剔除出竞价池
+    pool, pos_vetoed = _position_gate_pool(pool)
+    if pos_vetoed:
+        _write_position_veto_log(pos_vetoed)
     if not pool:
         print("[FULLPOOL] recommendations 为空", flush=True)
         return 1
@@ -494,6 +849,11 @@ def export_fullpool():
             "pattern_breakout": bool(it.get("pattern_breakout")),
             "pattern_breakout_delta": round(float(it.get("pattern_breakout_delta") or 0), 4),
             "main_net_5d": round(float(m5 or 0), 2),
+            # 2026-09-06 位置闸因子（客户端只读佐证，不参与决策）
+            "runup60": it.get("runup60"),
+            "up_low": it.get("up_low"),
+            "dist_hi": it.get("dist_hi"),
+            "ma60_pos": it.get("ma60_pos"),
         })
 
     if not rows:
@@ -544,6 +904,8 @@ def export_fullpool_live():
       active_buy_ratio: 实时主动买占比（live_abr 优先）
       turnover / volume_ratio / change_pct
       pre_market_gap_pct / pre_market_action  (09:25 竞价门控结果)
+      pre_market_call_amount_wan / pre_market_call_volume_hand
+                    (09:25 竞价量影子字段，2026-09-05 起导出；客户端只读记录，不参与决策)
     """
     if not REC_JSON.exists():
         print("[FULLPOOL_LIVE] daily_recommend.json 不存在", flush=True)
@@ -561,6 +923,10 @@ def export_fullpool_live():
 
     # 09:35 重排后 recommendations = 资金门通过者在前 + 未过者在后（保序勿排）
     pool = rec.get("recommendations") or rec.get("full_candidate_pool") or []
+    # 2026-09-06 位置闸 (Issue#6 后续, 老板拍板): 高位派发票剔除出实时池
+    pool, pos_vetoed = _position_gate_pool(pool)
+    if pos_vetoed:
+        _write_position_veto_log(pos_vetoed)
     if not pool:
         print("[FULLPOOL_LIVE] recommendations 为空", flush=True)
         return 1
@@ -626,6 +992,14 @@ def export_fullpool_live():
                                       else it.get("change_pct") or 0), 2),
             "pre_market_gap_pct": it.get("pre_market_gap_pct"),
             "pre_market_action": it.get("pre_market_action"),
+            # 2026-09-05 竞价量影子字段：客户端只读记录（[SHADOW-CALL]），不参与决策
+            "pre_market_call_amount_wan": it.get("pre_market_call_amount_wan"),
+            "pre_market_call_volume_hand": it.get("pre_market_call_volume_hand"),
+            # 2026-09-06 位置闸因子（客户端只读佐证，不参与决策）
+            "runup60": it.get("runup60"),
+            "up_low": it.get("up_low"),
+            "dist_hi": it.get("dist_hi"),
+            "ma60_pos": it.get("ma60_pos"),
         })
 
     # 资金流排名（全池内 main_net 百分位 0~100，越大越强；同值取均值）
@@ -664,6 +1038,19 @@ def export_fullpool_live():
 
     # Track B: T-1 lim10 + path_fade（涨停后高开低走）
     rows = _stamp_path_and_lim10(rows)
+    # Issue#6 D1-1: 竞价额比（archive 源，修复 scanner 重建丢 pre_market 字段的老问题）
+    rows = _stamp_auction_d1(rows)
+    # Issue#6 D1-2: 池内量比 p90（09:32-09:45 窗口一次性快照；rows 自为池）
+    rows = _stamp_pool_volratio_p90(rows)
+    # 2026-09-07 掌趣事故补强 (D1-1 server_remove): 竞价额比>2% 物理剔除。
+    # fullpool_live 行已 stamp dao1_veto, 过滤后 Track B 各端当天收不到。
+    _dao1_drop = [r for r in rows if r.get("dao1_veto")]
+    if _dao1_drop:
+        rows = [r for r in rows if not r.get("dao1_veto")]
+        print(f"[FULLPOOL_LIVE][DAO1] veto {len(_dao1_drop)} 只: "
+              + ", ".join(str(r.get("name")) + "(" + str(r.get("symbol")) + ")"
+                          for r in _dao1_drop), flush=True)
+        _write_dao1_veto_log(_dao1_drop)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     date_str = datetime.now().strftime("%Y%m%d")
@@ -709,6 +1096,19 @@ def main():
     # 修复 2026-08-03: 原逻辑优先 pool 导致 QMT Top2 与正式推荐不一致(川能动力 vs 丸美生物)
     # 修复 2026-08-08: 原逻辑按 score 重排, 丢弃资金门顺序, 导致 QMT Top2 与网页正式推荐不一致
     pool = rec.get("recommendations") or rec.get("full_candidate_pool") or []
+    # 2026-09-06 位置闸 (Issue#6 后续, 老板拍板): 高位派发票物理剔除出候选。
+    # 依据: 002437 09-02 rank1 高位追买 (现 -13%); 回测命中票 T+5 均值 -7.3% vs
+    # 未命中 +4.6% (真实成交 Top2)。被剔票 rank 顺延, QMT live/sim 当天不再收到。
+    pool, pos_vetoed = _position_gate_pool(pool)
+    if pos_vetoed:
+        _write_position_veto_log(pos_vetoed)
+    # 2026-09-07 掌趣事故补强 (Issue#6 D1-1, 老板拍板 server_remove):
+    # 竞价额比>2% 的票在 pool 层物理剔除 → scores dict({date}.json Top2 顺序)
+    # 与 candidates/fullpool_live 一致收不到; 实盘 live 不读 dao1_veto 也可天然规避。
+    # 置于位置闸之后、scores 构建之前, 使 Top2 顺序也跳过被剔票。
+    pool, dao1_vetoed = _drop_dao1_veto(pool)
+    if dao1_vetoed:
+        _write_dao1_veto_log(dao1_vetoed)
     scores = {}
     for it in pool:
         sym = it.get("symbol")
@@ -765,6 +1165,15 @@ def main():
                 "main_net_5d": round(float(it.get("main_net_5d") or 0), 2),
                 "main_net_3d": round(float(it.get("main_net_3d") or 0), 2),
                 "fund_pos_days_5": int(it.get("fund_pos_days_5") or 0),
+                # 2026-09-05 竞价量影子字段（Track A 客户端只读记录，不参与决策）
+                "pre_market_gap_pct": it.get("pre_market_gap_pct"),
+                "pre_market_call_amount_wan": it.get("pre_market_call_amount_wan"),
+                "pre_market_call_volume_hand": it.get("pre_market_call_volume_hand"),
+                # 2026-09-06 位置闸因子（客户端只读佐证，不参与决策）
+                "runup60": it.get("runup60"),
+                "up_low": it.get("up_low"),
+                "dist_hi": it.get("dist_hi"),
+                "ma60_pos": it.get("ma60_pos"),
             }
             fs = fusion_by.get(_norm_code(sym))
             if fs:
@@ -776,6 +1185,10 @@ def main():
     # 仅改 candidates.json 的 rank/顺序；网页 recommendations / {date}.json 保序不动。
     n_before = len(cand_rows)
     cand_rows = _gene_rerank_candidates(cand_rows)
+    # Issue#6 D1-1: 竞价额比（archive 源）+ 修正 SHADOW-CALL pre_market_* 字段
+    cand_rows = _stamp_auction_d1(cand_rows)
+    # Issue#6 D1-2: 池内量比 p90 —— 池 = 完整 pool(候选池), 再映射回 Top10
+    cand_rows = _stamp_pool_volratio_p90(cand_rows, pool_rows=pool)
     with open(cand_out, "w", encoding="utf-8") as f:
         json.dump({
             "date": date_str,

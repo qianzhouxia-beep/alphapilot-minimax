@@ -1,5 +1,78 @@
 # coding:utf-8
-# AlphaPilot -- Track A QMT sim full-chain strategy v2.36 (gene + path_fade + loud_vol)
+# AlphaPilot -- Track A QMT sim full-chain strategy v2.42 (gene + path_fade + loud_vol + R5 + D1-D5 stop-bleeding + D8 observe + B3/B1 shadow + TSDOWN/D8-3C)
+# v2.42 (2026-09-08): Issue#6 TrendState execution (boss 2026-09-08, issue#6 comment 5573698661).
+#   C TSDOWN stop co-exit: any holding whose TrendState switches to DOWN
+#     (2-day confirm, same state machine as wb_trend_state_calc v1.0) is
+#     HALF-SOLD at the next open (09:31-09:45). Applies to ALL holdings
+#     including D8 observe codes (D8 exempts only the -4% fixed stop and
+#     the 5-day buy cooldown -- NOT the TSDOWN half-sell). Tracks to log
+#     [TSDOWN-SIM]. The remaining half keeps running under normal rules
+#     (D8 floor / -4% / hard_stop still apply to what is left).
+#   B D8 three-condition release: an observe code is released from the
+#     observe exemption (resumes normal stops) BEFORE expire once it prints
+#     TrendScore >= 55 on two consecutive days AND T3 == 1.0 (HH+HL) AND
+#     close > MA10. Release is one-way (d8_released latched); expire still
+#     resumes normal stops.
+#   TrendState engine is ported 1:1 from wb_trend_state_calc.py (commit
+#     b66ddfc) and verified identical on the server kline (4164 checked
+#     states, 0 mismatch). ASCII-only.
+# v2.41 (2026-09-06): Issue#6 D1-D5 stop-bleeding rules + D8 observe list
+#   (boss approved; github qianzhouxia-beep/alphapilot-docs issue#6,
+#    decision c5558413127, observe addendum c5558718137).
+#   D1-1: server-stamped dao1_veto (auction_amt_ratio > 2.0%) candidates are
+#         abandoned FOR THE DAY, one-shot, counted separately from R5-CALL so
+#         the overlap rate can be measured before any merge.
+#   D1-2: server-stamped pool_p90_flag (pool vol-ratio > in-pool p90) candidates
+#         are abandoned for the day, same one-shot semantics.
+#   D2-2: gap<=0 (low/side open) & P2 confirmed -> if the live price already
+#         ran above VWAP*1.002, do NOT chase: wait for the VWAP pullback to
+#         fill, abandon the candidate for the day at 14:00 if never filled.
+#         Positive gap / missing VWAP fall back to the v2.17 2% slip guard.
+#   D3-1: intraday FIXED stop -4% from cost, active from T+1 on, whole session
+#         (was: -10% adaptive hard_stop only inside the 14:45 close window).
+#         B3(-2%) shadow keeps running read-only 2 weeks before tightening.
+#   D3-2: after a discipline stop the code enters a 5-TRADING-DAY buy cooldown
+#         (rank-1 included; cooled codes are skipped in _check_buy).
+#   D3-3: holding-add ban (existing) + stop cooldown re-entry ban (D3-2) +
+#         same-day sell-then-rebuy ban (any full sell writes a same-day "sold"
+#         entry so a T+0 flip is impossible).
+#   D4/D5: read the server alert_state.json (09:15 compute_risk_state cron);
+#         risk_level REDUCED (D4 ALERT verdict or D5 60d-p80 breadth breach)
+#         halves the single-buy pct: eff = POSITION_PCT * position_scale
+#         (sim 0.22 -> 0.11; live 0.20 -> 0.10 automatically).
+#   D8: observe-list codes are exempt from the -4% fixed stop until expiry
+#         (auto-expire with a log), keep a disaster floor_pct (-8% or deeper,
+#         set relative to current loss) as an unconditional stop; no buying/
+#         adding ever allowed for those codes; all other sell rules unchanged.
+# v2.40 (2026-09-06): read-only [SHADOW-B1] P2-entry weak-rebound snapshot.
+#   On every P2 buy fill this logs the trigger-level 5m shape (fill vs
+#   session-high dh_pct, 3-bar mom pulse, day-VWAP dist) into
+#   C:/alphapilot/shadow/qmt_sim_b1_buy_shadow.json. NEVER blocks a buy --
+#   decision impact = zero. Backtest wave-1: the daily-close proxy INVERTED
+#   on 26 Top2 picks (weak-close days were cheap 09:35 entries), so the veto
+#   must be rebuilt at the 5m trigger. Synthetic Apr-Jul (386 P2 triggers):
+#   strong-chase entries (low dh) won +3.3%/83% vs weak-rebound -0.4%/41%;
+#   real Aug-Sep (78 triggers) FLIPPED (-0.1%/43%), so no veto threshold is
+#   cross-regime yet. Log real weak-regime samples 2-4 weeks, then decide.
+#   See B1_ticket_5m_veto.md / CHANGELOG 2026-09-06.
+# v2.39 (2026-09-06): read-only [SHADOW-B3] 2% stop-loss shadow. For every
+#   T+1+ holding that first prints ret <= -2% the strategy logs the touch into
+#   C:/alphapilot/shadow/qmt_sim_b3_stop_shadow.json (dedup once/day/code).
+#   NEVER sells -- live behavior untouched. Backtest wave-1 (8 real tickets
+#   Aug-28..Sep-04): a 2% stop cut the batch from -7,369 to -3,014 (-59%)
+#   with no miss on the only winner. Collect real samples before sim/live
+#   decision. See wb_exec_rules_bt_report.md / CHANGELOG 2026-09-06.
+# v2.38 (2026-09-05): shadow-log server 09:25 call-auction volume (read-only).
+#   candidates rows now carry pre_market_gap_pct / pre_market_call_amount_wan /
+#   pre_market_call_volume_hand (server export since 2026-09-05). Logged once
+#   per day as [SHADOW-CALL]; no decision impact. Feeds the September
+#   call-volume threshold calibration (shadow study), see CHANGELOG.
+# v2.37 (2026-09-05): R5 second-pricing gate at P2 trigger (see config block).
+#   Real-candidate Aug-Sep re-check (78 P2 triggers): R5-pass T+1 +0.58%/56.2%
+#   vs reject +0.22%/46.8%; direction same as synthetic Apr-Jul (+4.82%/87%).
+#   Three conditions (all intraday at trigger time):
+#     gap (open vs prev) in (-1.5%, +1.5%), first-5m vol ratio < 1.5,
+#     trigger before 11:00. Mode 1 = hard gate, 2 = soft (skip once).
 # v2.36 (2026-09-04): skip loud_vol (T-1 up-day vol/MA20>=2.5) in rank window.
 #   Same soft reject as Track B v2.10. sns stamped on server; gene demotes loud.
 # v2.35 (2026-09-03): skip path_fade in rank<=MAX_CAND_RANK window.
@@ -339,6 +412,35 @@ SWEET_ZONE_MODE = 1
 SWEET_GAP_LO = -1.5           # sweet zone = gap% in [LO, HI]
 SWEET_GAP_HI = 0.0
 
+# --- R5 second-pricing gate (v2.37, 2026-09-05) ---
+# "High-open always drops" is a quant 2nd-pricing phenomenon: auction time
+# prices last night's info, so the market must re-price AFTER open with NEW
+# money. Backtest (bt_p2_second_pricing_real.py, 78 real P2 triggers 08-10~
+# 09-03): R5-pass n=16 T+1-open +0.58%/56.2% vs reject +0.22%/46.8%; the
+# direction matches the synthetic Apr-Jul result (+4.82%/87% vs baseline).
+# Counter-intuitive core: auction volume & open incremental volume are
+# NEGATIVELY correlated with T+1 (a loud auction = overnight profit-takers
+# distributing). So the gate REJECTS loud auctions / far gaps / late
+# afternoon triggers, opposite of the naive "volume = strength" intuition.
+#   Three conditions, all knowable at the P2 trigger instant:
+#     R5-GAP : today's open gap (open/prev_close-1) in (LO, HI)   [-1.5,+1.5]
+#     R5-CALL: first 5m bar volume (09:30-09:35) / mean of prior 5
+#              days' first 5m bar volume < 1.5   (a loud auction fails)
+#     R5-TIME: trigger minute < 660 (11:00)      (late afternoon fails)
+#   Missing data -> that condition passes (soft, like the ABR gate) so a
+#   data outage never freezes buying. Mode:
+#     0 = off (status quo)
+#     1 = gate: R5 fail -> abandon the candidate FOR THE DAY (most faithful
+#         to the backtest filter; backtest pass-rate was 16/78 = 21%, so a
+#         hard gate sharply cuts trades -- expected and validated)
+#     2 = soft: R5 fail -> skip this trigger attempt, keep re-trying later
+#         bars (gap/call are fixed intraday, so effectively still waits)
+R5_GATE_MODE = 1
+R5_GAP_LO = -1.5
+R5_GAP_HI = 1.5
+R5_CALL_MAX = 1.5
+R5_MAX_TRIG_MIN = 11 * 60    # 11:00
+
 # --- ABR (active-buy ratio) gate v2.13 (Level-2 style via mootdx feed) ---
 # Backtest 2026-08 (114 candidates / 20 days, real Top10 archives):
 #   cumulative ABR >= 0.52 at the P2 trigger lifts T+1 winrate 42.3% -> 54.2%,
@@ -460,6 +562,48 @@ ANOMALY_PCT = -21.0
 RESYNC_SEC = 300
 UNIV_SEC = 60
 
+# ============ Issue#6 D1-D5 + D8 (v2.41, 2026-09-06) ============
+# Server stamps candidates rows (export_qmt_scores.py: dao1_veto /
+# pool_p90_flag / auction_amt_ratio / pool_vol_ratio) and publishes
+# output/qmt_scores/alert_state.json (compute_risk_state.py 09:15 cron) via
+# nginx REMOTE_SCORE_BASE. Boss picks: issue#6 c5558413127 / c5558718137.
+# D1-1 auction-amt veto (server dao1_veto; ratio = auction amt / prev-day amt).
+DAO1_AUC_MAX = 2.0              # % : auction_amt_ratio > 2.0% -> abandon for day
+# D1-2 pool vol-ratio p90 veto (server pool_p90_flag). Overlap vs R5-CALL is
+# measured live; if >80% the two vetoes merge into one flag.
+# D2-2 low/side-open VWAP pullback wait (gap<=0 only; see _check_buy).
+VWAP_WAIT_PREM = 0.002          # fill target = day VWAP * 1.002
+VWAP_WAIT_UNTIL_MIN = 14 * 60   # give up for the day at 14:00 (boss pick)
+# D3-1 intraday fixed stop (T+1+), sell when ret <= -FIXED_STOP_PCT.
+FIXED_STOP_PCT = 4.0
+# D3-2 stop cooldown (trading days). Discipline-stop reasons: hard_stop /
+# stop_fixed / observe_floor / t2_force / limit_down.
+COOLDOWN_STOP_DAYS = 5
+COOLDOWN_FILE = r"C:\alphapilot\cooldown.json"
+# D4/D5 risk level (alert_state.json from the server, refreshed daily 09:15).
+RISK_URL = REMOTE_SCORE_BASE + "/alert_state.json"
+RISK_LOCAL = r"C:\alphapilot\alert_state.json"
+RISK_FETCH_SEC = 90
+# D8 observe list (live deep-loss ticket with a bounded turnaround chance):
+#   {code: {"expire": "20260922", "floor_pct": -8.0, "name": "...", "note": "..."}}
+#   exempts ONLY the -4% fixed stop until expire; disaster floor_pct remains an
+#   unconditional stop; buy/add ban unchanged (D3-3).
+OBSERVE_FILE = r"C:\alphapilot\observe_list.json"
+
+# --- v2.42 TrendState stop co-exit (C) + D8 three-condition release (B) ---
+# TrendState = port of wb_trend_state_calc v1.0 (commit b66ddfc), engine
+# functions _ts_* below, verified 0-diff on the server kline.
+# C: holding State switches to DOWN (2-day confirm) -> HALF sell next open.
+#    Sim tag TSDOWN-SIM. Applies to ALL holdings incl. D8 observe codes.
+TSDOWN_ENABLE = True
+TSDOWN_WIN_START = 9 * 60 + 31     # next-open half-sell window start
+TSDOWN_WIN_END = 9 * 60 + 45       # next-open half-sell window end
+# B: observe code releases (resumes normal stops) before expire when
+#    TrendScore >= 55 x2 days AND T3 == 1.0 AND close > MA10.
+D8REL_SCORE_MIN = 55.0
+D8REL_DAYS = 2                     # consecutive days of score >= D8REL_SCORE_MIN
+D8REL_T3 = 1.0                     # T3 must be exactly 1.0 (HH + HL both up)
+TS_DAILY_MAX_AGE = 900             # seconds: refetch daily bars at most every 15m
 
 # ================= INIT =================
 def init(C):
@@ -476,6 +620,9 @@ def init(C):
     C._univ_codes = []
     C._univ_dirty = True
     C.run_count = 0
+    C.cool_log = {}            # v2.41 {code: last-logged date} (cooldown log once/day)
+    C.vwap_wait_logged = set()  # v2.41 codes already printing D2-2 wait (log once)
+    C.risk_log = ""            # v2.41 date of the last [RISK] log line
     try:
         if os.path.exists(TRADE_LOG):
             with open(TRADE_LOG, "r", encoding="utf-8") as f:
@@ -495,7 +642,7 @@ def init(C):
         print("[INIT] universe=" + str(codes or ["600519.SH"]))
     except BaseException as e:
         print("[INIT] set_universe fail: " + str(e))
-    print("[INIT] track-A qmt-sim v2.36 (gene+path_fade+loud_vol, rank<=3) | acct=" + ACCOUNT_ID +
+    print("[INIT] track-A qmt-sim v2.41 (gene+R5+D1-D5+D8, rank<=3) | acct=" + ACCOUNT_ID +
           " | holdings=" + str(len(codes)) + " | score_dir=" + str(C.score_dir) +
           " | pos_state=" + str(len(getattr(C, "pos_state", {}) or {})))
     try:
@@ -523,6 +670,8 @@ def handlebar(C):
         C.scores_cache.pop(today, None)
         C.cand_cache.pop(today, None)
         C._univ_dirty = True
+        C.vwap_wait_logged = set()   # v2.41: reset per-day wait logs
+        C.risk_log = ""
 
     ts = time.time()
     if ts - C._last_resync >= RESYNC_SEC:
@@ -647,6 +796,36 @@ def _load_scores(C, date_str):
         return None
 
 
+def _log_shadow_call_cands(date_str, cands):
+    """v2.38: log the server 09:25 call-auction shadow fields once per candidate.
+    Read-only -- never changes any decision. Rows without the auction fields
+    (older export / scores fallback) log nothing. Emitted on first successful
+    candidates.json parse of the day (cand_cache dedups later calls).
+    Prefix [SHADOW-CALL]; consumed later to calibrate call-volume thresholds
+    on the real September sample."""
+    n = 0
+    for it in (cands or []):
+        code = str(it.get("symbol") or "")
+        amt = it.get("pre_market_call_amount_wan")
+        vol = it.get("pre_market_call_volume_hand")
+        if amt is None and vol is None:
+            continue
+        n += 1
+        gap = it.get("pre_market_gap_pct")
+        line = ("[SHADOW-CALL] " + str(date_str) + " " + code + " " +
+                str(it.get("name") or "") + " rank=" + str(it.get("rank")))
+        if gap is not None:
+            line += " gap=" + str(round(float(gap), 2))
+        if amt is not None:
+            line += " call_amt_wan=" + str(round(float(amt), 1))
+        if vol is not None:
+            line += " call_vol_hand=" + str(int(float(vol)))
+        print(line)
+    if n:
+        print("[SHADOW-CALL] " + str(date_str) +
+              " rows_with_auction_field=" + str(n))
+
+
 def _load_candidates(C, date_str):
     """Top10 candidate pool from {date}.candidates.json (v2.0, prefer this)."""
     if date_str in C.cand_cache:
@@ -666,12 +845,440 @@ def _load_candidates(C, date_str):
             print("[CAND] ST hard drop " + str(len(st_dropped)) + ": "
                   + ", ".join(str(it.get("name")) for it in st_dropped[:10]))
         C.cand_cache[date_str] = cands
+        _log_shadow_call_cands(date_str, cands)
         print("[CAND] " + date_str + " n=" + str(len(cands)))
         return cands
     except Exception as e:
         print("[CAND] err: " + str(e))
         return None
 
+
+
+# ================= Issue#6 D1-D5/D8 runtime helpers (v2.41, 2026-09-06) =================
+STOP_TOKENS = ("hard_stop", "stop_fixed", "observe_floor", "t2_force", "limit_down")
+
+
+def _is_discipline_stop(reason):
+    """Discipline-stop reasons that arm the D3-2 long cooldown."""
+    r = str(reason or "")
+    return any(t in r for t in STOP_TOKENS)
+
+
+def _load_json_safe(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except BaseException:
+        return {}
+
+
+def _save_json_safe(path, d):
+    try:
+        _d = os.path.dirname(path)
+        if _d and not os.path.isdir(_d):
+            os.makedirs(_d, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(d, f, ensure_ascii=False)
+    except BaseException:
+        pass
+
+
+# ---- D4/D5 risk level (server compute_risk_state.py -> alert_state.json) ----
+def _read_risk_state(C, today):
+    """Return the TODAY alert_state dict, else {} (missing/stale = NORMAL, so a
+    server hiccup never freezes buys). A local RISK_LOCAL copy is refreshed from
+    RISK_URL at most every RISK_FETCH_SEC. alert_state.json.date is YYYY-MM-DD."""
+    ts = time.time()
+    if ts - getattr(C, "_last_risk_fetch", 0) >= RISK_FETCH_SEC:
+        C._last_risk_fetch = ts
+        try:
+            import urllib.request as _ur
+            req = _ur.Request(RISK_URL, headers={"User-Agent": "QMT/2.2"})
+            with _ur.urlopen(req, timeout=8) as resp:
+                body = resp.read()
+            if body:
+                _d = json.loads(body.decode("utf-8"))
+                _d8 = str(_d.get("date") or "")
+                _t8 = today[:4] + "-" + today[4:6] + "-" + today[6:8]
+                if _d8 == _t8:
+                    _save_json_safe(RISK_LOCAL, _d)
+                    return _d
+        except BaseException:
+            pass
+    d = _load_json_safe(RISK_LOCAL)
+    _d8 = str(d.get("date") or "")
+    _t8 = today[:4] + "-" + today[4:6] + "-" + today[6:8]
+    if _d8 == _t8:
+        return d
+    return {}
+
+
+def _risk_scale(C, today):
+    """D4/D5: REDUCED -> 0.5, else 1.0. Single-buy pct = POSITION_PCT * scale."""
+    d = _read_risk_state(C, today)
+    rl = str((d or {}).get("risk_level") or "NORMAL").upper()
+    if rl == "REDUCED":
+        if getattr(C, "risk_log", "") != today:
+            C.risk_log = today
+            print("[RISK] risk_level=REDUCED (D4 ALERT / D5 breadth) scale=0.5 ->"
+                  " eff pct=" + str(round(POSITION_PCT * 0.5, 3)))
+        return 0.5
+    return 1.0
+
+
+# ---- D3-2/D3-3 cooldown (buy-side ban) ----
+def _mark_cooldown(code, today, reason):
+    """Persist a cooldown entry. 'stop' -> COOLDOWN_STOP_DAYS trading-day ban;
+    'sold' -> same-day-only ban (D3-3 sell-then-rebuy). A stop overrides a sold."""
+    try:
+        d = _load_json_safe(COOLDOWN_FILE)
+        rec = d.get(code) or {}
+        if isinstance(rec, dict) and rec.get("reason") == "stop":
+            return
+        d[code] = {"date": today, "reason": reason}
+        _save_json_safe(COOLDOWN_FILE, d)
+    except BaseException:
+        pass
+
+
+def _cooldown_block(code, today):
+    """Return a ban string for code today, else None.
+    'stop' bans while trading days from the stop date < COOLDOWN_STOP_DAYS;
+    'sold' bans only on the sell day itself."""
+    rec = _load_json_safe(COOLDOWN_FILE).get(code)
+    if not isinstance(rec, dict):
+        return None
+    fd = str(rec.get("date") or "")
+    rs = str(rec.get("reason") or "")
+    try:
+        if len(fd) == 8 and fd.isdigit():
+            b = datetime.strptime(fd, "%Y%m%d").date()
+        else:
+            b = datetime.strptime(fd, "%Y-%m-%d").date()
+        t = datetime.strptime(today, "%Y%m%d").date()
+        n = _trading_days_between(b, t)
+    except BaseException:
+        return None
+    if rs == "sold":
+        return "sold-today (D3-3)" if n == 0 else None
+    if rs == "stop" and n < COOLDOWN_STOP_DAYS:
+        return "cooldown-stop " + str(COOLDOWN_STOP_DAYS - n) + " td left"
+    return None
+
+
+# ---- D8 observe list (live deep-loss ticket) ----
+def _observe_entry(code):
+    e = _load_json_safe(OBSERVE_FILE).get(code) or \
+        _load_json_safe(OBSERVE_FILE).get(str(code).split(".")[0])
+    return e if isinstance(e, dict) else None
+
+
+def _observe_active(entry, today):
+    """True while today <= expire (yyyymmdd string compare)."""
+    try:
+        exp = str((entry or {}).get("expire") or "")
+        if len(exp) != 8:
+            return False
+        return today <= exp
+    except BaseException:
+        return False
+
+
+# ================= v2.42 TrendState engine (C TSDOWN + B D8-3C release) =================
+# Ported 1:1 from wb_trend_state_calc.py v1.0 (commit b66ddfc). Verified on the
+# server kline: 4164 checked per-bar states, 0 mismatch (see _ts_align_test).
+# All functions are ASCII / pure-python so they run inside QMT untouched.
+
+def _ts_sma(vals, n, i):
+    if i + 1 < n:
+        return None
+    return sum(vals[i + 1 - n:i + 1]) / n
+
+
+def _ts_pivots(highs, lows, k):
+    n = len(highs)
+    ph, pl = [], []
+    for i in range(k, n - k):
+        if highs[i] >= max(highs[i - k:i]) and highs[i] > max(highs[i + 1:i + k + 1]):
+            ph.append(i)
+        if lows[i] <= min(lows[i - k:i]) and lows[i] < min(lows[i + 1:i + k + 1]):
+            pl.append(i)
+    return ph, pl
+
+
+def _ts_linreg_r2(closes, i, n):
+    import math
+    if i + 1 < n or n < 3:
+        return 0.0
+    ys = [math.log(closes[j]) for j in range(i + 1 - n, i + 1)]
+    xs = list(range(n))
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    sxy = sum((xs[j] - mx) * (ys[j] - my) for j in range(n))
+    syy = sum((y - my) ** 2 for y in ys)
+    if sxx and syy:
+        return (sxy * sxy) / (sxx * syy)
+    return 0.0
+
+
+_TS_MA = (5, 10, 20, 60)
+_TS_SPAN = 5
+_TS_N10 = 0.03
+_TS_N20 = 0.02
+_TS_K = 3
+_TS_CHAN = 20
+_TS_ROC_N = 10
+_TS_ROCN = 0.10
+_TS_REGN = 20
+_TS_VN = 10
+_TS_VRLO = 0.6
+_TS_VRHI = 1.6
+_TS_W = (0.25, 0.15, 0.20, 0.15, 0.15, 0.10)
+_TS_UP = 65.0
+_TS_DOWN = 40.0
+_TS_CFM = 2
+_TS_VETO = 0.30
+
+
+def _ts_compute(closes, highs, lows, vols):
+    """Full TrendState series (identical to wb_trend_state_calc.compute_series).
+    Returns per-bar dicts {score,raw,state,t1..t6,veto}; None before warmup."""
+    n = len(closes)
+    out = []
+    prev_state = None
+    pend, cnt = None, 0
+    for i in range(n):
+        ma5 = _ts_sma(closes, 5, i)
+        ma10 = _ts_sma(closes, 10, i)
+        ma20 = _ts_sma(closes, 20, i)
+        ma60 = _ts_sma(closes, 60, i)
+        ma10p = _ts_sma(closes, 10, i - _TS_SPAN)
+        ma20p = _ts_sma(closes, 20, i - _TS_SPAN)
+        if None not in (ma5, ma10, ma20, ma60):
+            t1 = int(closes[i] > ma5) + int(ma5 > ma10) + int(ma10 > ma20) + int(ma20 > ma60)
+        else:
+            t1 = None
+        if None in (ma10, ma10p, ma20, ma20p) or not ma10p or not ma20p:
+            t2 = None
+        else:
+            s10 = ma10 / ma10p - 1
+            s20 = ma20 / ma20p - 1
+            nn10 = max(-1.0, min(1.0, s10 / _TS_N10))
+            nn20 = max(-1.0, min(1.0, s20 / _TS_N20))
+            t2 = (nn10 + nn20 + 2) / 4
+        ph, pl = _ts_pivots(highs[:i + 1], lows[:i + 1], _TS_K)
+        if len(ph) < 2 or len(pl) < 2:
+            t3 = 0.5
+        else:
+            hh = highs[ph[-1]] > highs[ph[-2]]
+            hl = lows[pl[-1]] > lows[pl[-2]]
+            t3 = 0.5 * int(hh) + 0.5 * int(hl)
+        if i + 1 < _TS_CHAN:
+            t4 = None
+        else:
+            llv = min(lows[i + 1 - _TS_CHAN:i + 1])
+            hhv = max(highs[i + 1 - _TS_CHAN:i + 1])
+            t4 = max(0.0, min(1.0, (closes[i] - llv) / (hhv - llv))) if hhv - llv else 0.5
+        if i < _TS_ROC_N:
+            t5 = None
+        else:
+            roc = closes[i] / closes[i - _TS_ROC_N] - 1
+            mom = (max(-1.0, min(1.0, roc / _TS_ROCN)) + 1) / 2
+            q = _ts_linreg_r2(closes, i, _TS_REGN)
+            t5 = 0.7 * mom + 0.3 * q
+        if i < _TS_VN:
+            t6 = None
+        else:
+            up_v, dn_v = [], []
+            for j in range(i + 1 - _TS_VN, i + 1):
+                if closes[j] > closes[j - 1]:
+                    up_v.append(vols[j])
+                elif closes[j] < closes[j - 1]:
+                    dn_v.append(vols[j])
+            if not dn_v:
+                t6 = 1.0
+            elif not up_v:
+                t6 = 0.0
+            else:
+                vr = (sum(up_v) / len(up_v)) / (sum(dn_v) / len(dn_v))
+                t6 = max(0.0, min(1.0, (vr - _TS_VRLO) / (_TS_VRHI - _TS_VRLO)))
+        if i + 1 < max(_TS_MA) or None in (t1, t2, t3, t4, t5, t6):
+            out.append({"score": None, "raw": None, "state": None,
+                        "t1": t1, "t2": t2, "t3": t3, "t4": t4, "t5": t5,
+                        "t6": t6, "veto": False})
+            continue
+        score = 100.0 * (_TS_W[0] * t1 / 4 + _TS_W[1] * t2 + _TS_W[2] * t3
+                         + _TS_W[3] * t4 + _TS_W[4] * t5 + _TS_W[5] * t6)
+        veto = (t3 == 0.0 and t4 < _TS_VETO)
+        if veto:
+            raw = "DOWN"
+        elif score >= _TS_UP:
+            raw = "UP"
+        elif score <= _TS_DOWN:
+            raw = "DOWN"
+        else:
+            raw = "RANGE"
+        if prev_state is None:
+            state = raw
+        elif raw == prev_state:
+            pend, cnt = None, 0
+            state = prev_state
+        else:
+            if pend == raw:
+                cnt += 1
+            else:
+                pend, cnt = raw, 1
+            if cnt >= _TS_CFM:
+                prev_state = raw
+                pend, cnt = None, 0
+                state = prev_state
+            else:
+                state = prev_state
+        prev_state = state
+        out.append({"score": round(score, 1), "raw": raw, "state": state,
+                    "t1": t1, "t2": round(t2, 3), "t3": t3, "t4": round(t4, 3),
+                    "t5": round(t5, 3), "t6": round(t6, 3), "veto": bool(veto)})
+    return out
+
+
+def _ts_last_bars(C, code):
+    """Daily OHLCV through the LAST COMPLETE day (today's partial dropped when
+    present). Returns (closes, highs, lows, vols) ascending, or None on short
+    data. Cached per (date, code) for TS_DAILY_MAX_AGE seconds."""
+    today = datetime.now().strftime("%Y%m%d")
+    cache = getattr(C, "_ts_daily_cache", None)
+    if cache is None:
+        cache = {}
+        C._ts_daily_cache = cache
+    key = code + ":" + today
+    now = time.time()
+    hit = cache.get(key)
+    if hit and now - hit[0] < TS_DAILY_MAX_AGE:
+        return hit[1]
+    bars = None
+    try:
+        data = C.get_market_data_ex(
+            ["open", "high", "low", "close", "volume"], [code], period="1d",
+            count=120, subscribe=True)
+        if data and isinstance(data, dict) and code in data:
+            df = data[code]
+            op = _col(df, "open")
+            hi = _col(df, "high")
+            lo = _col(df, "low")
+            cl = _col(df, "close")
+            vo = _col(df, "volume")
+            n = min(len(op), len(hi), len(lo), len(cl), len(vo))
+            if n >= 65:
+                # QMT daily bars include today's partial bar while the session
+                # is open; drop it so the decision is made on completed days.
+                cl = cl[:n - 1]
+                hi = hi[:n - 1]
+                lo = lo[:n - 1]
+                vo = vo[:n - 1]
+                op = op[:n - 1]
+                if len(cl) >= 65:
+                    bars = (cl, hi, lo, vo)
+    except BaseException:
+        bars = None
+    cache[key] = (now, bars)
+    return bars
+
+
+def _ts_state_info(C, code):
+    """(state, score, t3) of the LAST completed day + (score_prev, t3_prev,
+    close, ma10) for the D8-3C release test. None when data too short."""
+    bars = _ts_last_bars(C, code)
+    if not bars:
+        return None
+    cl, hi, lo, vo = bars
+    ser = _ts_compute(cl, hi, lo, vo)
+    valid = [r for r in ser if r["score"] is not None]
+    if len(valid) < 2:
+        return None
+    last, prev = valid[-1], valid[-2]
+    return {"state": last["state"], "score": last["score"],
+            "t3": last["t3"], "score_prev": prev["score"], "t3_prev": prev["t3"],
+            "state_prev": prev["state"],
+            "close": cl[-1], "ma10": _ts_sma(cl, 10, len(cl) - 1)}
+
+
+def _d8_three_cond_released(C, code):
+    """B release: TrendScore>=D8REL_SCORE_MIN for D8REL_DAYS consecutive days
+    AND last T3==D8REL_T3 AND close>MA10. False on missing data (stay exempt)."""
+    try:
+        info = _ts_state_info(C, code)
+        if not info or info["score"] is None or info["score_prev"] is None:
+            return False
+        if info["score"] < D8REL_SCORE_MIN or info["score_prev"] < D8REL_SCORE_MIN:
+            return False
+        if info["t3"] != D8REL_T3:
+            return False
+        if not info["ma10"] or not (info["close"] > info["ma10"]):
+            return False
+        return True
+    except BaseException:
+        return False
+
+
+def _d8_release_now(C, code, pos, today):
+    """One-way latch: an observe code is released (resumes normal stops)
+    BEFORE expire once the three-condition release prints. Locks pos
+    ['d8_released']=today so a later weak print cannot re-exempt it. Expire
+    handling in the caller still resumes normal stops independently."""
+    if pos.get("d8_released"):
+        return True
+    if _d8_three_cond_released(C, code):
+        pos["d8_released"] = today
+        print("[OBSERVE] " + code + " 3-cond release (score>=55x2 + T3=1.0"
+              + " + close>MA10), resume normal stops")
+        return True
+    return False
+
+
+def _tsdown_new_down(C, code, pos, today):
+    """C trigger: the holding's TrendState switched INTO DOWN on the last
+    completed day. Returns True once per DOWN episode; the caller half-sells.
+    Latches pos['tsdown_fired']=today when armed so a single DOWN episode
+    fires only one next-open half-sell."""
+    try:
+        info = _ts_state_info(C, code)
+        if not info or info["state"] != "DOWN":
+            return False
+        # prev completed day not DOWN => a fresh switch (2-day confirm inside
+        # the state machine already held the trigger until it is real).
+        prev_state = info.get("state_prev")
+        if prev_state == "DOWN":
+            return False
+        if pos.get("tsdown_fired") == today:
+            return False
+        pos["tsdown_fired"] = today
+        return True
+    except BaseException:
+        return False
+
+
+# ---- Issue#6 D1 buy-side one-shot veto (helper reused by _check_buy loops) ----
+def _buy_day_veto(item, code, today):
+    """Return (blocked, tag, detail). D3-2 cooldown + D1-1/D1-2 vetoes checked
+    BEFORE P2, so a cooled/loud candidate never spends a buy slot or a P2 eval.
+    Cooldown/DAO1 candidates are NOT added to sent_today (they may clear later
+    days / the stamp may refresh) except the caller's day-scoped sent handling."""
+    cb = _cooldown_block(code, today)
+    if cb:
+        return True, "D3", cb
+    try:
+        if bool(item.get("dao1_veto")):
+            return True, "D1-1", ("auction_amt_ratio=" +
+                                  str(item.get("auction_amt_ratio")) +
+                                  " > " + str(DAO1_AUC_MAX) + "%")
+        if bool(item.get("pool_p90_flag")):
+            return True, "D1-2", ("pool_vol_ratio=" +
+                                  str(item.get("pool_vol_ratio")) +
+                                  " > pool_p90=" + str(item.get("pool_p90")))
+    except BaseException:
+        pass
+    return False, "", ""
 
 
 # ================= POSITION STATE (persist across QMT restarts) =================
@@ -1672,6 +2279,97 @@ def _is_sweet_zone(C, code):
     return (SWEET_GAP_LO - 1e-9) <= g <= (SWEET_GAP_HI + 1e-9)
 
 
+# ================= R5 second-pricing gate (v2.37) =================
+def _r5_gap_pct(C, code):
+    """Today's open gap% = (open/prev_close - 1)*100. Same source as the
+    sweet-zone check but with the R5 wide band. None on missing data."""
+    return _sweet_gap_pct(C, code)
+
+
+def _r5_call_ratio(C, code):
+    """First-5m-bar volume ratio = today's first 5m bar volume (09:30-09:35)
+    / mean of prior 5 trading days' first 5m bar volume.
+
+    This is the call-auction "loudness" proxy of the second-pricing thesis:
+    a loud opening bar (ratio >= 1.5) usually means overnight holders are
+    distributing into the open (T+1 negative, Spearman -0.39 in backtest).
+
+    Pulls 6 trading days of 5m bars (count=6*48, end_time=today), groups by
+    real date via _bar_times, takes the first bar of each day. None when the
+    history is unavailable (P2 treats None as soft-pass)."""
+    now = datetime.now()
+    today8 = now.strftime("%Y%m%d")
+    try:
+        data = C.get_market_data_ex(
+            ["volume"], [code], period="5m", count=6 * 48, end_time=today8,
+            subscribe=True)
+        if not data or not isinstance(data, dict) or code not in data:
+            return None
+        vols = _col(data[code], "volume")
+        if vols is None or len(vols) == 0:
+            return None
+        n = len(vols)
+        times = _bar_times(data[code], n)
+        if not times:
+            return None
+        # group first-bar volume by real date
+        day_first = {}      # date_str -> first bar vol
+        today_str = now.strftime("%Y-%m-%d")
+        for i in range(n):
+            ds, tmin = times[i]
+            if ds is None or tmin is None:
+                continue
+            if ds in day_first:
+                continue       # first bar of the day already recorded
+            v = float(vols[i]) if vols[i] == vols[i] else 0.0
+            day_first[ds] = v
+        cur = day_first.get(today_str)
+        if cur is None or cur <= 0:
+            return None
+        # prior 5 trading days' first-bar volumes
+        hist = []
+        for ds in sorted(day_first.keys()):
+            if ds >= today_str:
+                continue
+            v = day_first[ds]
+            if v and v > 0:
+                hist.append(v)
+        hist = hist[-5:]
+        if not hist:
+            return None
+        base = sum(hist) / float(len(hist))
+        if base <= 0:
+            return None
+        return cur / base
+    except BaseException:
+        return None
+
+
+def _r5_gate_check(C, code, now_min):
+    """R5 second-pricing gate at the P2 trigger instant.
+
+    Returns None when the trigger passes R5, else a reason string:
+      "r5_gap"  : open gap outside (-1.5%, +1.5%)
+      "r5_call" : first-5m vol ratio >= 1.5 (loud auction)
+      "r5_time" : trigger at/after 11:00
+    Missing data (gap None / call None) counts as PASS (soft gate), so a
+    data outage never freezes buying. mode=0 disables the gate entirely."""
+    if R5_GATE_MODE <= 0:
+        return None
+    # R5-TIME (cheapest check first)
+    if now_min is not None and now_min >= R5_MAX_TRIG_MIN:
+        return "r5_time"
+    # R5-GAP
+    g = _r5_gap_pct(C, code)
+    if g is not None and not ((R5_GAP_LO - 1e-9) <= g <= (R5_GAP_HI + 1e-9)):
+        return "r5_gap"
+    # R5-CALL (loud auction -> reject)
+    cr = _r5_call_ratio(C, code)
+    if cr is not None and cr >= R5_CALL_MAX:
+        return "r5_call"
+    return None
+
+
 def _filter_cands_by_max_rank(cands):
     """Keep rank 1..MAX_CAND_RANK; drop path_fade and loud_vol (v2.36)."""
     if MAX_CAND_RANK <= 0:
@@ -1807,6 +2505,14 @@ def _p2_decide(C, code, now_min):
             abr = _get_active_buy_ratio(C, code)
             if abr is not None and abr < MIN_ACTIVE_BUY:
                 return None, "skip_low_abr"
+        # R5 second-pricing gate (v2.37): reject loud-auction / far-gap /
+        # late-afternoon triggers whose T+1 is backtest-negative.
+        r5 = _r5_gate_check(C, code, now_min)
+        if r5 is not None:
+            if R5_GATE_MODE == 1:
+                print("[R5] " + code + " gate=" + r5 + " abandon for day")
+                return None, "skip_r5"
+            return None, "wait_confirm"   # mode 2: soft, retry later bar
         return round(trig_px, 2), "dyn_confirm"
     if now_min >= CONF_END_MIN:
         return None, "no_confirm_eod"
@@ -1883,6 +2589,52 @@ def _check_sell(C, now, now_min, today):
         is_today_buy = (bd == today)
         if is_today_buy:
             continue  # T+1: cannot sell today's buy (except limit-down)
+
+        # v2.39: [SHADOW-B3] read-only first -2% touch per T+1+ holding.
+        if ret <= -SHADOW_B3_STOP_PCT:
+            _shadow_b3_stop(C, code, pos, price, cost, ret, today)
+
+        # ---- v2.41 Issue#6 D3-1 intraday FIXED stop -4% (T+1+, whole session);
+        #      D8 observe-list codes are exempt until expire (disaster floor stays).
+        if ret <= -FIXED_STOP_PCT:
+            obs = _observe_entry(code)
+            if obs and _observe_active(obs, today):
+                if _d8_release_now(C, code, pos, today):
+                    # v2.42 B: three-condition release -> resume normal stops
+                    # (score>=55 x2d + T3==1.0 + close>MA10). No more exemption.
+                    _do_sell(C, code, pos, price,
+                             "stop_fixed " + str(round(ret, 1)) + "%")
+                    continue
+                flo = float(obs.get("floor_pct") or -8.0)
+                if ret <= flo:
+                    _do_sell(C, code, pos, price,
+                             "observe_floor " + str(round(ret, 1)) + "% vs floor " +
+                             str(round(flo, 1)) + "% (D8 disaster floor)")
+                    continue
+                print("[OBSERVE] " + code + " exempt -4% fixed stop ret=" +
+                      str(round(ret, 1)) + "% expire=" + str(obs.get("expire")) +
+                      " floor=" + str(round(flo, 1)) + "%")
+            else:
+                if obs:
+                    print("[OBSERVE] " + code + " expired, resume -4% fixed stop")
+                _do_sell(C, code, pos, price,
+                         "stop_fixed " + str(round(ret, 1)) + "%")
+                continue
+
+        # ---- v2.42 TSDOWN: TrendState fresh-switch to DOWN -> half sell ----
+        # (C, issue#6 comment 5573698661). A holding whose TrendState switched
+        # into DOWN on the last completed day (2-day confirm inside the state
+        # machine) is HALF-SOLD in the next-open window. Applies to ALL
+        # holdings INCLUDING D8 observe codes -- D8 exempts only the -4% fixed
+        # stop and the cooldown, NOT this half-sell. A -4% / observe_floor
+        # full sell earlier in this bar takes precedence (take-first).
+        if (TSDOWN_ENABLE and TSDOWN_WIN_START <= now_min <= TSDOWN_WIN_END
+                and _tsdown_new_down(C, code, pos, today)):
+            print("[TSDOWN-SIM] " + code + " TrendState->DOWN, half next-open"
+                  + " px=" + str(round(price, 2)) + " ret=" + str(round(ret, 1)) + "%")
+            _do_sell_half(C, code, pos, price,
+                          "tsdown_next_open " + str(round(ret, 1)) + "%")
+            continue
 
         # Wyckoff buy-climax early exit (v2.10): if today's bars print a
         # climax bar near the holding peak (long upper shadow + 1.5x vol),
@@ -2249,6 +3001,122 @@ def _sell_lock_key(reason):
     return tok
 
 
+# ---- v2.39 [SHADOW-B3] read-only 2% stop-loss shadow (2026-09-06) ----
+# Backtest wave-1 on the 8 real tickets: ALL rules -77%, B3 2% stop alone
+# -59% (-7,369 -> -3,014) with no hit on the only winner (Tianqi, mae -1.7%).
+# This block logs the FIRST daily ret<=-2% touch per T+1+ holding so we can
+# size real-sample impact before deciding sim/live. Decision impact = zero.
+SHADOW_B3_STOP_PCT = 2.0
+SHADOW_B3_FILE = r"C:/alphapilot/shadow/qmt_sim_b3_stop_shadow.json"
+
+
+def _shadow_b3_stop(C, code, pos, price, cost, ret, today):
+    try:
+        d = SHADOW_B3_FILE.rsplit("/", 1)[0]
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        store = {}
+        try:
+            with open(SHADOW_B3_FILE, "r", encoding="utf-8") as f:
+                store = json.load(f) or {}
+        except BaseException:
+            store = {}
+        day = store.get(today) or {}
+        if code in day:
+            return
+        shares = int(pos.get("shares") or 0)
+        name = str(pos.get("name") or code)
+        day[code] = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "code": code,
+            "name": name,
+            "cost": round(float(cost or 0), 3),
+            "ret_pct": round(float(ret or 0), 2),
+            "trigger_px": round(float(price or 0), 3),
+            "shares": shares,
+            "sim_exit_px": round(float(cost or 0) * (1 - SHADOW_B3_STOP_PCT / 100.0), 3),
+            "sim_pnl_rmb": round(-SHADOW_B3_STOP_PCT / 100.0 * float(cost or 0) * shares, 1),
+        }
+        store[today] = day
+        with open(SHADOW_B3_FILE, "w", encoding="utf-8") as f:
+            json.dump(store, f, ensure_ascii=False, indent=1)
+        print("[SHADOW-B3] " + code + " " + name + " ret=" +
+              str(round(ret, 1)) + "% < -" + str(SHADOW_B3_STOP_PCT) +
+              "% would-stop (read-only, no order)")
+    except BaseException as e:
+        if getattr(C, "run_count", 0) % 60 == 0:
+            print("[SHADOW-B3] log err: " + str(e)[:80])
+
+
+# ---- v2.40 [SHADOW-B1] read-only P2-entry weak-rebound snapshot (2026-09-06) ----
+# Synthetic Apr-Jul (386 P2 triggers, kline5m_full): dh_pct (fill vs session
+# 5m high so far) was the strongest split -- chasing strong (dh<=~0.5%) won
+# +3.3%/83% vs late weak-rebound entries (dh>1.5%) -0.4%/41%. Real Aug-Sep
+# (78 triggers) FLIPPED (strong-chase -0.1%/43%), so no veto threshold is
+# trusted across regimes yet. This block logs raw trigger-level shape on
+# every P2 BUY FILL, so real weak-regime samples accumulate (2-4 weeks)
+# before any soft/hard veto decision. Decision impact = zero.
+SHADOW_B1_FILE = r"C:/alphapilot/shadow/qmt_sim_b1_buy_shadow.json"
+SHADOW_B1_DH_VETO = 1.5  # provisional reporting band only; NOT enforced
+
+
+def _shadow_b1_log(C, code, name, rank, fill, now_min, today):
+    """Log trigger-level 5m shape of a P2 buy fill. Read-only, never blocks."""
+    try:
+        d = SHADOW_B1_FILE.rsplit("/", 1)[0]
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        store = {}
+        try:
+            with open(SHADOW_B1_FILE, "r", encoding="utf-8") as f:
+                store = json.load(f) or {}
+        except BaseException:
+            store = {}
+        day = store.get(today) or {}
+        if code in day:
+            return
+        # trigger-level shape from today's 5m bars (closed bars <= now_min)
+        dh_pct = mom3_pct = vwap_dist_pct = None
+        try:
+            bars = _get_m5_bars(C, code)
+            if bars:
+                sel = [b for b in bars if b[0] <= now_min]
+                if sel:
+                    day_high = max(float(b[3]) for b in sel)
+                    if day_high > 0 and fill > 0:
+                        dh_pct = round((day_high - fill) / day_high * 100.0, 3)
+                    closes = [float(b[2]) for b in sel]
+                    if len(closes) >= 4 and closes[-4] > 0:
+                        mom3_pct = round((fill / closes[-4] - 1) * 100.0, 3)
+                dv = _day_vwap(C, code)
+                if dv and dv > 0 and fill > 0:
+                    vwap_dist_pct = round((fill / dv - 1) * 100.0, 3)
+        except BaseException:
+            pass
+        day[code] = {
+            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "code": code,
+            "name": str(name or code),
+            "rank": int(rank or 0),
+            "tmin": int(now_min or 0),
+            "fill": round(float(fill or 0), 3),
+            "dh_pct": dh_pct,          # fill vs session high: ~0 strong, >1.5 weak rebound
+            "mom3_pct": mom3_pct,      # 3-bar (15m) pulse before fill
+            "vwap_dist_pct": vwap_dist_pct,
+            "dh_ge_1p5": bool(dh_pct is not None and dh_pct >= SHADOW_B1_DH_VETO),
+        }
+        store[today] = day
+        with open(SHADOW_B1_FILE, "w", encoding="utf-8") as f:
+            json.dump(store, f, ensure_ascii=False, indent=1)
+        print("[SHADOW-B1] " + code + " " + str(name or code) +
+              " fill=" + str(round(float(fill or 0), 2)) +
+              " dh=" + str(dh_pct) + " mom3=" + str(mom3_pct) +
+              " (read-only snapshot)")
+    except BaseException as e:
+        if getattr(C, "run_count", 0) % 60 == 0:
+            print("[SHADOW-B1] log err: " + str(e)[:80])
+
+
 def _do_sell(C, code, pos, price, reason):
     vol = pos.get("shares", 0)
     can_use = pos.get("can_use", vol)
@@ -2289,6 +3157,11 @@ def _do_sell(C, code, pos, price, reason):
         print("[SELL] order fail: " + str(e))
         return
     _log_trade(C, "SELL", code, price, vol, reason, pos=pos)
+    # v2.41 D3-2/D3-3: a discipline stop (hard_stop / stop_fixed / observe_floor
+    # / t2_force / limit_down) arms the COOLDOWN_STOP_DAYS-trading-day buy ban;
+    # any other full sell arms the same-day sell-then-rebuy ban.
+    _mark_cooldown(code, today,
+                   "stop" if _is_discipline_stop(reason) else "sold")
     C.position_map.pop(code, None)
     C.stop_watch.pop(code, None)
     _save_pos_state(C)
@@ -2373,6 +3246,10 @@ def _check_buy(C, now, now_min, today, cands):
                 continue
             if _order_locked(today, code, "BUY"):
                 continue
+            # v2.41 D3-2/D3-3 cooldown + D1 veto (never rotate out for a cooled/loud name)
+            _v, _vt, _vd = _buy_day_veto(item, code, today)
+            if _v:
+                continue
             fill, reason = _p2_decide(C, code, now_min)
             if fill is not None:
                 worth_buy = True
@@ -2436,6 +3313,20 @@ def _check_buy(C, now, now_min, today, cands):
             break
         if today_bought >= MAX_DAILY_BUY:
             break
+        # v2.41 Issue#6 D1/D3 buy-side vetoes before any P2 evaluation:
+        #   D3-2 cooldown (log once/day, never spends a slot) + D3-3 sold-today;
+        #   D1-1 dao1_veto / D1-2 pool_p90_flag (one-shot day abandon).
+        _v, _vt, _vd = _buy_day_veto(item, code, today)
+        if _v:
+            if _vt == "D3":
+                if getattr(C, "cool_log", {}).get(code) != today:
+                    C.cool_log[code] = today
+                    print("[COOL] " + code + " " + _vd + " rank=" +
+                          str(rank) + " skip")
+            else:
+                print("[DAO1] " + code + " " + _vd + " abandon for day")
+                C.sent_today.add(code)
+            continue
         # file-level dedup: guard against repeated passorder from separate
         # handlebar invocations that do not share in-memory sent_today
         if _order_locked(today, code, "BUY"):
@@ -2485,7 +3376,7 @@ def _check_buy(C, now, now_min, today, cands):
             # otherwise one quote hiccup kills the candidate for the whole day
             # and realtime monitoring silently misses a valid buy.
             if reason in ("no_confirm_eod", "skip_high_turnover",
-                          "skip_low_abr"):
+                          "skip_low_abr", "skip_r5"):
                 print("[WAIT] " + code + " P2=" + reason +
                       " rank=" + str(rank) + " abandon for today")
                 C.sent_today.add(code)
@@ -2500,18 +3391,47 @@ def _check_buy(C, now, now_min, today, cands):
         # the inflated cost turns a normal next-day pullback into a deep loss
         # the old fixed 0% t2_force floor force-sold. Hold off instead of
         # buying at a blown cost; the candidate stays pending for a later bar.
+        # v2.17 slip guard / v2.41 Issue#6 D2-2 low/side-open VWAP pullback.
+        # D2-2: gap<=0 (low/side open) & P2 confirmed -> if the live price has
+        # already run above VWAP*1.002, do NOT chase: wait for the VWAP
+        # pullback (retried each bar), abandon the candidate at 14:00 if never
+        # filled. Positive gap / no VWAP / missing data fall back to the v2.17
+        # fixed 2% slip guard unchanged.
         try:
             _live = _get_last(C, code)
-            if _live and _live > fill * (1 + MAX_BUY_SLIP_PCT):
-                print("[BUY] " + code + " slip guard: live " +
-                      str(round(_live, 2)) + " > trig " + str(round(fill, 2)) +
-                      " +" + str(round((_live / fill - 1) * 100, 1)) +
-                      "% hold off")
-                continue
+            if _live:
+                _g = _r5_gap_pct(C, code)
+                if _g is not None and _g <= 0.0:
+                    _vw = _day_vwap(C, code)
+                    if _vw and _vw > 0:
+                        _tgt = _vw * (1 + VWAP_WAIT_PREM)
+                        if _live > _tgt:
+                            if now_min >= VWAP_WAIT_UNTIL_MIN:
+                                print("[D2W] " + code + " gap=" +
+                                      str(round(_g, 2)) +
+                                      "% no VWAP pullback by 14:00, abandon for day")
+                                C.sent_today.add(code)
+                            else:
+                                if code not in getattr(C, "vwap_wait_logged", set()):
+                                    C.vwap_wait_logged.add(code)
+                                    print("[D2W] " + code + " live " +
+                                          str(round(_live, 2)) +
+                                          " > VWAP target " +
+                                          str(round(_tgt, 2)) +
+                                          " (gap<=0), wait pullback, give up 14:00")
+                            continue
+                elif _live > fill * (1 + MAX_BUY_SLIP_PCT):
+                    print("[BUY] " + code + " slip guard: live " +
+                          str(round(_live, 2)) + " > trig " + str(round(fill, 2)) +
+                          " +" + str(round((_live / fill - 1) * 100, 1)) +
+                          "% hold off")
+                    continue
         except BaseException:
             pass
 
-        shares = int(total_asset * POSITION_PCT / fill / 100) * 100
+        # v2.41 D4/D5: risk REDUCED -> single-buy pct = POSITION_PCT * 0.5.
+        eff_pct = POSITION_PCT * _risk_scale(C, today)
+        shares = int(total_asset * eff_pct / fill / 100) * 100
         if shares < 100:
             print("[SKIP] " + code + " insufficient cash")
             continue
@@ -2565,6 +3485,8 @@ def _check_buy(C, now, now_min, today, cands):
                   sweet_tag)
             _log_trade(C, "BUY", code, fill, shares, "p2_dyn_confirm",
                        pos=C.position_map[code])
+            # v2.40: [SHADOW-B1] read-only trigger-level shape snapshot.
+            _shadow_b1_log(C, code, item.get("name"), rank, fill, now_min, today)
             _save_pos_state(C)
         except BaseException as e:
             print("[BUY] order fail: " + str(e))

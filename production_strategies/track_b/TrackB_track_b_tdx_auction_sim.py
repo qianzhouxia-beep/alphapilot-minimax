@@ -1,6 +1,17 @@
 # -*- coding: utf-8 -*-
-# AlphaPilot -- Track B TDX SIM auction-select strategy v1.18
+# AlphaPilot -- Track B TDX SIM auction-select strategy v1.20
 # =========================================================
+# v1.20 (2026-09-05, call-auction shadow record, aligned with Track A v2.38):
+#   * Log server 09:25 call-auction volume once/day/row as [SHADOW-CALL]
+#     (pre_market_gap_pct / pre_market_call_amount_wan /
+#     pre_market_call_volume_hand on fullpool_live rows). Read-only -- no
+#     decision impact. Feeds the September call-volume threshold calibration.
+# v1.19 (2026-09-05, R5 second-pricing gate, aligned with Track A v2.37):
+#   * R5 gate at the P2 trigger (both dyn_confirm and snap_confirm paths):
+#     reject far-gap / loud-auction / late-afternoon triggers whose T+1 is
+#     backtest-negative. Real-candidate re-check 2026-08-10~09-03 (78 P2
+#     triggers): pass n=16 T+1-open +0.58%/56.2% vs reject +0.22%/46.8%;
+#     matches synthetic Apr-Jul. Config R5_GATE_MODE 0=off / 1=gate / 2=soft.
 # v1.18 changes vs v1.17 (2026-09-02, vwap 2nd confirm, aligned with QMT v2.7):
 #   * vwap_weak_early needs TWO still-below minutes.
 # v1.17 changes vs v1.16 (2026-08-31, trading-day hold fix, aligned with QMT v2.6):
@@ -304,6 +315,27 @@ P1_KEEP_TOP_N = 50
 SWEET_ZONE_MODE = 1
 SWEET_GAP_LO = -1.5               # sweet zone = gap% in [LO, HI]
 SWEET_GAP_HI = 0.0
+
+# --- R5 second-pricing gate (v1.19, 2026-09-05, aligned with Track A v2.37) ---
+# "High-open always drops": auction prices last night's info, the market must
+# re-price after open with NEW money. Backtest (bt_p2_second_pricing_real.py,
+# 78 real P2 triggers 08-10~09-03): R5-pass n=16 T+1-open +0.58%/56.2% vs
+# reject +0.22%/46.8%; direction matches the synthetic Apr-Jul result.
+# Auction volume is NEGATIVELY correlated with T+1 (loud auction = overnight
+# holders distributing). So REJECT loud auctions / far gaps / late-afternoon
+# triggers at the P2 trigger instant:
+#     R5-GAP : today open gap (open/prev-1) in (LO,HI)   [-1.5,+1.5]
+#     R5-CALL: first 5m bar volume (09:30-09:35) / mean of prior 5 days'
+#              first 5m bar volume < 1.5   (a loud auction fails)
+#     R5-TIME: trigger minute < 660 (11:00)
+# Missing data -> pass (soft, like ABR). Mode:
+#     0 = off, 1 = gate (R5 fail abandons the candidate for the day),
+#     2 = soft (skip this attempt, retry later bars)
+R5_GATE_MODE = 1
+R5_GAP_LO = -1.5
+R5_GAP_HI = 1.5
+R5_CALL_MAX = 1.5
+R5_MAX_TRIG_MIN = 11 * 60    # 11:00
 
 # --- P2 money gate (aligns server money_flow_gate.py; TDX snapshot approx) ---
 MIN_ACTIVE_BUY = 0.52
@@ -1120,6 +1152,40 @@ def _load_fullpool_classic(today):
     return pool
 
 
+_shadow_call_logged = set()
+
+
+def _log_shadow_call_rows(tag, rows):
+    """v1.20: log server 09:25 call-auction shadow fields from fullpool rows.
+    Read-only -- never changes decisions. Guarded by _shadow_call_logged
+    (TDX re-parses every bar). Rows without the auction fields log nothing."""
+    key = str(tag)
+    if key in _shadow_call_logged:
+        return
+    _shadow_call_logged.add(key)
+    n = 0
+    for it in (rows or []):
+        code = str(it.get("symbol") or "")
+        amt = it.get("pre_market_call_amount_wan")
+        vol = it.get("pre_market_call_volume_hand")
+        if amt is None and vol is None:
+            continue
+        n += 1
+        gap = it.get("pre_market_gap_pct")
+        line = ("[SHADOW-CALL] " + str(tag) + " " + code + " " +
+                str(it.get("name") or "") + " rank=" + str(it.get("rank")))
+        if gap is not None:
+            line += " gap=" + str(round(float(gap), 2))
+        if amt is not None:
+            line += " call_amt_wan=" + str(round(float(amt), 1))
+        if vol is not None:
+            line += " call_vol_hand=" + str(int(float(vol)))
+        log(line)
+    if n:
+        log("[SHADOW-CALL] " + str(tag) +
+            " rows_with_auction_field=" + str(n))
+
+
 def _load_fullpool_file(today, suffix, fetch_fn):
     """Load {date}{suffix} from local scores dir; fetch remote if missing.
     Returns rows or None. Re-parses each call (ST has no per-date cache)."""
@@ -1132,6 +1198,7 @@ def _load_fullpool_file(today, suffix, fetch_fn):
         with open(fpath, "r", encoding="utf-8") as f:
             d = json.load(f)
         rows = d.get("rows") or []
+        _log_shadow_call_rows(today + suffix, rows)
         if ST.get("last_pool_n") != len(rows):
             ST["last_pool_n"] = len(rows)
             log("[FULLPOOL] " + today + suffix + " n=" + str(len(rows)))
@@ -1438,6 +1505,77 @@ def _order_by_sweet(items):
         else:
             rest.append(it)
     return tier + rest
+
+
+# ================= R5 second-pricing gate (v1.19) =================
+def _r5_gap_pct(code):
+    """Today's open gap% (same source as the sweet-zone check but with the R5
+    wide band). None on missing data."""
+    g = ST["gap_cache"].get(code)
+    if g is None:
+        g = _get_gap_pct(code)
+    return g
+
+
+def _r5_call_ratio(code):
+    """First-5m-bar volume ratio = today's first 5m bar volume (09:30-09:35) /
+    mean of prior 5 trading days' first 5m bar volume. A loud opening bar
+    (ratio >= 1.5) usually means overnight holders distributing into the open
+    (backtest T+1 Spearman -0.39). Pulls 6 trading days (count=6*48), keeps the
+    first bar of each real date. None when history is unavailable (soft-pass)."""
+    try:
+        df = _get_md(["volume"], [code], "5m", 6 * 48)
+        vols = _md_series(df, "volume", code)
+        if vols is None or len(vols) == 0:
+            return None
+        idx = vols.index
+        n = len(vols)
+        day_first = {}
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        for i in range(n):
+            t = idx[i]
+            if not hasattr(t, "strftime"):
+                continue
+            ds = t.strftime("%Y-%m-%d")
+            if ds in day_first:
+                continue
+            v = float(vols.iloc[i])
+            if v == v and v > 0:
+                day_first[ds] = v
+        cur = day_first.get(today_str)
+        if cur is None or cur <= 0:
+            return None
+        hist = [day_first[ds] for ds in sorted(day_first.keys())
+                if ds < today_str and day_first.get(ds)]
+        hist = hist[-5:]
+        if not hist:
+            return None
+        base = sum(hist) / float(len(hist))
+        if base <= 0:
+            return None
+        return cur / base
+    except BaseException:
+        return None
+
+
+def _r5_gate_check(code, now_min):
+    """R5 second-pricing gate at the P2 trigger instant. Returns None when the
+    trigger passes R5, else a reason string:
+      "r5_gap"  : open gap outside (-1.5%, +1.5%)
+      "r5_call" : first-5m vol ratio >= 1.5 (loud auction)
+      "r5_time" : trigger at/after 11:00
+    Missing data counts as PASS (soft gate). mode=0 disables the gate."""
+    if R5_GATE_MODE <= 0:
+        return None
+    if now_min is not None and now_min >= R5_MAX_TRIG_MIN:
+        return "r5_time"
+    g = _r5_gap_pct(code)
+    if g is not None and not ((R5_GAP_LO - 1e-9) <= g <= (R5_GAP_HI + 1e-9)):
+        return "r5_gap"
+    cr = _r5_call_ratio(code)
+    if cr is not None and cr >= R5_CALL_MAX:
+        return "r5_call"
+    return None
 
 
 def _get_active_buy_ratio(code):
@@ -2373,6 +2511,15 @@ def _p2_decide(code, now_min):
                 trig_px = c
                 break
             if trig_px and trig_px > 0:
+                # R5 second-pricing gate (v1.19): reject loud-auction / far-gap
+                # / late-afternoon triggers whose T+1 is backtest-negative.
+                r5 = _r5_gate_check(code, now_min)
+                if r5 is not None:
+                    if R5_GATE_MODE == 1:
+                        log("[R5] " + code + " gate=" + r5 +
+                            " abandon for day")
+                        return None, "skip_r5"
+                    return None, "wait_confirm"   # mode 2: soft retry
                 return round(trig_px, 2), "dyn_confirm"
             if now_min >= CONF_END_MIN:
                 return None, "no_confirm_eod"
@@ -2394,6 +2541,14 @@ def _p2_decide(code, now_min):
     lo = _f(s, "Low", default=None) or price
     if not _p2_day_high_ok(price, hi, lo):
         return None, "skip_day_high"
+    # R5 second-pricing gate (v1.19) -- 5m may be absent on the snap path so
+    # R5-CALL typically soft-passes; R5-GAP / R5-TIME still apply.
+    r5 = _r5_gate_check(code, now_min)
+    if r5 is not None:
+        if R5_GATE_MODE == 1:
+            log("[R5] " + code + " gate=" + r5 + " abandon for day (snap)")
+            return None, "skip_r5"
+        return None, "wait_confirm"
     return round(price, 2), "snap_confirm"
 
 
@@ -2542,7 +2697,11 @@ def _check_buy(now, now_min, today, pool):
 
         fill, reason = _p2_decide(code, now_min)
         if fill is None:
-            if reason in ("no_confirm_eod", "skip_high_turnover"):
+            if reason in ("no_confirm_eod", "skip_high_turnover",
+                          "skip_r5"):
+                # permanent abandon: past the eod window, turnover only
+                # climbs intraday, or the R5 gate rejected this candidate
+                # (v1.19, R5-GAP / R5-CALL are fixed intraday).
                 log("[WAIT] " + code + " P2=" + reason + " abandon today")
                 ST["sent_today"].add(code)
             # else wait_confirm / no_quote / no_m5: transient -> silent retry
@@ -2676,7 +2835,7 @@ def main():
         log("[FATAL] cannot get account handle: " + repr(handle))
         sys.exit(1)
     ST["account"] = handle
-    log("[INIT] track-B tdx v1.18 (auction-select, vwap 2nd) | acct=" +
+    log("[INIT] track-B tdx v1.20 (auction-select, vwap 2nd, R5+call-shadow) | acct=" +
         used_acct + " | handle=" + str(handle) +
         " | pos_state=" + str(len(ST.get("pos_state") or {})))
     try:

@@ -1,6 +1,26 @@
 # coding:utf-8
-# AlphaPilot -- Track A QMT LIVE strategy TEMPLATE v2.36-tpl (gene + path_fade + loud_vol)
+# AlphaPilot -- Track A QMT LIVE strategy TEMPLATE v2.38-tpl (gene + path_fade + loud_vol + D8 observe + TSDOWN/D8-3C)
 # =========================================================
+# v2.38-tpl (2026-09-08): Issue#6 TrendState execution (boss 2026-09-08,
+#   issue#6 comment 5573698661). Same C/B semantics as sim v2.42:
+#   C TSDOWN stop co-exit: any holding whose TrendState switches to DOWN
+#     (2-day confirm, wb_trend_state_calc v1.0 state machine) is HALF-SOLD at
+#     the next open (09:31-09:45), logged [TSDOWN-LIVE]. Applies to ALL
+#     holdings INCLUDING D8 observe codes (D8 exempts only its -4% stop slot
+#     and the buy cooldown, NOT this half-sell). Remaining half keeps the D8
+#     floor / normal stops.
+#   B D8 three-condition release: an observe code resumes normal stops before
+#     expire once TrendScore >= 55 x2 days AND T3 == 1.0 AND close > MA10
+#     (d8_released latched one-way; expire still resumes normal stops).
+#   TrendState engine ported 1:1 from wb_trend_state_calc.py (b66ddfc),
+#     verified 0-diff on the server kline. ASCII-only.
+# v2.37-tpl (2026-09-06): D8 observe list -- deep-loss ticket with a bounded
+#   turnaround window. observe_list.json {code:{expire:"YYYYMMDD", floor_pct}}:
+#   while today<=expire the code is exempt from ALL mechanical sells
+#   (hard_stop / t2_force / t2_force_after_extend / vwap_weak_early /
+#   wyckoff_bc / peel / hold-cap); only floor_pct sells it unconditionally
+#   ("observe_floor"). Expired -> normal stop rules resume. Buy/add ban stays
+#   a manual discipline (D3-3). Issue#6 decision c5558718137 (D8 observe).
 # v2.36-tpl (2026-09-04): skip loud_vol inside rank<=MAX_CAND_RANK.
 #   T-1 up-day vol/MA20>=2.5. Same as sim v2.36 / Track B v2.10.
 # v2.35-tpl (2026-09-03): skip path_fade inside rank<=MAX_CAND_RANK.
@@ -410,6 +430,28 @@ T2_FORCE_AMP_MIN = 4.0          # amplitude below this adds no extra tolerance
 T2_FORCE_VOL_K = 0.10           # +0.10 annual vol -> -1pp more tolerance
 T2_FORCE_FLOOR_MAX = -0.10      # absolute floor (never below hard_stop)
 
+# --- D8 observe list (v2.37-tpl, deep-loss ticket with a bounded window) ---
+# {code: {"expire": "20260918", "floor_pct": -19.2, "name": "...", "note": "..."}}
+# code may be bare 6-digit or exchange-suffixed. Observe codes are exempt from
+# every mechanical sell until expire; floor_pct is an unconditional stop.
+OBSERVE_FILE = r"C:\alphapilot\observe_list.json"
+
+# --- v2.38-tpl TrendState stop co-exit (C) + D8 three-condition release (B) ---
+# TrendState = port of wb_trend_state_calc v1.0 (commit b66ddfc), engine
+# functions _ts_* below, verified 0-diff on the server kline.
+# C: holding State switches to DOWN (2-day confirm) -> HALF sell next open.
+#    Live tag TSDOWN-LIVE. Applies to ALL holdings incl. D8 observe codes
+#    (D8 exempts only its -4% stop slot and cooldown, NOT this half-sell).
+TSDOWN_ENABLE = True
+TSDOWN_WIN_START = 9 * 60 + 31
+TSDOWN_WIN_END = 9 * 60 + 45
+# B: observe code releases (resumes normal stops) before expire when
+#    TrendScore >= 55 x2 days AND T3 == 1.0 AND close > MA10.
+D8REL_SCORE_MIN = 55.0
+D8REL_DAYS = 2
+D8REL_T3 = 1.0
+TS_DAILY_MAX_AGE = 900
+
 # Buy-side slip guard (v2.17, 2026-08-19): the P2 trigger is a 5m bar close that
 # can lag the live tape on a fast move; a market order then fills far above the
 # trigger (300591 08-18: trig 7.88 filled 8.54, +8.4%). The inflated cost turns
@@ -497,7 +539,7 @@ def init(C):
         print("[INIT] universe=" + str(codes or ["600519.SH"]))
     except BaseException as e:
         print("[INIT] set_universe fail: " + str(e))
-    print("[INIT] track-A qmt-live v2.36-tpl (gene+path_fade+loud_vol, rank<=3) | acct=" + ACCOUNT_ID +
+    print("[INIT] track-A qmt-live v2.37-tpl (gene+path_fade+loud_vol+D8, rank<=3) | acct=" + ACCOUNT_ID +
           " | holdings=" + str(len(codes)) + " | score_dir=" + str(C.score_dir) +
           " | pos_state=" + str(len(getattr(C, "pos_state", {}) or {})))
     try:
@@ -1456,6 +1498,312 @@ def _t2_force_floor(C, code):
     return floor
 
 
+# ===== D8 observe-list helpers (v2.37-tpl, 2026-09-06) =====
+def _load_json_safe(path):
+    """Load a json file; None on any error (missing/corrupt)."""
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else None
+    except BaseException:
+        pass
+    return None
+
+
+def _observe_entry(code):
+    """Return the observe entry dict for code, or None. Accepts bare
+    6-digit codes and exchange-suffixed symbols."""
+    d = _load_json_safe(OBSERVE_FILE)
+    if not d:
+        return None
+    e = d.get(code) or d.get(str(code).split(".")[0])
+    return e if isinstance(e, dict) else None
+
+
+def _observe_active(entry, today):
+    """True while today <= expire (both 'YYYYMMDD' 8-digit strings)."""
+    try:
+        exp = str((entry or {}).get("expire") or "")
+        if len(exp) != 8:
+            return False
+        return today <= exp
+    except BaseException:
+        return False
+
+
+# ================= v2.38-tpl TrendState engine (C TSDOWN + B D8-3C release) =================
+# Ported 1:1 from wb_trend_state_calc.py v1.0 (commit b66ddfc). Verified on the
+# server kline: 4164 checked per-bar states, 0 mismatch (see _ts_align_test).
+# All functions are ASCII / pure-python so they run inside QMT untouched.
+
+def _ts_sma(vals, n, i):
+    if i + 1 < n:
+        return None
+    return sum(vals[i + 1 - n:i + 1]) / n
+
+
+def _ts_pivots(highs, lows, k):
+    n = len(highs)
+    ph, pl = [], []
+    for i in range(k, n - k):
+        if highs[i] >= max(highs[i - k:i]) and highs[i] > max(highs[i + 1:i + k + 1]):
+            ph.append(i)
+        if lows[i] <= min(lows[i - k:i]) and lows[i] < min(lows[i + 1:i + k + 1]):
+            pl.append(i)
+    return ph, pl
+
+
+def _ts_linreg_r2(closes, i, n):
+    import math
+    if i + 1 < n or n < 3:
+        return 0.0
+    ys = [math.log(closes[j]) for j in range(i + 1 - n, i + 1)]
+    xs = list(range(n))
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    sxy = sum((xs[j] - mx) * (ys[j] - my) for j in range(n))
+    syy = sum((y - my) ** 2 for y in ys)
+    if sxx and syy:
+        return (sxy * sxy) / (sxx * syy)
+    return 0.0
+
+
+_TS_MA = (5, 10, 20, 60)
+_TS_SPAN = 5
+_TS_N10 = 0.03
+_TS_N20 = 0.02
+_TS_K = 3
+_TS_CHAN = 20
+_TS_ROC_N = 10
+_TS_ROCN = 0.10
+_TS_REGN = 20
+_TS_VN = 10
+_TS_VRLO = 0.6
+_TS_VRHI = 1.6
+_TS_W = (0.25, 0.15, 0.20, 0.15, 0.15, 0.10)
+_TS_UP = 65.0
+_TS_DOWN = 40.0
+_TS_CFM = 2
+_TS_VETO = 0.30
+
+
+def _ts_compute(closes, highs, lows, vols):
+    """Full TrendState series (identical to wb_trend_state_calc.compute_series).
+    Returns per-bar dicts {score,raw,state,t1..t6,veto}; None before warmup."""
+    n = len(closes)
+    out = []
+    prev_state = None
+    pend, cnt = None, 0
+    for i in range(n):
+        ma5 = _ts_sma(closes, 5, i)
+        ma10 = _ts_sma(closes, 10, i)
+        ma20 = _ts_sma(closes, 20, i)
+        ma60 = _ts_sma(closes, 60, i)
+        ma10p = _ts_sma(closes, 10, i - _TS_SPAN)
+        ma20p = _ts_sma(closes, 20, i - _TS_SPAN)
+        if None not in (ma5, ma10, ma20, ma60):
+            t1 = int(closes[i] > ma5) + int(ma5 > ma10) + int(ma10 > ma20) + int(ma20 > ma60)
+        else:
+            t1 = None
+        if None in (ma10, ma10p, ma20, ma20p) or not ma10p or not ma20p:
+            t2 = None
+        else:
+            s10 = ma10 / ma10p - 1
+            s20 = ma20 / ma20p - 1
+            nn10 = max(-1.0, min(1.0, s10 / _TS_N10))
+            nn20 = max(-1.0, min(1.0, s20 / _TS_N20))
+            t2 = (nn10 + nn20 + 2) / 4
+        ph, pl = _ts_pivots(highs[:i + 1], lows[:i + 1], _TS_K)
+        if len(ph) < 2 or len(pl) < 2:
+            t3 = 0.5
+        else:
+            hh = highs[ph[-1]] > highs[ph[-2]]
+            hl = lows[pl[-1]] > lows[pl[-2]]
+            t3 = 0.5 * int(hh) + 0.5 * int(hl)
+        if i + 1 < _TS_CHAN:
+            t4 = None
+        else:
+            llv = min(lows[i + 1 - _TS_CHAN:i + 1])
+            hhv = max(highs[i + 1 - _TS_CHAN:i + 1])
+            t4 = max(0.0, min(1.0, (closes[i] - llv) / (hhv - llv))) if hhv - llv else 0.5
+        if i < _TS_ROC_N:
+            t5 = None
+        else:
+            roc = closes[i] / closes[i - _TS_ROC_N] - 1
+            mom = (max(-1.0, min(1.0, roc / _TS_ROCN)) + 1) / 2
+            q = _ts_linreg_r2(closes, i, _TS_REGN)
+            t5 = 0.7 * mom + 0.3 * q
+        if i < _TS_VN:
+            t6 = None
+        else:
+            up_v, dn_v = [], []
+            for j in range(i + 1 - _TS_VN, i + 1):
+                if closes[j] > closes[j - 1]:
+                    up_v.append(vols[j])
+                elif closes[j] < closes[j - 1]:
+                    dn_v.append(vols[j])
+            if not dn_v:
+                t6 = 1.0
+            elif not up_v:
+                t6 = 0.0
+            else:
+                vr = (sum(up_v) / len(up_v)) / (sum(dn_v) / len(dn_v))
+                t6 = max(0.0, min(1.0, (vr - _TS_VRLO) / (_TS_VRHI - _TS_VRLO)))
+        if i + 1 < max(_TS_MA) or None in (t1, t2, t3, t4, t5, t6):
+            out.append({"score": None, "raw": None, "state": None,
+                        "t1": t1, "t2": t2, "t3": t3, "t4": t4, "t5": t5,
+                        "t6": t6, "veto": False})
+            continue
+        score = 100.0 * (_TS_W[0] * t1 / 4 + _TS_W[1] * t2 + _TS_W[2] * t3
+                         + _TS_W[3] * t4 + _TS_W[4] * t5 + _TS_W[5] * t6)
+        veto = (t3 == 0.0 and t4 < _TS_VETO)
+        if veto:
+            raw = "DOWN"
+        elif score >= _TS_UP:
+            raw = "UP"
+        elif score <= _TS_DOWN:
+            raw = "DOWN"
+        else:
+            raw = "RANGE"
+        if prev_state is None:
+            state = raw
+        elif raw == prev_state:
+            pend, cnt = None, 0
+            state = prev_state
+        else:
+            if pend == raw:
+                cnt += 1
+            else:
+                pend, cnt = raw, 1
+            if cnt >= _TS_CFM:
+                prev_state = raw
+                pend, cnt = None, 0
+                state = prev_state
+            else:
+                state = prev_state
+        prev_state = state
+        out.append({"score": round(score, 1), "raw": raw, "state": state,
+                    "t1": t1, "t2": round(t2, 3), "t3": t3, "t4": round(t4, 3),
+                    "t5": round(t5, 3), "t6": round(t6, 3), "veto": bool(veto)})
+    return out
+
+
+def _ts_last_bars(C, code):
+    """Daily OHLCV through the LAST COMPLETE day (today's partial dropped when
+    present). Returns (closes, highs, lows, vols) ascending, or None on short
+    data. Cached per (date, code) for TS_DAILY_MAX_AGE seconds."""
+    today = datetime.now().strftime("%Y%m%d")
+    cache = getattr(C, "_ts_daily_cache", None)
+    if cache is None:
+        cache = {}
+        C._ts_daily_cache = cache
+    key = code + ":" + today
+    now = time.time()
+    hit = cache.get(key)
+    if hit and now - hit[0] < TS_DAILY_MAX_AGE:
+        return hit[1]
+    bars = None
+    try:
+        data = C.get_market_data_ex(
+            ["open", "high", "low", "close", "volume"], [code], period="1d",
+            count=120, subscribe=True)
+        if data and isinstance(data, dict) and code in data:
+            df = data[code]
+            op = _col(df, "open")
+            hi = _col(df, "high")
+            lo = _col(df, "low")
+            cl = _col(df, "close")
+            vo = _col(df, "volume")
+            n = min(len(op), len(hi), len(lo), len(cl), len(vo))
+            if n >= 65:
+                # QMT daily bars include today's partial bar while the session
+                # is open; drop it so the decision is made on completed days.
+                cl = cl[:n - 1]
+                hi = hi[:n - 1]
+                lo = lo[:n - 1]
+                vo = vo[:n - 1]
+                op = op[:n - 1]
+                if len(cl) >= 65:
+                    bars = (cl, hi, lo, vo)
+    except BaseException:
+        bars = None
+    cache[key] = (now, bars)
+    return bars
+
+
+def _ts_state_info(C, code):
+    """(state, score, t3) of the LAST completed day + (score_prev, t3_prev,
+    close, ma10) for the D8-3C release test. None when data too short."""
+    bars = _ts_last_bars(C, code)
+    if not bars:
+        return None
+    cl, hi, lo, vo = bars
+    ser = _ts_compute(cl, hi, lo, vo)
+    valid = [r for r in ser if r["score"] is not None]
+    if len(valid) < 2:
+        return None
+    last, prev = valid[-1], valid[-2]
+    return {"state": last["state"], "score": last["score"],
+            "t3": last["t3"], "score_prev": prev["score"], "t3_prev": prev["t3"],
+            "state_prev": prev["state"],
+            "close": cl[-1], "ma10": _ts_sma(cl, 10, len(cl) - 1)}
+
+
+def _d8_three_cond_released(C, code):
+    """B release: TrendScore>=D8REL_SCORE_MIN for D8REL_DAYS consecutive days
+    AND last T3==D8REL_T3 AND close>MA10. False on missing data (stay exempt)."""
+    try:
+        info = _ts_state_info(C, code)
+        if not info or info["score"] is None or info["score_prev"] is None:
+            return False
+        if info["score"] < D8REL_SCORE_MIN or info["score_prev"] < D8REL_SCORE_MIN:
+            return False
+        if info["t3"] != D8REL_T3:
+            return False
+        if not info["ma10"] or not (info["close"] > info["ma10"]):
+            return False
+        return True
+    except BaseException:
+        return False
+
+
+def _d8_release_now(C, code, pos, today):
+    """One-way latch: an observe code is released (resumes normal stops)
+    BEFORE expire once the three-condition release prints. Locks pos
+    ['d8_released']=today so a later weak print cannot re-exempt it. Expire
+    handling in the caller still resumes normal stops independently."""
+    if pos.get("d8_released"):
+        return True
+    if _d8_three_cond_released(C, code):
+        pos["d8_released"] = today
+        print("[OBSERVE] " + code + " 3-cond release (score>=55x2 + T3=1.0"
+              + " + close>MA10), resume normal stops")
+        return True
+    return False
+
+
+def _tsdown_new_down(C, code, pos, today):
+    """C trigger: the holding's TrendState switched INTO DOWN on the last
+    completed day. Returns True once per DOWN episode; the caller half-sells.
+    Latches pos['tsdown_fired']=today when armed so a single DOWN episode
+    fires only one next-open half-sell."""
+    try:
+        info = _ts_state_info(C, code)
+        if not info or info["state"] != "DOWN":
+            return False
+        prev_state = info.get("state_prev")
+        if prev_state == "DOWN":
+            return False
+        if pos.get("tsdown_fired") == today:
+            return False
+        pos["tsdown_fired"] = today
+        return True
+    except BaseException:
+        return False
+
+
 # ===== weak-regime helpers (v2.32-tpl, 2026-09-03: MA25 trend line) =====
 def _weak_regime(C, today):
     """Weak-market regime flag from today's candidates.json market_env
@@ -1885,6 +2233,55 @@ def _check_sell(C, now, now_min, today):
         is_today_buy = (bd == today)
         if is_today_buy:
             continue  # T+1: cannot sell today's buy (except limit-down)
+
+        # ---- v2.38-tpl TSDOWN: TrendState fresh-switch to DOWN -> half sell ----
+        # (C, issue#6 comment 5573698661). Applies to ALL holdings INCLUDING
+        # D8 observe codes (D8 exempts only its floor slot and cooldown, NOT
+        # this half-sell). Take-first: an observe_floor already tripped this
+        # bar wins; otherwise the half-sell fires in the next-open window.
+        if TSDOWN_ENABLE and TSDOWN_WIN_START <= now_min <= TSDOWN_WIN_END:
+            _obx = _observe_entry(code)
+            _flo = None
+            if _obx and _observe_active(_obx, today):
+                _flo = float(_obx.get("floor_pct") or DEF_HARD_STOP * 100)
+            if (_flo is None or ret > _flo) and _tsdown_new_down(C, code, pos, today):
+                print("[TSDOWN-LIVE] " + code + " TrendState->DOWN, half next-open"
+                      + " px=" + str(round(price, 2)) + " ret=" + str(round(ret, 1)) + "%")
+                _do_sell_half(C, code, pos, price,
+                              "tsdown_next_open " + str(round(ret, 1)) + "%")
+                continue
+
+        # ================= v2.37-tpl D8 observe list =================
+        # Deep-loss ticket with a bounded turnaround window. While today <=
+        # expire, the code is exempt from ALL mechanical sells below (hard_stop /
+        # t2_force / t2_force_after_extend / vwap_weak_early / wyckoff_bc /
+        # peel / hold-cap) so the position can play out. Only floor_pct sells it
+        # unconditionally ("observe_floor", a disaster floor). Expired entries
+        # automatically resume the normal stop rules. Log once per day.
+        obs = _observe_entry(code)
+        if obs:
+            if _observe_active(obs, today):
+                if _d8_release_now(C, code, pos, today):
+                    # v2.38-tpl B: three-condition release -> fall through to
+                    # the normal mechanical sells below (no exemption today).
+                    pass
+                else:
+                    flo = float(obs.get("floor_pct") or DEF_HARD_STOP * 100)
+                    if ret <= flo:
+                        _do_sell(C, code, pos, price,
+                                 "observe_floor " + str(round(ret, 1)) + "% vs floor " +
+                                 str(round(flo, 1)) + "% (D8 disaster floor)")
+                        continue
+                    if pos.get("observe_log") != today:
+                        pos["observe_log"] = today
+                        print("[OBSERVE] " + code + " exempt all force-sells ret=" +
+                              str(round(ret, 1)) + "% expire=" + str(obs.get("expire")) +
+                              " floor=" + str(round(flo, 1)) + "%")
+                    continue  # hold: skip every mechanical sell this pass
+            if not pos.get("d8_released") and pos.get("observe_log") != today:
+                pos["observe_log"] = today
+                print("[OBSERVE] " + code + " expired, resume normal stops")
+        # ================= end D8 observe =================
 
         # Wyckoff buy-climax early exit (v2.10): if today's bars print a
         # climax bar near the holding peak (long upper shadow + 1.5x vol),
@@ -2848,7 +3245,7 @@ def _snap_daily(C, today, now):
 #    and encrypts the file, which can corrupt UTF-8 and raise SyntaxError).
 #    Keep it plaintext on disk; QMT runs plaintext files fine.
 # 4) In QMT, create a strategy pointing at that python file and start it.
-# 5) Check the log prints "[INIT] track-A qmt-live v2.36-tpl ... acct=<ACCOUNT_ID>".
+# 5) Check the log prints "[INIT] track-A qmt-live v2.37-tpl ... acct=<ACCOUNT_ID>".
 #
 # Per-account local files (auto-created):
 #   C:\alphapilot\<ACCOUNT_TAG>_trades_fullchain.json  - trade journal

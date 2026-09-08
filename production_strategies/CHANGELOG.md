@@ -18,6 +18,211 @@
 
 ---
 
+## 2026-09-08 TrendState 三项接入执行（Issue#6 拍板 5573698661：A 影子 / B D8三条件 / C TSDOWN live+sim）
+
+- 修改人/Agent：主控 Agent（Cursor），WB-Mac 代录老板拍板 2026-09-08 01:00（issue#6 comment 5573698661）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim.py`（v2.41 → **v2.42**）
+  - `track_a/TrackA_track_a_qmt_full_chain_live.py`（v2.37-tpl → **v2.38-tpl**）
+  - `track_a/_ut_tsdown_v242.py`（新增单测）
+  - 服务器端：`rd_workshop/shadow_p1_down_daily.py`（新增，P1-DOWN 只读影子）+ `rd_workshop/shadow_daily_health.py`（接入巡检）+ crontab `50 16 * * 1-5`
+- 版本变化：sim v2.41→v2.42；live v2.37-tpl→v2.38-tpl（均逻辑改动）
+- 修改内容：
+  1. **C 止损协同（转 DOWN 次日开盘减半）**：sim/live 同参数部署。TrendState 确认滞后 2 日切 DOWN（沿用 WB 口径）→ 次日 TSDOWN_WIN（09:31-09:45）减半，日志 `[TSDOWN-SIM]`/`[TSDOWN-LIVE]` 双轨。与 -4% 止损、D8 灾难兜底取先到者。**C 适用于全部实盘持仓（含 D8 观察仓票）；D8 仅豁免 -4% 止损与 5 日冷却，不免 C**。
+  2. **B D8 解除判据三条件升级**：score≥55×2日 + T3=1.0 + 收>MA10 三条件同时满足才解除观察（比现行"2连收>MA10"更严），`_d8_three_cond_released` + 单向闩锁 `_d8_release_now`（触发当日记录 `d8_released`，后续不再重复豁免）。
+  3. **A P1 DOWN 门禁不装 → 2 周只读影子（09-21 复盘）**：服务器每日收盘后对当日 `daily_picks_archive/{date}/top10_ungated.json` 池算 TrendState，DOWN 事件记 `rd_workshop/shadow_p1_down/events.jsonl`（含 `is_switch` 区分初切/持续），open-base T+5 结算写 ledger.csv；`output/p1_down_shadow.jsonl` 每日 marker 供巡检；幂等（重跑不重复记）。复盘需累计 n≥30 再议转正。
+  4. TrendState 引擎：`_ts_engine.py`（ASCII、stdlib）1:1 移植 WB `wb_trend_state_calc.py`（commit b66ddfc），sim/live 内嵌同源实现。
+- 原因/依据：Issue#6 老板拍板（5573698661）——"如果你们都达成了共识，那就按照你们推荐的执行吧，正向提升 live 和 SIM 同时进行"。WB 复核 5573654880 确认窄池自选效应、P1 建议不硬装、护栏（不新增见 DOWN 就买的反向信号；D5 宽度降档时 DOWN 走减仓口径）。
+- 验证：
+  - ASCII：sim/live 两文件纯 ASCII + AST 通过 ✅
+  - 单测：`_ut_tsdown_v242.py` 42 项全绿（sim/live 引擎 vs `_ts_engine.py` UP/DOWN 合成序列逐日 parity 121 样本、三条件释放单向闩锁、TSDOWN fresh/sameday/newday/continuing、`_ts_last_bars` 弃当日 partial bar、配置 sanity）✅
+  - 影子运行：09-07 池 10 → DOWN 5，幂等重跑跳过，T+5 待结算 ✅
+- 部署：**需要**。① `TrackA_track_a_qmt_full_chain_sim.py` v2.42 → QMT 模拟盘（Track A）；② `TrackA_track_a_qmt_full_chain_live.py` v2.38-tpl → QMT 实盘模板（老板手动导入）；③ observe_list.json 兜底 -15.8%（=3.56，cost 4.2296）已随 D8 改价；④ 服务器端 A 影子已上线无需操作。TDX 端不涉及（TrendState 仅 QMT Track A sim/live）。
+
+## 2026-09-07 D8 观察仓兜底价勘误：floor -19.2% → -15.8%（绝对 3.546 → 3.56 · Issue#6 催办#2）
+
+- 修改人/Agent：主控 Agent（Cursor），老板直接拍板 c5566718626
+- 涉及文件：`C:\alphapilot\observe_list.json`（交易端本地，sim v2.41+ / live v2.37-tpl+ 共用）
+- 版本变化：配置数据改动（floor_pct -19.2 → **-15.8**，cost 4.3888 → **4.23**）；交易端代码版本号不变
+- 修改内容：
+  1. **成本勘误**：`cost` 字段 4.3888 → 4.23。根因：4.3888 是 09-04 补仓前 QMT `costP`（8400 股成本，`XtClient_20260904.log` onInitPosition 记录 08:55），补仓后 costP 变 4.2296（12600 股摊薄）——D8 建档时误用了补仓前旧值
+  2. **兜底线改价**：floor_pct -19.2%（≈3.546）→ **-15.8%**（相对摊薄成本 4.2296 → 绝对价 **3.56**；3.56 触发卖出、3.57 不触发）
+  3. note 注明勘误依据与触发口径（供后续核对，防止复用出错）
+- 原因/依据：老板 09-07 拍板"兜底 3.546 → 3.56"，且成本误报 4.3888 需归因（WB 催办清单#2/#3）
+- 验证：JSON 结构合法（单 key `002437`，含 code/name/expire/floor_pct/cost/asof/note）；触发价推演：4.2296×(1-0.158)=3.561 → 盘中价 ≤3.56 触发 ✅
+- 部署：**已改交易端本地文件** `C:\alphapilot\observe_list.json`，sim/live 复用同一路径无需其他动作；用户在 QMT 端无需复制（策略启动时实时读文件）
+
+## 2026-09-07 D1-1 竞价额比否决补强：服务器物理剔除 dao1_veto 票（掌趣事故修复 · Issue#6 D1 · 老板拍板 server_remove）
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 涉及文件：`server/export_qmt_scores.py`（09:36 默认导出 main() 与 09:36 --fullpool-live 两路；06:30 --fullpool 不涉及——早于 09:25 竞价归档，archive 缺失自然放行）
+- 版本变化：服务器端脚本逻辑改动（export_qmt_scores.py 增 `_drop_dao1_veto`/`_write_dao1_veto_log` helper 并接入 main() 与 export_fullpool_live()）。交易端版本号不变
+- 修改内容：
+  1. **根因**：D1-1 竞价额比>2% 此前只**打标**（`dao1_veto` 字段），且只打在 candidates.json 一路；`{date}.json` scores（网页/QMT Top2 顺序）在打标前构建 → 未剔除；实盘 live v2.37-tpl 只落 D8、不读 `dao1_veto` → 标记对其无效
+  2. **补强**：`main()` 在位置闸后、scores 构建前调 `_drop_dao1_veto(pool)`（先 `_stamp_auction_d1` 全池打标，再物理剔除 `dao1_veto=True` 行）→ scores dict / candidates.json 均不再含被剔票，rank 顺延
+  3. **fullpool_live 同步**：rows stamp 后物理过滤 dao1_veto 行，Track B 各端同样收不到
+  4. 每路剔除写审计 `output/qmt_scores/dao1_veto_{YYYYMMDD}.json`（symbol/name/auction_amount_wan/auction_amt_ratio/pre_market_gap_pct）
+  5. 失败/archive 缺失 → 保守放行，绝不阻断导出主流程
+- 原因/依据：09-07 实盘掌趣科技 300315 竞价高开 8.78%、竞价额比 8.07%（>2% 阈值被标 dao1_veto），但网页/QMT Top1 仍推荐，用户盘中见上长影线指出"现在不能买"。老板拍板 **server_remove**：服务器物理剔除，所有交易端（含不读 dao1_veto 的 live）当天收不到，与位置闸同模式
+- 验证：
+  - 本地 `ast.parse` 通过（1205 行）；上传后服务器端 ast 校验通过，md5 252b15a8a6ee30a8790919110493e1a1
+  - 重跑 main()：`[DAO1] veto 1 只: 掌趣科技(300315)`；Top2 由 300315 变为 **002515.SZ + 300607.SZ**
+  - 重跑 --fullpool-live：`[DAO1] veto 1 只: 掌趣科技(300315.SZ)`
+  - 三路导出 JSON 核验 300315 残留=[]；审计 `dao1_veto_20260907.json` 记录 auction_amt_ratio=0.0807、gap_pct=8.78
+  - `http://…/qmt_scores/20260907.json` → HTTP 200
+- 部署：**已直接上传服务器**（cron 路径 `/home/ubuntu/alphapilot/export_qmt_scores.py`，`production_strategies/server/` 归档副本同步）。交易端**无需改动**，刷新即生效
+
+---
+
+## 2026-09-06 位置闸上线（服务器端硬过滤高位派发票，Issue#6 后续 · 老板对话拍板）
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 涉及文件：`server/position_gate.py`（新模块）、`server/export_qmt_scores.py`（06:30 --fullpool / 09:36 默认导出 / 09:36 --fullpool-live 三路）、根目录 `morning_live_fund_select.py`（09:35 终选上游，与 export 同规则双保险）
+- 版本变化：服务器端脚本逻辑改动（export_qmt_scores.py 增 `_position_gate_pool`/`_write_position_veto_log` 与三路接入；morning_live_fund_select.py 增位置闸硬过滤段；position_gate.py 新建 v1.0）。交易端版本号不变（交易端不感知，只收不到被剔票）
+- 修改内容：
+  1. **`position_gate.py`（新）**：60 日位置因子 `runup60`/`up_low`/`dist_hi`/`ma60_pos`（严格 T-1 截断 `date<today`，无未来函数）+ `veto` 规则：`up_low>0.5 and dist_hi<-0.05`（距 60 日低点仍 >50% 且自 60 日高点已回落 >5% = 高位派发嫌疑）。kline 缺失 / 次新 <30 根 → 放行不误杀；失败保守放行
+  2. **`export_qmt_scores.py` 三路**：读取 `recommendations` 后立即 `_position_gate_pool()` 物理剔除 → `{date}.json` scores / `candidates.json` / `{date}.fullpool.json`（06:30 竞价池）/ `{date}.fullpool_live.json`（09:36 实时池）均不再含被剔票，rank 顺延；每路剔除打审计 `output/qmt_scores/position_veto_{YYYYMMDD}.json`；保留行带 `runup60/up_low/dist_hi/ma60_pos` 字段供交易端只读佐证
+  3. **`morning_live_fund_select.py` 上游（双保险）**：ST 硬过滤之后加同规则位置闸，从源头剔除 → 09:35 重写后的 `recommendations` / 网页今日推荐 / Top10 融合 / 归档 Top2 全部不再出现（与 export 规则同源，任一环节失效另环节兜底）
+- 原因/依据：老板实盘 002437 誉衡 09-02 rank1 高位追买（派发期震荡下沿误判拉升），现 -13%；要求"先回测位置闸阈值，然后立刻应用到 live"。回测（服务器真实 45 笔已成交 Top2，`bt_research/bt_position_gate_p3.py`/`p5_matrix.py`）：命中规则 A 的票 T+5 均值 **-7.33%**（n=12，胜率 25%），未命中 **+4.58%**（n=23，胜率 65%）；002437 首笔好买 08-12（up_low=0.48）放行、08-26/09-01 高位追买全拦。候选规则 F 会漏万里马/紫光/永安三笔大亏，弃
+- 验证：
+  - 服务器真实数据冒烟：当前 35 只候选 → veto 3 只（金螳螂 002081 up_low=0.556 dist_hi=-0.191、捷荣技术 002855 up_low=1.222、威星智能 002849 up_low=0.54），与 `_verify_posgate_asof` 逐日复算一致
+  - 无未来函数验证：asof 截断复算 002437 = 08-11 `up_low=0.481` **不拦**（放行首笔好买）｜ 08-26 `up_low=0.747 dist_hi=-0.188` 拦 ｜ 09-01 `up_low=0.835 dist_hi=-0.147` 拦
+  - 双文件 `ast.parse` 通过；md5 本地=服务器 3 文件一致
+- 部署：**已直接上传服务器**（export_qmt_scores.py + morning_live_fund_select.py + position_gate.py，cron 路径 `/home/ubuntu/alphapilot/`，`production_strategies/server/` 归档副本同步）。周一 09-07 起 06:30/09:35/09:36 三个 cron 自动生效：交易端当天不再收到被剔票（rank 顺延）。交易端**无需改动**。周一验证：`output/qmt_scores/position_veto_20260907.json` 有审计、`candidates.json` 无 002437 类高位派发票
+
+---
+
+## 2026-09-06 Issue#6 D8 观察仓落到实盘 live 模板（QMT 轨道 A 实盘 v2.36-tpl → v2.37-tpl）
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 涉及文件：`track_a/TrackA_track_a_qmt_full_chain_live.py`（QMT 轨道 A 实盘模板）
+- 版本变化：v2.36-tpl → v2.37-tpl（卖出逻辑改动 → 升版本）
+- 拍板依据：老板直接对话拍板（2026-09-06 19:5x）——实盘深亏票 002437 誉衡不想被强卖、要观察窗口；三项确认：① 现在就落 live D8；② 豁免范围 = **全部机械卖出只守兜底**（非仅硬止损）；③ 兜底线 floor_pct = **-19.2%**（= 09-04 收 3.940 再跌 10% → 3.546）。D8 机制本身老板已在 Issue#6 comment `5558718137` 拍板
+- 修改内容：
+  1. **CONFIG**：新增 `OBSERVE_FILE = r"C:\alphapilot\observe_list.json"`（sim v2.41 同路径同结构，sim/live 共用一份）
+  2. **helpers**：新增 `_load_json_safe()` / `_observe_entry()`（裸 6 位与交易所后缀互查）/ `_observe_active()`（`today<=expire` 8 位字符串比较，到期自动失效）
+  3. **`_check_sell` D8 豁免闸**（插在 `is_today_buy` 之后、Wyckoff 之前）：观察票且 `today<=expire` → **豁免全部机械卖出**（hard_stop / t2_force / t2_force_after_extend / vwap_weak_early / wyckoff_bc / peel / hold-cap）`continue` 持有；仅 `ret<=floor_pct` 触发 `observe_floor` 无条件卖出；当日 `[OBSERVE]` 日志打印去重（pos.observe_log）；到期自动恢复常规止损（打 `expired, resume normal stops`）。limit_down（T+1 买入日例外）仍在闸前执行（跌停本也卖不出，无实际影响）
+  4. 文件头 v2.37-tpl 注释块 + init 版本串 + 尾部署清单版本串同步
+- 原因/依据：002437 现亏 **-10.23%**（09-04 收 3.940 vs 成本 4.3888），已跌破 live 自适应 hard_stop（≈-10%）与 t2_force 线 → 周一 09-07 14:45 若不豁免会被自动强卖，与老板"观察一段时间扳回"冲突
+- 验证：文件纯 ASCII（`b.decode('ascii')` OK）+ `ast.parse` 通过（2935 行）；helper 单测 `bt_research/_cmp/_ut_qmt_a_live_d8.py` **10/10 PASS**（裸码/后缀命中、expire 边界含到期当日、malformed expire、缺失文件防呆）
+- 生效文件已落：`C:\alphapilot\observe_list.json` = `{"002437": {expire: "20260918", floor_pct: -19.2, cost: 4.3888, asof: 2026-09-06}}`（sim v2.41 与 live v2.37-tpl 共用读取）
+- 部署：**需用户手动复制** `TrackA_track_a_qmt_full_chain_live.py` → 实盘 QMT python 目录（替换 `AP全链路交易_TRACK_A.py`）→ 周一 09-07 开盘日志查 `[OBSERVE] 002437 ... exempt`（每交易日首条）确认豁免生效；09-18 后自动恢复 -10% 等常规止损。其他轨道（QMT B / TDX A / TDX B / live B）D8 待 QMT A sim v2.41 满 1 日核对后一并同步
+
+## 2026-09-06 Issue#6 止血三刀+环境开关落地（交易端 QMT 轨道 A 模拟 v2.40 → v2.41）
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 涉及文件：`track_a/TrackA_track_a_qmt_full_chain_sim.py`（QMT 轨道 A 模拟盘）
+- 版本变化：v2.40 → v2.41（改选股/卖出逻辑 → 升版本）
+- 拍板依据：Issue#6（`qianzhouxia-beep/alphapilot-docs`）老板拍板 comment `5558413127`（D1-D7）+ `5558718137`（D8 观察仓追加）；D4 基数确认 comment `5558449951`（0.5×POSITION_PCT 比例系数方案）
+- 修改内容（全部新增 v2.41 段，未动既有分支语义）：
+  1. **CONFIG**：`DAO1_AUC_MAX=2.0`、`VWAP_WAIT_PREM=0.002`、`VWAP_WAIT_UNTIL_MIN=840(14:00)`、`FIXED_STOP_PCT=4.0`、`COOLDOWN_STOP_DAYS=5`、`COOLDOWN_FILE`、`RISK_URL/RISK_LOCAL/RISK_FETCH_SEC`、`OBSERVE_FILE`
+  2. **D1-1/D1-2（不追放量·否决）**：`_buy_day_veto()` 读服务器打标 `dao1_veto`（竞价额比>2%）/`pool_p90_flag`（池内量比 p90）→ 当日放弃（一次性，独立计票，与 R5-CALL 重叠率日后实测）；`_check_buy` 主循环 + rotation worth_buy 循环均前置拦截
+  3. **D2-2（回踩 VWAP 超时）**：gap≤0 且 P2 确认后现价已高于 `VWAP×1.002` → 不追价，等回踩；`now_min≥14:00` 未回踩 → 放弃当日（拍板 14:00）；正 gap/无 VWAP 走原 v2.17 2% slip guard
+  4. **D3-1（盘中固定止损 -4%）**：`_check_sell` 新增 `ret<=-4%`（T+1 起、全天）→ `stop_fixed` 市价卖；原 -10% hard_stop（14:45 窗）保留为兜底
+  5. **D3-2（止损冷却 5 交易日）**：`_mark_cooldown()`/`_cooldown_block()`，纪律止损（hard_stop/stop_fixed/observe_floor/t2_force/limit_down）写入 `cooldown.json`，交易日计数拦截，rank1 也拦
+  6. **D3-3（禁补仓两义）**：持仓禁加（既有）保留；全量卖出（`_do_sell`）写 `sold` 同日禁买回（防 T+0 翻转）；stop 冷却禁重进
+  7. **D4/D5（ALERT/宽度降仓）**：`_read_risk_state()`/`_risk_scale()` 读服务器 `alert_state.json`（RISK_LOCAL 落盘 C:\alphapilot，date=当日才生效，缺失= NORMAL 防呆）→ REDUCED 时单笔仓位 ×0.5（sim 0.22→0.11）
+  8. **D8（观察仓）**：`OBSERVE_FILE` 结构 `{code:{expire,floor_pct}}`，观察票豁免 -4% 固定止损至到期（自动过期打 `[OBSERVE] expired`），`floor_pct` 兜底无条件止损；sim 端表先空，live 端落真票
+  9. 文件头 v2.41 注释块 + init/handlebar 换日 reset 新状态（vwap_wait_logged/cool_log/risk_log）
+- 原因/依据：老板实盘 9 月买入即亏反馈（买在高点），WB 证据（2026Q3 n=4162：量比 Q5 T+1 -1.26%/T+5 中位 -3.35%；高开追 vs 收盘触发再差 -0.55pp）+ Issue#6 决策清单逐条拍板
+- 验证：`ast.parse` 通过（3429 行）；新增纯函数逻辑单测 `bt_research/_cmp/_ut_qmt_a_v241.py` 全 PASS（冷却 5 交易日边界、stop 覆盖 sold、risk 过期忽略、D1/D3 veto、D8 到期、止损 reason 分类）
+- 部署：**需用户手动复制** `TrackA_track_a_qmt_full_chain_sim.py` 到 QMT 模拟盘 python 目录 → **周一(09-07)开盘后跑满 1 日核对**（看 `[DAO1]`/`[D2W]`/`[COOL]`/`[RISK]`/`[OBSERVE]` 日志）→ 核对无异常后再同步 QMT B / TDX A / TDX B 与 live 模板。D8 观察票待确认具体 code 后填 `C:\alphapilot\observe_list.json`
+
+---
+
+## 2026-09-06 Issue#6 服务器端落地（D1-1/D1-2 打标 + D4/D5 alert_state + 健康体检）
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 涉及文件：`server/export_qmt_scores.py`、`server/compute_risk_state.py`（新）、`wb_breakout_monitor.py`（bt_research 源 + 服务器 scripts 部署）、`rd_workshop/shadow_daily_health.py`
+- 版本变化：export 无显式版本号（按功能记录）
+- 修改内容：
+  1. `export_qmt_scores.py`：新增 `_load_auction_archive()`（读 `output/pre_market_archive/{date}.json` 竞价快照，因 `live_momentum_scanner` 会覆写 daily_recommend.json 丢 pre_market 字段）+ `_prev_amount_wan()`（kline 前日成交额）→ `_stamp_auction_d1()` 打 `auction_amt_ratio`/`dao1_veto`（>2.0% → True）；`_stamp_pool_volratio_p90()` 打 `pool_vol_ratio`/`pool_p90`/`pool_p90_flag`（腾讯实时量 + kline 前 5 日均量估算，池内 p90，缓存 `output/qmt_scores/{date}.volratio.json` 跨进程一致）；fullpool_live 与 candidates.json 两条导出链路都接入
+  2. `wb_breakout_monitor.py`：输出扩展 `breadth_by_day`（每日 20 日新高家数/eligible 家数），随每次运行零成本更新
+  3. `compute_risk_state.py`（新，落 `output/qmt_scores/alert_state.json`）：D4（monitor verdict=ALERT → REDUCED，WATCH×2 恢复）+ D5（宽度 ≥ 60 交易日 p80 → REDUCED，清空×2 恢复）；payload = {date, risk_level, position_scale(1.0/0.5), d4, d5, reasons}；已挂 cron 周一至五 09:15
+  4. `shadow_daily_health.py`：健康检查纳入 `alert_state.json` 每日刷新（防 D4/D5 静默失效）
+- 原因/依据：同上 Issue#6（D1 竞价额/量比否决 + D4 ALERT 降险 + D5 宽度降档的服务器打标与状态源）
+- 验证：服务器 py_compile 通过；smoke test 真实生成 alert_state.json 落盘；export 字段存在性校验通过；health 脚本 dry-run 通过
+- 部署：**服务器端已上传完成（Agent 直连部署，用户无需操作）**；交易端 QMT/TDX 读取新字段待各 sim v2.41+ 复制生效
+
+---
+
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 涉及文件：`track_a/TrackA_track_a_qmt_full_chain_sim.py`（QMT 轨道 A 模拟盘）
+- 版本变化：v2.39 → v2.40（新增买入侧只读快照，逻辑行为不变）
+- 修改内容：
+  1. 文件头版本注释 v2.40
+  2. 新增常量 `SHADOW_B1_FILE = C:/alphapilot/shadow/qmt_sim_b1_buy_shadow.json` + `SHADOW_B1_DH_VETO = 1.5`（仅报表标记，**不执行**）
+  3. 新增 `_shadow_b1_log()`：每笔 P2 买入成交时记录触发级 5m 形态快照 {code/rank/tmin/fill/`dh_pct`(成交价距当日5m高点%)/`mom3_pct`(成交前15m脉冲%)/`vwap_dist_pct`(相对日VWAP偏离)/`dh_ge_1p5`} 到 shadow 文件（按日去重，一票一日一条），打 `[SHADOW-B1]` 日志；**绝不下单/不拦单**
+  4. `_check_buy` 在 `_log_trade` 成交登记后插调用点
+- 原因/依据：B1 ticket（`bt_research/B1_ticket_5m_veto.md`）第一阶段执行结论——合成期 4-7 月 386 个 P2 触发（`bt_research/bt_b1_5m_veto.py`）显示 `dayhigh`(成交价距当日已现高点) 是最强区分特征：贴高/追强(dh≤0.5%) T+1 +3.3%/胜率83%，弱反弹(dh>1.5%) -0.4%/41%；但**独立真实期 8-9 月 78 触发方向翻转**（贴高 -0.1%/43%），高脉冲 mom 在合成期逐月不成立。结论：单因子跨市不稳，需在真实弱市攒 2-4 周样本再定软/硬否决阈值，禁止直接上实盘（老板已确认走 shadow 路径）。
+- 验证：ASCII 131,946 bytes → 132,453 bytes 通过 + `ast.parse` 通过；未改任何既有分支语义
+- 部署：**需用户手动复制** `TrackA_track_a_qmt_full_chain_sim.py` 到 QMT 模拟盘 python 目录（若尚未部署 v2.39 则直接复制 v2.40，已含 B3 影子），次日开盘生效；live 模板不动。
+
+---
+
+## 2026-09-06 B3 止损 2% 只读影子（[SHADOW-B3]，A QMT 模拟端 v2.38 → v2.39）
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 涉及文件：`track_a/TrackA_track_a_qmt_full_chain_sim.py`（QMT 轨道 A 模拟盘）
+- 版本变化：v2.38 → v2.39（新增卖出侧只读影子，逻辑行为不变）
+- 修改内容：
+  1. 文件头版本注释 v2.39
+  2. 新增常量 `SHADOW_B3_STOP_PCT = 2.0` + `SHADOW_B3_FILE = C:/alphapilot/shadow/qmt_sim_b3_stop_shadow.json`
+  3. 新增 `_shadow_b3_stop()`：对每个 T+1+ 持仓当日**首次** `ret <= -2%` 时记录 {time/code/cost/ret/trigger_px/shares/sim_exit_px/sim_pnl_rmb} 到 shadow 文件（按日去重，一票一日一条），并打 `[SHADOW-B3]` 日志；**绝不下单**，与现卖出分支互不影响
+  4. `_check_sell` 内 `is_today_buy continue` 之后插调用点
+- 原因/依据：Issue#5 B 组回测第一波（8 只实盘票 24 笔真实成交，`bt_research/wb_exec_rules_bt_report.md`）——2% 硬止损单规则 -59%（-7,369→-3,014）、ALL(B1+B2+B3) -77%，唯一盈利票天齐（MAE -1.7%）未被误伤。老板 09-06 拍板：B2/B3 先进影子攒真实样本再定 sim/live。B2（禁越跌越补）经查 `_check_buy` 已有 `if code in C.position_map: continue`，**策略层天然禁止同票自动补仓**，誉衡 11 笔摊低补仓疑来自手动/其他实例，故本轮不新增 B2 代码，另行确认。
+- 验证：ASCII 131,946 bytes 通过 + `ast.parse` 通过；未改任何既有分支语义
+- 部署：**需用户手动复制** `TrackA_track_a_qmt_full_chain_sim.py` 到 QMT 模拟盘 python 目录（明文复制），次日开盘生效；`shadow/` 目录自动创建。live 模板不动（沿用 R5/call-shadow 惯例：模拟验证后再同步）。
+
+---
+
+
+## 2026-09-05 竞价量影子研究落地：server 逐日归档 + 全链路导出 + 5 模拟端只读记录（A v2.38 / A TDX v2.31 / B v2.12 / B TDX v1.20）
+
+- 修改人/Agent：主控 Agent
+- 涉及文件：
+  - `server/pre_market_gate.py`（**新增归档权威副本**：根目录同名文件为冻结快照，本文件由根目录复制后修改，未动根目录）
+  - `server/export_qmt_scores.py`（fullpool_live + candidates.json 增补竞价影子字段）
+  - `track_a/TrackA_track_a_qmt_full_chain_sim.py`（v2.37 → v2.38）
+  - `track_a/TrackA_track_a_tdx_full_chain_sim.py`（v2.30 → v2.31）
+  - `track_b/TrackB_track_b_qmt_auction_sim.py`（v2.11 → v2.12）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.6.py`（固定名部署副本，同步 v2.12）
+  - `track_b/TrackB_track_b_tdx_auction_sim.py`（v1.19 → v1.20）
+- 版本变化：**只读影子 + 导出字段 + server 归档，不改任何交易决策**；因文件同步统一升版便于辨认。
+- 修改内容：
+  1. **server `pre_market_gate.py`（治本）**：写回 `daily_recommend.json` 前，把当日 09:25 竞价快照（含有效竞价量的全部 Top-N：symbol/name/sector/gap_pct/call_amount_wan/call_volume_hand/action/note + sector_signals）原子落盘 `output/pre_market_archive/{date}.json`（tmp+replace；失败仅 WARN 不中断门控）。竞价量从此有历史、可回测。
+  2. **server `export_qmt_scores.py`**：`export_fullpool_live()` 每行与 `main()` candidates.json 每行新增 `pre_market_gap_pct`（candidates 新加）/ `pre_market_call_amount_wan` / `pre_market_call_volume_hand`。06:30 fullpool 不加（竞价未发生）。
+  3. **5 个交易端 sim**：新增 `_log_shadow_call_cands/rows` helper——加载 candidates / fullpool_live 行时按行打印 `[SHADOW-CALL]`（code/name/rank/gap/call_amt_wan/call_vol_hand），无字段行跳过；QMT 靠缓存天然一日一次，TDX 用模块级 set 防每 bar 重复。**只读、零决策影响**。
+- 原因/依据：用户决策「竞价量存在即有用 → 治本 = 先有历史」。三轨方案：① server 归档（今天起攒九月真实样本）② 导出影子字段让客户端能读 ③ sim 只读记录。业界 + 海通研报（《基于集合竞价分时走势的 A 股策略》，量比口径 240×竞价额/前5日均额，最优参数开盘涨幅≤0-1% 且量比 3-5）：竞价放量正向的前提是**低开/平开承接**，负向是**高开+爆量派发**（与 R5 结论一致）。本地 08-03 校验：候选池竞价额/昨日成交额均值 ≈0.6%、p97≈2.1%，**业界 5% 爆量绝对线在池内永不触发** → 阈值只能靠攒真实样本标定，不能抄业界。详见 inbox 卡 `2026-09-05-auction-shadow-study.md`。
+- 验证：QMT 三份（A QMT、B QMT、B QMT v2.6 副本）纯 ASCII + ast 通过；TDX 两份 + server 两份 UTF-8 + ast 通过；`write_auction_archive` 直接调用冒烟通过（2 只有效/跳过 no_data/原子改名）；影子 helper 样本输出 + 字段缺失容错通过；v2.6 副本与主文件逐行一致（仅历史空行差异）。
+- 部署：**需用户手动**：① 复制 `server/pre_market_gate.py` → 服务器 `/home/ubuntu/alphapilot/`；② 复制 `server/export_qmt_scores.py` → 服务器覆盖；③ 5 份交易端 sim → 各模拟端。09-25 起服务器每个交易日自动在 `output/pre_market_archive/` 落盘一份竞价快照。
+- 待办（后续，非本次）：9 月底用真实样本 + 真实 T+1 标定竞价量阈值 → sim 决策验证 → 才谈进 live 实盘下单。
+
+---
+
+## 2026-09-05 R5 二次定价闸门落地 4 模拟端（A QMT v2.37 / A TDX v2.30 / B QMT v2.11 / B TDX v1.19）
+
+- 修改人/Agent：主控 Agent
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim.py`（v2.36 → v2.37）
+  - `track_a/TrackA_track_a_tdx_full_chain_sim.py`（v2.29 → v2.30）
+  - `track_b/TrackB_track_b_qmt_auction_sim.py`（v2.10 → v2.11）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.6.py`（固定名部署副本，同步 v2.11）
+  - `track_b/TrackB_track_b_tdx_auction_sim.py`（v1.18 → v1.19）
+- 版本变化：买入资格变化（P2 触发后新增 R5 确认层闸门），全部升版本号。
+- 修改内容：
+  1. **R5 配置块**（各文件统一，含注释口径）：`R5_GATE_MODE=1`（0=off / 1=hard gate / 2=soft）、`R5_GAP_LO=-1.5`、`R5_GAP_HI=1.5`、`R5_CALL_MAX=1.5`、`R5_MAX_TRIG_MIN=660`。
+  2. **三个 helper**：`_r5_gap_pct`（复用甜蜜区 open-gap 源，放宽到 ±1.5%）、`_r5_call_ratio`（当日首根 5m 量 / 前 5 日首根 5m 均量；QMT 端 count=6*48 + `_bar_times` 分日，TDX 端 count=6*48 + DatetimeIndex 分日）、`_r5_gate_check`（数据缺失该条件软过，与 ABR 同哲学）。
+  3. **接入点**：A QMT/B QMT 在 `_p2_decide` dyn_confirm 返回前；A TDX/B TDX 在 dyn_confirm **和** snap_confirm（无 5m 回退）两路径。R5 不过 → `skip_r5`；mode=1 该候选当日 abandon，mode=2 当次跳过等后续 bar。
+  4. `skip_r5` 已加入各 buy 循环 abandon reason 列表（与 `no_confirm_eod`/`skip_high_turnover`/`skip_low_abr` 并列）。
+  5. 头部注释、INIT 版本打印同步。
+- 原因/依据：真实候选复验（`bt_p2_second_pricing_real.py`，2026-08-10~09-03，78 个 P2 触发）：R5 通过 n=16 T+1 开盘 +0.58%/胜率56.2% vs 被拒 +0.22%/46.8%，方向与合成期 4-7 月一致（+4.82%/87%）。用户拍板：R5 规则作为确认层闸门落地 QMT/TDX 模拟盘。核心反直觉点：**竞价放量（首根5m量比≥1.5）与 T+1 负相关**（隔夜盘获利盘派发），闸门拒 loud auction，而非"量=强"。知识卡：`knowledge/inbox/2026-09-05-p2-second-pricing-r5-real-confirm.md`。
+- 验证：QMT 三份（A QMT、B QMT、B QMT v2.6 副本）纯 ASCII + ast 通过；TDX 两份 ast 通过；R5 判定单元测试 5 文件全过（gap/call/time 边界、软过缺失数据、含 11:00 整拒/±1.5 含界）。
+- 部署：**需用户手动复制到 4 个模拟端**（QMT A 模拟 `TrackA_track_a_qmt_full_chain_sim.py`、TDX A 模拟 `TrackA_track_a_tdx_full_chain_sim.py`、QMT B 模拟 `TrackB_track_b_qmt_auction_sim_v2.6.py`、TDX B 模拟 `TrackB_track_b_tdx_auction_sim.py`）。**警告**：hard gate 下真实通过率仅 ~21%，预期买入次数显著减少，属已验证代价；若想先观察可临时把 `R5_GATE_MODE` 改 0。
+
+---
+
 ## 2026-09-04 短窄缩 1/2/3：loud_vol 软门 + sns 软降权（A v2.36 / B v2.10）
 
 - 修改人/Agent：主控 Agent
