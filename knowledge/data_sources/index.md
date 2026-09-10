@@ -19,6 +19,9 @@
 > - **2026-08-22 查清回归**：08-17 起 cron 仍跑 08-15 上传的带锁脚本，但 ×100 从未执行；DAYS=20 keep=last 从 07-21 起重写成手（600519 08-21 修复前 ratio=100.42）。已再修：119,755 行 ×100；**按 ratio 转单位（不看列名）**；写后校验；同步根目录独立副本；`rd_health_check.py` 盯 ratio 与 fill_rate=0。
 >
 > 生产 `data_fetcher` 走 Sina 源（volume=股，不受影响）。**新写入 K 线的代码必须保持 volume=股。**
+>
+> **备用源 westock（2026-09-11 起）**：可批量拉日线（不复权），但 **volume 单位按板块不统一——688=股、其余=手**（`amount/(vol×close)`：688≈1，其余≈99.5）。详见 [`westock.md`](./westock.md)。
+> **事故档案**：09-10 全量缺口（TDX 服务端中断 0/4991）与恢复 = [`2026-09-11-kline-0910-recovery.md`](./2026-09-11-kline-0910-recovery.md)。
 
 ## 资金流
 
@@ -111,3 +114,4 @@
 5. 🟢 每日 17:35 `scripts/data_accumulation_check.py` 巡检数据积累。
 6. ⚠️ **fix_kline volume 单位 bug 修过两次**（08-15 / **08-22 回归**）：cron 必须跑带 ratio 自适应 ×100 的**根目录** `fix_kline_server.py`；根 `kline_all.parquet` 是独立副本。健康检查 `rd_workshop/rd_health_check.py` 盯末日期 ratio≥20 与影子 fill_rate=0。
 7. 🟢 **同花顺官方 API 已接入**（08-22）：补涨停/热股/龙虎榜/竞价缺口；Key 不进 git；**不进 09:35 打分**。档案 `knowledge/data_sources/hithink.md`。
+8. 🔴 **K 线单源依赖是最大脆点**（2026-09-11 坐实）：TDX 服务端一断，`fix_kline_server.py`(16:15)/`build_kline5m.py`(16:20) **全市场 0 行**，且**闸门不一定拦得住下游**——本次 `models/extra_factors.parquet` 就单独停了一天（readiness gate 不查它）。建议排期：`fix_kline_server.py` 多源 fallback（TDX → 腾讯 → baostock）；**闸门增查 `extra_factors` 末日期**。
