@@ -84,7 +84,7 @@ def main() -> None:
     # insert new blocks before first remaining 09:xx trading line or append
     insert_at = None
     for i, line in enumerate(out):
-        if any(t in line for t in ("45 14", "30 14")) and "eod_s2" in line:
+        if "45 14" in line and "eod_s2" in line:
             insert_at = i
             break
     block_lines: list[str] = []

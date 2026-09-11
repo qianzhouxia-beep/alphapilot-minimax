@@ -32,17 +32,22 @@ def _get_sector_hist(sector_name: str, days: int = 15) -> pd.DataFrame:
         return ak.stock_board_industry_hist_em(symbol=sector_name, start_date=start, end_date=end)
     
     try:
-        with ThreadPoolExecutor(max_workers=1) as ex:
+        ex = ThreadPoolExecutor(max_workers=1)
+        try:
             fut = ex.submit(_fetch)
             df = fut.result(timeout=10)  # 10s超时
             if df is not None and not df.empty:
                 _CACHE[cache_key] = df
             return df
-    except FutureTimeout:
-        print(f"  ⚠️ 板块超时: {sector_name}")
-        return None
-    except:
-        return None
+        except FutureTimeout:
+            print(f"  ⚠️ 板块超时: {sector_name}")
+            return None
+        except:
+            return None
+        finally:
+            ex.shutdown(wait=False)  # 🔥 不等待挂起的线程
+    finally:
+        pass
 
 
 def _compute_sector_trend(sector_name: str) -> dict:
@@ -142,8 +147,17 @@ def apply_sector_gate(items: list, sector_flow_df=None) -> list:
     """
     # 获取板块资金流数据
     if sector_flow_df is None:
+        # 加15s超时，防止上海IP被东财封堵时hang死
         try:
-            sector_flow_df = ak.stock_fund_flow_industry()
+            from concurrent.futures import ThreadPoolExecutor as _TPE
+            _ex = _TPE(max_workers=1)
+            try:
+                _fut = _ex.submit(ak.stock_fund_flow_industry)
+                sector_flow_df = _fut.result(timeout=15)
+            except:
+                sector_flow_df = None
+            finally:
+                _ex.shutdown(wait=False)  # 🔥 不等待挂起的线程
         except:
             sector_flow_df = None
 
@@ -179,6 +193,16 @@ def apply_sector_gate(items: list, sector_flow_df=None) -> list:
             apple_chg = v
             break
     ai_boost = max(0, apple_chg * 0.008)
+
+    # 🔥 跳过逐只板块趋势计算（东财封堵时太慢，500只每只10s=5000s）
+    if sector_flow_df is None:
+        us_sentiment = us_data.get("sentiment_score", 0.5) if us_data else 0.5
+        for item in items:
+            item["sector_trend_score"] = 0
+            item["sector_adjust_factor"] = 1.0
+            item["us_sentiment"] = us_sentiment
+        print(f"  ⚠️ 板块资金流不可用，跳过板块趋势计算，返回 {len(items)} 只")
+        return items
 
     results = []
     for item in items:

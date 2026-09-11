@@ -52,7 +52,7 @@ for sym in symbols:
         skipped += 1
         if skipped < 5:
             log(f"  WARN {sym}: {e}")
-    time.sleep(0.05)  # 限频
+    time.sleep(0.5)  # 限频
 
 log(f"完成: {n}/{len(symbols)}, 跳过 {skipped}, 新行 {len(all_new)}")
 

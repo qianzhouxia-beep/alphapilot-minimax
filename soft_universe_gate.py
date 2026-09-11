@@ -61,6 +61,7 @@ def apply_universe_gate(
     *,
     gc_bare: set[str],
     gc_set: set,
+    gc_score_map: dict[str, int] | None = None,
     bypass_bare: set[str],
     launch_patterns: dict | None = None,
     log: Callable[..., Any] = print,
@@ -121,13 +122,19 @@ def apply_universe_gate(
             nr["universe_soft"] = False
             n_launch += 1
         else:
-            # 扫漏臂 B / 旧 soft_universe 回流
+            # 扫漏臂 B / 条件分调权
             nr["launch_bypass"] = False
             nr["selection_arm"] = soft_label if soft_label == "soft_universe" else "B"
             nr["arm"] = "B" if surge else "soft"
             nr["universe_soft"] = True
             nr["score_before_universe"] = raw
-            nr["score"] = round(raw * mult, 6)
+            # 4 档条件分调权: 3=1.00(A臂), 2=0.90, 1=0.80, 0=0.70
+            _gc_score = (gc_score_map or {}).get(bare, 0)
+            _cond_mults = {3: 1.00, 2: 0.90, 1: 0.80, 0: 0.70}
+            _cond_mult = _cond_mults.get(int(_gc_score), 0.70)
+            nr["gc_condition_score"] = int(_gc_score)
+            nr["cond_mult"] = _cond_mult
+            nr["score"] = round(raw * mult * _cond_mult, 6)
             nr["surge_arm_b_mult"] = mult if surge else None
             n_soft += 1
 

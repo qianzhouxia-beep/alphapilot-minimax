@@ -48,6 +48,7 @@ PERIOD_LABELS = {
 SESSION_LABELS = {
     "morning": "上午盘",
     "afternoon": "下午盘",
+    "close": "收盘",
 }
 
 
@@ -584,142 +585,22 @@ def generate_report_sections(
 <title>板块研报 {date_str} {session_label} | AlphaPilot</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
-  /* AlphaPilot Design Tokens — 与 tokens.css 保持一致 */
   :root {{
-    --ap-primitive-violet-50: #EDE9FE; --ap-primitive-violet-100: #DDD6FE;
-    --ap-primitive-violet-400: #A78BFA; --ap-primitive-violet-500: #8B5CF6;
-    --ap-primitive-violet-600: #7C3AED; --ap-primitive-violet-700: #6D3AEA;
-    --ap-primitive-violet-900: #5B21B6; --ap-primitive-violet-950: #4C1D95;
-    --ap-primitive-red-50: #FEF2F2; --ap-primitive-red-100: #FEE2E2;
-    --ap-primitive-red-200: #FECACA; --ap-primitive-red-500: #EF4444;
-    --ap-primitive-red-600: #DC2626; --ap-primitive-red-700: #C62828;
-    --ap-primitive-red-800: #991B1B; --ap-primitive-red-900: #7F1D1D;
-    --ap-primitive-green-50: #ECFDF5; --ap-primitive-green-100: #D1FAE5;
-    --ap-primitive-green-500: #10B981; --ap-primitive-green-600: #059669;
-    --ap-primitive-green-700: #166534; --ap-primitive-green-800: #1E7A35;
-    --ap-primitive-green-900: #14532D;
-    --ap-primitive-amber-50: #FEF3C7; --ap-primitive-amber-100: #FDE68A;
-    --ap-primitive-amber-600: #D97706; --ap-primitive-amber-700: #B45309;
-    --ap-primitive-amber-800: #92400E;
-    --ap-primitive-gray-50: #FAFAFA; --ap-primitive-gray-100: #F5F5F7;
-    --ap-primitive-gray-200: #EEEEF2; --ap-primitive-gray-300: #E2E2E7;
-    --ap-primitive-gray-400: #D0D0D7; --ap-primitive-gray-500: #86868B;
-    --ap-primitive-gray-600: #55555B; --ap-primitive-gray-700: #3A3A40;
-    --ap-primitive-gray-800: #1D1D1F;
-    --ap-primitive-blue-50: #DBEAFE; --ap-primitive-blue-100: #BFDBFE;
-    --ap-primitive-blue-600: #2563EB; --ap-primitive-blue-700: #1E40AF;
-    --ap-primitive-blue-800: #1A6FC4; --ap-primitive-white: #FFFFFF;
-    --ap-primitive-black-4: rgba(0,0,0,0.04); --ap-primitive-black-6: rgba(0,0,0,0.06);
-    --ap-primitive-black-8: rgba(0,0,0,0.08); --ap-primitive-black-12: rgba(0,0,0,0.12);
-    --ap-primitive-violet-8: rgba(124,92,252,0.08); --ap-primitive-violet-4: rgba(124,92,252,0.04);
-    --ap-primitive-blue-6: rgba(30,136,229,0.06);
-    --ap-primitive-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    --ap-primitive-font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
-    --ap-primitive-radius-xs: 4px; --ap-primitive-radius-sm: 8px;
-    --ap-primitive-radius-md: 12px; --ap-primitive-radius-lg: 16px;
-    --ap-primitive-radius-xl: 20px; --ap-primitive-radius-full: 9999px;
-    --ap-primitive-space-1: 4px; --ap-primitive-space-2: 8px; --ap-primitive-space-3: 12px;
-    --ap-primitive-space-4: 16px; --ap-primitive-space-5: 20px; --ap-primitive-space-6: 24px;
-    --ap-primitive-space-8: 32px; --ap-primitive-space-12: 48px; --ap-primitive-space-14: 56px;
-    --ap-primitive-shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
-    --ap-primitive-shadow-elevated: 0 4px 16px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
-    --ap-primitive-shadow-hover: 0 8px 24px rgba(0,0,0,0.08);
-    --ap-primitive-shadow-button: 0 4px 16px rgba(124,92,252,0.3);
-    --ap-primitive-motion-instant: 100ms; --ap-primitive-motion-fast: 150ms;
-    --ap-primitive-motion-base: 200ms; --ap-primitive-motion-slow: 250ms;
-    --ap-primitive-font-xs: 12px; --ap-primitive-font-sm: 13px; --ap-primitive-font-base: 14px;
-    --ap-primitive-font-md: 15px; --ap-primitive-font-lg: 17px; --ap-primitive-font-xl: 20px;
-    --ap-primitive-font-2xl: 22px; --ap-primitive-font-3xl: 24px; --ap-primitive-font-4xl: 28px;
-    --ap-primitive-font-5xl: 44px;
-    --ap-primitive-weight-regular: 400; --ap-primitive-weight-medium: 500;
-    --ap-primitive-weight-semibold: 600; --ap-primitive-weight-bold: 700;
-    --ap-primitive-weight-extrabold: 800;
-    --ap-primitive-line-tight: 1.2; --ap-primitive-line-normal: 1.6; --ap-primitive-line-relaxed: 1.85;
-    --ap-primitive-container-max: 1200px; --ap-primitive-chart-height: 400px;
-    --ap-primitive-chart-height-mobile: 300px; --ap-primitive-chart-mini-height: 40px;
-    --ap-primitive-chart-main-height: 280px;
-    --ap-semantic-brand: var(--ap-primitive-violet-600);
-    --ap-semantic-brand-strong: var(--ap-primitive-violet-700);
-    --ap-semantic-brand-on-light: var(--ap-primitive-violet-900);
-    --ap-semantic-brand-light: var(--ap-primitive-violet-50);
-    --ap-semantic-brand-subtle: var(--ap-primitive-violet-8);
-    --ap-semantic-up: var(--ap-primitive-red-700);
-    --ap-semantic-up-on-light: var(--ap-primitive-red-900);
-    --ap-semantic-up-light: var(--ap-primitive-red-50);
-    --ap-semantic-up-soft: var(--ap-primitive-red-50);
-    --ap-semantic-down: var(--ap-primitive-green-800);
-    --ap-semantic-down-on-light: var(--ap-primitive-green-900);
-    --ap-semantic-down-light: var(--ap-primitive-green-50);
-    --ap-semantic-down-soft: var(--ap-primitive-green-50);
-    --ap-semantic-flat: var(--ap-primitive-gray-500);
-    --ap-semantic-warning: var(--ap-primitive-amber-700);
-    --ap-semantic-warning-on-light: var(--ap-primitive-amber-800);
-    --ap-semantic-warning-light: var(--ap-primitive-amber-50);
-    --ap-semantic-bg: var(--ap-primitive-gray-100);
-    --ap-semantic-bg-tertiary: var(--ap-primitive-gray-50);
-    --ap-semantic-surface: var(--ap-primitive-white);
-    --ap-semantic-border: var(--ap-primitive-black-6);
-    --ap-semantic-border-strong: var(--ap-primitive-black-8);
-    --ap-semantic-text: var(--ap-primitive-gray-800);
-    --ap-semantic-text-secondary: var(--ap-primitive-gray-700);
-    --ap-semantic-text-tertiary: var(--ap-primitive-gray-600);
-    --ap-semantic-text-muted: var(--ap-primitive-gray-500);
-    --ap-semantic-focus-ring: 0 0 0 3px var(--ap-primitive-violet-8);
-    --ap-semantic-link: var(--ap-primitive-blue-800);
-    --ap-semantic-link-hover: var(--ap-primitive-blue-700);
-    --ap-semantic-data-font: var(--ap-primitive-font-mono);
-    --ap-semantic-data-sync: var(--ap-primitive-motion-instant);
-    --ap-semantic-shadow-card: var(--ap-primitive-shadow-card);
-    --ap-semantic-shadow-elevated: var(--ap-primitive-shadow-elevated);
-    --ap-semantic-shadow-hover: var(--ap-primitive-shadow-hover);
-    --ap-semantic-shadow-button: var(--ap-primitive-shadow-button);
-    --ap-comp-stat-card-bg: var(--ap-semantic-bg-tertiary);
-    --ap-comp-stat-card-radius: var(--ap-primitive-radius-md);
-    --ap-comp-stat-card-padding: var(--ap-primitive-space-3);
-    --ap-comp-stat-value-font: var(--ap-primitive-font-2xl);
-    --ap-comp-stat-value-weight: var(--ap-primitive-weight-bold);
-    --ap-comp-stat-label-font: var(--ap-primitive-font-xs);
-    --ap-comp-stat-label-color: var(--ap-semantic-text-tertiary);
-    --ap-comp-section-card-bg: var(--ap-semantic-surface);
-    --ap-comp-section-card-radius: var(--ap-primitive-radius-lg);
-    --ap-comp-section-card-padding: 28px 32px;
-    --ap-comp-section-card-border: 1px solid var(--ap-semantic-border);
-    --ap-comp-section-card-shadow: var(--ap-semantic-shadow-card);
-    --ap-comp-section-gap: var(--ap-primitive-space-5);
-    --ap-comp-highlight-box-bg: var(--ap-semantic-brand-light);
-    --ap-comp-highlight-box-radius: var(--ap-primitive-radius-md);
-    --ap-comp-highlight-box-padding: 14px 18px;
-    --ap-comp-btn-primary-bg: var(--ap-primitive-violet-600);
-    --ap-comp-btn-primary-hover: var(--ap-primitive-violet-700);
-    --ap-comp-btn-primary-text: var(--ap-primitive-white);
-    --ap-comp-btn-primary-shadow: var(--ap-semantic-shadow-button);
-    --ap-comp-btn-radius: var(--ap-primitive-radius-full);
-    --ap-comp-btn-padding: 12px 28px;
-    --ap-comp-btn-font: var(--ap-primitive-font-md);
-    --ap-comp-table-th-bg: var(--ap-semantic-bg-tertiary);
-    --ap-comp-table-th-color: var(--ap-semantic-text-tertiary);
-    --ap-comp-table-border: var(--ap-semantic-border);
-    --ap-comp-table-hover-bg: var(--ap-semantic-brand-subtle);
-    --ap-comp-badge-radius: var(--ap-primitive-radius-xl);
-    --ap-comp-badge-font: var(--ap-primitive-font-xs);
-    --ap-comp-badge-weight: var(--ap-primitive-weight-semibold);
-  }}
-  :root {{
-    --bg: var(--ap-semantic-bg);
-    --card: var(--ap-semantic-surface);
-    --bg-tertiary: var(--ap-semantic-bg-tertiary);
-    --border: var(--ap-semantic-border);
-    --text: var(--ap-semantic-text);
-    --text-secondary: var(--ap-semantic-text-secondary);
-    --text-tertiary: var(--ap-semantic-text-tertiary);
-    --purple: var(--ap-semantic-brand);
-    --purple-light: var(--ap-semantic-brand-light);
-    --red: var(--ap-semantic-up);
-    --green: var(--ap-semantic-down);
-    --yellow: var(--ap-semantic-warning);
-    --radius: var(--ap-primitive-radius-lg);
-    --shadow: var(--ap-semantic-shadow-card);
-    --font: var(--ap-primitive-font-sans);
+    --bg: #F5F5F7;
+    --card: #FFFFFF;
+    --bg-tertiary: #FAFAFA;
+    --border: rgba(0,0,0,0.06);
+    --text: #1D1D1F;
+    --text-secondary: #3A3A40;
+    --text-tertiary: #86868B;
+    --purple: #7C5CFC;
+    --purple-light: #EDE9FE;
+    --red: #FF3B30;
+    --green: #34C759;
+    --yellow: #FF9500;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02);
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   }}
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; -webkit-font-smoothing: antialiased; }}
@@ -1276,7 +1157,7 @@ def build_html(
 
 def main():
     parser = argparse.ArgumentParser(description="板块研报生成器")
-    parser.add_argument("--session", choices=["morning", "afternoon"], required=True, help="盘次")
+    parser.add_argument("--session", choices=["morning", "afternoon", "close"], required=True, help="盘次")
     parser.add_argument("--date", type=str, default=None, help="日期 YYYY-MM-DD（默认今天）")
     args = parser.parse_args()
 
@@ -1378,7 +1259,7 @@ def generate_date_index():
     for d in sorted(research_dir.iterdir(), reverse=True):
         if d.is_dir():
             sessions = []
-            for s in ["morning", "afternoon"]:
+            for s in ["morning", "afternoon", "close"]:
                 if (d / s / "index.html").exists():
                     sessions.append(s)
             if sessions:

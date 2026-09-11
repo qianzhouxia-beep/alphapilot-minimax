@@ -39,6 +39,10 @@ sys.path.insert(0, str(ROOT))
 
 REC_PATH = ROOT / "output/daily_recommend.json"
 INDUSTRY_MAP_PATH = ROOT / "data/stock_industry_map.json"
+# 2026-09-05: daily_recommend.json 每日被覆盖、不留历史 → pre_market_call_* 无法回测。
+# 新增逐日竞价快照归档到 output/pre_market_archive/{date}.json，作为九月竞价量
+# 影子研究的标定底稿（只落盘，不改任何门控行为）。
+ARCHIVE_DIR = ROOT / "output/pre_market_archive"
 CALL_AUCTION_TOP_N = 100       # 只看 Top~100 的集合竞价
 GAP_DEMOTE = -0.5              # gap < -0.5% 开始降权（含原 -2% 硬踢档，只降权不剔除）
 GAP_LIMIT_UP = 9.0             # gap > 9% 视为近涨停不推
@@ -226,6 +230,59 @@ def enforce_sector_diversity(
             log(f"    {x['name']}({x['symbol']}) {x['sector']} @rank={x['rank']} limit={x['limit']}")
 
     return kept
+
+
+# ── 竞价量逐日归档（2026-09-05 影子研究底稿）──
+
+def write_auction_archive(
+    survivors: list, eliminated: list, sector_signals: dict, sym_to_sector: dict
+) -> None:
+    """把当日 09:25 竞价快照落盘到 ARCHIVE_DIR/{date}.json（带有效竞价量的
+    全部 Top-N 股票）。只归档、不影响门控；失败仅告警不中断主流程。
+    survivors / eliminated 均为带 pre_market_* 字段的完整 item 副本。"""
+    try:
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        now = datetime.now()
+        date = now.strftime("%Y-%m-%d")
+        stocks = []
+        for it in list(survivors) + list(eliminated):
+            amt = it.get("pre_market_call_amount_wan")
+            vol = it.get("pre_market_call_volume_hand")
+            if amt is None and vol is None:
+                continue
+            gap = it.get("pre_market_gap_pct")
+            stocks.append({
+                "symbol": it.get("symbol"),
+                "name": it.get("name"),
+                "sector": sym_to_sector.get(it.get("symbol", ""), "其他"),
+                "gap_pct": round(float(gap), 2) if gap is not None else None,
+                "call_amount_wan": round(float(amt), 1) if amt is not None else None,
+                "call_volume_hand": int(float(vol)) if vol is not None else None,
+                "action": it.get("pre_market_action"),
+                "note": it.get("pre_market_note"),
+                "pre_market_sector_weak": bool(it.get("pre_market_sector_weak")),
+            })
+        snapshot = {
+            "date": date,
+            "run_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "n_stocks": len(stocks),
+            "sector_signals": {
+                s: {k: d[k] for k in ("gap_mean", "n", "neg_ratio", "sector_weak")}
+                for s, d in sorted(
+                    sector_signals.items(), key=lambda x: -abs(x[1]["gap_mean"])
+                )[:10]
+            },
+            "stocks": stocks,
+        }
+        path = ARCHIVE_DIR / (date + ".json")
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(
+            json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        tmp.replace(path)
+        log(f"竞价量归档: {path} ({len(stocks)} 只)")
+    except Exception as e:  # 归档失败绝不影响 09:25 门控主流程
+        log(f"[WARN] 竞价量归档失败(不影响门控): {repr(e)[:120]}")
 
 
 # ── 主入口 ──
@@ -472,6 +529,8 @@ def run_pre_market_gate() -> int:
             f"板块gap_mean<{SECTOR_WEAK_THRESHOLD}% → weak标记",
         ],
     }
+    # 2026-09-05: 写回 daily_recommend.json 前先落盘当日竞价快照（影子研究底稿）
+    write_auction_archive(survivors, eliminated, sector_signals, sym_to_sector)
     REC_PATH.write_text(json.dumps(recs, ensure_ascii=False, indent=2), encoding="utf-8")
     log(f"写回 {REC_PATH} ({len(final_pool)} 只)")
     return 0

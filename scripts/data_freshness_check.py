@@ -142,6 +142,34 @@ def check(require_today: bool) -> dict:
             return "warn", f"stale {detail}"
         return "fail", f"STALE {detail}"
 
+    # 2026-09-01: chip 原先只查 mtime，筹码停更时照样报 ok(漏判)。改为校验内容日期。
+    # chip 顶层是 {ok, data} 包装且无顶层 date，日期在 data[code].date。
+    def _latest_chip_date(path):
+        try:
+            import json as _cj
+            _raw = _cj.load(open(path))
+            _d = _raw.get("data", _raw) if isinstance(_raw, dict) else _raw
+            ds = [str(v.get("date")) for v in _d.values() if isinstance(v, dict) and v.get("date")]
+            return (max(ds) if ds else None), len(ds)
+        except Exception:
+            return None, 0
+
+    def _chip_status(p):
+        if not p.exists():
+            return "warn", "missing"
+        d, n = _latest_chip_date(p)
+        if d is None:
+            return "warn", f"mtime={_mtime(p)} 无date字段(旧格式?)"
+        gap = (_today_d - _pd.Timestamp(d).date()).days
+        detail = f"最新={d} n={n} mtime={_mtime(p)} gap={gap}天"
+        if require_today and d != today:
+            return "fail", f"STALE {detail} expect={today}"
+        if gap <= 1:
+            return "ok", detail
+        if gap <= 3:
+            return "warn", f"stale {detail}"
+        return "fail", f"STALE {detail}"
+
     for rel in (
         "kline_all.parquet",                      # 根目录(16:00 东财源写入)
         "data/kline_cache/kline_all.parquet",     # 缓存(软链同源)
@@ -153,10 +181,8 @@ def check(require_today: bool) -> dict:
         if "parquet" in rel:
             add(rel, st, det)
         else:
-            if p.exists():
-                add(rel, "ok", f"mtime={_mtime(p)} size={p.stat().st_size}")
-            else:
-                add(rel, "warn", "missing")
+            _cst, _cdet = _chip_status(p)
+            add(rel, _cst, _cdet)
 
     # 核心输出文件: 每日推荐 + 盘中选股 必须贴近今日
     for rel in ("output/daily_recommend.json", "output/morning_live_picks.json"):

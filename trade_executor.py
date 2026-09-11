@@ -15,7 +15,7 @@ MAX_DAILY_BUY = int(os.environ.get("MAX_DAILY_BUY", "2"))
 try:
     sys.path.insert(0, os.getcwd())
     import intraday_low as _low
-    except Exception:
+except Exception:
     _low = None
 
 # ═══ Plan C 参数 ═══
@@ -86,7 +86,7 @@ def fetch_prev_close(sym):
         vals = r.read().decode("gbk").split('"')[1].split("~")
         if len(vals) > 4 and vals[4]:
             return float(vals[4])
-        except Exception:
+    except Exception:
         pass
     return None
 
@@ -183,7 +183,7 @@ def main():
                 log(f"[PRICE-GUARD] {sym} {name} 单日跳变{_day_chg:.1f}% 异常(除权/数据错), 跳过卖出")
                 p["current_price"] = round(price, 2)
                 remaining.append(p)
-                        continue
+                continue
 
             # ═══ v2 专属离场: 目标5%+回撤1.5% (蚂蚁搬家) ═══
             if is_v2:
@@ -200,7 +200,7 @@ def main():
                                                       p.get("quantity", qty), cost,
                                                       "卖出(v2止损)"))
                     sold += 1
-                continue
+                    continue
                 # 达标激活: 现价 >= 成本*(1+5%)
                 target_price = cost * (1 + V2_EXIT["target_pct"])
                 if not p["v2_target_hit"] and price >= target_price:
@@ -226,10 +226,10 @@ def main():
                     sold += 1
                     continue
                 # 更新状态
-            p["current_price"] = round(price, 2)
-            p["pnl_pct"] = round(pnl_pct, 2)
-            remaining.append(p)
-            continue
+                p["current_price"] = round(price, 2)
+                p["pnl_pct"] = round(pnl_pct, 2)
+                remaining.append(p)
+                continue
 
             # ── 初始化 Plan C 状态（持久化在 position dict 里）──
             if "plan_c_half_stopped" not in p:
@@ -289,13 +289,13 @@ def main():
                             remaining.append(p)
                             continue
                         # 减半后不足 100 股 → 全卖
-            else:
+                        else:
                             log(f"分级止损 {sym} {name}: {pnl_pct:.2f}% 减半不足 → 全清")
                             pt["trade_log"].append(_sell_row(s["id"], sym, name, price, qty, cost,
                                                               f"卖出(分级止损·清仓)"))
                             p["quantity"] = 0
                             sold += 1
-                continue
+                            continue
                 # 还没到 3 分钟，继续持有
                 p["plan_c_consec_low"] = consec_low
                 remaining.append(p)
@@ -323,7 +323,7 @@ def main():
             if is_limit_up:
                 p["plan_c_limit_ext"] = True
                 remaining.append(p)
-            continue
+                continue
             # 从峰值回撤超过阈值 → 止盈全卖(锁定利润) [v2 跳过: 让利润奔跑]
             if not is_v2 and peak > 0 and peak > cost:
                 pullback = (price / peak - 1) * 100
@@ -333,7 +333,7 @@ def main():
                                                       p.get("quantity", qty), cost,
                                                       f"卖出(趋势止盈·峰值回撤)"))
                     sold += 1
-                continue
+                    continue
 
             # ── 涨停延期后的次日强平（09:35-09:40 处理）──
             if limit_ext and not p.get("plan_c_ext_traded", False) and \
@@ -353,7 +353,7 @@ def main():
                                                   p.get("quantity", qty), cost,
                                                   f"卖出(超期清理)"))
                 sold += 1
-                    continue
+                continue
 
             # ── 更新持仓 ──
             p["current_price"] = round(price, 2)
@@ -370,7 +370,7 @@ def main():
     # ===== 2. 买入（P2 动态确认 + 先到先得: 候选池中先达标先买, 每日最多 MAX_DAILY_BUY 只）=====
     log("\n检查买入信号...")
     all_signals = []
-        for s in pt.get("strategies", []):
+    for s in pt.get("strategies", []):
         for sig in s.get("signals", []):
             if sig.get("action") == "buy":
                 all_signals.append(sig)
@@ -393,18 +393,18 @@ def main():
 
         executed = 0
         for sig in all_signals:
-                sym = sig.get("symbol", "")
-                name = sig.get("name", "")
+            sym = sig.get("symbol", "")
+            name = sig.get("name", "")
             ref_price = float(sig.get("price", 0))
             strat_id = sig.get("strategy_id", "v19_daily")
             if not sym or ref_price <= 0:
-                    continue
-                if sym in held_symbols:
+                continue
+            if sym in held_symbols:
                 log(f" 跳过 {sym} {name}: 已有持仓")
-                    continue
+                continue
             if sym in traded_symbols:
                 log(f" 跳过 {sym} {name}: 已有成交记录")
-                    continue
+                continue
             # 先到先得: 已买满上限 → 不再买入（信号保留, 次日作废/由下一次信号覆盖）
             if today_bought >= MAX_DAILY_BUY:
                 log(f" 已达今日买入上限 {MAX_DAILY_BUY} 只, 跳过剩余候选 {sym} {name}")
@@ -424,9 +424,9 @@ def main():
                         log(f" 放弃 {sym} {name}: {reason} (观察窗口关闭/换手超限)")
                         for s in pt["strategies"]:
                             s["signals"] = [x for x in s.get("signals", []) if not (x.get("symbol") == sym and x.get("action") == "buy")]
-                    continue
-                    log(f" 等待 {sym} {name}: 动态确认未触发 ({reason})")
                         continue
+                    log(f" 等待 {sym} {name}: 动态确认未触发 ({reason})")
+                    continue
                 entry_mode = reason
 
             total_cash = pt["account"].get("cash", 0)

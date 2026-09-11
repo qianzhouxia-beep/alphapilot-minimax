@@ -28,7 +28,7 @@ IMAP_PATH = ROOT / "data" / "stock_industry_map.json"
 FUND_FLOW_PATH = ROOT / "data" / "fund_flow_history.json"
 OUTPUT = ROOT / "output" / "backtest_full_system_compare.json"
 
-LOOKBACK = 60
+LOOKBACK = 30
 TOP_N = 5  # Top-N 选股
 
 
@@ -53,9 +53,9 @@ def compute_old_system_scores(df_day, df_prev, imap):
     gc_set = set()
 
     for _, row in df_day.iterrows():
-        code = row["code"]
+        code = row["symbol"]
         o, c, v = row["open"], row["close"], row["volume"]
-        prev = df_prev[df_prev["code"] == code]
+        prev = df_prev[df_prev["symbol"] == code]
         if len(prev) == 0:
             continue
         pc = prev["close"].iloc[0]
@@ -84,9 +84,9 @@ def compute_new_system_scores(df_day, df_prev, imap, fund_flow, date_str):
     stock_signals = {}
 
     for _, row in df_day.iterrows():
-        code = row["code"]
+        code = row["symbol"]
         o, c, v = row["open"], row["close"], row["volume"]
-        prev = df_prev[df_prev["code"] == code]
+        prev = df_prev[df_prev["symbol"] == code]
         if len(prev) == 0:
             continue
         pc = prev["close"].iloc[0]
@@ -172,7 +172,7 @@ def backtest_compare():
 
         for picks, rets in [(old_picks, old_ret), (new_picks, new_ret)]:
             for code in picks:
-                nr = df_next[df_next["code"] == code]
+                nr = df_next[df_next["symbol"] == code]
                 if len(nr) == 0:
                     continue
                 r = (nr["close"].iloc[0] / nr["open"].iloc[0] - 1) * 100

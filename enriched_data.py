@@ -60,8 +60,6 @@ def _parse_quote(body: str) -> dict:
             "outer": float(f[7]),           # 外盘=主动买(手)
             "inner": float(f[8]),           # 内盘=主动卖(手)
             "change_pct": float(f[32]),
-            "high": float(f[33]) if f[33] else 0.0,
-            "low": float(f[34]) if f[34] else 0.0,
             "amplitude": float(f[43]) if f[43] else 0.0,
             "total_mv": float(f[44]) if f[44] else 0.0,   # 亿
             "volume_ratio": float(f[46]) if f[46] else 0.0,
@@ -72,13 +70,6 @@ def _parse_quote(body: str) -> dict:
         # 主动买入占比
         tot = out["outer"] + out["inner"]
         out["active_buy_ratio"] = (out["outer"] / tot) if tot > 0 else 0.5
-        # 当日均价 VWAP = 累计成交额(元) / 累计成交量(股)；f[37]成交额(万元) f[36]成交量(手)
-        try:
-            _vol_hand = float(f[36])
-            _amt_wan = float(f[37])
-            out["vwap"] = (_amt_wan * 10000.0 / (_vol_hand * 100.0)) if _vol_hand > 0 else 0.0
-        except (ValueError, IndexError):
-            out["vwap"] = 0.0
         return out
     except (ValueError, IndexError):
         return {}

@@ -385,7 +385,8 @@ def scan_launch_patterns(
         except Exception:
             return None
 
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+    ex = ThreadPoolExecutor(max_workers=max_workers)
+    try:
         futs = {ex.submit(check, s): s for s in symbols}
         for i, fut in enumerate(as_completed(futs)):
             r = fut.result()
@@ -395,6 +396,8 @@ def scan_launch_patterns(
                 pattern_map[sym] = hits
             if (i + 1) % 500 == 0:
                 log(f"  扫描: {i+1}/{len(symbols)}, 已发现: {len(hit_set)}")
+    finally:
+        ex.shutdown(wait=False)  # 🔥 不等待挂起的线程
 
     OUT.mkdir(parents=True, exist_ok=True)
     # 兼容旧文件名 + 新明细

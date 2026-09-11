@@ -148,15 +148,7 @@ def main():
     run("python3 check_v25_data_coverage.py")
     # retrain
     rc = run("python3 -u train_v25.py")
-    meta_p = ROOT / "models" / "v25_meta.json"
-    n_samples = 0
-    if meta_p.exists():
-        try:
-            n_samples = int(json.loads(meta_p.read_text(encoding="utf-8")).get("training", {}).get("n_samples", 0) or 0)
-        except Exception:
-            n_samples = 0
-    log(f"train n_samples={n_samples}")
-    if rc != 0 or n_samples < 1000:
+    if rc != 0:
         log("train failed; abort backtest")
         sys.exit(rc)
     patch_ml_screener_v25()

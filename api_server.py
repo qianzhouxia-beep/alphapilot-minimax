@@ -2321,12 +2321,17 @@ async def get_data_status():
 async def upload_chip_data(data: dict):
     """接收本地上传的筹码数据"""
     import json
+    import shutil
     path = "/home/ubuntu/alphapilot/data/chip_data_all.json"
+    # 2026-09-01 修复: vm25_scorer.py 按 (根目录, data/) 顺序找筹码且命中即 break,
+    # 只写 data/ 会让根目录的旧文件压住新数据(且各闸门仍显示 ok)。故两个路径都写。
+    root_path = "/home/ubuntu/alphapilot/chip_data_all.json"
     try:
         with open(path, "w") as f:
             json.dump(data, f)
+        shutil.copyfile(path, root_path)
         size = len(json.dumps(data))
-        return {"status": "ok", "size": size, "path": path}
+        return {"status": "ok", "size": size, "path": path, "root_path": root_path}
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
