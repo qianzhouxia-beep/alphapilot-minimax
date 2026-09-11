@@ -24,6 +24,25 @@
 
 ---
 
+## 代码流向铁律 + 量化两端模型（2026-09-11 用户拍板）
+
+**代码流向：仓库 → 服务器（repo-first）。** 先改仓库，再从仓库推送到服务器；**不再"在服务器上直接改"**（新加坡服务器旧流程即如此）。
+⇒ **仓库 = 代码之源**；服务器 = 部署目标。（数据新鲜度另论：数据仍以 SSH 上海机闸门为准。）
+
+**量化两端（必须分清）：**
+
+| 端 | 是什么 | 代码在哪 |
+|---|---|---|
+| **选股端** | 产生候选：05:00 管线 / 09:35 scanner / 09:36 导出 | 服务器 `/home/ubuntu/alphapilot`（已镜像回仓库） |
+| **交易端** | QMT/通达信执行买卖：买哪个 / 卖哪个 / 怎么卖 | **本地** `production_strategies/track_a` + `track_b`（+ `ptrade/`）的 live/sim 代码 |
+
+- ⚠️ **看 QMT 买卖逻辑，请查本地 `production_strategies/`，不要去服务器找。**
+- 服务器上的 `trade_executor.py` + `data/paper_trading.json` 是**选股端自带的服务器纸面模拟**，**不是 QMT 交易端**（勿再把它的规则当成"生产真实出场"）。
+- 交易端版本：Track A 实盘 `TrackA_track_a_qmt_full_chain_live.py`（v2.38-tpl）/ 模拟 `..._sim.py`（v2.45）；Track B `TrackB_track_b_qmt_auction_live.py` / `..._sim.py`。实盘落后模拟若干版本属正常。
+- 部署分工：**交易端由用户手动**复制到 QMT/TDX（规则 5）；**服务器端由 Agent 直接部署**。
+
+---
+
 ## 日常验证分工约定
 
 **生效日：2026-08-26 起。** 原则：**PASS 静默、FAIL 才报。** 全绿 = 当没这回事。
@@ -77,6 +96,7 @@
   - **根因（已定位）= 选股时那份 K 线缓存的最后一根收盘 → 缓存滞后几天，`buy_price` 就等于 D−k 收盘。** 不是公式错，是**上游缓存不新鲜**（东财被风控期间滞后 2 天；08-25 起变 None 后 fallback 实时价 = 换个错法）。
 - ⚠️ 归档目录**缺 5 个交易日**（07-28/07-29/07-31/08-04/08-24）；**缺目录 ≠ 当天没交易**。**根因 = `archive_daily_picks.py::_day()` 用源文件 `asof` 当目录名，源滞后时重写前一天目录**（07-27 被连写 3 次）⇒ **有效信号日 ≈29，不是 33**。
 - ⚠️ **K 线缓存新鲜度是总病根**：东财风控/腾讯 qfq 滞后/TDX 服务端中断都会污染下游。09-10 缺口已用"腾讯/westock 单日合并（三重校验+原子写）"修复，见 `knowledge/data_sources/2026-09-11-kline-0910-recovery.md`。
+  - **09-11 已加固**：`fix_kline_server.py` 加 **TDX 早期熔断 + 多源兜底（TDX → 新浪不复权(主) → 腾讯(备)）**；闸门增查 `extra_factors` 末日期。**腾讯 gtimg WAF 高频会 501 封 IP → 只做备源**；688=股/其余=手。详见 `knowledge/data_sources/2026-09-11-kline-fallback-sources.md`。
 
 详述：`knowledge/data_sources/2026-09-11-production-entry-timing.md` ·
 `knowledge/data_sources/2026-09-11-sim-ledger-buyprice-bug.md`
@@ -95,6 +115,7 @@
 
 - **选股模型** = 服务器（05:00 管线 / 09:35 scanner / 09:36 导出）。决定候选池和排名。改选股 **不用改** QMT/通达信。
 - **买卖模型** = QMT / 通达信。读 `{date}.candidates.json` Top10，P2 确认后下单、再按规则卖出。只有改 P2/仓位/卖出才动交易端。
+- ⚠️ **买卖模型的权威代码在本地 `production_strategies/track_a` / `track_b` 的 live/sim**，不在服务器（见上节"代码流向铁律 + 量化两端模型"）。
 - 网页融合 Top10 是选股展示榜，**不是**买卖模型的下单顺序。
 - 详述：`knowledge/strategies/selection_vs_execution.md`
 - **Checkpoint 目录**（做过什么 / 还要盯什么）：`knowledge/ops/checkpoints.md`
