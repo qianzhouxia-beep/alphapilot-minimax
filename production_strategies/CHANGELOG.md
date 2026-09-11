@@ -18,6 +18,145 @@
 
 ---
 
+## 2026-09-11 修复 Track B LIM10 守卫 fail-open（模拟盘 v2.12 → v2.13，P0，仅模拟）
+
+- 修改人/Agent：主控 Agent（Cursor），老板 2026-09-11 授权（WB-Mac 核验 + issue #6 `5634114857` / 放行 `5634160271`）
+- 涉及文件：
+  - `track_b/TrackB_track_b_qmt_auction_sim.py`（v2.12 → **v2.13**）
+  - `track_b/_test_lim10_failopen.py`（新增 Fix D 回归用例）
+  - 实盘 `track_b/TrackB_track_b_qmt_auction_live.py`、`_live_v2.6-tpl.py`、`track_a/*`、服务器选股端 **未改**（授权红线）
+- 版本变化：sim v2.12 → v2.13（逻辑改动）；live 无
+- 修改内容：
+  1. **fail-safe 短路**（`_check_buy`，path_fade/loud_vol 过滤之后）：当 `LIM10_ENABLE and live_pool_active and not money_items` 时，打印 `[LIM10] money_pass all rejected -> flat (no fallback) other=N` 并**当日空仓 return**，不再落入 `else` 的 FCFS fallback。
+  2. **文案修正**：原 `else` 分支日志 `no limit_cnt_10d on pool -> FCFS fallback` 会把"资金门全灭"误报成"字段缺失"；现该分支只会在「money_pass 非空但 `limit_cnt_10d` 全缺」（v2.8 规格豁免的 FCFS 情形）到达，文案改为 `money_pass present but limit_cnt_10d missing -> FCFS fallback`。
+  3. 新增 `_lim10_flat_logged` 一次性日志位；头部注释与 `[INIT]` 版本串同步 v2.13。
+- 原因/依据：
+  - **P0 fail-open**：`lim10_ok = ... and any(... for it in money_items)`；`money_items == []` 时 `any(空)=False` → `lim10_ok=False` → 走 `else` → `_order_by_sweet(money_items) + _order_by_sweet(other_items)`，**把服务器资金门已否决的票全量放回买入**，违反 v2.8 CHANGELOG「Only money_pass names; no fallback tier while LIM10_ENABLE」。
+  - **09-11 实锤**：`output/qmt_scores/20260911.fullpool_live.json`（asof 09:36:14）`n=32`、`money_flow_pass 0/32`、`limit_cnt_10d` 非空 31/32；当日两笔买入 `300061`(rank 6)、`002893`(rank 12) 均 `money_flow_pass=False` 且 rank ≤ cap 15，**只有 bug 路径解释得通**。
+- 验证：
+  - `_test_lim10_failopen.py`：**改前 A 红**（live 全否决池买入 2 只 `300001/300002`），**改后 3/3 绿** —— A（全否决→0 买）/ B（classic 池 fallback 仍生效）/ C（money_pass 有但 `limit_cnt_10d` 全缺→仍走旧 FCFS 且买入）。
+  - 当日回放对照：改前 fallback 合格名单 **15 只**（rank≤15 且非 `fund_hard_fail`），实际成交 **2 只**；改后 **0 只**（空仓）。
+  - ASCII + `ast.parse` 通过 ✅；md5 = `3a8c4b9ca4284c80ee549144016a2549`（改前）→ `1da96de8636cb9b5f014bda1ad8812ef`（改后）。
+- 部署：**需老板把 `TrackB_track_b_qmt_auction_sim.py`（v2.13）复制到 Windows QMT 模拟盘目录**；实盘模板本次不动。Fix C（`passorder` 后不校验委托/成交回报→幽灵账）**已授权但需独立 commit/ticket，本次未做**。
+
+---
+
+
+- 修改人/Agent：主控 Agent（Cursor），老板 2026-09-11 拍板「方案三全做」
+- 涉及文件：
+  - `server/fix_kline_server.py`（K 线补全主脚本，加固）
+  - `scripts/data_readiness_gate.py`（数据就绪闸门，新增一项检查；本文件不在 production_strategies/，一并记录）
+- 版本变化：无显式版本号（脚本级加固，非策略逻辑）
+- 修改内容：
+  1. **TDX 早期熔断**：新增 `EARLY_ABORT_FAILS=150`。TDX 连续失败达阈值且**零成功**时立即停止 TDX、转兜底（09-10 事故中 TDX 全断仍空跑 **5h18m** 才失败退出）。
+  2. **兜底链 = 新浪(不复权,主) → 腾讯(不复权,备)**：新增 `fetch_one_sina` / `fetch_one_tencent` / `fill_missing_fallback` / `_probe_latest_date`。TDX 最新日覆盖 <90% 时，**仅对缺失股票**补拉：
+     - **新浪 `adjust=""`（主源）**：原生带 `amount`/`outstanding_share`/`turnover`，volume=股；生产 `data_fetcher` 即走新浪源，不受东财风控影响。全市场实测 **4982/4991 = 99.8%**。
+     - **腾讯（备源）**：不复权 `day` 数组 + `qt` 当日金额；volume 688=股/其余=手×100。**⚠️ 腾讯 WAF 对高频请求返回 501 封 IP**（09-11 实测：无节流约 5000 请求后**服务器整机被封**）→ 仅作次级源且**必须**经全局限速；被封后由新浪兜住。
+     - 两源都**逐行过 `amount/(vol×close) ∈ [0.8,1.2]` 校验，不过即跳过（宁可不写）**；停牌股（无目标日行）自动跳过。
+  3. 新增 `--dry-run`（只算不写）、`--no-fallback`（等同旧行为）、`--skip-tdx`（TDX 已知宕机时直接用兜底）。
+  4. **闸门补查 `models/extra_factors.parquet` 末日期**（新增 `check_extra_factors_asof_vs_kline`）：它是 `vm25_scorer.py` 的直接输入，原闸门**完全不查**；09-10 事故中 K 线补回后闸门全绿、但 RD 因子仍停 09-09 → 05:00 管线静默少一天因子。加"重建窗口"豁免（K 线 16:15 更新、extra_factors 21:20 重建，故 16:00–21:20 合法滞后不误报）；失败时自动修复命令 = `rebuild_extra_factors.py`。
+- 原因/依据：
+  - **09-10 K 线全量事故**（TDX 服务端协议级中断，`fix_kline` 0/4991）坐实「**K 线单源依赖是管线最大脆点**」：K 线一断，5m/因子/影子全线受影响；且**闸门绿 ≠ 下游全新鲜**（extra_factors 被漏）。
+  - 记录：`knowledge/data_sources/2026-09-11-kline-0910-recovery.md`、`knowledge/data_sources/index.md` 风险 #8。
+- 验证：
+  - `py_compile` 两文件通过 ✅
+  - 服务器实测各源：新浪不复权 4 只（600519/000001/688001/300750）close 与库一致、volume=股、ratio≈1.00–1.01；腾讯 688=股/其余=手 换算正确
+  - **全市场 `--dry-run --skip-tdx` 端到端**：兜底 **4982/4991 = 99.8%**（9 只仍失败=停牌/无当日行情，如 600929 最后交易日 08-28）；`volume_ratio_med=1.002`；合并后 2,025,912 行（原 2,025,911）
+  - 闸门实测：`ready=True fail=0 warn=0`，新增 `extra_factors_asof` = `{extra_factors_date: 2026-09-10, kline_date: 2026-09-10}` → ok
+  - ⚠️ 教训：第一版纯腾讯兜底在无节流下把服务器 IP 打进腾讯 WAF（HTTP 501），故改为**新浪为主源**；日志 `output/logs/fix_kline_dryrun_0911{,b,c}.log`
+- 部署：**已部署到上海服务器** `/home/ubuntu/alphapilot/`（`fix_kline_server.py`、`scripts/data_readiness_gate.py`），原文件备份为 `*.bak_20260911_071629`；cron 16:15 自动用新版，**无需改 cron**。**非交易端（QMT/通达信）不涉及，无需老板操作。**
+
+---
+
+## 2026-09-10 adaptive peel 增加「次 bar 确认」（Track A QMT 模拟盘 v2.44 → v2.45，仅模拟）
+
+- 修改人/Agent：主控 Agent（Cursor），老板拍板 2026-09-10「先上模拟盘」（实盘不改、不上）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim.py`（v2.44 → **v2.45**）
+  - `track_a/_ut_peelnextbar_v245.py`（新增单测）
+  - 实盘 `track_a/TrackA_track_a_qmt_full_chain_live.py` **未改**（维持 v2.38-tpl，仍 `min(0.05, ...)`）
+- 版本变化：sim v2.44→v2.45（逻辑改动）；live 无
+- 修改内容：
+  1. 新增开关 `PEEL_NEXT_BAR_CONFIRM = True`（默认开；置 False 可完全回退 v2.44）。
+  2. peel 触发由「首次触价即卖」改为「首次触价只武装（arm），须**更晚的 5m bar** 仍在触发价之下才卖」：复用 `_closed_5m_bars(now_min)` 作 bar 序号；首触记 `peel_touch_bar`/`peel_touch_peak`/`peel_pending`，仅在 `current_bar_index > peel_touch_bar` 时执行原卖出逻辑（半仓/清仓、`peel_count`、`awaiting_new_high`、`peel_peak_snapshot`、`PEEL_MAX_STEPS`/`shares<200` 清仓路径全部保持原样）。
+  3. 若武装后创出**严格新高**（`peak > peel_touch_peak`）→ `peel_pending` 作废。
+  4. 新增一次性 `[PEEL] <code> touch armed pbk=..% wait next bar` 日志（按 touch bar 去重防刷屏）。
+  5. INIT 版本串更新为 `v2.45 ... peel-cap2%+nextbar`；文件头版本横幅同步为 v2.45。
+- 原因/依据：回测卡 `knowledge/inbox/2026-09-10-peel-confirm-regime.md`。5m 逐 bar 对决（n=24k，t=36-58）显示 `next_bar` 确认在**弱市和强市都优于首次触价**、胜率不变；诚实增量较小（满仓 +0.11–0.18pp），且**无 regime 差异**，故**不加 regime 分支、无条件应用**。老板批准仅上模拟盘。
+- 验证：
+  - ASCII + AST：sim 通过 ✅；live 未改 ✅
+  - 新增单测 `_ut_peelnextbar_v245.py`：**43/43 PASS**（常量不变 / 源码分支存在 / 真实 `_check_sell` 行为桩：首触只武装、次 bar 确认半仓、shares<200 清仓、创新高作废、同 bar 不确认、开关关闭回退 v2.44 / 实盘无 `PEEL_NEXT_BAR_CONFIRM` 且仍 `min(0.05, ...)`）
+  - 回归：`_ut_peelcap_v244.py` **19/19 PASS**、`_ut_dayhigh_v243.py` **20/20 PASS**
+- 部署：**需要老板手动复制到 QMT 模拟盘**：`production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim.py` → QMT 模拟盘 python 目录。**实盘不部署**。部署后查 `[INIT] track-A qmt-sim v2.45 ... peel-cap2%+nextbar`。
+
+---
+
+## 2026-09-10 自适应 peel 回撤上限 5% → 2%（Track A QMT 模拟盘 v2.43 → v2.44，仅模拟）
+
+- 修改人/Agent：主控 Agent（Cursor），老板拍板 2026-09-10「按照现有的方案 A 来执行」（实盘不改）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim.py`（v2.43 → **v2.44**）
+  - `track_a/_ut_peelcap_v244.py`（新增单测）
+  - 实盘 `track_a/TrackA_track_a_qmt_full_chain_live.py` **未改**（维持 v2.38-tpl，仍 `min(0.05, ...)`）
+- 版本变化：sim v2.43→v2.44（逻辑改动）；live 无
+- 修改内容：
+  1. 新增常量 `PEEL_PB_MAX = 0.02`。
+  2. `_adaptive_params` 里 `pb = round(min(0.05, ...), 3)` → `pb = round(min(PEEL_PB_MAX, ...), 3)`。**只收窄上界**：低波动票的默认 1.5%（及低波动下按公式更小的值）不变；此前高波动票最多给到 5% 的回撤容忍，现统一封顶 2%。其余（`DEF_TRAIL_ARM=0.03` 武装线、`PEEL_MAX_STEPS=2`、peel 触发结构）**完全未动**。
+  3. INIT 版本串更新为 `v2.44 ... peel-cap2%`。
+- 原因/依据：老板问"QMT 卖出条件是什么"→ 代码实测确认 `+3%` 是**移动止盈武装线**、真正卖出是"从峰值回撤 pb%"（默认 1.5%，自适应上限 5%），且 peel 是**首次触价即卖半仓、不二次确认**。用真实候选归档 + `data/kline5m/` 做 5m 逐 bar 出场对决（`bt_research/bt_exit_schemes.py`，n=263，30 天）：
+  - 均值：lock-at-+3% +0.65% / peak1.5 +0.67% / hold1 +0.55% / peak2.5 +0.35% / **peak5.0 +0.18%（胜率仅 48%）** / fixed3 −0.09%。
+  - 结论：**紧回撤（1.5%）与"锁 +3%"并列最优，松回撤（5%）最差**，高波动票是漏钱处 → 封顶 2%。
+  - 同批研究另证实：在现有 rank 之上叠加"离 MA20 距离"新鲜度因子，组合级**不赚钱**（基线 +4.65% vs 剔除延展 −0.80% / 新鲜度重排 −3.58%），故**选股端不改**。详见 inbox `2026-09-10-freshness-factor-discovery.md`。
+- 验证：
+  - ASCII + AST：sim 通过 ✅；live 通过且断言未含 `PEEL_PB_MAX`、仍为 `min(0.05, ...)` ✅
+  - 单元测试 `_ut_peelcap_v244.py`：**19/19 PASS**（cap 生效 / 低波动不变 / 只降不升 / vol=None 回退 / peel 首次触价语义与创新高门 / 实盘未改）
+  - 回归：`_ut_dayhigh_v243.py` **ALL PASS**
+- 部署：**需要老板手动复制到 QMT 模拟盘**：`production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim.py` → QMT 模拟盘 python 目录。**实盘不部署**。部署后查 `[INIT] track-A qmt-sim v2.44 ... peel-cap2%`。
+
+---
+
+## 2026-09-10 条件式 P2 日内位置门（Track A QMT 模拟盘 v2.42 → v2.43，仅模拟）
+
+- 修改人/Agent：主控 Agent（Cursor），老板拍板 2026-09-10「模拟盘你可以改，改了之后我先上模拟盘」（实盘不改、不上）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim.py`（v2.42 → **v2.43**）
+  - `track_a/_ut_dayhigh_v243.py`（新增单测）
+  - 实盘 `track_a/TrackA_track_a_qmt_full_chain_live.py` **未改**（维持 v2.38-tpl @ 0.85）
+- 版本变化：sim v2.42→v2.43（逻辑改动）；live 无
+- 修改内容：
+  1. **P2 日内位置门改为条件式**：原 `(c-day_low)/(day_high-day_low) <= CONF_DAY_HIGH_MAX(0.85)` 是无条件的。现按**多日位置**分档：
+     - `low_base`（`ma60_pos < 0` 且 `up_low < 0.5`）→ 用 `CONF_DAY_HIGH_MAX_LOWBASE = 1.00`（对低位起涨实际不再拦）
+     - 其余（elevated）→ 维持 `0.85`
+     - 新增 `_p2_day_high_max_for(item)`；`_p2_day_high_ok(c, high, low, cap)` 加可选 cap；`_p2_decide(..., item=None)` 传入候选以读取 `ma60_pos/up_low`（这两个字段服务器已随 `candidates.json` 下发，客户端只读，无需新增数据管道）。
+  2. **新增 `[DAYHIGH]` 否决日志**（每 code/pos 一次，防刷屏）：打印 pos/cap/bucket/rank，便于模拟盘复盘。
+  3. INIT 版本串更新为 `v2.43 ... cond-dayhigh`。
+- 原因/依据：老板质疑"金安国纪 002636 今日 +10% 为何没买"。交叉分析发现：002636 = 选股 rank3、甜蜜区、资金门通过，**唯一**被 P2 日内位置门否决（10:00/10:05 pos 0.982/0.930 > 0.85）；但其**多日位置为低位**（`dist_hi −0.441`、`ma60_pos −0.113` 均线下方），是"低位起涨"非"高位追买"。服务器条件扫描（`bt_research/bt_dayhigh_position_sweep.py`，08-10~09-09，23 天 105 触发）：日内门**否决**样本在低位桶 T0 +0.89%/T1 +0.47%、在中高位桶 −0.14%/−0.66% —— 门的效力**分多日位置**。注意：该扫描同时显示低位票**极少进 rank≤3**（23 天仅 1 例），故本改动实盘意义有限，**只作模拟盘试验**，用于积累"低位∩rank≤3 被日内门否决"这一稀有类别。
+- 验证：
+  - ASCII + AST：sim 通过 ✅（首版注释误打了中文"金安国纪"，已清除后复检通过）
+  - 单元测试 `_ut_dayhigh_v243.py`：**20/20 PASS**（低位放宽 / 高位不变 / 字段缺失回退 / 边界 ma60_pos==0 与 up_low==0.5 / rng<=0 / 002636 pos=0.982 在 0.85 被拒、在新 cap 通过 / `DAYHIGH_CONDITIONAL=False` 回退 0.85 / **断言实盘文件无 `DAYHIGH_CONDITIONAL` 且仍为 0.85**）
+- 部署：**需要老板手动复制到 QMT 模拟盘**：`production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim.py` → QMT 模拟盘 python 目录（覆盖 Track A 模拟端）。**实盘不部署**。部署后查 `[INIT] track-A qmt-sim v2.43 ... cond-dayhigh` 与（若触发）`[DAYHIGH] ... bucket=lowbase/elevated`。
+
+---
+
+## 2026-09-09 fullpool_live 数据乱值 bug 修复（源头净化 + 兜底告警）
+
+- 修改人/Agent：Cursor（老板拍板 Cursor 修）
+- 涉及文件：
+  - `server/export_qmt_scores.py`（归档权威副本，md5 已与服务器一致）
+  - 服务器端（无归档，工作副本留 `bt_research/cursor_trackb_fix/live_fund_flow.py`）：`live_fund_flow.py`
+- 版本变化：无（export 不归策略版本号管）
+- 修改内容：
+  1. **`live_fund_flow.py` 源头净化**：`_fetch_batch` 对东财 f84（主动买占比，/100 须∈[0,1]）、f170（涨跌幅，须∈[-30,30]）做范围校验，越界/缺失一律置 `None`（不再 `or 50` 兜成 0.5 / `or 0` 兜成 0）；新增 `_abr_from_f84/_chg_from_f170/_cleanf`（NaN→None）。读取端 `fetch_fund_flow`/`batch_fund_flow` 用 `_cleanf` 把 DataFrame NaN 还原为 None，保证下游 `is not None` 判断正确跳过。
+  2. **`export_qmt_scores.py` 兜底加告警**：保留"abr/chg 越界强制 money_flow_pass=False"的最后防线（NaN 安全化），并把每次命中的原始值落盘 `output/qmt_scores/{date}.data_alert.json`（此前 09-02 全 31 只 / 09-09 12/19 静默发作无任何痕迹）。
+- 原因/依据：老板问"09-09 轨道 B QMT 模拟盘买什么"→ Cursor 交叉验证发现 09-09 live pool rank1-12 的 abr=5,884,096/chg=489~1001 乱值（东财表头漂移），被 export 合理性兜底整片强制 fail → money_flow_pass=0 → Track B 买入侧被清空。历史 09-02/09-08 同 bug 静默复发。
+- 验证：
+  - 本地 AST：两个文件通过 ✅
+  - 单元自测：6 组 f84/f170 越界/正常用例 + NaN/None cleanf 全 PASS（含 09-09 588409646/489、08-19 22298681/273 case）✅
+  - 服务器：上传后 md5 一致 + `py_compile` 通过 ✅
+- 部署：**已部署**（已上传上海服务器 `/home/ubuntu/alphapilot/`，生效于下一个 09:35/09:36 运行）。09-10 盘后看 `[FULLPOOL_LIVE] 数据异常强制 fail: N 只` 应为 0，且无 `{date}.data_alert.json`。
+
+---
+
 ## 2026-09-08 TrendState 三项接入执行（Issue#6 拍板 5573698661：A 影子 / B D8三条件 / C TSDOWN live+sim）
 
 - 修改人/Agent：主控 Agent（Cursor），WB-Mac 代录老板拍板 2026-09-08 01:00（issue#6 comment 5573698661）

@@ -1,6 +1,17 @@
 # coding:utf-8
-# AlphaPilot -- Track B QMT SIM auction-select strategy v2.12
+# AlphaPilot -- Track B QMT SIM auction-select strategy v2.13
 # =========================================================
+# v2.13 (2026-09-11, P0 LIM10 fail-open fix, issue #6):
+#   * Live-pool mode buys ONLY from money_pass names (v2.8 spec: no fallback
+#     fill). When the server money gate rejects every row (money_items == []),
+#     the old else-branch walked the FCFS fallback and BOUGHT server-rejected
+#     names -> fail-open. Now fail-safe: log "[LIM10] money_pass all rejected
+#     -> flat (no fallback)" and go flat for the day. Classic pool
+#     (live_pool_active False) and the "money_pass present but limit_cnt_10d
+#     missing" case keep the old FCFS behaviour (spec exemption).
+#     Evidence 09-11: fullpool_live n=32, money_flow_pass all False; two buys
+#       (300061 rank6 / 002893 rank12) matched the fallback gate exactly.
+#     Fix D regression: _test_lim10_failopen.py (A red before, green after).
 # v2.12 (2026-09-05, call-auction shadow record, aligned with Track A v2.38):
 #   * Log server 09:25 call-auction volume once/day/row as [SHADOW-CALL]
 #     (pre_market_gap_pct / pre_market_call_amount_wan /
@@ -494,7 +505,7 @@ def init(C):
         print("[INIT] universe=" + str(codes or ["600519.SH"]))
     except BaseException as e:
         print("[INIT] set_universe fail: " + str(e))
-    print("[INIT] track-B v2.12 (LIM10+path_fade+loud_vol+R5+call-shadow) | acct=" +
+    print("[INIT] track-B v2.13 (LIM10-failsafe+LIM10+path_fade+loud_vol+R5+call-shadow) | acct=" +
           ACCOUNT_ID + " | holdings=" + str(len(codes)) +
           " | score_dir=" + str(C.score_dir) +
           " | lim10=" + str(LIM10_ENABLE) + "/" + str(LIM10_TOP_N) +
@@ -2809,6 +2820,17 @@ def _check_buy(C, now, now_min, today, pool):
         C._path_logged = True
         print("[PATH] skipped fade=" + str(_n_fade) +
               " loud=" + str(_n_loud) + " money_pass", flush=True)
+    # v2.13 P0 fail-open fix: in live-pool mode, buying is allowed ONLY from
+    # money_pass names (v2.8 spec: "No fallback fill"). If the money gate
+    # rejects every row, the old code fell through to the else branch and
+    # bought server-rejected names. Fail-safe: go flat for the day.
+    if (LIM10_ENABLE and bool(getattr(C, "live_pool_active", False))
+            and not money_items):
+        if not getattr(C, "_lim10_flat_logged", False):
+            C._lim10_flat_logged = True
+            print("[LIM10] money_pass all rejected -> flat (no fallback) "
+                  "other=" + str(len(other_items)), flush=True)
+        return
     lim10_ok = (LIM10_ENABLE and bool(getattr(C, "live_pool_active", False))
                 and any(it.get("limit_cnt_10d") is not None for it in money_items))
     if lim10_ok:
@@ -2831,7 +2853,11 @@ def _check_buy(C, now, now_min, today, pool):
         if LIM10_ENABLE and bool(getattr(C, "live_pool_active", False)):
             if not getattr(C, "_lim10_fb_logged", False):
                 C._lim10_fb_logged = True
-                print("[LIM10] no limit_cnt_10d on pool -> FCFS fallback", flush=True)
+                # v2.13: reached only when money_items is non-empty but every
+                # row lacks limit_cnt_10d (spec-exempt FCFS). The all-rejected
+                # case returns earlier; wording no longer misreports it.
+                print("[LIM10] money_pass present but limit_cnt_10d missing "
+                      "-> FCFS fallback", flush=True)
         # Walk ranked candidates high->low: money_pass first, then fallback.
         picked = (_order_by_sweet(C, money_items) +
                   _order_by_sweet(C, other_items))
