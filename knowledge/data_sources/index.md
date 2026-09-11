@@ -114,4 +114,4 @@
 5. 🟢 每日 17:35 `scripts/data_accumulation_check.py` 巡检数据积累。
 6. ⚠️ **fix_kline volume 单位 bug 修过两次**（08-15 / **08-22 回归**）：cron 必须跑带 ratio 自适应 ×100 的**根目录** `fix_kline_server.py`；根 `kline_all.parquet` 是独立副本。健康检查 `rd_workshop/rd_health_check.py` 盯末日期 ratio≥20 与影子 fill_rate=0。
 7. 🟢 **同花顺官方 API 已接入**（08-22）：补涨停/热股/龙虎榜/竞价缺口；Key 不进 git；**不进 09:35 打分**。档案 `knowledge/data_sources/hithink.md`。
-8. 🔴 **K 线单源依赖是最大脆点**（2026-09-11 坐实）：TDX 服务端一断，`fix_kline_server.py`(16:15)/`build_kline5m.py`(16:20) **全市场 0 行**，且**闸门不一定拦得住下游**——本次 `models/extra_factors.parquet` 就单独停了一天（readiness gate 不查它）。建议排期：`fix_kline_server.py` 多源 fallback（TDX → 腾讯 → baostock）；**闸门增查 `extra_factors` 末日期**。
+8. 🟢 **K 线单源依赖已加固**（2026-09-11）：`fix_kline_server.py` 已加**多源 fallback**（TDX → **新浪不复权(主)** → 腾讯(备)）+ **TDX 早期熔断**；`data_readiness_gate` 已增查 `extra_factors` 末日期（重建窗口 16:00–21:20 豁免）。全市场 `--dry-run` 兜底实测 **4982/4991=99.8%**。源事实与坑（**腾讯 gtimg WAF 501 会封 IP**；688=股/其余=手）见 [`2026-09-11-kline-fallback-sources.md`](./2026-09-11-kline-fallback-sources.md)。

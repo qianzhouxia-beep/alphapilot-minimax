@@ -2,7 +2,7 @@
 
 > **"现在有哪些影子在跑、各自攒到哪、判定门槛是什么、下次什么时候看"——只认本表。**
 > 建立：2026-09-06（全量体检后）。体检/部署/新增影子后必须更新本表。
-> 配套：时间点流水见 `ops/checkpoints.md`；待办 Excel `ops/open_todos.xlsx`；脚本 `bt_research/_cmp/_audit_shadows_20260906.py`（体检探针）。
+> 配套：时间点流水见 `ops/checkpoints.md`；待办 Excel `ops/open_todos.xlsx`；体检探针 `rd_workshop/shadow_daily_health.py`（cron 16:55 当天闭环 + 09:10 上交易日闭环；`--dry` 可演练）。
 > 判定基线日：2026-09-04（最近交易日）。**每新增/删除一个影子，先在本表登记，再动代码。**
 
 状态图例：✅正常积累 ｜ ⚠️待首验证（明天首写） ｜ ⛔空转/停摆（要救） ｜ 🔶已修复待观察 ｜ 📋设计已定未写码
@@ -56,6 +56,16 @@
 | **D8 观察仓（observe_list.json，sim/live 同文件）** | 目标票 **002437 誉衡**（成本 4.23 = 09-04 补仓 12600 股摊薄 costP） | C:\alphapilot\observe_list.json | ✅ **已部署实盘（09-06 20:25 老板复制 v2.37-tpl，Issue#6 c5559197974）**；**floor_pct 勘误 -19.2→-15.8（=绝对 3.56，09-07 老板拍板 c5566718626）** / expire=2026-09-18 已写入文件；sim v2.42/live v2.38-tpl 同文件同结构 | 09-08 收盘后查 `[OBSERVE]` 豁免行 + 002437 TrendState（09-07 RANGE 40.3 距 DOWN 仅 0.3 分——C 项首个真实用例）；09-18 到期自动恢复 | 兜底 3.56（cost 4.2296 的 -15.8%）≠旧 3.546；兜底基准=QMT 最新摊薄 costP 勿用补仓前旧值；**D8 不免 C(转 DOWN 减半)** |
 | **C 止损协同 TSDOWN（Issue#6 C 项，live+sim 同时）** | A QMT sim **v2.42** + live **v2.38-tpl**（TrendState 引擎内嵌，与 `bt_research/_ts_engine.py` parity 一致） | sim/live 运行日志 | ⚠️ **已落码+单测 42/42 全绿，待老板复制**（sim 模拟盘 + live 实盘模板） | 持仓 State 确认切 DOWN → 次日 09:31-09:45 减半，日志 `[TSDOWN-SIM]`/`[TSDOWN-LIVE]`；与 -4% 止损、D8 3.56 兜底取先到者 | C(减仓)≠B(三条件解除观察)≠A(影子只读)；C 适用全部持仓含 D8 观察票 |
 | G1(weak 只买 rank1) | 未写码（regime 闸门回测唯一候选） | — | 📋 待 [SHADOW-B1] 攒 2-4 周真实 weak 样本后重判再立项 | — |
+
+---
+
+## E. 选股端 gene 影子候选（未落码，待触发 — 不是生产变更）
+
+> 2026-09-10 gene 重设计结论：**不部署任何公式变更**，仅在下方登记唯一候选待前瞻复核。背景见 `inbox/2026-09-10-gene-redesign.md` · 提案 `decisions/2026-09-10-gene-redesign-proposal.md`。
+
+| 候选 | 定义 | 状态 | 触发条件（满足才进提案评审） | 下次看 | 不混 |
+|---|---|---|---|---|---|
+| **GENE_plus_LOWACT6** | 现行 gene 3 成分（`limit_cnt_10d`+`ma25_slope`+`ret_10d`）**追加** 低活跃 6 因子（`turnover`/`box20`/`atr14`/`ret_std20`/`shrink_days`/`vol_5_20`）等权 rank-sum，符号按全市场 triage（低值优先） | 📋 **设计已定、未写码**（复用 `bt_research/bt_gene_redesign.py holdout`，无 cron、无输出） | 真实 Top10 归档累计 **≥90~120 交易日**后同 harness 重跑：对 `GENE_base` 的配对 95%CI 排除 0，且**不依赖出场口径** | 真实归档达标时（≥90 TD，约 2026-12 起） | **不是已部署影子**（不改 `export_qmt_scores.py`、无新文件）；**不部署 ≠ 现行 gene 有效**——现行 gene 样本外未被确认（P2 OOS IC5 t=−2.7），只是"保持现状 pending" |
 
 ---
 
