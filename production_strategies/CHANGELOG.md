@@ -37,7 +37,10 @@
 - 引用同步（50 个文件）：`README.md`（目录树 + 部署表 + 新增命名铁律 + 版本基线更新）、`docs/AGENT_RULES.md`、`docs/TRACK_A_B_SELECTION_COMPARISON.md`、`MEMORY.md`、`knowledge/ops/checkpoints.md`、各测试/脚本/`server/export_qmt_scores.py` 注释
 - **有意保留旧名（不改历史）**：`CHANGELOG.md`（append-only 日志）、带日期的历史报告 `docs/KIMI_CROSSVALIDATION_2026-08-19.md`、`track_a/BT_ABR_GATE_REPORT.md` —— 这两份报告内的旧文件名引用将悬空，属有意保留历史原文。
 - 清理：删除 3 个随模块改名的陈旧 `.pyc`（`TrackB_…_{live,sim,tdx_auction_sim}.cpython-314.pyc`）
-- 验证：7 个改名文件 `ast.parse` 全过；QMT 策略文件 ASCII 校验通过（TDX 允许 UTF-8）；`_test_lim10_failopen.py` **3/3 绿**；`track_a/_ut_{peelcap_v244,peelnextbar_v245,dayhigh_v243,tsdown_v242}` **全 PASS**
+- ⚠️ **行尾回归（已修）**：本改名首版用文本模式批量替换引用，把 4 个文件的行尾从 **CRLF 规范化成了 LF**（`sim_v2.13` / `sim_v2.12` / `track_a sim_v2.45` / `checkpoints.md`；`sim_v2.13` 表现为 6205 行"增删"，实为全文件行尾噪音）。已**逐文件还原原始行尾**（CRLF 保 CRLF、LF 保 LF），修正并入 `4389153`（未推送时 amend）。**真改动仅 14 行注释**（`sim_v2.13`）。
+  - 新增防线：`README.md` 「行尾约定」——QMT/TDX `.py` 保 CRLF、文档保 LF，**禁止整文件重写行尾**；改动后核对 `git diff --stat` 量级。
+- 验证：7 个改名文件 `ast.parse` 全过；QMT 策略文件 ASCII 校验通过（TDX 允许 UTF-8）；`_test_lim10_failopen.py` **3/3 绿**；`track_a/_ut_{peelcap_v244,peelnextbar_v245,dayhigh_v243,tsdown_v242}` **全 PASS**；`sim_v2.13` Fix A 标记仍在（2 处）、v2.12 备份内 0 处
+- 权威 md5（CRLF）：`TrackB_…_sim_v2.13.py` = **`3d76848a22f714bb0de87084cde4ba18`**；`sim_v2.45` = `4d43f181cc804d597723c0df9cf62fec`
 - 部署（**重要**）：**改名即需重新部署**。QMT 端文件名应为
   `TrackB_track_b_qmt_auction_sim_v2.13.py`（Track B 模拟）、`TrackA_track_a_qmt_full_chain_sim_v2.45.py`（Track A 模拟）、`TrackB_track_b_qmt_auction_live_v2.7-tpl.py`（B 实盘模板）、`TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py`（A 实盘模板）、`TrackB_track_b_tdx_auction_sim_v1.20.py`（B TDX）、`TrackA_track_a_tdx_full_chain_sim_v2.30.py`（A TDX）。
   老板在 QMT/TDX 侧需按新名新建/替换策略（文件内容与当前部署件一致，仅文件名变化）。`[INIT]` 版本串不变。
