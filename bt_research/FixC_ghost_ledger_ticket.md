@@ -1,7 +1,7 @@
 # Fix C Ticket — Track B QMT 模拟盘 `passorder` 无委托/成交回报校验（幽灵账）
 
 - 来源：WB-Mac `issuecomment-5634114857` §一(A) / 老板授权 `issuecomment-5634160271`
-- 范围：**仅 `production_strategies/track_b/TrackB_track_b_qmt_auction_sim.py`**（模拟盘）
+- 范围：**仅 `production_strategies/track_b/TrackB_track_b_qmt_auction_sim_v2.13.py`**（模拟盘）
 - 授权红线：**不碰** `track_b/*_live*.py`、`track_a/*`、服务器选股端
 - 状态：**待设计确认后落码**（本 ticket 为"先只读定位 + 调用方清单"交付物）
 - 关联已闭环：Fix A（LIM10 fail-open）`fe8f751` + 部署确认 `51818d8`

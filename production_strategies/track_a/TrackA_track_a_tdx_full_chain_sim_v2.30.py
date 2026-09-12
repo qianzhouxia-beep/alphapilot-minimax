@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # AlphaPilot full-chain strategy - Track A TDX sim (TongDaXin TdxQuant port)
-# File: TrackA_track_a_tdx_full_chain_sim.py
+# File: TrackA_track_a_tdx_full_chain_sim_v2.30.py
 # v2.30 2026-09-05 (R5 second-pricing gate, aligned with QMT v2.37):
 #   * R5 gate at P2 trigger (both dyn_confirm and snap_confirm paths): reject
 #     far-gap / loud-auction / late-afternoon triggers whose T+1 is
@@ -156,7 +156,7 @@
 #   2) Strongly recommended: System - After-hours data download, check 1min/5min bars
 #      (needed for full P2 confirmation)
 #   3) Set ACCOUNT below to your TDX sim capital account (blank auto-uses logged-in)
-#   4) python TrackA_track_a_tdx_full_chain_sim.py
+#   4) python TrackA_track_a_tdx_full_chain_sim_v2.30.py
 # =========================================================
 from __future__ import print_function
 

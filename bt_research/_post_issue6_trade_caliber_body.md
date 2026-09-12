@@ -8,8 +8,8 @@
 ⇒ 服务器 `trade_executor.py` + `paper_trading.json` 是**选股端自带的纸面模拟，不是 QMT 交易端**。我上一表把它当"生产真实出场"是**归属错误**——你读到的 `ladder_tp` 也是这个侧端的陈旧元数据。
 
 **交易端权威出场**：
-- **实盘** `TrackA_track_a_qmt_full_chain_live.py` **v2.38-tpl**（首触即卖，`pb=min(0.05, 0.015+dev*0.03)`）
-- **模拟** `TrackA_track_a_qmt_full_chain_sim.py` **v2.45**（次 bar 确认，`pb=min(0.02, …)`）
+- **实盘** `TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` **v2.38-tpl**（首触即卖，`pb=min(0.05, 0.015+dev*0.03)`）
+- **模拟** `TrackA_track_a_qmt_full_chain_sim_v2.45.py` **v2.45**（次 bar 确认，`pb=min(0.02, …)`）
 - 共同：`arm +3% → 峰值回撤 pb 卖半 → 最多 2 刀清 → 硬止损 −10% / 跌停 −9.7%`
 
 ### 二、用交易端规则重跑同一 263 笔（peel 核心近似）

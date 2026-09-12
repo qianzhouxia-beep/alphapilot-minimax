@@ -10,7 +10,7 @@
 | `8886269286` | **实盘** |
 
 ### 二、发现：`track_b sim` 的 `ACCOUNT_ID` 指向的是轨道 A 账户
-`TrackB_track_b_qmt_auction_sim.py` L232 原为 `ACCOUNT_ID = "98009473"  # TODO: change to Track B's separate SIM account`。
+`TrackB_track_b_qmt_auction_sim_v2.13.py` L232 原为 `ACCOUNT_ID = "98009473"  # TODO: change to Track B's separate SIM account`。
 
 关键点：`passorder(23, 1101, ACCOUNT_ID, ...)` 与 `get_trade_detail_data(ACCOUNT_ID, ...)` 用的是**硬编码常量**，**QMT 策略配置里绑定的账号不会覆盖它**。⇒ 若沿用 98009473，Track B 的委托会落进**轨道 A 的模拟账户**，两轨持仓互相污染（`_sync_holdings` 会把对方持仓认作自己的）。
 
@@ -19,7 +19,7 @@
 ### 三、§① hash 订正（**当前权威值**）
 | 文件 | md5 (CRLF) | 说明 |
 |---|---|---|
-| `track_b/TrackB_track_b_qmt_auction_sim.py` | **`a972e0a55dd12694f794a3f56176fed1`** | v2.13 + ACCOUNT_ID=62128716（= 老板部署件） |
+| `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` | **`a972e0a55dd12694f794a3f56176fed1`** | v2.13 + ACCOUNT_ID=62128716（= 老板部署件） |
 | 上值（仅 ACCOUNT_ID 不同，作废） | `1da96de8636cb9b5f014bda1ad8812ef` | v2.13 + ACCOUNT_ID=98009473 |
 | LF 行尾变体 | `6dfe7fb054f4a5616e210c60bb865089` | 内容等价 |
 

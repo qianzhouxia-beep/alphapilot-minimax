@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # Fix D must guard BOTH the main file and the fixed-name deployment copy
 # (QMT loads the deployment copy). Point either via TB_SIM_FILE.
 SIM = os.environ.get("TB_SIM_FILE") or os.path.join(
-    HERE, "TrackB_track_b_qmt_auction_sim.py")
+    HERE, "TrackB_track_b_qmt_auction_sim_v2.13.py")
 
 spec = importlib.util.spec_from_file_location("tb_sim_fixd", SIM)
 m = importlib.util.module_from_spec(spec)

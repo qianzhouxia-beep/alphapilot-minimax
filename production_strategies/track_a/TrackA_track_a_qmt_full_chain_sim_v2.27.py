@@ -1,6 +1,6 @@
 # coding:utf-8
 # AlphaPilot -- Track A QMT sim full-chain strategy v2.27 (trading-day hold)
-# File: TrackA_track_a_qmt_full_chain_sim.py
+# File: TrackA_track_a_qmt_full_chain_sim_v2.45.py
 # =========================================================
 # v2.27 changes vs v2.26 (2026-08-31, trading-day hold fix):
 #   * _hold_days counts TRADING days, not calendar days. The old

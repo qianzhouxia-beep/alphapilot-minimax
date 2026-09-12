@@ -19,8 +19,8 @@ import types
 from types import SimpleNamespace
 from unittest.mock import patch
 
-LIVE_MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_live.py"
-TDX_MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_tdx_auction_sim.py"
+LIVE_MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_live_v2.7-tpl.py"
+TDX_MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_tdx_auction_sim_v1.20.py"
 
 # ---------------- load QMT LIVE module ----------------
 spec = importlib.util.spec_from_file_location("tb_live", LIVE_MOD)

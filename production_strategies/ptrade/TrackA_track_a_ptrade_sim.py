@@ -30,7 +30,7 @@
 #     broker leaves open date empty after a restart and T+1 already unlocked
 #     (000651 QMT-SIM 08-20: +1.5% T+1 wrongly sold as t2_force_after_extend).
 #   * _check_sell T+2 maturity check adds hold_days != 999 guard.
-# Port of production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim.py
+# Port of production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py
 # (QMT v2.18) to the Ptrade (Hundsun) platform. Ptrade runs on the broker's
 # cloud VM, so:
 #   * the strategy is a SINGLE self-contained file (helpers are inlined below);

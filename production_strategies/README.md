@@ -6,6 +6,14 @@
 >
 > **选股模型 vs 买卖模型**：轨道 A 选股只在服务器，QMT/通达信只做买卖。改选股不用改交易端。详见 `knowledge/strategies/selection_vs_execution.md`。
 
+> **⚠️ 文件命名铁律（2026-09-12 起）：文件名里的版本号 = 文件内的版本号。**
+> 现行策略文件一律带版本号（如 `TrackB_track_b_qmt_auction_sim_v2.13.py`），升版 = **改名 + 重新部署**，文件名永远能自己说明版本。
+> 旧快照/备份同样按其**真实内容版本**命名（如 `…_sim_v2.12.py`）。
+> **权威文件 = 本文件夹内带版本号、且版本号与文件头一致的那一个**；不带版本号或版本号对不上的，一律视为历史副本。
+>
+> **行尾约定（2026-09-12）**：QMT/TDX 策略 `.py` 保持 **CRLF**（Windows 部署件原生），文档/知识卡保持 **LF**。
+> **禁止整文件重写行尾**（文本模式 `read_text/write_text` 会静默把 CRLF 变 LF，作废 md5 基线并让现场核对系统性假报警）。改动后请核对 `git diff --stat` 量级是否与改动相称。
+
 ---
 
 ## 一、这是什么
@@ -21,9 +29,9 @@ production_strategies/
 ├── CHANGELOG.md              ← 修改日志（每次改动必须追加）
 │
 ├── track_a/                  ← 轨道 A（QMT/TDX 现有链路）
-│   ├── TrackA_track_a_qmt_full_chain_sim.py  v2.36      QMT 模拟盘（gene + path_fade + loud_vol skip）
-│   ├── TrackA_track_a_qmt_full_chain_live.py v2.36-tpl  QMT 实盘模板（gene + path_fade + loud_vol skip）
-│   ├── TrackA_track_a_tdx_full_chain_sim.py  v2.29      TDX 模拟盘（P2 + rank<=2, vwap 二次确认）
+│   ├── TrackA_track_a_qmt_full_chain_sim_v2.45.py  v2.45      QMT 模拟盘（gene+path_fade+loud_vol+R5+TSDOWN+D8 + 条件式日内位置门 + peel 回撤上限2% + peel 次bar确认）
+│   ├── TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py v2.38-tpl  QMT 实盘模板（gene+path_fade+loud_vol+R5+TSDOWN+D8；日内位置门 0.85 未改）
+│   ├── TrackA_track_a_tdx_full_chain_sim_v2.30.py  v2.30      TDX 模拟盘（P2 + rank<=2, vwap 二次确认）
 │   ├── fetch_tick_abr.py                 —          历史逐笔拉取 + ABR 聚合（mootdx）
 │   ├── bt_abr_gate_fullchain.py          —          P2 买入 + ABR 门回测（双源合并）
 │   ├── bt_abr_sell_early.py              —          ASR 卖出早退回测
@@ -33,10 +41,10 @@ production_strategies/
 │   └── BT_ABR_GATE_REPORT.md             —          ABR 门回测报告（2026-08-16）
 │
 ├── track_b/                  ← 轨道 B（09:25-09:35 竞价选股）
-│   ├── TrackB_track_b_qmt_auction_sim.py        v2.10      QMT 模拟盘（LIM10 + path_fade + loud_vol）
-│   ├── TrackB_track_b_qmt_auction_sim_v2.6.py   v2.10      用户 QMT 模拟端实际加载的文件名（与上同逻辑）
-│   ├── TrackB_track_b_qmt_auction_live.py       v2.7-tpl   QMT 实盘模板（每账户一份）
-│   ├── TrackB_track_b_tdx_auction_sim.py        v1.18      TDX 模拟盘
+│   ├── TrackB_track_b_qmt_auction_sim_v2.13.py        v2.13      QMT 模拟盘（LIM10-failsafe + LIM10 + path_fade + loud_vol + R5 + call-shadow）← 老板 QMT 部署此文件
+│   ├── TrackB_track_b_qmt_auction_sim_v2.12.py   v2.12      ⚠️ 老板本地旧备份，**非部署目标**（QMT 部署的是上一行 v2.13）
+│   ├── TrackB_track_b_qmt_auction_live_v2.7-tpl.py       v2.7-tpl   QMT 实盘模板（每账户一份）
+│   ├── TrackB_track_b_tdx_auction_sim_v1.20.py        v1.20      TDX 模拟盘
 │   ├── mootdx_feed.py                    —          免费逐笔数据服务（独立进程，非交易端内运行）
 │   ├── mootdx_mock.py                    —          离线测试 mock
 │   ├── _test_mootdx_feed.py              —          离线测试（17 项）
@@ -77,12 +85,12 @@ production_strategies/
 
 | 文件 | 部署目标 |
 |------|----------|
-| `track_a/TrackA_track_a_qmt_full_chain_sim.py` | QMT 模拟盘 python 目录（明文复制，勿粘贴） |
-| `track_a/TrackA_track_a_qmt_full_chain_live.py` | QMT 实盘，每个账户复制一份，改 CONFIG 块 |
-| `track_a/TrackA_track_a_tdx_full_chain_sim.py` | TDX 通达信量化端 `PYPlugins\user` 目录 |
-| `track_b/TrackB_track_b_qmt_auction_sim.py` | QMT 模拟盘（**第二个模拟账户**），python 目录 |
-| `track_b/TrackB_track_b_qmt_auction_live.py` | QMT 实盘，每账户一份，改 CONFIG |
-| `track_b/TrackB_track_b_tdx_auction_sim.py` | TDX 量化端 `PYPlugins\user`（独立 `.py` 运行） |
+| `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | QMT 模拟盘 python 目录（明文复制，勿粘贴） |
+| `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | QMT 实盘，每个账户复制一份，改 CONFIG 块 |
+| `track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py` | TDX 通达信量化端 `PYPlugins\user` 目录 |
+| `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` | QMT 模拟盘（**第二个模拟账户**），python 目录 |
+| `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` | QMT 实盘，每账户一份，改 CONFIG |
+| `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` | TDX 量化端 `PYPlugins\user`（独立 `.py` 运行） |
 | `track_b/mootdx_feed.py` | 本机独立 Python 环境（已 `pip install mootdx`），交易日 09:15 启动常驻 |
 | `server/export_qmt_scores.py` | 服务器 `/home/ubuntu/alphapilot/`（scp 覆盖） |
 | `server/fix_kline_server.py` | 服务器 `/home/ubuntu/alphapilot/`（scp 覆盖；16:15 cron 补 K 线） |
@@ -120,15 +128,15 @@ mootdx_feed.py（本机独立进程，交易日 09:15-15:00）
 `MIN_ACTIVE_BUY=0.52` → `skip_low_abr` 当日放弃。**软门**：数据不可用不拦截。
 部署 QMT 轨道 A 前需先启动 `mootdx_feed.py`。
 
-## 六、版本基线（归档时刻，2026-08-16）
+## 六、当前版本基线（更新 2026-09-12；文件名版本 = 文件内版本）
 
 | 文件 | 版本 | 状态 |
 |------|------|------|
-| 轨道 A QMT 模拟（`TrackA_track_a_qmt_full_chain_sim.py`） | v2.16 | ✅ ABR 买入门已接入 |
-| 轨道 A QMT 实盘模板（`TrackA_track_a_qmt_full_chain_live.py`） | v2.16-tpl | ✅ ABR 买入门已接入 |
-| 轨道 A TDX（`TrackA_track_a_tdx_full_chain_sim.py`） | v2.14 | ✅ ABR 买入门已接入（盘口近似） |
-| 轨道 B QMT 模拟（`TrackB_track_b_qmt_auction_sim.py`） | v1.1 | ✅ 实时池 fullpool_live + 分段买入窗口 |
-| 轨道 B QMT 实盘模板（`TrackB_track_b_qmt_auction_live.py`） | v1.2-tpl | ✅ fullpool_live 实时池已同步（含 CALL_DATA_CUTOFF 修复） |
-| 轨道 B TDX（`TrackB_track_b_tdx_auction_sim.py`） | v1.2 | ✅ fullpool_live 实时池已同步 |
+| 轨道 A QMT 模拟（`TrackA_track_a_qmt_full_chain_sim_v2.45.py`） | v2.45 | ✅ peel 回撤上限2% + peel 次bar确认 |
+| 轨道 A QMT 实盘模板（`TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py`） | v2.38-tpl | ✅ 实盘模板（落后模拟，正常） |
+| 轨道 A TDX（`TrackA_track_a_tdx_full_chain_sim_v2.30.py`） | v2.30 | ✅ TDX 模拟盘 |
+| 轨道 B QMT 模拟（`TrackB_track_b_qmt_auction_sim_v2.13.py`） | v2.13 | ✅ LIM10 fail-safe + ACCOUNT_ID=62128716（**老板 QMT 部署件**） |
+| 轨道 B QMT 实盘模板（`TrackB_track_b_qmt_auction_live_v2.7-tpl.py`） | v2.7-tpl | ✅ fullpool_live 实时池已同步 |
+| 轨道 B TDX（`TrackB_track_b_tdx_auction_sim_v1.20.py`） | v1.20 | ✅ fullpool_live 实时池已同步 |
 | 服务器 fullpool 导出 | --fullpool | ✅ cron 06:30 已就绪 |
 | 服务器 fullpool_live 导出 | --fullpool-live | ✅ cron `36 9 * * 1-5` 已部署（2026-08-17） |

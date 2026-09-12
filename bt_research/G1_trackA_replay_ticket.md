@@ -71,7 +71,7 @@
 
 - 近似版结果与更正：`knowledge/inbox/2026-09-11-gap-bug-recheck.md` §八/§九
 - 口径定调：`knowledge/decisions/2026-09-11-code-flow-and-two-ends.md`
-- 源码：`production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim.py`（v2.45）、`..._live.py`（v2.38-tpl）
+- 源码：`production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py`（v2.45）、`..._live.py`（v2.38-tpl）
 
 ---
 

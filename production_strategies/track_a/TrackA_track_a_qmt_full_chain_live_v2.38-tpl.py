@@ -86,7 +86,7 @@
 # v2.23-tpl (2026-08-27): persist sell-side metadata to {ACCOUNT_TAG}_pos_state.json (sim v2.23).
 # v2.23+ (2026-08-28): stamp fusion_scores on buy; append IC closed-trade on sell.
 # v2.22-tpl (2026-08-26, fund_hard_fail guard):
-# File: TrackA_track_a_qmt_full_chain_live.py
+# File: TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py
 # =========================================================
 # v2.22-tpl (2026-08-26): fund_hard_fail skip in _check_buy (sim v2.22).
 # v2.21-tpl (2026-08-26): P2 trend c>day_low, drop p935/prev_close guards (sim v2.21).

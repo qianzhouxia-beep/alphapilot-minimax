@@ -147,7 +147,7 @@
 #   skip_high_turnover now permanently abandon the candidate (sent_today).
 #   wait_confirm logs silenced (would spam 40-80 lines/bar on the widened pool).
 # Track B (NEW): QMT-side 09:25-09:35 full-pool gate + auction select.
-# Key differences vs Track A (TrackA_track_a_qmt_full_chain_sim.py):
+# Key differences vs Track A (TrackA_track_a_qmt_full_chain_sim_v2.45.py):
 #   [A] Track A reads {date}.candidates.json (Top10, server pre-picked)
 #       -> P2 dynamic confirm -> Top2 buy.
 #   [B] Track B reads {date}.fullpool.json (05:00 full candidate pool,
@@ -177,12 +177,12 @@
 #     constituents of candidate sectors (wider sample, avoids n=1 distortion).
 #
 # Naming convention (instantly distinguishable from Track A):
-#   Track A: TrackA_track_a_qmt_full_chain_sim.py  (QMT SIM)
-#            TrackA_track_a_qmt_full_chain_live.py (QMT LIVE template)
-#            TrackA_track_a_tdx_full_chain_sim.py  (TDX SIM)
-#   Track B: TrackB_track_b_qmt_auction_sim.py   (QMT SIM account)
-#            TrackB_track_b_qmt_auction_live.py  (QMT LIVE template, one copy per account)
-#            TrackB_track_b_tdx_auction_sim.py   (TDX SIM account)
+#   Track A: TrackA_track_a_qmt_full_chain_sim_v2.45.py  (QMT SIM)
+#            TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py (QMT LIVE template)
+#            TrackA_track_a_tdx_full_chain_sim_v2.30.py  (TDX SIM)
+#   Track B: TrackB_track_b_qmt_auction_sim_v2.13.py   (QMT SIM account)
+#            TrackB_track_b_qmt_auction_live_v2.7-tpl.py  (QMT LIVE template, one copy per account)
+#            TrackB_track_b_tdx_auction_sim_v1.20.py   (TDX SIM account)
 #
 # Deploy: copy plaintext into D:\guojin_QMT\python\  (QMT python dir)
 # Account: Track B uses a SEPARATE sim account (not Track A's 98009473).
@@ -2833,11 +2833,8 @@ def _check_buy(C, now, now_min, today, pool):
             and not money_items):
         if not getattr(C, "_lim10_flat_logged", False):
             C._lim10_flat_logged = True
-            _n_mp_raw = len(money_items) + _n_fade + _n_loud
             print("[LIM10] money_pass all rejected -> flat (no fallback) "
-                  "p0=" + str(_n_mp_raw) + " fade=" + str(_n_fade) +
-                  " loud=" + str(_n_loud) + " other=" + str(len(other_items)),
-                  flush=True)
+                  "other=" + str(len(other_items)), flush=True)
         return
     lim10_ok = (LIM10_ENABLE and bool(getattr(C, "live_pool_active", False))
                 and any(it.get("limit_cnt_10d") is not None for it in money_items))

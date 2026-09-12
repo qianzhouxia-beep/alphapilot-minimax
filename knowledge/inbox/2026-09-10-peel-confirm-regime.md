@@ -114,4 +114,4 @@ next_bar 在所有市况定义、lag0/lag1、带/不带止损、两个样本里*
 - 脚本：`bt_research/bt_exit_confirm_regime.py`（本地 `/Users/AlphaPilot/bt_research/bt_exit_confirm_regime.py`；服务器 `/home/ubuntu/alphapilot/bt_research/bt_exit_confirm_regime.py`）
 - 结果：`/home/ubuntu/alphapilot/output/bt_exit_confirm_regime.json`（62904 events，含全部表格与逐事件收益；服务器运行日志 `/tmp/confirm_full.log`）
 - 基线对照：`bt_research/bt_exit_schemes.py` / `output/bt_exit_schemes.json`（本脚本 candidate usable=263 与其一致）
-- 生产现状：`production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim.py` v2.44（首次触及即卖一半，无二次确认）
+- 生产现状：`production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` v2.44（首次触及即卖一半，无二次确认）

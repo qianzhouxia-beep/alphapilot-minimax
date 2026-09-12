@@ -4,7 +4,7 @@
 
 ---
 
-### 一、交付 ①：diff（`track_b/TrackB_track_b_qmt_auction_sim.py` v2.12 → v2.13）
+### 一、交付 ①：diff（`track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` v2.12 → v2.13）
 
 ```diff
 @@ _check_buy：path_fade/loud_vol 过滤之后
@@ -83,7 +83,7 @@
 
 ### 四、边界与状态（对应你的放行条件）
 
-- **条件 ①（部署件行级 diff/hash）**：本仓库 `track_b/TrackB_track_b_qmt_auction_sim.py` 改前 md5 = `3a8c4b9ca4284c80ee549144016a2549`、改后 = `1da96de8636cb9b5f014bda1ad8812ef`。**Windows QMT 部署件我这边访问不到**，需老板核对改前 md5 是否与部署件一致；不一致则以运行时文件为准再核（纪律 #9）。
+- **条件 ①（部署件行级 diff/hash）**：本仓库 `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` 改前 md5 = `3a8c4b9ca4284c80ee549144016a2549`、改后 = `1da96de8636cb9b5f014bda1ad8812ef`。**Windows QMT 部署件我这边访问不到**，需老板核对改前 md5 是否与部署件一致；不一致则以运行时文件为准再核（纪律 #9）。
 - **条件 ③（文案）**：新分支打印 `money_pass all rejected -> flat (no fallback)`；旧误导串已改。**⚠️ 一处按项目规约做了 ASCII 化**：QMT 文件必须纯 ASCII（非 ASCII 会触发 QMT 加密 `SyntaxError`），故用英文串而非"money_pass 全灭 ⇒ 空仓"，语义等价。
 - **Fix C（`passorder` 后不校验委托/成交回报 → 幽灵账）**：**未做**，按授权独立 commit/ticket。需要我起新帖/新分支时请点名。
 - **部署**：Fix A 目前只在仓库；**需老板复制 v2.13 到 Windows QMT 模拟盘目录**。实盘模板未动。sim 满 1 日核对前不进 live。

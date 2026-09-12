@@ -106,7 +106,7 @@
 #   wait_confirm logs silenced (would spam 40-80 lines/bar on the widened pool).
 # Track B (NEW) TongDaXin TdxQuant (TQ) version:
 #   09:25-09:35 full-pool gated call-auction stock selection.
-# Key differences vs Track A (TrackA_track_a_tdx_full_chain_sim.py v2.14):
+# Key differences vs Track A (TrackA_track_a_tdx_full_chain_sim_v2.30.py v2.14):
 #   [A] Track A reads {date}.candidates.json (Top10, server pre-picked)
 #       -> P2 dynamic confirm -> Top2 buy.
 #   [B] Track B reads {date}.fullpool.json (05:00 full candidate pool,
@@ -143,12 +143,12 @@
 #     spans many sectors, keeps full-pool sample avoiding n=1 distortion)
 #
 # Naming convention (distinguishable at a glance from Track A):
-#   Track A: TrackA_track_a_qmt_full_chain_sim.py  (QMT SIM)
-#            TrackA_track_a_qmt_full_chain_live.py (QMT LIVE template)
-#            TrackA_track_a_tdx_full_chain_sim.py  (TDX SIM)
-#   Track B: TrackB_track_b_qmt_auction_sim.py   (QMT SIM)
-#            TrackB_track_b_qmt_auction_live.py  (QMT LIVE template, per account)
-#            TrackB_track_b_tdx_auction_sim.py   (TDX SIM)
+#   Track A: TrackA_track_a_qmt_full_chain_sim_v2.45.py  (QMT SIM)
+#            TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py (QMT LIVE template)
+#            TrackA_track_a_tdx_full_chain_sim_v2.30.py  (TDX SIM)
+#   Track B: TrackB_track_b_qmt_auction_sim_v2.13.py   (QMT SIM)
+#            TrackB_track_b_qmt_auction_live_v2.7-tpl.py  (QMT LIVE template, per account)
+#            TrackB_track_b_tdx_auction_sim_v1.20.py   (TDX SIM)
 #
 # How to run:
 #   1) start TongDaXin "quant terminal (SIM)" and login a SIM trade account
@@ -156,7 +156,7 @@
 #      tick 1m/5m lines (P2 confirm needs them)
 #   3) set ACCOUNT below to your TDX SIM capital account
 #      (leave empty = auto use currently logged-in account)
-#   4) python TrackB_track_b_tdx_auction_sim.py
+#   4) python TrackB_track_b_tdx_auction_sim_v1.20.py
 # =========================================================
 from __future__ import print_function
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """v2.31/v2.8/v1.19/v2.30/v1.8 弱市破位敏感退出 —— 8 端移植脚本（2026-09-03）。
 
-参考实现：track_a/TrackA_track_a_qmt_full_chain_live.py v2.31-tpl（已手工完成）。
+参考实现：track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py v2.31-tpl（已手工完成）。
 每处替换断言「恰好命中一次」，任一失败则该文件不写回。
 全部新增内容纯 ASCII。跑完后自动做 ASCII(QMT/ptrade) + AST 校验。
 """
@@ -508,7 +508,7 @@ def hdr(old_title: str, new_title: str, ver: str) -> tuple[str, str]:
 
 FILES = {
     # ---- QMT C flavor ----
-    "track_a/TrackA_track_a_qmt_full_chain_sim.py": [
+    "track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py": [
         hdr("# AlphaPilot -- Track A QMT sim full-chain strategy v2.30 (vwap 2nd confirm)",
             "# AlphaPilot -- Track A QMT sim full-chain strategy v2.31 (weak-regime exits)",
             "v2.31"),
@@ -519,7 +519,7 @@ FILES = {
         (C_FLOOR_OLD, C_FLOOR_NEW),
         (C_CAPEXT_OLD, C_CAPEXT_NEW),
     ],
-    "track_b/TrackB_track_b_qmt_auction_live.py": [
+    "track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py": [
         hdr("# AlphaPilot -- Track B QMT LIVE strategy TEMPLATE v2.7-tpl (vwap 2nd confirm)",
             "# AlphaPilot -- Track B QMT LIVE strategy TEMPLATE v2.8-tpl (weak-regime exits)",
             "v2.8-tpl"),
@@ -530,7 +530,7 @@ FILES = {
         (C_FLOOR_OLD, C_FLOOR_NEW),
         (C_CAPEXT_OLD, C_CAPEXT_NEW),
     ],
-    "track_b/TrackB_track_b_qmt_auction_sim.py": [
+    "track_b/TrackB_track_b_qmt_auction_sim_v2.13.py": [
         hdr("# AlphaPilot -- Track B QMT SIM auction-select strategy v2.7",
             "# AlphaPilot -- Track B QMT SIM auction-select strategy v2.8",
             "v2.8"),
@@ -541,7 +541,7 @@ FILES = {
         (C_FLOOR_OLD, C_FLOOR_NEW),
         (C_CAPEXT_OLD, C_CAPEXT_NEW),
     ],
-    "track_b/TrackB_track_b_qmt_auction_sim_v2.6.py": [
+    "track_b/TrackB_track_b_qmt_auction_sim_v2.12.py": [
         hdr("# AlphaPilot -- Track B QMT SIM auction-select strategy v2.7",
             "# AlphaPilot -- Track B QMT SIM auction-select strategy v2.8",
             "v2.8"),
@@ -553,7 +553,7 @@ FILES = {
         (C_CAPEXT_OLD, C_CAPEXT_NEW),
     ],
     # ---- TDX flavor ----
-    "track_a/TrackA_track_a_tdx_full_chain_sim.py": [
+    "track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py": [
         hdr("# v2.29 2026-09-02 (vwap 2nd confirm, aligned with QMT v2.30):",
             "# v2.30 2026-09-03 (weak-regime exits, aligned with QMT v2.31):",
             "v2.30"),
@@ -564,7 +564,7 @@ FILES = {
         (T_FLOOR_OLD, T_FLOOR_NEW),
         (T_CAPEXT_OLD, T_CAPEXT_NEW),
     ],
-    "track_b/TrackB_track_b_tdx_auction_sim.py": [
+    "track_b/TrackB_track_b_tdx_auction_sim_v1.20.py": [
         hdr("# AlphaPilot -- Track B TDX SIM auction-select strategy v1.18",
             "# AlphaPilot -- Track B TDX SIM auction-select strategy v1.19",
             "v1.19"),

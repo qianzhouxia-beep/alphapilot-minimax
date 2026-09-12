@@ -11,7 +11,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
-STRAT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_qmt_full_chain_sim.py")
+STRAT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_qmt_full_chain_sim_v2.45.py")
 
 spec = importlib.util.spec_from_file_location("tracka_v216", STRAT)
 mod = importlib.util.module_from_spec(spec)

@@ -20,7 +20,7 @@ tags: [track_b, qmt-sim, no-buy, data-bug, fullpool-live, r5]
 
 **同 bug 历史**：09-02 全池 31 只全 data_garbage（money_pass=0）；09-08 3/24；09-09 12/19。**间歇性、静默**，发作日整条 Track B 买入侧被清空。
 
-## 二、QMT 侧重放（部署版 `TrackB_track_b_qmt_auction_sim_v2.6.py`=v2.12 逻辑，离线 import）
+## 二、QMT 侧重放（部署版 `TrackB_track_b_qmt_auction_sim_v2.12.py`=v2.12 逻辑，离线 import）
 
 - 买入判定：09:36 起 live pool → LIM10 只在 money_flow_pass 内取 limit_cnt_10d 前 2 → money_pass=0 时**主档空**；代码 else 分支会落 fallback（rank≤10 早盘 / ≤15 10:00 后、非 fund_hard_fail）。
 - 用服务器 `data/kline5m/*.parquet`（09-09 全天 5m bars，bar 时间戳同 QMT 规约）+ 策略同款 P2（爬升+VWAP+量比1.3+无追高+日高0.85）、R5（gap±1.5%/竞价量<1.5×/<11:00）、滑点2%、买入窗（早≤11:30/午 13:00-14:00）逐 bar 重放 → **0 成交**。

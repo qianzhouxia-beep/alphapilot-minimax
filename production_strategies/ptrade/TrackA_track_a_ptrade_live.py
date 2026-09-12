@@ -28,7 +28,7 @@
 # block (ACCOUNT_TAG, board access, position size) -- everything else is
 # shared strategy logic. See "HOW TO USE THIS TEMPLATE" at the bottom.
 #
-# Port of production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim.py
+# Port of production_strategies/track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py
 # (QMT v2.18) to the Ptrade (Hundsun) platform. Ptrade runs on the broker's
 # cloud VM, so:
 #   * the strategy is a SINGLE self-contained file (helpers are inlined below);

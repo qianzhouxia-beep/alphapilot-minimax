@@ -80,5 +80,5 @@ tags: [buy-sell-model, p2, day-high, position-gate, track-a, 002636, conditional
 - 脚本 `/home/ubuntu/alphapilot/bt_research/bt_dayhigh_position_sweep.py`（本地 `bt_research/bt_dayhigh_position_sweep.py`）
 - 结果 `/home/ubuntu/alphapilot/output/bt_dayhigh_position_sweep.json`
 - 服务器位置闸 `production_strategies/server/export_qmt_scores.py::_apply_position_gate`（rule `up_low>0.5 and dist_hi<-0.05`）
-- P2 日内门 `production_strategies/track_a/TrackA_track_a_qmt_full_chain_live.py::_p2_day_high_ok`（`CONF_DAY_HIGH_MAX=0.85`）
+- P2 日内门 `production_strategies/track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py::_p2_day_high_ok`（`CONF_DAY_HIGH_MAX=0.85`）
 - checkpoints 2026-09-10 行

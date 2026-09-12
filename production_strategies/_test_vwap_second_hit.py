@@ -12,13 +12,13 @@ from pathlib import Path
 ROOT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies")
 
 FILES = [
-    ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live.py"),
-    ("QMT sim A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim.py"),
-    ("TDX sim A", ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim.py"),
-    ("QMT live B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_live.py"),
-    ("QMT sim B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim.py"),
-    ("QMT sim B v2.6 filename", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.6.py"),
-    ("TDX sim B", ROOT / "track_b" / "TrackB_track_b_tdx_auction_sim.py"),
+    ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py"),
+    ("QMT sim A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py"),
+    ("TDX sim A", ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim_v2.30.py"),
+    ("QMT live B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_live_v2.7-tpl.py"),
+    ("QMT sim B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py"),
+    ("QMT sim B v2.6 filename", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.12.py"),
+    ("TDX sim B", ROOT / "track_b" / "TrackB_track_b_tdx_auction_sim_v1.20.py"),
     ("ptrade live A", ROOT / "ptrade" / "TrackA_track_a_ptrade_live.py"),
     ("ptrade sim A", ROOT / "ptrade" / "TrackA_track_a_ptrade_sim.py"),
 ]

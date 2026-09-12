@@ -62,12 +62,12 @@ C:\Users\elvisq\Projects\alphapilot\production_strategies\
 
 | 轨道 | 文件 | 平台 | 备注 |
 |------|------|------|------|
-| A | `track_a/TrackA_track_a_qmt_full_chain_sim.py` | QMT 模拟盘 | v2.16，含 ABR 买入门 |
-| A | `track_a/TrackA_track_a_qmt_full_chain_live.py` | QMT 实盘模板 | v2.16-tpl，CONFIG 参数化，含 ABR 买入门 |
-| A | `track_a/TrackA_track_a_tdx_full_chain_sim.py` | TDX 模拟盘 | v2.14，含 ABR 买入门（盘口近似） |
-| B | `track_b/TrackB_track_b_qmt_auction_sim.py` | QMT 模拟盘（第二账户） | v1.0，已修 F1/F2 |
-| B | `track_b/TrackB_track_b_qmt_auction_live.py` | QMT 实盘模板 | v1.0-tpl，已修 F1 |
-| B | `track_b/TrackB_track_b_tdx_auction_sim.py` | TDX 模拟盘 | v1.0，已修 F1/F2 |
+| A | `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | QMT 模拟盘 | v2.16，含 ABR 买入门 |
+| A | `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | QMT 实盘模板 | v2.16-tpl，CONFIG 参数化，含 ABR 买入门 |
+| A | `track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py` | TDX 模拟盘 | v2.14，含 ABR 买入门（盘口近似） |
+| B | `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` | QMT 模拟盘（第二账户） | v1.0，已修 F1/F2 |
+| B | `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` | QMT 实盘模板 | v1.0-tpl，已修 F1 |
+| B | `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` | TDX 模拟盘 | v1.0，已修 F1/F2 |
 | 服务器 | `server/export_qmt_scores.py` | 服务器 | `--fullpool` 06:30 导出 |
 | 文档 | `docs/DUAL_TRACK_BRIEFING.md` | — | 双轨设计（已交叉验证） |
 | 文档 | `docs/CODE_CROSSVALIDATION_BRIEFING.md` | — | 代码交叉验证任务书 |

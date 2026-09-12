@@ -16,7 +16,7 @@ import types
 from types import SimpleNamespace
 from unittest.mock import patch
 
-MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_sim.py"
+MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_sim_v2.13.py"
 
 # --- load module without executing QMT globals ---
 import importlib.util

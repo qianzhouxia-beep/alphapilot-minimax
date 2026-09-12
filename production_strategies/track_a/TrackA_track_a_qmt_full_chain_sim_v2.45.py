@@ -1,5 +1,33 @@
 # coding:utf-8
-# AlphaPilot -- Track A QMT sim full-chain strategy v2.42 (gene + path_fade + loud_vol + R5 + D1-D5 stop-bleeding + D8 observe + B3/B1 shadow + TSDOWN/D8-3C)
+# AlphaPilot -- Track A QMT sim full-chain strategy v2.45 (gene + path_fade + loud_vol + R5 + D1-D5 stop-bleeding + D8 observe + B3/B1 shadow + TSDOWN/D8-3C + conditional day-high + peel-cap + peel-nextbar)
+# v2.45 (2026-09-10, SIM ONLY): require a NEXT-BAR confirmation before the
+#   adaptive peel sells. Before this, the peel sold HALF on the FIRST 5m bar
+#   whose pullback from the running peak reached the trigger (peak*(1-pb)).
+#   v2.45 only ARMS on that first breach; the half/clear sell fires only once a
+#   LATER 5m bar is still at/below the same trigger. A strictly new high (peak
+#   advances past the peak captured at arm time) invalidates the pending touch.
+#   5m backtest (card peel-confirm-regime, n=24k bars, t=36-58) shows next-bar
+#   beats first-touch in BOTH weak and strong markets with unchanged win rate;
+#   the honest increment is small (+0.11-0.18pp full-position) and shows NO
+#   regime dependence, so it is applied UNCONDITIONALLY (no regime branch) and
+#   to SIM only. Toggle PEEL_NEXT_BAR_CONFIRM=False restores exact v2.44
+#   first-touch behaviour (reversible).
+#   NOT deployed to live (live stays v2.38-tpl @ min(0.05, ...)).
+# v2.44 (2026-09-10, SIM ONLY): cap the adaptive peel pullback at 2%.
+#   _adaptive_params widened the peel pullback pb up to 5% for high-vol
+#   names; a 5m-bar backtest on the real candidate archive (bt_exit_schemes,
+#   n=263) shows the loose 5% pullback is the worst of the family (win 48%,
+#   mean +0.18% vs +0.67% for the tight 1.5% and +0.65% for an absolute
+#   lock-at-+3% trail). High-vol names were leaking the most. New constant
+#   PEEL_PB_MAX=0.02 caps pb regardless of annual vol; low-vol default
+#   (1.5%) is unchanged. NOT deployed to live (live stays v2.38-tpl).
+# v2.43 (2026-09-10, SIM ONLY): conditional P2 day-high gate. The raw cap
+#   (c-low)/(high-low)<=0.85 is RELATIVE and kills low-base ignition (the
+#   breakout bar is always at the top of today's range). Relax the cap to
+#   CONF_DAY_HIGH_MAX_LOWBASE (1.00) when the candidate is low-base
+#   (ma60_pos<0 AND up_low<0.5); elevated keeps 0.85. Adds [DAYHIGH] veto log.
+#   Motivating case 002636 09-10 (rank3, low-base, vetoed, then +10%).
+#   NOT deployed to live (live stays v2.38-tpl @ 0.85).
 # v2.42 (2026-09-08): Issue#6 TrendState execution (boss 2026-09-08, issue#6 comment 5573698661).
 #   C TSDOWN stop co-exit: any holding whose TrendState switches to DOWN
 #     (2-day confirm, same state machine as wb_trend_state_calc v1.0) is
@@ -96,7 +124,7 @@
 # Weak regime: t2_force floor x0.6, peel pullback x0.7, T+2 extension only
 # for trend-intact (price >= day VWAP), T+3 hold-cap becomes a breakdown
 # check (intact keeps running, daily recheck). Non-weak: unchanged.
-# File: TrackA_track_a_qmt_full_chain_sim.py
+# File: TrackA_track_a_qmt_full_chain_sim_v2.45.py
 # =========================================================
 # v2.30 changes vs v2.29 (2026-09-02, vwap 2nd confirm):
 #   * vwap_weak_early needs TWO still-below minutes in 09:35-09:50.
@@ -394,6 +422,21 @@ POSITION_PCT = 0.22
 CONF_VOL_RATIO = 1.3          # 5m volume ratio threshold
 CONF_MAX_GAP = 0.08           # legacy uniform cap (superseded by _p2_max_gap)
 CONF_DAY_HIGH_MAX = 0.85      # skip if (c-low)/(high-low) > 0.85 (top 15% of range)
+# --- v2.43 (2026-09-10, SIM ONLY) conditional intraday-position gate ---
+# The raw day-high gate is RELATIVE: a stock pulling up from a LOW base is
+# always near the top of today's range at the breakout instant, so an
+# unconditional cap kills low-base ignition. Relax the cap ONLY for low-base
+# names; elevated names keep CONF_DAY_HIGH_MAX.
+#   low_base = ma60_pos < LOWBASE_MA60_MAX and up_low < LOWBASE_UP_LOW_MAX
+# Evidence (23d server sweep 08-10..09-09, bt_dayhigh_position_sweep.py):
+#   day-high REJECTIONS  low_base T0 +0.89%/T1 +0.47% vs elevated -0.14%/-0.66%
+#   (direction holds; means outlier-driven, n small -> sim trial, not live).
+# Live stays at 0.85 (not deployed). 002636 09-10 is the motivating case
+# (rank3, ma60_pos -0.113, up_low 0.482, intraday pos 0.98 -> vetoed, then +10%).
+DAYHIGH_CONDITIONAL = True
+CONF_DAY_HIGH_MAX_LOWBASE = 1.00   # 1.00 = guard effectively off for low-base
+LOWBASE_MA60_MAX = 0.0             # below MA60
+LOWBASE_UP_LOW_MAX = 0.5           # early in the rebound off the 60d low
 CONF_START_MIN = 9 * 60 + 35  # observation window start 09:35
 CONF_END_MIN = 14 * 60 + 57   # observation window end 14:57
 CONF_MAX_TURNOVER = 5.0       # max daily turnover % (2026-08 full-window backtest: >5% weakens)
@@ -479,6 +522,19 @@ MID_WEIGHT = 0.70
 DEF_HARD_STOP = -0.10
 DEF_TRAIL_ARM = 0.03
 DEF_PEEL_PB = 0.015
+# v2.44 (2026-09-10, SIM ONLY): upper bound on the adaptive peel pullback.
+# The old min(0.05, ...) let high-vol names give back up to 5% from the peak
+# before peeling; 5m backtest (bt_exit_schemes, n=263, 30d) ranks the loose
+# 5% variant worst (win 48%) vs tight 1.5% (+0.67%) / lock-at-+3% (+0.65%).
+PEEL_PB_MAX = 0.02
+# v2.45 (2026-09-10, SIM ONLY): require a NEXT-BAR confirmation before the
+# adaptive peel sells. The first breach of trigger=peak*(1-pb) only ARMS;
+# we sell only once a LATER 5m bar is still at/below the trigger. Backtest
+# (peel-confirm-regime, n=24k, t=36-58) shows this beats first-touch in both
+# weak and strong markets with unchanged win rate; the honest increment is
+# small and has no regime dependence, so it is applied unconditionally and to
+# SIM only. Set False to restore exact v2.44 first-touch behaviour.
+PEEL_NEXT_BAR_CONFIRM = True
 PEEL_MAX_STEPS = 2
 VOL_BASELINE = 0.30
 
@@ -642,7 +698,7 @@ def init(C):
         print("[INIT] universe=" + str(codes or ["600519.SH"]))
     except BaseException as e:
         print("[INIT] set_universe fail: " + str(e))
-    print("[INIT] track-A qmt-sim v2.41 (gene+R5+D1-D5+D8, rank<=3) | acct=" + ACCOUNT_ID +
+    print("[INIT] track-A qmt-sim v2.45 (gene+R5+D1-D5+D8, rank<=3, cond-dayhigh, peel-cap2%+nextbar) | acct=" + ACCOUNT_ID +
           " | holdings=" + str(len(codes)) + " | score_dir=" + str(C.score_dir) +
           " | pos_state=" + str(len(getattr(C, "pos_state", {}) or {})))
     try:
@@ -2015,7 +2071,9 @@ def _adaptive_params(C, code):
     dev = vol - VOL_BASELINE
     hs = round(DEF_HARD_STOP - dev * 0.10, 3)
     ta = round(max(0.01, DEF_TRAIL_ARM - dev * 0.05), 3)
-    pb = round(min(0.05, DEF_PEEL_PB + dev * 0.03), 3)
+    # v2.44 (SIM ONLY): cap at PEEL_PB_MAX (2%) instead of 5%. Loose pullbacks
+    # backtest worst; the 1.5% default for normal vol is unchanged.
+    pb = round(min(PEEL_PB_MAX, DEF_PEEL_PB + dev * 0.03), 3)
     return hs, ta, pb
 
 
@@ -2411,14 +2469,36 @@ def _order_cands_by_sweet(C, cands):
     return out
 
 
-def _p2_day_high_ok(c, day_high, day_low):
+def _p2_day_high_max_for(item):
+    """v2.43 (SIM ONLY) conditional intraday-position cap.
+
+    Elevated multi-day position -> CONF_DAY_HIGH_MAX (0.85, unchanged).
+    Low-base (below MA60 AND early in the rebound) -> relaxed cap.
+    Falls back to the default cap if the position fields are missing.
+    """
+    if not DAYHIGH_CONDITIONAL or not item:
+        return CONF_DAY_HIGH_MAX
+    ma = item.get("ma60_pos")
+    ul = item.get("up_low")
+    if ma is None or ul is None:
+        return CONF_DAY_HIGH_MAX
+    try:
+        if float(ma) < LOWBASE_MA60_MAX and float(ul) < LOWBASE_UP_LOW_MAX:
+            return CONF_DAY_HIGH_MAX_LOWBASE
+    except (TypeError, ValueError):
+        pass
+    return CONF_DAY_HIGH_MAX
+
+
+def _p2_day_high_ok(c, day_high, day_low, cap=None):
     rng = day_high - day_low
     if rng <= 0:
         return True
-    return (c - day_low) / rng <= CONF_DAY_HIGH_MAX
+    lim = CONF_DAY_HIGH_MAX if cap is None else cap
+    return (c - day_low) / rng <= lim
 
 
-def _p2_decide(C, code, now_min):
+def _p2_decide(C, code, now_min, item=None):
     """P2 dynamic confirmation. Returns (fill_price or None, reason).
 
     reason: "dyn_confirm" | "wait_confirm" | "no_confirm_eod" | "no_quote" | "no_m5"
@@ -2494,8 +2574,23 @@ def _p2_decide(C, code, now_min):
         # 3) no-chase (board-aware)
         if c > prev * (1 + gap_lim):
             continue
-        # 4) day-high guard: avoid buying in top 15% of intraday range
-        if not _p2_day_high_ok(c, day_high, day_low):
+        # 4) day-high guard (v2.43 SIM: conditional cap by multi-day position)
+        _dhcap = _p2_day_high_max_for(item)
+        if not _p2_day_high_ok(c, day_high, day_low, _dhcap):
+            try:
+                _dpos = (c - day_low) / (day_high - day_low) if day_high > day_low else 0.0
+                if not hasattr(C, "_dayhigh_logged"):
+                    C._dayhigh_logged = set()
+                _key = str(code) + "|" + str(round(_dpos, 3))
+                if _key not in C._dayhigh_logged:
+                    C._dayhigh_logged.add(_key)
+                    _bkt = "lowbase" if _dhcap != CONF_DAY_HIGH_MAX else "elevated"
+                    print("[DAYHIGH] " + str(code) + " pos=" + str(round(_dpos, 3))
+                          + " cap=" + str(_dhcap) + " bucket=" + _bkt
+                          + " rank=" + str((item or {}).get("rank"))
+                          + " veto-bar", flush=True)
+            except BaseException:
+                pass
             continue
         trig_px = c
         break
@@ -2782,20 +2877,52 @@ def _check_sell(C, now, now_min, today):
                 and now_min >= 9 * 60 + 31):
             peak = pos["peak"]
             pbk = (peak - price) / peak * 100 if peak > 0 else 0.0
+            # v2.45 (SIM ONLY): a strictly new high invalidates a pending touch.
+            if (PEEL_NEXT_BAR_CONFIRM and pos.get("peel_pending")
+                    and peak > pos.get("peel_touch_peak", 0) + 1e-9):
+                pos["peel_pending"] = False
             if pbk >= pb * 100:
-                n = pos.get("peel_count", 0)
-                if n >= PEEL_MAX_STEPS or pos["shares"] < 200:
-                    _do_sell(C, code, pos, price,
-                             "peel_clear pk=" + str(round(peak, 2)) +
-                             " pb=" + str(round(pbk, 1)) + "%")
-                    continue
-                _do_sell_half(C, code, pos, price,
-                              "peel_half" + str(n + 1) +
-                              " pk=" + str(round(peak, 2)) +
-                              " pb=" + str(round(pbk, 1)) + "%")
-                pos["peel_count"] = n + 1
-                pos["awaiting_new_high"] = True
-                pos["peel_peak_snapshot"] = peak
+                if PEEL_NEXT_BAR_CONFIRM:
+                    # v2.45: the first breach only ARMS; confirm on a LATER bar.
+                    current_bar_index = _closed_5m_bars(now_min)
+                    if not pos.get("peel_pending"):
+                        pos["peel_pending"] = True
+                        pos["peel_touch_bar"] = current_bar_index
+                        pos["peel_touch_peak"] = peak
+                        if pos.get("peel_touch_logged") != current_bar_index:
+                            pos["peel_touch_logged"] = current_bar_index
+                            print("[PEEL] " + code + " touch armed pbk=" +
+                                  str(round(pbk, 1)) + "% wait next bar")
+                    elif current_bar_index > pos.get("peel_touch_bar", current_bar_index):
+                        pos["peel_pending"] = False
+                        n = pos.get("peel_count", 0)
+                        if n >= PEEL_MAX_STEPS or pos["shares"] < 200:
+                            _do_sell(C, code, pos, price,
+                                     "peel_clear pk=" + str(round(peak, 2)) +
+                                     " pb=" + str(round(pbk, 1)) + "%")
+                            continue
+                        _do_sell_half(C, code, pos, price,
+                                      "peel_half" + str(n + 1) +
+                                      " pk=" + str(round(peak, 2)) +
+                                      " pb=" + str(round(pbk, 1)) + "%")
+                        pos["peel_count"] = n + 1
+                        pos["awaiting_new_high"] = True
+                        pos["peel_peak_snapshot"] = peak
+                else:
+                    # v2.44 behaviour (immediate sell on first touch).
+                    n = pos.get("peel_count", 0)
+                    if n >= PEEL_MAX_STEPS or pos["shares"] < 200:
+                        _do_sell(C, code, pos, price,
+                                 "peel_clear pk=" + str(round(peak, 2)) +
+                                 " pb=" + str(round(pbk, 1)) + "%")
+                        continue
+                    _do_sell_half(C, code, pos, price,
+                                  "peel_half" + str(n + 1) +
+                                  " pk=" + str(round(peak, 2)) +
+                                  " pb=" + str(round(pbk, 1)) + "%")
+                    pos["peel_count"] = n + 1
+                    pos["awaiting_new_high"] = True
+                    pos["peel_peak_snapshot"] = peak
 
         if (pos.get("awaiting_new_high") and
                 pos.get("peak", 0) > pos.get("peel_peak_snapshot", 0) + 1e-9):
@@ -3250,7 +3377,7 @@ def _check_buy(C, now, now_min, today, cands):
             _v, _vt, _vd = _buy_day_veto(item, code, today)
             if _v:
                 continue
-            fill, reason = _p2_decide(C, code, now_min)
+            fill, reason = _p2_decide(C, code, now_min, item)
             if fill is not None:
                 worth_buy = True
                 break
@@ -3366,7 +3493,7 @@ def _check_buy(C, now, now_min, today, cands):
             continue
 
         # P2 dynamic confirmation -> fill at realtime
-        fill, reason = _p2_decide(C, code, now_min)
+        fill, reason = _p2_decide(C, code, now_min, item)
         if fill is None:
             # no_confirm_eod (past 14:57), skip_high_turnover (turnover
             # accumulates monotonically, will not fall back below the cap

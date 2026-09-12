@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Test the mootdx integration seam in TrackB_track_b_qmt_auction_sim.py.
+Test the mootdx integration seam in TrackB_track_b_qmt_auction_sim_v2.13.py.
 
 We import the QMT strategy module with a fake 'C' ContextInfo (mimicking
 C.get_market_data_ex etc.), create a mootdx feed JSON in a temp dir, and
@@ -24,7 +24,7 @@ import importlib.util
 import types
 
 mod = types.ModuleType("TrackB_track_b_qmt_auction_sim")
-src_path = os.path.join(SRC, "TrackB_track_b_qmt_auction_sim.py")
+src_path = os.path.join(SRC, "TrackB_track_b_qmt_auction_sim_v2.13.py")
 with open(src_path, "r", encoding="utf-8") as f:
     code = f.read()
 exec(compile(code, src_path, "exec"), mod.__dict__)
