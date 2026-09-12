@@ -115,6 +115,56 @@ def _probe_account(acct, q):
             print("[PROBE] " + kind + " query fail: " + str(e)[:120])
 
 
+def _dump_type_schema():
+    """Dump the CLASS schema of the order/trade/position types.
+
+    This does not need any live order: QMT's get_trade_detail_data returns
+    xtquant.xttype objects, whose field names can be read off the class
+    itself (__slots__ / dir / annotations / an empty instance).
+    """
+    mods = []
+    for mn in ("xtquant.xttype", "xtquant.xttrader", "xtquant"):
+        try:
+            __import__(mn)
+            import sys
+            mods.append(sys.modules[mn])
+        except BaseException as e:
+            print("[PROBE] import " + mn + " fail: " + str(e)[:100])
+    names = ("XtOrder", "XtTrade", "XtPosition", "XtOrderResponse",
+             "XtTradeDetail", "XtOrderDetail", "XtAccount")
+    for mod in mods:
+        for nm in names:
+            cls = getattr(mod, nm, None)
+            if cls is None:
+                continue
+            tag = getattr(mod, "__name__", "?") + "." + nm
+            print("[PROBE] CLASS " + tag)
+            for attr in ("__slots__", "__annotations__"):
+                v = getattr(cls, attr, None)
+                if v:
+                    print("[PROBE]   " + tag + "." + attr + " = " + str(v)[:300])
+            # enumerate class-level dict (methods excluded)
+            try:
+                for k in sorted(dir(cls)):
+                    if k.startswith("_"):
+                        continue
+                    try:
+                        v = getattr(cls, k)
+                    except BaseException:
+                        continue
+                    if callable(v):
+                        continue
+                    print("[PROBE]   " + tag + "." + k + " = " + str(v)[:70])
+            except BaseException:
+                pass
+            # try a no-arg instance -> instance attrs (most reliable)
+            try:
+                inst = cls()
+                _dump(inst, tag + "()", ORDER_FIELDS)
+            except BaseException as e:
+                print("[PROBE]   " + tag + "() not instantiable: " + str(e)[:90])
+
+
 def probe(C=None, account_id=None):
     """Manual entry point (also called automatically by init/handlebar)."""
     global _probed
@@ -136,6 +186,9 @@ def probe(C=None, account_id=None):
     for a in DEFAULT_ACCOUNTS:
         if a not in accts:
             accts.append(a)
+    print("[PROBE] bound C.acct=" + str(getattr(C, "accountid", None)) +
+          " query_accts=" + str(accts))
+    _dump_type_schema()
     for a in accts:
         _probe_account(a, q)
     _probed = True
