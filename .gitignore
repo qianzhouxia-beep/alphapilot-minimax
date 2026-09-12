@@ -46,3 +46,7 @@ AlphaPiolot.pem
 
 # Mac 上跑 QMT 策略测试时，硬编码 C:\alphapilot 路径会落成字面文件名（测试垃圾，勿入库）
 production_strategies/*alphapilot*
+# 同源第二种形态：正斜杠写法 C:/alphapilot/... 会落成**真目录树**（C: 是目录名），
+# 上面那条的 `*` 不跨 `/`，一条都盖不住 ⇒ 两种形态都要写；C:* 作兜底（含 C:\ 字面文件）
+production_strategies/**/alphapilot*
+production_strategies/**/C:*
