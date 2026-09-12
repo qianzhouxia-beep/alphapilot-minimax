@@ -40,6 +40,9 @@ production_strategies/
 │   ├── backfill_k5m_aug.py               —          mootdx 补 8 月 5m K 线
 │   ├── _analyze_abr.py                   —          ABR 判别力分析
 │   ├── _top10_dates.json                 —          回测候选合并计划（合并双源拉取）
+│   ├── _ut_dayhigh_v243.py               —          单测：条件式 P2 日内位置门（20 项 PASS）
+│   ├── _ut_peelcap_v244.py               —          单测：peel 回撤上限 2%（19 项 PASS）
+│   ├── _ut_peelnextbar_v245.py           —          单测：peel 次 bar 确认（43 项 PASS）
 │   └── BT_ABR_GATE_REPORT.md             —          ABR 门回测报告（2026-08-16）
 │
 ├── track_b/                  ← 轨道 B（09:25-09:35 竞价选股）
