@@ -2833,8 +2833,11 @@ def _check_buy(C, now, now_min, today, pool):
             and not money_items):
         if not getattr(C, "_lim10_flat_logged", False):
             C._lim10_flat_logged = True
+            _n_mp_raw = len(money_items) + _n_fade + _n_loud
             print("[LIM10] money_pass all rejected -> flat (no fallback) "
-                  "other=" + str(len(other_items)), flush=True)
+                  "p0=" + str(_n_mp_raw) + " fade=" + str(_n_fade) +
+                  " loud=" + str(_n_loud) + " other=" + str(len(other_items)),
+                  flush=True)
         return
     lim10_ok = (LIM10_ENABLE and bool(getattr(C, "live_pool_active", False))
                 and any(it.get("limit_cnt_10d") is not None for it in money_items))

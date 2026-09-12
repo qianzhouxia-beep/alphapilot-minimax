@@ -18,6 +18,29 @@
 
 ---
 
+## 2026-09-12 Track B 模拟盘「部署副本」同步 v2.13 + 日志精度（QMT 实际加载名 = `..._v2.6.py`）
+
+- 修改人/Agent：主控 Agent（Cursor），依据 WB-Mac `issuecomment-5638981540` §二
+- 涉及文件：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.6.py`（**固定名部署副本，QMT 实际加载此文件**）
+  - `track_b/TrackB_track_b_qmt_auction_sim.py`（主文件，仅日志精度微调）
+  - `track_b/_test_lim10_failopen.py`（支持 `TB_SIM_FILE` 指向任一文件）
+- 版本变化：部署副本 v2.12 → **v2.13**（补上 Fix A 与 ACCOUNT_ID 对齐）；主文件仍 v2.13（无逻辑变化）
+- 修改内容：
+  1. **部署副本同步**：将 v2.13 内容（LIM10 fail-safe 短路 + 误导文案修正 + `ACCOUNT_ID=62128716`）写入固定名部署副本；保留其身份注记行 `(fixed-name deployment copy; QMT loads ...)`。此前部署副本仍是带洞的 v2.12 且 `ACCOUNT_ID=98009473`（**会买被否决票 + 下到轨道 A 账户**）。
+  2. **日志精度**（主文件，WB §一 建议）：fail-safe 日志加 `p0=/fade=/loud=`，以区分「money_pass 全灭」与「有 money_pass 但全被 path_fade/loud_vol 滤掉」（两者都安全空仓，但日志不应写 `all rejected`）。
+  3. Fix D 新增 `TB_SIM_FILE` 环境变量支持，可分别校验主文件与部署副本。
+- 原因/依据：
+  - WB-Mac 核出部署副本文件头自述「QMT loads TrackB_track_b_qmt_auction_sim_v2.6.py」；Fix A 只改了主文件 ⇒ **按老习惯部署会带着洞上线**，且 `[INIT]` 打 v2.12 易被误读为"部署失败"。
+  - 部署副本 md5（改前）= `1b5fac1a267ecfd945c262332bac70bd`，与主文件 v2.12 仅 4 行差（1 行自述 + 空行）。
+- 验证：
+  - Fix D 对**主文件与部署副本各跑一遍**：均 **3 passed / 0 failed** ✅
+  - 两文件 ASCII + `ast.parse` 通过；diff 仅身份注记 1 行
+  - md5（CRLF）：主文件 **`30438b9156d988a4fc01e7032b294719`**；部署副本 **`f92fe03a5c3e442c5a048606dd104ee2`**
+- 部署：**QMT 模拟盘目录里名为 `TrackB_track_b_qmt_auction_sim_v2.6.py` 的文件必须用本次部署副本覆盖**（不是主文件）。部署后 `[INIT]` 应打印 `track-B v2.13 (LIM10-failsafe+...)`，且 `acct=62128716`。
+
+---
+
 ## 2026-09-12 Track B 模拟盘账户配置对齐（ACCOUNT_ID 98009473 → 62128716；只改配置，版本号不变）
 
 - 修改人/Agent：主控 Agent（Cursor），老板 2026-09-12 确认「部署件已手改 62128716 → 要求仓库-first 回写」
