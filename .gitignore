@@ -43,3 +43,6 @@ Thumbs.db
 _tmp_*
 _smoke_*
 AlphaPiolot.pem
+
+# Mac 上跑 QMT 策略测试时，硬编码 C:\alphapilot 路径会落成字面文件名（测试垃圾，勿入库）
+production_strategies/*alphapilot*
