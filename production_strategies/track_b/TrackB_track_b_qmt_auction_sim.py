@@ -1,6 +1,11 @@
 # coding:utf-8
 # AlphaPilot -- Track B QMT SIM auction-select strategy v2.13
 # =========================================================
+# 2026-09-12 (config, no version bump): ACCOUNT_ID 98009473 -> 62128716.
+#   Track B now has its own SIM account (62128716); 98009473 is Track A SIM
+#   and 8886269286 is LIVE. passorder/get_trade_detail_data both take this
+#   hardcoded constant, so the QMT strategy binding does NOT override it;
+#   leaving it at 98009473 would route Track B orders into Track A's account.
 # v2.13 (2026-09-11, P0 LIM10 fail-open fix, issue #6):
 #   * Live-pool mode buys ONLY from money_pass names (v2.8 spec: no fallback
 #     fill). When the server money gate rejects every row (money_items == []),
@@ -229,7 +234,7 @@ def _trading_days_between(b, t):
     return n
 
 # ================= CONFIG (Track B SIM) =================
-ACCOUNT_ID = "98009473"          # TODO: change to Track B's separate SIM account
+ACCOUNT_ID = "62128716"          # Track B's own SIM account (A SIM=98009473, LIVE=8886269286)
 ACCOUNT_TAG = "b"                # file prefix isolation (Track A has none)
 SCORE_DIR = r"C:\alphapilot\scores"
 REMOTE_SCORE_BASE = "http://150.158.100.236/qmt_scores"  # server nginx static dir
