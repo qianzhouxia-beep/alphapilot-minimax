@@ -18,6 +18,22 @@
 
 ---
 
+## 2026-09-12 `_backup` 件头注释自证「非部署」+ `.gitignore` 护栏补正斜杠变体（WB-Mac 执行；本条目由 Cursor 代补录）
+
+- 修改人/Agent：**WB-Mac**（`7c948f2` = ① 头注释；`ae9fced` = ② .gitignore）
+- ⚠️ **补录说明**：WB-Mac 直接改了 `production_strategies/` 内 4 个 `_backup` 件与仓库根 `.gitignore`，**未按规则追加 CHANGELOG / checkpoints**；本条目为 Cursor **独立复核后**代补，以保审计链完整。
+- ① `7c948f2`（**仅注释**，+8/-3）：4 份 `_backup` 头注释改为自证「非部署」——原头部反而在指**现行件**，是误导源：
+  - `…sim_v2.27_backup.py`：原 `# File: …_sim_v2.45.py`（自称现行件）→ 自名 + `[BACKUP / NOT A DEPLOYMENT TARGET] superseded by …v2.45.py`
+  - `…tdx_…_v2.26_backup.py`：原指向 `v2.30`（旧名；现行实为 **v2.31**）→ 自名 + 指向 v2.31
+  - `…sim_v2.12_backup.py`：原 `(fixed-name deployment copy; QMT loads …v2.12.py)` → `(BACKUP COPY -- NOT a deployment target; QMT loads …v2.13.py)`
+  - `…auction_live_v2.6-tpl_backup.py`：原**无** `# File:` 行 → 补自名 + 指向 v2.7-tpl
+  - 行尾原生保持（`sim_v2.12_backup` CRLF 3085→3086、其余 LF）
+- ② `ae9fced`（`.gitignore` +4）：原 `production_strategies/*alphapilot*` 只匹配**反斜杠字面文件名**；正斜杠写法 `C:/alphapilot/…` 在 Mac 上落成**真目录树**（`C:` 是目录名），而 `*` 不跨 `/` ⇒ **一条不盖**、`git add -A` 会直接入库。补 `production_strategies/**/alphapilot*` + `production_strategies/**/C:*`（兜底通吃两形态）；现存那棵树 4 文件**移出 `/tmp`（未删）**。
+- 版本变化：无（均**非部署件**）
+- 验证（**Cursor 独立复算，非采信 WB 自述**）：6 个部署件 md5 **逐一命中 README §四**；4 个 `_backup` 行尾正确（`sim_v2.12_backup` CRLF 3086 / 0 孤立 LF，其余 LF）；`git ls-files | git check-ignore --stdin` **零命中**（无误伤 tracked 文件）；`_test_vwap_second_hit` 9/9、`_test_max_cand_rank` 40/40、`_ut_{dayhigh_v243,peelcap_v244,peelnextbar_v245,tsdown_v242}` 全 PASS；`production_strategies/C:/` 已不存在。
+- 部署：不需要（4 份均**非部署目标**）
+- ⚠️ **未根治**：全仓仍有多处 `.py` 硬编码 `C:\alphapilot` / `C:/alphapilot`（WB 计 15 处，A sim v2.45 密度最高），跑离线测试就会**再生成**；本次只保证「再生成也不入库」。根治（测试改写临时目录）另议。
+
 ## 2026-09-12 同类旧副本续加 `_backup`（老板点名「都加」；仅改名，内容零改动）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 点名
