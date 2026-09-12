@@ -5,11 +5,14 @@ Only 09:35 candidates.json rank 1-2 may enter P2. Rank 3+, missing rank,
 and MAX_CAND_RANK<=0 off-switch are covered. Helpers are exec'd via AST so
 QMT/TDX/Ptrade builtins are not required.
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import ast
 import sys
 from pathlib import Path
 
-ROOT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies")
+ROOT = Path(str(_REPO / "production_strategies"))
 
 FILES = [
     ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py", "v2.30-tpl"),

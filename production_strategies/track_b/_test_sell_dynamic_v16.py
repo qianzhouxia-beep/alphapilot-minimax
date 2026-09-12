@@ -4,11 +4,14 @@ a wide-amplitude / high-vol name must NOT be force-sold at the old fixed 0%
 floor when its pullback is inside the day's range. 300591 08-19 regression:
 filled 8.54 on a 7.88 trigger (buy slip), next day -8.7% vs cost -> the fixed
 0% floor sold it; the dynamic floor should hold it to T+3."""
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import importlib.util
 import sys
 from pathlib import Path
 
-STRAT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_sim_v2.13.py")
+STRAT = Path(str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py"))
 
 spec = importlib.util.spec_from_file_location("trackb_v16", STRAT)
 mod = importlib.util.module_from_spec(spec)

@@ -10,10 +10,13 @@ returncode != 0 即 exit(1) —— 物理上禁止"侥幸上传半截数据"（0
 - 不传 --dir 时，批次目录 = 本脚本所在目录（即 _chip_batch_*_{suffix}.json 所在处）。
 - DATE 支持 2026-08-25 或 20260825，脚本自动识别。
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import paramiko, json, io, glob, time, sys, os, subprocess
 from collections import Counter
 
-CHECK_SCRIPT = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\server\check_chip_batches.py"
+CHECK_SCRIPT = str(_REPO / "production_strategies" / "server" / "check_chip_batches.py")
 HOST = "150.158.100.236"
 KEY_CANDIDATES = [
     r"C:\Users\elvisq\Downloads\AlphaPiolot.pem",  # 优先（2026-08-24 恢复存在）
@@ -21,7 +24,7 @@ KEY_CANDIDATES = [
 ]
 REMOTE_PATH = "/home/ubuntu/alphapilot/data/chip_data_all.json"
 REMOTE_PATH2 = "/home/ubuntu/alphapilot/chip_data_all.json"
-LOCAL_NEW = r"C:\Users\elvisq\Projects\alphapilot\chip_data_all_new.json"
+LOCAL_NEW = str(_REPO / "chip_data_all_new.json")
 
 
 def _date_suffix(date: str) -> str:

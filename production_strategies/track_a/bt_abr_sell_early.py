@@ -13,19 +13,22 @@ active-SELL share >= threshold, sell at next day open.
 
 Compare: baseline vs ABR-early variants on mean/median/winrate/maxDD/hold.
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import json
 import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\elvisq\Projects\alphapilot")
-sys.path.insert(0, r"C:\Users\elvisq\Projects\alphapilot\bt_research")
+sys.path.insert(0, str(_REPO))
+sys.path.insert(0, str(_REPO / "bt_research"))
 
 import pandas as pd
 
 import bt_sell_weak_signal as S
 
-ROOT = Path(r"C:\Users\elvisq\Projects\alphapilot")
+ROOT = Path(str(_REPO))
 BACKFILL_DIR = r"D:\alphapilot\data\kline5m_full_backfill"
 TICK_DIR = r"D:\alphapilot\data\tick_abr"
 
@@ -207,7 +210,7 @@ def simulate_base(trade):
 
 def main():
     bt = json.load(open(
-        r"C:\Users\elvisq\Projects\alphapilot\output\bt_abr_gate_fullchain.json",
+        str(_REPO / "output" / "bt_abr_gate_fullchain.json"),
         encoding="utf-8"))
     trades = [t for t in bt["trades"]["P2_base"]
               if t.get("trigger") and t.get("px")]

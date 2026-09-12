@@ -13,14 +13,17 @@ Verifies:
      branch) behave the same. (tqcenter import not available -> load module
      textually and exec only the target functions.)
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import importlib.util
 import sys
 import types
 from types import SimpleNamespace
 from unittest.mock import patch
 
-LIVE_MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_live_v2.7-tpl.py"
-TDX_MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_tdx_auction_sim_v1.20.py"
+LIVE_MOD = str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_live_v2.7-tpl.py")
+TDX_MOD = str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_tdx_auction_sim_v1.20.py")
 
 # ---------------- load QMT LIVE module ----------------
 spec = importlib.util.spec_from_file_location("tb_live", LIVE_MOD)

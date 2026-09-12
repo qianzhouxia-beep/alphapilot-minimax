@@ -6,11 +6,14 @@ Scenarios (DHS patch F section):
   3. holdings full (MAX_HOLDINGS) + candidate passed P2 -> rotation sells weakest
 Also verifies _hold_days date-format fix (%Y%m%d).
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import importlib.util
 import sys
 from pathlib import Path
 
-STRAT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_qmt_full_chain_sim_v2.45.py")
+STRAT = Path(str(_REPO / "production_strategies" / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py"))
 
 # load strategy as a module without executing QMT init/handlebar
 spec = importlib.util.spec_from_file_location("tracka_v215", STRAT)

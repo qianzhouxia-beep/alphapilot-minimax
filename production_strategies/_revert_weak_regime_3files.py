@@ -4,10 +4,14 @@
 指示：本次只改 QMT 轨道 A）。反向应用同一组替换，断言唯一命中。"""
 from __future__ import annotations
 
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[1]
+
 import importlib.util
 import pathlib
 
-ROOT = pathlib.Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies")
+ROOT = pathlib.Path(str(_REPO / "production_strategies"))
 spec = importlib.util.spec_from_file_location(
     "port_mod", ROOT / "_port_weak_regime_v231.py")
 port = importlib.util.module_from_spec(spec)

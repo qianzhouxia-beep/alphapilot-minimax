@@ -5,11 +5,14 @@ Guards 300475 09-02: first 09:36 tick below vwap_ref must NOT sell; a later
 minute still below sells; recover cancels; same-minute re-poll stays wait.
 Helpers are exec'd via AST so QMT/TDX builtins are not required.
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[1]
 import ast
 import sys
 from pathlib import Path
 
-ROOT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies")
+ROOT = Path(str(_REPO / "production_strategies"))
 
 FILES = [
     ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py"),

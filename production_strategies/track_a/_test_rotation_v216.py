@@ -7,11 +7,14 @@
   3. Daily rotation cap (ROTATION_DAILY_MAX=1): the second rotation attempt on the
      same day is blocked by the __ROT__ lock even with a valid weak holding.
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import importlib.util
 import sys
 from pathlib import Path
 
-STRAT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_qmt_full_chain_sim_v2.45.py")
+STRAT = Path(str(_REPO / "production_strategies" / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py"))
 
 spec = importlib.util.spec_from_file_location("tracka_v216", STRAT)
 mod = importlib.util.module_from_spec(spec)

@@ -14,6 +14,9 @@ Output: {out_dir}/{symbol}_{date}.json -> {"t5": {"buy": n, "sell": n,
 We only need active buy/sell volumes, aggregated per 5-minute bar so the
 backtest can consume them like another 5m-K-line field.
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import argparse
 import json
 import os
@@ -122,7 +125,7 @@ def aggregate(rows, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dates-json",
-                    default=r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\_top10_dates.json")
+                    default=str(_REPO / "production_strategies" / "track_a" / "_top10_dates.json"))
     ap.add_argument("--out-dir", default=DEFAULT_OUT)
     ap.add_argument("--limit", type=int, default=0,
                     help="limit symbol/date pairs (0=all)")

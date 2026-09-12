@@ -14,13 +14,16 @@ Scenarios:
   7. _p2_decide turnover gate: turnover > CONF_MAX_TURNOVER -> skip
   8. to_ptrade_code conversion (.SH -> .SS, bare 6-digit, .SZ passthrough)
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import importlib.util
 import os
 import sys
 from pathlib import Path
 
 STRAT_PATH = os.environ.get("PTRADE_STRAT",
-                            r"C:\Users\elvisq\Projects\alphapilot\production_strategies\ptrade\TrackA_track_a_ptrade_sim.py")
+                            str(_REPO / "production_strategies" / "ptrade" / "TrackA_track_a_ptrade_sim.py"))
 STRAT = Path(STRAT_PATH)
 
 spec = importlib.util.spec_from_file_location("tracka_ptrade", STRAT)

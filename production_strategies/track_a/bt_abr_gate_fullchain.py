@@ -18,18 +18,21 @@ Arms:
 
 Settle: T-day close and T+1 open (same as bt_dyn_confirm_long).
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import glob
 import json
 import os
 import sys
 import time
 
-sys.path.insert(0, r"C:\Users\elvisq\Projects\alphapilot")
-sys.path.insert(0, r"C:\Users\elvisq\Projects\alphapilot\bt_research")
+sys.path.insert(0, str(_REPO))
+sys.path.insert(0, str(_REPO / "bt_research"))
 
 import bt_dyn_confirm_long as bt
 
-ROOT = r"C:\Users\elvisq\Projects\alphapilot"
+ROOT = str(_REPO)
 TOP10_DIR = os.path.join(ROOT, "data", "score_top10_day")
 TICK_DIR = r"D:\alphapilot\data\tick_abr"
 

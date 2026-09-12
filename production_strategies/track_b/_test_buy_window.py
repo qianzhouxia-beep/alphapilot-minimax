@@ -11,12 +11,15 @@ Verifies:
   4. 13:30 next-day state reset -> afternoon window re-enters buy segment.
   5. 14:01 outside window -> closed again.
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import sys
 import types
 from types import SimpleNamespace
 from unittest.mock import patch
 
-MOD = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_sim_v2.13.py"
+MOD = str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py")
 
 # --- load module without executing QMT globals ---
 import importlib.util

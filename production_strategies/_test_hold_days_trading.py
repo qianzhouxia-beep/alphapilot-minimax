@@ -10,12 +10,15 @@ T+1 on Monday, T+2 on Tuesday.
 Each file is read via AST and only the pure helper functions are exec'd, so no
 trading-platform builtins are needed. The file is validated as loaded, i.e. any
 future drift of these helpers is caught immediately."""
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[1]
 import ast
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-ROOT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies")
+ROOT = Path(str(_REPO / "production_strategies"))
 
 FILES = [
     ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py", "v2.30-tpl"),

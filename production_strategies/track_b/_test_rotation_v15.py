@@ -5,11 +5,14 @@ Mirrors the Track A v2.16 tests:
   2. Hysteresis gate (ROTATION_WEAK_GATE): healthy weakest holding is not rotated.
   3. Daily rotation cap (ROTATION_DAILY_MAX=1): second rotation same day is blocked.
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import importlib.util
 import sys
 from pathlib import Path
 
-STRAT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_sim_v2.13.py")
+STRAT = Path(str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py"))
 
 spec = importlib.util.spec_from_file_location("trackb_v15", STRAT)
 mod = importlib.util.module_from_spec(spec)

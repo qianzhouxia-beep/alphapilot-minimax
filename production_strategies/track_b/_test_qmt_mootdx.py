@@ -9,13 +9,16 @@ the L1 tick approximation when the feed is missing/stale.
 
 Run:  python production_strategies/track_b/_test_qmt_mootdx.py
 """
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import json
 import os
 import sys
 import tempfile
 import time
 
-SRC = r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b"
+SRC = str(_REPO / "production_strategies" / "track_b")
 sys.path.insert(0, SRC)
 
 # The QMT strategy file is pure ASCII; import it under a temp filename so its

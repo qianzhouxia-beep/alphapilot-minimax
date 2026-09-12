@@ -5,12 +5,15 @@ authoritative intraday avg price, no hand/share conversion), with a plausibility
 guard (0.5x..2x of lastPrice) that rejects a residual 100x unit mismatch and
 falls back to 5m bars. Regression: 300591 08-19 vwap=806.98 for a ~8.07 tape
 was a unit bug in the calc path, NOT a QMT data fetch error."""
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import importlib.util
 import sys
 from datetime import datetime
 from pathlib import Path
 
-STRAT = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_b\TrackB_track_b_qmt_auction_sim_v2.13.py")
+STRAT = Path(str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py"))
 
 spec = importlib.util.spec_from_file_location("trackb_vwap", STRAT)
 mod = importlib.util.module_from_spec(spec)

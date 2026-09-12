@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """Analyze ABR discrimination power from the fullchain backtest output."""
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[2]
 import json
 
 import numpy as np
 
 d = json.load(open(
-    r"C:\Users\elvisq\Projects\alphapilot\output\bt_abr_gate_fullchain.json",
+    str(_REPO / "output" / "bt_abr_gate_fullchain.json"),
     encoding="utf-8"))
 trades = d["trades"]["P2_base"]
 trig = [t for t in trades if t["trigger"]]

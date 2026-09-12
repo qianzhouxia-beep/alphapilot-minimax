@@ -8,10 +8,14 @@
 """
 from __future__ import annotations
 
+# --- portable repo root (replaces a hardcoded C:\Users\... path) ---
+from pathlib import Path as _AP_Path
+_REPO = _AP_Path(globals().get("__file__") or ".").resolve().parents[1]
+
 import ast
 import pathlib
 
-ROOT = pathlib.Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies")
+ROOT = pathlib.Path(str(_REPO / "production_strategies"))
 
 HDR_NOTE = (
     "# {ver} (2026-09-03): weak-regime breakdown-sensitive exits (aligned with\n"
