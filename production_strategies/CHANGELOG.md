@@ -18,6 +18,22 @@
 
 ---
 
+## 2026-09-12 探针加「落盘」输出（QMT 日志面板复制不便；老板反馈 ORDER 段只有一行）
+
+- 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 选择「加落盘」
+- 涉及文件：`track_b/_probe_qmt_order_fields.py`（Fix C step 0 只读探针）
+- 背景：老板周末晚间实跑，日志里只见到 `[PROBE] ORDER empty -> run on a day with orders` 一行（周末无当日委托 ⇒ `ORDER n=0` 属预期）。**Fix C 要的字段名来自 `_dump_type_schema()` 的 `[PROBE] CLASS …` 段，不需要订单**；但 QMT 日志面板复制全量不便，故加落盘。
+- 修改内容：
+  - 新增 `_out()`：**每条 `[PROBE]` 行同时 `print` + 追加写入文本文件**（best-effort，绝不抛异常）；
+  - 新增 `_init_out_file()` / `_pick_out_paths()`：启动时截断/新建 dump 文件，路径候选依次为 `~`（Windows = `C:\Users\<user>`）、`%USERPROFILE%`、`%TEMP%`、`cwd`，**取第一个可写**；
+  - 探针开头与结尾各打印一行 `[PROBE] OUT FILE = <绝对路径>`，方便定位；
+  - 全部原 `print("[PROBE] …")` 改为 `_out(...)`（残留裸 print 计数 = 0）；
+  - 新增 `import os`（纯 stdlib）。
+- 版本变化：无（探针脚本，不属 6 个部署件；不涉及策略逻辑）
+- 原因/依据：老板反馈 + QMT 日志面板复制痛点；同时把「字段名不依赖订单」讲清，避免把周末 `ORDER n=0` 误判为阻塞。
+- 验证（本机 Mac 干跑）：`ast.parse` 通过、**纯 ASCII**、LF 保持（273 行）；无 QMT builtin 时走 fail-safe，**仍正确打印并落盘** `[PROBE] resolve query fail …` + `[PROBE] OUT FILE = /private/tmp/alphapilot_probe_out.txt`（临时件已删）；`README.md` §四 六个部署件 md5 未变。
+- 部署：不需要（探针不部署到 QMT 策略目录）。**用法**：整文件替换到 QMT 策略 → 启动 → 打开 `[PROBE] OUT FILE` 指向的 txt → 全选复制回传。
+
 ## 2026-09-12 `_probe_qmt_order_fields.py` 收窄查询范围：排除实盘账号（探针，只读）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 选择「严格只碰两个模拟盘」

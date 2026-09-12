@@ -14,9 +14,13 @@
 #      98009473 SIM both work -- this file tries the two SIM accounts only;
 #      the LIVE account is deliberately NOT queried).
 #   3. Start the strategy in trading mode. It prints [PROBE] once.
-#   4. Copy every [PROBE] line from the strategy log and send to Cursor.
+#   4. It ALSO writes every [PROBE] line to a text file; the path is printed
+#      as "[PROBE] OUT FILE = ...". Open that file in Notepad and copy ALL of
+#      it back. (Fallback: copy every [PROBE] line from the strategy log.)
 #
 # Read-only: only queries get_trade_detail_data; NEVER calls passorder.
+
+import os
 
 DEFAULT_ACCOUNTS = ["62128716", "98009473"]  # B SIM, A SIM only (LIVE excluded)
 
@@ -43,6 +47,55 @@ POS_FIELDS = [
 ]
 
 _probed = False
+_OUT_LINES = []
+_OUT_PATH = None
+
+
+def _pick_out_paths():
+    """Candidate paths for the dumped output (first writable wins)."""
+    cands = []
+    for base in (os.path.expanduser("~"), os.environ.get("USERPROFILE"),
+                 os.environ.get("TEMP"), os.getcwd()):
+        if not base:
+            continue
+        pth = os.path.join(base, "alphapilot_probe_out.txt")
+        if pth not in cands:
+            cands.append(pth)
+    return cands
+
+
+def _init_out_file():
+    """Truncate/create the dump file. Sets _OUT_PATH (None if none writable)."""
+    global _OUT_PATH
+    for pth in _pick_out_paths():
+        try:
+            f = open(pth, "w")
+            f.write("AlphaPilot probe output (QMT). Copy ALL of this back.\n")
+            f.flush()
+            f.close()
+            _OUT_PATH = pth
+            return
+        except BaseException:
+            continue
+    _OUT_PATH = None
+
+
+def _out(msg):
+    """Print AND append to the dump file (best effort, never raises)."""
+    line = str(msg)
+    try:
+        print(line)
+    except BaseException:
+        pass
+    _OUT_LINES.append(line)
+    if _OUT_PATH:
+        try:
+            f = open(_OUT_PATH, "a")
+            f.write(line + "\n")
+            f.flush()
+            f.close()
+        except BaseException:
+            pass
 
 
 def _resolve_query():
@@ -93,27 +146,27 @@ def _dump(obj, tag, candidates):
         except BaseException:
             continue
         rows.append((k + " *", v))   # '*' = found via known-name list
-    print("[PROBE] --- " + tag + " n_attrs=" + str(len(rows)) +
-          " ('*' = via known-name list)")
+    _out("[PROBE] --- " + tag + " n_attrs=" + str(len(rows)) +
+         " ('*' = via known-name list)")
     for k, v in sorted(rows, key=lambda x: x[0]):
-        print("[PROBE]   " + tag + "." + str(k) + " = " + str(v)[:70])
+        _out("[PROBE]   " + tag + "." + str(k) + " = " + str(v)[:70])
 
 
 def _probe_account(acct, q):
-    print("[PROBE] ===== account=" + str(acct) + " =====")
+    _out("[PROBE] ===== account=" + str(acct) + " =====")
     for kind, fields in (("ORDER", ORDER_FIELDS),
                          ("DEAL", DEAL_FIELDS),
                          ("POSITION", POS_FIELDS)):
         try:
             objs = q(acct, "STOCK", kind) or []
-            print("[PROBE] " + kind + " n=" + str(len(objs)))
+            _out("[PROBE] " + kind + " n=" + str(len(objs)))
             if not objs and kind != "POSITION":
-                print("[PROBE] " + kind +
-                      " empty -> run on a day with orders")
+                _out("[PROBE] " + kind +
+                     " empty -> run on a day with orders")
             for ob in list(objs)[-3:]:
                 _dump(ob, kind, fields)
         except BaseException as e:
-            print("[PROBE] " + kind + " query fail: " + str(e)[:120])
+            _out("[PROBE] " + kind + " query fail: " + str(e)[:120])
 
 
 def _dump_type_schema():
@@ -130,7 +183,7 @@ def _dump_type_schema():
             import sys
             mods.append(sys.modules[mn])
         except BaseException as e:
-            print("[PROBE] import " + mn + " fail: " + str(e)[:100])
+            _out("[PROBE] import " + mn + " fail: " + str(e)[:100])
     names = ("XtOrder", "XtTrade", "XtPosition", "XtOrderResponse",
              "XtTradeDetail", "XtOrderDetail", "XtAccount")
     for mod in mods:
@@ -139,11 +192,11 @@ def _dump_type_schema():
             if cls is None:
                 continue
             tag = getattr(mod, "__name__", "?") + "." + nm
-            print("[PROBE] CLASS " + tag)
+            _out("[PROBE] CLASS " + tag)
             for attr in ("__slots__", "__annotations__"):
                 v = getattr(cls, attr, None)
                 if v:
-                    print("[PROBE]   " + tag + "." + attr + " = " + str(v)[:300])
+                    _out("[PROBE]   " + tag + "." + attr + " = " + str(v)[:300])
             # enumerate class-level dict (methods excluded)
             try:
                 for k in sorted(dir(cls)):
@@ -155,7 +208,7 @@ def _dump_type_schema():
                         continue
                     if callable(v):
                         continue
-                    print("[PROBE]   " + tag + "." + k + " = " + str(v)[:70])
+                    _out("[PROBE]   " + tag + "." + k + " = " + str(v)[:70])
             except BaseException:
                 pass
             # try a no-arg instance -> instance attrs (most reliable)
@@ -163,16 +216,18 @@ def _dump_type_schema():
                 inst = cls()
                 _dump(inst, tag + "()", ORDER_FIELDS)
             except BaseException as e:
-                print("[PROBE]   " + tag + "() not instantiable: " + str(e)[:90])
+                _out("[PROBE]   " + tag + "() not instantiable: " + str(e)[:90])
 
 
 def probe(C=None, account_id=None):
     """Manual entry point (also called automatically by init/handlebar)."""
     global _probed
+    _init_out_file()
     try:
         q = _resolve_query()
     except BaseException as e:
-        print("[PROBE] resolve query fail: " + str(e))
+        _out("[PROBE] resolve query fail: " + str(e))
+        _out("[PROBE] OUT FILE = " + str(_OUT_PATH))
         return
     accts = []
     if account_id:
@@ -187,13 +242,15 @@ def probe(C=None, account_id=None):
     for a in DEFAULT_ACCOUNTS:
         if a not in accts:
             accts.append(a)
-    print("[PROBE] bound C.acct=" + str(getattr(C, "accountid", None)) +
-          " query_accts=" + str(accts))
+    _out("[PROBE] OUT FILE = " + str(_OUT_PATH))
+    _out("[PROBE] bound C.acct=" + str(getattr(C, "accountid", None)) +
+         " query_accts=" + str(accts))
     _dump_type_schema()
     for a in accts:
         _probe_account(a, q)
     _probed = True
-    print("[PROBE] ===== DONE (send all [PROBE] lines to Cursor) =====")
+    _out("[PROBE] ===== DONE (open the OUT FILE above and copy ALL of it) =====")
+    _out("[PROBE] OUT FILE = " + str(_OUT_PATH))
 
 
 def init(C):
@@ -202,7 +259,8 @@ def init(C):
     try:
         probe(C)
     except BaseException as e:
-        print("[PROBE] init probe fail: " + str(e)[:120])
+        _out("[PROBE] init probe fail: " + str(e)[:120])
+        _out("[PROBE] OUT FILE = " + str(_OUT_PATH))
 
 
 def handlebar(C):
@@ -212,4 +270,4 @@ def handlebar(C):
     try:
         probe(C)
     except BaseException as e:
-        print("[PROBE] handlebar probe fail: " + str(e)[:120])
+        _out("[PROBE] handlebar probe fail: " + str(e)[:120])
