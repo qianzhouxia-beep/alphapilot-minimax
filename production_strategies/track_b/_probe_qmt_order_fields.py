@@ -17,7 +17,7 @@
 #
 # Read-only: only queries get_trade_detail_data; NEVER calls passorder.
 
-DEFAULT_ACCOUNTS = ["98009473", "8886269286"]  # Track A/B SIM, then LIVE
+DEFAULT_ACCOUNTS = ["62128716", "98009473", "8886269286"]  # B SIM, A SIM, LIVE
 
 ORDER_FIELDS = [
     "m_strOrderSysID", "m_strOrderID", "m_nOrderStatus", "m_nOrderType",
