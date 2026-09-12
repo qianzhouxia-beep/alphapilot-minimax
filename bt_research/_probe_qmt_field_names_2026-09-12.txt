@@ -1,0 +1,110 @@
+AlphaPilot probe output (QMT). Copy ALL of this back.
+[PROBE] OUT FILE = C:\Users\elvisq\alphapilot_probe_out.txt
+[PROBE] bound C.acct=None query_accts=['62128716', '98009473']
+[PROBE] CLASS xtquant.xttype.XtOrder
+[PROBE]   xtquant.xttype.XtOrder CTOR_PARAMS n=15 -> account_id,stock_code,order_id,order_sysid,order_time,order_type,order_volume,price_type,price,traded_volume,traded_price,order_status,status_msg,strategy_name,order_remark
+[PROBE]   xtquant.xttype.XtOrder SIGNATURE = (self, account_id, stock_code, order_id, order_sysid, order_time, order_type, order_volume, price_type, price, traded_volume, traded_price, order_status, status_msg, strategy_name, order_remark)
+[PROBE]   xtquant.xttype.XtOrder __init__.__doc__ = 
+        :param account_id: 资金账号
+        :param stock_code: 证券代码, 例如"600000.SH"
+        :param order_id: 委托编号
+        :param order_sysid: 柜台编号
+        :param order_time: 报单时间
+        :param order_type
+[PROBE]   xtquant.xttype.XtOrder constructed via ctor OK
+[PROBE] --- xtquant.xttype.XtOrder <inst> n_attrs=16 ('*' = via known-name list)
+[PROBE]   xtquant.xttype.XtOrder <inst>.account_id = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.account_type = 2
+[PROBE]   xtquant.xttype.XtOrder <inst>.order_id = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.order_remark = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.order_status = 0
+[PROBE]   xtquant.xttype.XtOrder <inst>.order_sysid = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.order_time = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.order_type = 0
+[PROBE]   xtquant.xttype.XtOrder <inst>.order_volume = 0
+[PROBE]   xtquant.xttype.XtOrder <inst>.price = 0.0
+[PROBE]   xtquant.xttype.XtOrder <inst>.price_type = 0.0
+[PROBE]   xtquant.xttype.XtOrder <inst>.status_msg = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.stock_code = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.strategy_name = 
+[PROBE]   xtquant.xttype.XtOrder <inst>.traded_price = 0.0
+[PROBE]   xtquant.xttype.XtOrder <inst>.traded_volume = 0
+[PROBE] CLASS xtquant.xttype.XtTrade
+[PROBE]   xtquant.xttype.XtTrade CTOR_PARAMS n=12 -> account_id,stock_code,order_type,traded_id,traded_time,traded_price,traded_volume,traded_amount,order_id,order_sysid,strategy_name,order_remark
+[PROBE]   xtquant.xttype.XtTrade SIGNATURE = (self, account_id, stock_code, order_type, traded_id, traded_time, traded_price, traded_volume, traded_amount, order_id, order_sysid, strategy_name, order_remark)
+[PROBE]   xtquant.xttype.XtTrade __init__.__doc__ = 
+        :param account_id: 资金账号
+        :param stock_code: 证券代码, 例如"600000.SH"
+        :param order_type: 委托类型
+        :param traded_id: 成交编号
+        :param traded_time: 成交时间
+        :param traded_pr
+[PROBE]   xtquant.xttype.XtTrade constructed via ctor OK
+[PROBE] --- xtquant.xttype.XtTrade <inst> n_attrs=13 ('*' = via known-name list)
+[PROBE]   xtquant.xttype.XtTrade <inst>.account_id = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.account_type = 2
+[PROBE]   xtquant.xttype.XtTrade <inst>.order_id = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.order_remark = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.order_sysid = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.order_type = 0
+[PROBE]   xtquant.xttype.XtTrade <inst>.stock_code = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.strategy_name = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.traded_amount = 0.0
+[PROBE]   xtquant.xttype.XtTrade <inst>.traded_id = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.traded_price = 0.0
+[PROBE]   xtquant.xttype.XtTrade <inst>.traded_time = 
+[PROBE]   xtquant.xttype.XtTrade <inst>.traded_volume = 0
+[PROBE] CLASS xtquant.xttype.XtPosition
+[PROBE]   xtquant.xttype.XtPosition CTOR_PARAMS n=9 -> account_id,stock_code,volume,can_use_volume,open_price,market_value,frozen_volume,on_road_volume,yesterday_volume
+[PROBE]   xtquant.xttype.XtPosition SIGNATURE = (self, account_id, stock_code, volume, can_use_volume, open_price, market_value, frozen_volume, on_road_volume, yesterday_volume)
+[PROBE]   xtquant.xttype.XtPosition __init__.__doc__ = 
+        :param account_id: 资金账号
+        :param stock_code: 证券代码, 例如"600000.SH"
+        :param volume: 持仓数量,股票以'股'为单位, 债券以'张'为单位
+        :param can_use_volume: 可用数量, 股票以'股'为单位, 债券以'张'为单位
+        :para
+[PROBE]   xtquant.xttype.XtPosition constructed via ctor OK
+[PROBE] --- xtquant.xttype.XtPosition <inst> n_attrs=10 ('*' = via known-name list)
+[PROBE]   xtquant.xttype.XtPosition <inst>.account_id = 
+[PROBE]   xtquant.xttype.XtPosition <inst>.account_type = 2
+[PROBE]   xtquant.xttype.XtPosition <inst>.can_use_volume = 0
+[PROBE]   xtquant.xttype.XtPosition <inst>.frozen_volume = 0
+[PROBE]   xtquant.xttype.XtPosition <inst>.market_value = 0
+[PROBE]   xtquant.xttype.XtPosition <inst>.on_road_volume = 0
+[PROBE]   xtquant.xttype.XtPosition <inst>.open_price = 0.0
+[PROBE]   xtquant.xttype.XtPosition <inst>.stock_code = 
+[PROBE]   xtquant.xttype.XtPosition <inst>.volume = 0
+[PROBE]   xtquant.xttype.XtPosition <inst>.yesterday_volume = 0
+[PROBE] CLASS xtquant.xttype.XtOrderResponse
+[PROBE]   xtquant.xttype.XtOrderResponse CTOR_PARAMS n=6 -> account_id,order_id,strategy_name,order_remark,error_msg,seq
+[PROBE]   xtquant.xttype.XtOrderResponse SIGNATURE = (self, account_id, order_id, strategy_name, order_remark, error_msg, seq)
+[PROBE]   xtquant.xttype.XtOrderResponse __init__.__doc__ = 
+        :param account_id: 资金账号
+        :param order_id: 订单编号
+        :param strategy_name: 策略名称
+        :param order_remark: 委托备注
+        :param seq: 下单请求序号
+        
+[PROBE]   xtquant.xttype.XtOrderResponse constructed via ctor OK
+[PROBE] --- xtquant.xttype.XtOrderResponse <inst> n_attrs=7 ('*' = via known-name list)
+[PROBE]   xtquant.xttype.XtOrderResponse <inst>.account_id = 
+[PROBE]   xtquant.xttype.XtOrderResponse <inst>.account_type = 2
+[PROBE]   xtquant.xttype.XtOrderResponse <inst>.error_msg = 
+[PROBE]   xtquant.xttype.XtOrderResponse <inst>.order_id = 
+[PROBE]   xtquant.xttype.XtOrderResponse <inst>.order_remark = 
+[PROBE]   xtquant.xttype.XtOrderResponse <inst>.seq = 0
+[PROBE]   xtquant.xttype.XtOrderResponse <inst>.strategy_name = 
+[PROBE] ===== account=62128716 =====
+[PROBE] ORDER n=0
+[PROBE] ORDER empty -> run on a day with orders
+[PROBE] DEAL n=0
+[PROBE] DEAL empty -> run on a day with orders
+[PROBE] POSITION n=0
+[PROBE] ===== account=98009473 =====
+[PROBE] ORDER n=0
+[PROBE] ORDER empty -> run on a day with orders
+[PROBE] DEAL n=0
+[PROBE] DEAL empty -> run on a day with orders
+[PROBE] POSITION n=0
+[PROBE] ===== DONE (open the OUT FILE above and copy ALL of it) =====
+[PROBE] OUT FILE = C:\Users\elvisq\alphapilot_probe_out.txt

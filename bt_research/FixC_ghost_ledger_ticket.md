@@ -93,7 +93,13 @@ def _order_snapshot(code):        # 读 ORDER+DEAL，返回该 code 当日委托
 
 ## 五、待 WB 确认的开放问题（阻塞落码）
 
-1. **QMT 字段名核验**：sim 环境 `ORDER` 对象的成交量字段是 `m_nVolumeTraded` 还是 `m_nVolumeTotalTraded`？`DEAL` 的均价字段是 `m_dPrice` 还是 `m_dTradedPrice`/`m_dAveragePrice`？（需在 QMT sim 里打印一次真实对象字段，我可出探针脚本）——**字段名错会静默取默认值，必须实测**。
+1. ~~**QMT 字段名核验**~~ ✅ **已解决（2026-09-12 现场实测，见 `knowledge/data_sources/qmt_xttype_fields.md`）**：
+   - 本 ticket §三 里按 CTP 习惯写的 `m_strOrderSysID` / `m_nOrderStatus` / `m_nVolumeTotalTraded` / `m_dAveragePrice` **一个都不存在**（若照写会 `getattr` 静默回退默认值 ⇒ 幽灵账照旧）。
+   - 真实字段（snake_case，`xtquant.xttype`）：
+     - **ORDER**（`XtOrder`）：`stock_code` / `order_id` / `order_sysid` / `order_volume` / **`traded_volume`** / **`traded_price`** / **`order_status`** / `status_msg` / `order_remark` / `strategy_name`
+     - **DEAL**（`XtTrade`）：`traded_id` / **`traded_price`** / **`traded_volume`** / **`traded_amount`** / `order_id` / `order_remark`
+     - **POSITION**（`XtPosition`）：`volume` / `can_use_volume` / `open_price` / `market_value` / `on_road_volume` / `yesterday_volume`
+   - ⇒ **成交确认判据改用 `traded_volume`**（不猜 `order_status` 枚举）；**关联键改用 `order_remark`**（`passorder` 的 `userOrderId`，当前 sim 三名点都传空串 `""`，必须改唯一串）。
 2. **确认时延**：`passorder` 后同 bar 内查询能否立即看到 ORDER 记录？若不能，确认是否需要"次 bar 复核"（这会改变买入时点语义，需你拍板）。
 3. **pending 期间是否占用 `MAX_HOLDINGS` 槽**：现 `_sync_holdings` 是"保槽"（防超买）。Fix C 保持一致？
 4. **是否同时同步到 live**：按红线本次不做；若你要一并评估，请单独拍板。
