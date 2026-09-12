@@ -93,13 +93,15 @@ def _order_snapshot(code):        # 读 ORDER+DEAL，返回该 code 当日委托
 
 ## 五、待 WB 确认的开放问题（阻塞落码）
 
-1. ~~**QMT 字段名核验**~~ ✅ **已解决（2026-09-12 现场实测，见 `knowledge/data_sources/qmt_xttype_fields.md`）**：
-   - 本 ticket §三 里按 CTP 习惯写的 `m_strOrderSysID` / `m_nOrderStatus` / `m_nVolumeTotalTraded` / `m_dAveragePrice` **一个都不存在**（若照写会 `getattr` 静默回退默认值 ⇒ 幽灵账照旧）。
-   - 真实字段（snake_case，`xtquant.xttype`）：
-     - **ORDER**（`XtOrder`）：`stock_code` / `order_id` / `order_sysid` / `order_volume` / **`traded_volume`** / **`traded_price`** / **`order_status`** / `status_msg` / `order_remark` / `strategy_name`
-     - **DEAL**（`XtTrade`）：`traded_id` / **`traded_price`** / **`traded_volume`** / **`traded_amount`** / `order_id` / `order_remark`
-     - **POSITION**（`XtPosition`）：`volume` / `can_use_volume` / `open_price` / `market_value` / `on_road_volume` / `yesterday_volume`
-   - ⇒ **成交确认判据改用 `traded_volume`**（不猜 `order_status` 枚举）；**关联键改用 `order_remark`**（`passorder` 的 `userOrderId`，当前 sim 三名点都传空串 `""`，必须改唯一串）。
+1. ⚠️ **QMT 字段名 —— 重新打开（2026-09-12 修订）**：
+   - **2026-09-12 现场跑探针**，原以为拿到答案，但复核发现**探针 dump 的可能是错误的 API 类**：
+     - 探针 `import xtquant.xttype` 并 dump 其类 ⇒ 字段为 snake_case（`stock_code` / `volume` / `traded_volume` …）；
+     - 但本项目 `get_trade_detail_data` 属 **QMT 经典策略 API**，生产代码长期用的是 **`m_*`** 字段（`_sync_holdings` 直读 `obj.m_strInstrumentID` / `obj.m_nVolume` / `obj.m_dOpenPrice`），且 **CHANGELOG 有「`[SYNC] +` 重建持仓」的生产执行记录** + `_diag_today_orders` 内建 **48–57 经典状态枚举** ⇒ `m_*` 路径在生产里**真实可用**。
+     - 探针本身**从未取到真实运行时对象**（两账户 ORDER/DEAL/POSITION 全部 `n=0`；`bound C.acct=None` ⇒ 账户未绑定，QMT 经典 API 需账户在策略配置里注册）。
+   - ⇒ **结论未定**，**不得据 snake_case 落码**（反之，原 §三 的 `m_*` 猜测反而更可能对）。
+   - **决定性实验**：在策略配置里**绑定账户**后重跑**修订版探针**（打印 `type(obj)` + 完整 `dir()` + `__dict__`，并加查 `ACCOUNT` 以便无持仓时也能拿到对象）——拿到 `type(obj)` 即一步定性。
+   - 详见 `knowledge/data_sources/qmt_xttype_fields.md`（已改为「未定论」）。
+   - **仍未验证**：ORDER 的成交明细字段名、**DEAL 的全部字段名**（仓库内无任何在用代码读 DEAL）、ORDER↔DEAL 关联键。
 2. **确认时延**：`passorder` 后同 bar 内查询能否立即看到 ORDER 记录？若不能，确认是否需要"次 bar 复核"（这会改变买入时点语义，需你拍板）。
 3. **pending 期间是否占用 `MAX_HOLDINGS` 槽**：现 `_sync_holdings` 是"保槽"（防超买）。Fix C 保持一致？
 4. **是否同时同步到 live**：按红线本次不做；若你要一并评估，请单独拍板。

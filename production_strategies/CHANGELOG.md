@@ -18,6 +18,24 @@
 
 ---
 
+## 2026-09-12 ⚠️ 更正：QMT 字段名"实测结论"作废 —— 探针 dump 错了 API 类（Fix C 重新阻塞）
+
+- 修改人/Agent：主控 Agent（Cursor）；老板现场跑探针后 Cursor 复核发现
+- 背景：同日早先据探针输出认定「QMT 字段名为 snake_case（`traded_volume` 等）」（commit `1235911`）。**复核发现该结论可能张冠李戴，已作废。**
+- 复核证据（三条，指向"探针 dump 的不是运行时对象"）：
+  1. 生产代码长期使用 **`m_*`** 字段且**可用**：`_sync_holdings` 直读 `obj.m_strInstrumentID` / `obj.m_nVolume` / `obj.m_dOpenPrice`（sim v2.13 L1008/1010/1013）；CHANGELOG 有「用户每日重启 QMT 后 `[SYNC] +` 重建持仓」的**生产执行记录**。若运行时对象无 `m_*`，该路径必抛 `AttributeError`、持仓永远同步不上 —— 与事实矛盾。
+  2. `_diag_today_orders` 内建 **48–57 经典状态枚举**（`m_nOrderStatus`），与 `xttype` 无关。
+  3. 探针**从未取到真实运行时对象**：两账户 ORDER/DEAL/POSITION 全部 `n=0`，且 `bound C.acct=None`（账户未在策略配置注册 ⇒ 经典 API 返回空）。被 dump 的只是脚本 `import xtquant.xttype` 后**凭空构造**的类实例。
+- 结论：QMT 存在**两套 API** —— 经典策略 API（`get_trade_detail_data`，`m_*`）与 `xtquant.xttrader`（`XtOrder`/`XtPosition`，snake_case）。本项目生产用**前者**；探针 dump 的是**后者** ⇒ 设计票 §三 原有的 `m_*` 猜测**反而更可能正确**。
+- 涉及文件：
+  - `knowledge/data_sources/qmt_xttype_fields.md` —— **改写为「未定论」**，加两套 API 对照 + 证据 + 决定性实验
+  - `bt_research/FixC_ghost_ledger_ticket.md` —— §五 Q1 **重新打开**（不再是"已解决"）
+  - `track_b/_probe_qmt_order_fields.py` —— **探针修订**：改为 dump **真实返回对象**并打印 `type(obj)`（决定性信号）；加查 `ACCOUNT`（无持仓/无委托时也能拿到对象）；同时列 `m_*` 与 snake_case 两套候选名；文档头注明「必须绑定账户，否则全 0」；并**移除误入的非 ASCII（emoji）**（QMT 要求纯 ASCII，已校验 0 非 ASCII 字节）
+- 版本变化：无（探针非部署件）
+- 原因/依据：老板现场输出 + Cursor 独立复核（生产证据反证）
+- 验证：`ast.parse` + **纯 ASCII** 通过；Mac 干跑（mock `get_trade_detail_data` 返回 `m_*` 风格对象）⇒ 正确打印 `type=__main__.FakeAcct/FakePos` 并发现 `m_*` 字段；`README.md` §四 六个部署件 md5 未变
+- 部署：不需要。**下一步（阻塞 Fix C）**：老板在**策略配置里绑定账户**后重跑修订版探针 → 回传「`type(obj)` + 完整 `dir()`」⇒ 一步定性别（`m_*` vs snake_case）；DEAL 确切字段名需**交易日**。
+
 ## 2026-09-12 探针改用 `inspect.signature` 打印完整 xttype 字段名（现场首跑暴露：无 `__slots__`、异常消息被截断）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 现场首跑后

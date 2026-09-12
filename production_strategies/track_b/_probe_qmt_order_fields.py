@@ -2,17 +2,24 @@
 # AlphaPilot -- Track B QMT SIM order/deal field probe (Fix C step 0)
 # =========================================================
 # RUNNABLE STRATEGY VERSION (no manual call needed).
-# Purpose: dump the REAL attribute names/values of today's ORDER / DEAL /
-# POSITION objects so the Fix C fill-confirmation helper reads the correct
-# fields. Guessing a wrong field name silently falls back to a default and
-# would recreate the ghost ledger.
+# Purpose: settle the REAL attribute names of the ORDER / DEAL / POSITION /
+# ACCOUNT objects returned by get_trade_detail_data, so the Fix C
+# fill-confirmation helper reads the correct fields.
+#
+# WARNING - WHY THIS REVISION (2026-09-12): a first run only dumped
+# xtquant.xttype classes (imported by hand). That is the xttrader API and may
+# NOT be the type get_trade_detail_data returns -- production code has long
+# used classic m_* names (m_strInstrumentID / m_nVolume / m_dOpenPrice) and
+# its [SYNC] path works. So we now dump the ACTUAL returned objects and print
+# type(obj) for each. type(obj) is the decisive signal.
 #
 # HOW TO RUN (QMT, pure ASCII):
 #   1. In QMT strategy editor, open/create a stock strategy file and REPLACE
 #      its whole content with this file's content.
-#   2. Bind the account in strategy config (either 62128716 SIM or
-#      98009473 SIM both work -- this file tries the two SIM accounts only;
-#      the LIVE account is deliberately NOT queried).
+#   2. IMPORTANT - ADD/BIND the account in the strategy config (62128716 SIM or
+#      98009473 SIM). If NO account is registered, every query returns 0
+#      objects and the probe cannot see any real object. The LIVE account is
+#      deliberately NOT queried.
 #   3. Start the strategy in trading mode. It prints [PROBE] once.
 #   4. It ALSO writes every [PROBE] line to a text file; the path is printed
 #      as "[PROBE] OUT FILE = ...". Open that file in Notepad and copy ALL of
@@ -25,25 +32,47 @@ import os
 DEFAULT_ACCOUNTS = ["62128716", "98009473"]  # B SIM, A SIM only (LIVE excluded)
 
 ORDER_FIELDS = [
+    # classic QMT strategy API (get_trade_detail_data) -- m_* style
     "m_strOrderSysID", "m_strOrderID", "m_nOrderStatus", "m_nOrderType",
     "m_strInstrumentID", "m_strExchangeID", "m_nDirection",
     "m_nVolumeTotalOriginal", "m_nVolumeTraded", "m_nVolumeTotalTraded",
     "m_nVolumeCanceled", "m_dOrderPrice", "m_dTradedPrice",
     "m_dAveragePrice", "m_strInsertDate", "m_strInsertTime",
-    "m_strRemark", "m_strRemark1", "order_id", "order_status",
-    "order_volume", "traded_volume", "traded_price", "price", "status",
+    "m_strRemark", "m_strRemark1", "m_strStrategyName",
+    # xtquant.xttrader API -- snake_case style
+    "account_id", "account_type", "stock_code", "order_id", "order_sysid",
+    "order_time", "order_type", "order_volume", "price_type", "price",
+    "traded_volume", "traded_price", "order_status", "status_msg",
+    "strategy_name", "order_remark",
 ]
 DEAL_FIELDS = [
+    # classic
     "m_strOrderSysID", "m_strOrderID", "m_strTradeID", "m_strInstrumentID",
     "m_strExchangeID", "m_nDirection", "m_nVolume", "m_dPrice",
     "m_dTradedPrice", "m_dAveragePrice", "m_dAmount",
-    "m_strTradeDate", "m_strTradeTime", "traded_volume", "traded_price",
-    "order_id", "trade_id", "price", "volume",
+    "m_strTradeDate", "m_strTradeTime",
+    # xttrader
+    "account_id", "account_type", "stock_code", "order_type", "traded_id",
+    "traded_time", "traded_price", "traded_volume", "traded_amount",
+    "order_id", "order_sysid", "strategy_name", "order_remark",
+    "volume", "price",
 ]
 POS_FIELDS = [
+    # classic
     "m_strInstrumentID", "m_strExchangeID", "m_nVolume", "m_nCanUseVolume",
     "m_nCanUseVol", "m_dOpenPrice", "m_strOpenDate", "m_strInstrumentName",
-    "volume", "can_use_volume", "open_price", "avg_price",
+    # xttrader
+    "account_id", "account_type", "stock_code", "volume", "can_use_volume",
+    "open_price", "market_value", "frozen_volume", "on_road_volume",
+    "yesterday_volume",
+]
+ACCOUNT_FIELDS = [
+    # classic
+    "m_dAvailable", "m_dBalance", "m_dInstrumentValue", "m_dPositionProfit",
+    "m_strAccountID", "m_strAccountType",
+    # xttrader
+    "account_id", "account_type", "cash", "total_asset", "market_value",
+    "available", "frozen_cash",
 ]
 
 _probed = False
@@ -146,24 +175,29 @@ def _dump(obj, tag, candidates):
         except BaseException:
             continue
         rows.append((k + " *", v))   # '*' = found via known-name list
-    _out("[PROBE] --- " + tag + " n_attrs=" + str(len(rows)) +
-         " ('*' = via known-name list)")
+    _out("[PROBE] --- " + tag + " type=" +
+         type(obj).__module__ + "." + type(obj).__name__ +
+         " n_attrs=" + str(len(rows)) + " ('*' = via known-name list)")
     for k, v in sorted(rows, key=lambda x: x[0]):
         _out("[PROBE]   " + tag + "." + str(k) + " = " + str(v)[:70])
 
 
 def _probe_account(acct, q):
     _out("[PROBE] ===== account=" + str(acct) + " =====")
-    for kind, fields in (("ORDER", ORDER_FIELDS),
+    for kind, fields in (("ACCOUNT", ACCOUNT_FIELDS),
+                         ("ORDER", ORDER_FIELDS),
                          ("DEAL", DEAL_FIELDS),
                          ("POSITION", POS_FIELDS)):
         try:
             objs = q(acct, "STOCK", kind) or []
+            objs = list(objs)
             _out("[PROBE] " + kind + " n=" + str(len(objs)))
-            if not objs and kind != "POSITION":
-                _out("[PROBE] " + kind +
-                     " empty -> run on a day with orders")
-            for ob in list(objs)[-3:]:
+            if not objs:
+                _out("[PROBE] " + kind + " EMPTY -> if EVERY kind is 0, the "
+                     "account is probably NOT bound in the strategy config "
+                     "(QMT classic API needs it registered); "
+                     "ACCOUNT should normally return 1 object.")
+            for ob in objs[-3:]:
                 _dump(ob, kind, fields)
         except BaseException as e:
             _out("[PROBE] " + kind + " query fail: " + str(e)[:120])
@@ -286,9 +320,15 @@ def probe(C=None, account_id=None):
     _out("[PROBE] OUT FILE = " + str(_OUT_PATH))
     _out("[PROBE] bound C.acct=" + str(getattr(C, "accountid", None)) +
          " query_accts=" + str(accts))
-    _dump_type_schema()
+    # PART 1 (DECISIVE): the REAL objects get_trade_detail_data returns.
+    # type(obj) settles which API/naming the runtime uses.
     for a in accts:
         _probe_account(a, q)
+    # PART 2 (REFERENCE ONLY): xtquant.xttrader class schema -- may NOT be
+    # the type get_trade_detail_data returns.
+    _out("[PROBE] ---- xtquant.xttype class schema (xttrader API; "
+         "MAY NOT be what get_trade_detail_data returns) ----")
+    _dump_type_schema()
     _probed = True
     _out("[PROBE] ===== DONE (open the OUT FILE above and copy ALL of it) =====")
     _out("[PROBE] OUT FILE = " + str(_OUT_PATH))
