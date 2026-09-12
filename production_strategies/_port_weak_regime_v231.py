@@ -557,7 +557,7 @@ FILES = {
         (C_CAPEXT_OLD, C_CAPEXT_NEW),
     ],
     # ---- TDX flavor ----
-    "track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py": [
+    "track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py": [
         hdr("# v2.29 2026-09-02 (vwap 2nd confirm, aligned with QMT v2.30):",
             "# v2.30 2026-09-03 (weak-regime exits, aligned with QMT v2.31):",
             "v2.30"),

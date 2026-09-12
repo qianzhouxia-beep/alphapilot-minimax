@@ -17,7 +17,7 @@ ROOT = Path(str(_REPO / "production_strategies"))
 FILES = [
     ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py"),
     ("QMT sim A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py"),
-    ("TDX sim A", ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim_v2.30.py"),
+    ("TDX sim A", ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim_v2.31.py"),
     ("QMT live B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_live_v2.7-tpl.py"),
     ("QMT sim B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py"),
     ("QMT sim B v2.6 filename", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.12.py"),

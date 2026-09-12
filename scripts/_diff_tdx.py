@@ -3,8 +3,8 @@
 from pathlib import Path
 import difflib
 
-tdx = Path(r"D:\new_tdx_mock\PYPlugins\user\TrackA_track_a_tdx_full_chain_sim_v2.30.py").read_text(encoding="utf-8", errors="replace")
-local = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_tdx_full_chain_sim_v2.30.py").read_text(encoding="utf-8", errors="replace")
+tdx = Path(r"D:\new_tdx_mock\PYPlugins\user\TrackA_track_a_tdx_full_chain_sim_v2.31.py").read_text(encoding="utf-8", errors="replace")
+local = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_tdx_full_chain_sim_v2.31.py").read_text(encoding="utf-8", errors="replace")
 
 tdx_lines = tdx.splitlines()
 local_lines = local.splitlines()

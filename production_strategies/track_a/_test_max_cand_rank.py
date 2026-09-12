@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Offline test: Track A MAX_CAND_RANK=2 filter (2026-09-01).
+"""Offline test: Track A MAX_CAND_RANK filter (2026-09-01; updated 2026-09-12).
 
-Only 09:35 candidates.json rank 1-2 may enter P2. Rank 3+, missing rank,
-and MAX_CAND_RANK<=0 off-switch are covered. Helpers are exec'd via AST so
-QMT/TDX/Ptrade builtins are not required.
+QMT Track A (v2.34, 方案 A) lets rank 1-3 enter P2; TDX/ptrade stay rank 1-2.
+Rank > cap, missing rank, and MAX_CAND_RANK<=0 off-switch are covered. Helpers
+are exec'd via AST so QMT/TDX/Ptrade builtins are not required.
 """
 # --- portable repo root (replaces a hardcoded C:\Users\... path) ---
 from pathlib import Path as _AP_Path
@@ -15,11 +15,12 @@ from pathlib import Path
 ROOT = Path(str(_REPO / "production_strategies"))
 
 FILES = [
-    ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py", "v2.30-tpl"),
-    ("QMT sim A",  ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py", "v2.30"),
-    ("TDX sim A",  ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim_v2.30.py", "v2.29"),
-    ("ptrade sim A", ROOT / "ptrade" / "TrackA_track_a_ptrade_sim.py", "v1.7"),
-    ("ptrade live A", ROOT / "ptrade" / "TrackA_track_a_ptrade_live.py", "v1.7-tpl"),
+    # label, path, expected version banner, expected MAX_CAND_RANK
+    ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py", "v2.38-tpl", 3),
+    ("QMT sim A",  ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py", "v2.45", 3),
+    ("TDX sim A",  ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim_v2.31.py", "v2.31", 2),
+    ("ptrade sim A", ROOT / "ptrade" / "TrackA_track_a_ptrade_sim.py", "v1.7", 2),
+    ("ptrade live A", ROOT / "ptrade" / "TrackA_track_a_ptrade_live.py", "v1.7-tpl", 2),
 ]
 
 SAMPLE = [
@@ -57,13 +58,13 @@ def _load(raw):
     return ns
 
 
-for label, path, expect_ver in FILES:
+for label, path, expect_ver, expect_rank in FILES:
     raw = path.read_text(encoding="utf-8", errors="replace")
     check(f"{label}: header has {expect_ver}", expect_ver in raw[:800])
     init_ok = any(("[INIT]" in ln and expect_ver in ln) for ln in raw.splitlines())
     check(f"{label}: INIT has {expect_ver}", init_ok)
     ns = _load(raw)
-    check(f"{label}: MAX_CAND_RANK==2", ns.get("MAX_CAND_RANK") == 2)
+    check(f"{label}: MAX_CAND_RANK=={expect_rank}", ns.get("MAX_CAND_RANK") == expect_rank)
     check(f"{label}: ROTATION_ENABLE==False", ns.get("ROTATION_ENABLE") is False)
     check(f"{label}: helper present", "_filter_cands_by_max_rank" in ns)
     if "_filter_cands_by_max_rank" not in ns:
@@ -71,7 +72,8 @@ for label, path, expect_ver in FILES:
     fn = ns["_filter_cands_by_max_rank"]
     kept = fn(SAMPLE)
     syms = [it["symbol"] for it in kept]
-    check(f"{label}: keep rank 1-2 only", syms == ["A", "B"])
+    expect_syms = ["A", "B", "C"][:expect_rank]
+    check(f"{label}: keep rank 1-{expect_rank} only", syms == expect_syms)
     check(f"{label}: empty in -> empty out", fn([]) == [])
     ns["MAX_CAND_RANK"] = 0
     check(f"{label}: MAX_CAND_RANK=0 is off", [it["symbol"] for it in fn(SAMPLE)] ==

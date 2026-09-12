@@ -58,7 +58,7 @@ def live_rows():
     rows = []
     for i in range(6):
         rows.append({
-            "symbol": f"{600000+i:06d}.SH", "name": f"stk{i}",
+            "symbol": f"{600000+i:06d}.SH", "name": f"nm{i}",
             "rank": i + 1, "industry_l1": "半导体",
             "score": 1.0 - i * 0.01, "score_0500": 1.0 - i * 0.01,
             "money_flow_pass": i < 3, "research_tier": "s1",
@@ -150,7 +150,7 @@ def run():
     C2.live_pool_active = True
     with patch.object(lm, "_load_fullpool", return_value=pool), \
          patch.object(lm, "_live_pool_survivors", return_value=[
-             {"code": "600000.SH", "symbol": "600000.SH", "name": "stk0",
+             {"code": "600000.SH", "symbol": "600000.SH", "name": "nm0",
               "rank": 1, "industry_l1": "半导体", "score_0500": 1.0,
               "score": 1.0, "money_flow_pass": True, "research_tier": "s1",
               "active_buy_ratio": 0.6}]), \
@@ -192,6 +192,7 @@ def run():
     tm.ALLOW_BSE = True
     tm.log = lambda *a, **k: None
     tm._board_allowed = lambda code: True
+    tm._is_st_name = lambda name: False
     tm._get_active_buy_ratio = lambda code: 0.6
     tm._get_turnover = lambda code: 5.0
     tm._get_volume_ratio = lambda code: 1.5

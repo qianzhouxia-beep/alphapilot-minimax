@@ -3,12 +3,12 @@
 import hashlib
 from pathlib import Path
 
-LOCAL = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_tdx_full_chain_sim_v2.30.py")
+LOCAL = Path(r"C:\Users\elvisq\Projects\alphapilot\production_strategies\track_a\TrackA_track_a_tdx_full_chain_sim_v2.31.py")
 
 # 找 TDX 部署位置
 candidates = [
-    r"D:\new_tdx_mock\PYPlugins\user\TrackA_track_a_tdx_full_chain_sim_v2.30.py",
-    r"D:\new_tdx\PYPlugins\user\TrackA_track_a_tdx_full_chain_sim_v2.30.py",
+    r"D:\new_tdx_mock\PYPlugins\user\TrackA_track_a_tdx_full_chain_sim_v2.31.py",
+    r"D:\new_tdx\PYPlugins\user\TrackA_track_a_tdx_full_chain_sim_v2.31.py",
 ]
 
 out = []

@@ -18,6 +18,25 @@
 
 ---
 
+## 2026-09-12 命名修正 + 陈旧回归测试修复（A TDX v2.30→v2.31；A 实盘 INIT 串）
+
+- 修改人/Agent：主控 Agent（Cursor）
+- 背景：落实「文件名版本号 = 文件内版本号」时，A 轨道 TDX 的版本号取自文件头首个匹配（v2.30），但该文件最新条目是 **v2.31**（`[INIT] track-A tdx-sim v2.31`；CHANGELOG 2026-09-05 记 v2.30→v2.31 call-auction shadow），文件名错位。同时发现 A QMT 实盘模板文件头/文件名是 v2.38-tpl，`[INIT]` 串却仍是 v2.37-tpl（v2.37-tpl→v2.38-tpl 逻辑变更时漏改日志串）。修测试时又发现一批写在 QMT 早期、现已陈旧的离线测试。
+- 涉及文件：
+  - **改名**：`track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py` → `…_v2.31.py`（`git mv`，逻辑零改动；文件内 `# File:` 自引用同步 v2.31）
+  - **日志串（纯字符串/注释，不升版本）**：`track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` 的 `[INIT] track-A qmt-live v2.37-tpl` → `v2.38-tpl`（2 处：初始化打印 + 部署核对注释）
+  - **引用同步**：`README.md`、`CHANGELOG.md`、`docs/AGENT_RULES.md`、`docs/TRACK_A_B_SELECTION_COMPARISON.md`、`scripts/_cmp_tdx.py`、`scripts/_diff_tdx.py`、`_port_weak_regime_v231.py`、`_revert_weak_regime_3files.py`、`track_b/TrackB_track_b_qmt_auction_sim_v2.13.py`、`track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py`、`track_b/TrackB_track_b_tdx_auction_sim_v1.20.py`、`track_a/_test_max_cand_rank.py`、`_test_vwap_second_hit.py`、`_test_hold_days_trading.py`
+  - **测试修复（仅测试文件，不涉及生产逻辑）**：
+    - `track_a/_test_max_cand_rank.py`：陈旧期望 → QMT A `v2.38-tpl`/`v2.45` 且 rank 1–3（v2.34 方案 A），TDX `v2.31` rank 1–2，ptrade `v1.7`/`v1.7-tpl` rank 1–2；改为按文件参数化
+    - `track_b/_test_buy_window.py`：mock 名 `stk{i}` 撞 ST 风控（`_is_st_name` 对 "ST" 子串判定）、13:30 场景未喂 live 池落进 v2.13 LIM10 fail-safe、「wait_confirm 不写 sent_today」——均为夹具过时，非生产回归
+    - `track_b/_test_sell_dynamic_v16.py`：`vwap_weak_early` 现需「两个不同分钟仍低于 vwap_ref」才卖（v2.4/v2.5 有意行为），测试补第二次调用
+    - `track_b/_test_fullpool_live_sync.py`：mock 名 `stk{i}` 撞 ST；TDX stub 缺 `_is_st_name`
+    - `ptrade/_test_tracka_ptrade.py`、`track_a/_test_sell_rotation_v215.py`：夹具补 `run_count`/`cand_cache`；rotation 测试内临时打开 `ROTATION_ENABLE`（生产 v2.29 起为 False，测试仍需覆盖该分支）；v215 `_p2_decide` stub 补 `item` 形参；止损原因接受 `stop_fixed`（固定止损先于 hard_stop/t2）
+- 版本变化：**无逻辑版本变化**。TDX 仅文件名 v2.30 → v2.31（令名实相符）；A 实盘仅日志串 v2.37-tpl → v2.38-tpl（其逻辑本就是 v2.38-tpl）。
+- 原因/依据：命名铁律要求名实一致；离线测试陈旧，与生产逻辑漂移，修复后回归全绿。
+- 验证：`TrackA_track_a_tdx_full_chain_sim_v2.31.py`、`TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` 通过 ASCII + `ast.parse`；`production_strategies/` 下 15 个离线回归测试全部通过。
+- 部署：**需要（仅文件名/日志串，无逻辑差异）**。A 轨道 TDX 模拟盘交易端请用 `TrackA_track_a_tdx_full_chain_sim_v2.31.py` 替换旧 `…_v2.30.py`，`[INIT] track-A tdx-sim v2.31` 不变。A QMT 实盘模板若重新导入，`[INIT]` 现应为 **v2.38-tpl**（此前误打 v2.37-tpl）。
+
 ## 2026-09-12 文件命名铁律落地：文件名版本号 = 文件内版本号（7 文件改名；老板拍板）
 
 - 修改人/Agent：主控 Agent（Cursor），老板 2026-09-12 拍板「在文件名上加上版本号，就不会有错了」
@@ -31,7 +50,7 @@
   | `track_b/TrackB_track_b_tdx_auction_sim.py` | `…_tdx_auction_sim_v1.20.py` | v1.20 |
   | `track_a/TrackA_track_a_qmt_full_chain_sim.py` | `…_sim_v2.45.py` | v2.45 |
   | `track_a/TrackA_track_a_qmt_full_chain_live.py` | `…_live_v2.38-tpl.py` | v2.38-tpl |
-  | `track_a/TrackA_track_a_tdx_full_chain_sim.py` | `…_tdx_full_chain_sim_v2.30.py` | v2.30 |
+  | `track_a/TrackA_track_a_tdx_full_chain_sim.py` | `…_tdx_full_chain_sim_v2.31.py` | v2.31 |
   - 本就一致、未改：`TrackA_…_sim_v2.27.py`、`TrackA_…_tdx_…_v2.26.py`、`TrackB_…_live_v2.6-tpl.py`
 - 版本变化：**无**（纯改名，不改任何逻辑/参数）
 - 引用同步（50 个文件）：`README.md`（目录树 + 部署表 + 新增命名铁律 + 版本基线更新）、`docs/AGENT_RULES.md`、`docs/TRACK_A_B_SELECTION_COMPARISON.md`、`MEMORY.md`、`knowledge/ops/checkpoints.md`、各测试/脚本/`server/export_qmt_scores.py` 注释
@@ -42,7 +61,7 @@
 - 验证：7 个改名文件 `ast.parse` 全过；QMT 策略文件 ASCII 校验通过（TDX 允许 UTF-8）；`_test_lim10_failopen.py` **3/3 绿**；`track_a/_ut_{peelcap_v244,peelnextbar_v245,dayhigh_v243,tsdown_v242}` **全 PASS**；`sim_v2.13` Fix A 标记仍在（2 处）、v2.12 备份内 0 处
 - 权威 md5（CRLF）：`TrackB_…_sim_v2.13.py` = **`3d76848a22f714bb0de87084cde4ba18`**；`sim_v2.45` = `4d43f181cc804d597723c0df9cf62fec`
 - 部署（**重要**）：**改名即需重新部署**。QMT 端文件名应为
-  `TrackB_track_b_qmt_auction_sim_v2.13.py`（Track B 模拟）、`TrackA_track_a_qmt_full_chain_sim_v2.45.py`（Track A 模拟）、`TrackB_track_b_qmt_auction_live_v2.7-tpl.py`（B 实盘模板）、`TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py`（A 实盘模板）、`TrackB_track_b_tdx_auction_sim_v1.20.py`（B TDX）、`TrackA_track_a_tdx_full_chain_sim_v2.30.py`（A TDX）。
+  `TrackB_track_b_qmt_auction_sim_v2.13.py`（Track B 模拟）、`TrackA_track_a_qmt_full_chain_sim_v2.45.py`（Track A 模拟）、`TrackB_track_b_qmt_auction_live_v2.7-tpl.py`（B 实盘模板）、`TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py`（A 实盘模板）、`TrackB_track_b_tdx_auction_sim_v1.20.py`（B TDX）、`TrackA_track_a_tdx_full_chain_sim_v2.31.py`（A TDX）。
   老板在 QMT/TDX 侧需按新名新建/替换策略（文件内容与当前部署件一致，仅文件名变化）。`[INIT]` 版本串不变。
 
 ---

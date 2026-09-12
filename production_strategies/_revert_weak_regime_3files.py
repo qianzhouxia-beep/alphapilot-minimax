@@ -18,7 +18,7 @@ port = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(port)
 
 REVERT = [
-    "track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py",
+    "track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py",
     "ptrade/TrackA_track_a_ptrade_live.py",
     "ptrade/TrackA_track_a_ptrade_sim.py",
 ]

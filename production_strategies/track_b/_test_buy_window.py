@@ -49,13 +49,25 @@ def make_pool():
     rows = []
     for i in range(10):
         rows.append({
-            "symbol": f"{300000+i:06d}.SZ", "name": f"stk{i}",
+            "symbol": f"{300000+i:06d}.SZ", "name": f"nm{i}",
             "rank": i + 1, "industry_l1": "半导体",
             "score": 1.0 - i * 0.01, "score_0500": 1.0 - i * 0.01,
             "money_flow_pass": i < 5, "research_tier": "s1",
             "main_net_5d": 1e7, "active_buy_ratio": 0.6,
         })
     return rows
+
+
+def live_rows():
+    """09:36 server-rerank live pool (money_pass present). Needed so the
+    v2.8+ LIM10 gate does not fall into its v2.13 fail-safe 'flat' branch."""
+    return [
+        {"code": f"{300000+i:06d}.SZ", "symbol": f"{300000+i:06d}.SZ",
+         "name": f"nm{i}", "rank": i + 1, "industry_l1": "半导体",
+         "score_0500": 1.0 - i * 0.01, "score": 1.0 - i * 0.01,
+         "money_flow_pass": i < 5, "money_pass": i < 5, "research_tier": "s1",
+         "active_buy_ratio": 0.6} for i in range(10)
+    ]
 
 
 PASSED = []
@@ -90,13 +102,7 @@ def run():
     # --- scenario 1: 09:36, all candidates wait_confirm ---
     print("\n== 1. 09:36 live pool, all wait_confirm ==")
     with patch.object(m, "_load_fullpool", return_value=pool), \
-         patch.object(m, "_live_pool_survivors", return_value=[
-             {"code": f"{300000+i:06d}.SZ", "symbol": f"{300000+i:06d}.SZ",
-              "name": f"stk{i}", "rank": i + 1, "industry_l1": "半导体",
-              "score_0500": 1.0 - i * 0.01, "score": 1.0 - i * 0.01,
-              "money_flow_pass": i < 5, "research_tier": "s1",
-              "active_buy_ratio": 0.6} for i in range(10)
-         ]), \
+         patch.object(m, "_live_pool_survivors", return_value=live_rows()), \
          patch.object(m, "_p2_decide", return_value=(None, "wait_confirm")), \
          patch.object(m, "get_trade_detail_data",
                       return_value=[SimpleNamespace(m_dAvailable=1000000,
@@ -144,7 +150,7 @@ def run():
     print("\n== 4. next day 13:30 afternoon window re-enters ==")
     C2 = make_C()
     with patch.object(m, "_load_fullpool", return_value=pool), \
-         patch.object(m, "_live_pool_survivors", return_value=[]), \
+         patch.object(m, "_live_pool_survivors", return_value=live_rows()), \
          patch.object(m, "_p2_decide", side_effect=[
              (18.0, "dyn_confirm"),
              *([(None, "wait_confirm")] * 20)

@@ -31,7 +31,7 @@ production_strategies/
 ├── track_a/                  ← 轨道 A（QMT/TDX 现有链路）
 │   ├── TrackA_track_a_qmt_full_chain_sim_v2.45.py  v2.45      QMT 模拟盘（gene+path_fade+loud_vol+R5+TSDOWN+D8 + 条件式日内位置门 + peel 回撤上限2% + peel 次bar确认）
 │   ├── TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py v2.38-tpl  QMT 实盘模板（gene+path_fade+loud_vol+R5+TSDOWN+D8；日内位置门 0.85 未改）
-│   ├── TrackA_track_a_tdx_full_chain_sim_v2.30.py  v2.30      TDX 模拟盘（P2 + rank<=2, vwap 二次确认）
+│   ├── TrackA_track_a_tdx_full_chain_sim_v2.31.py  v2.31      TDX 模拟盘（P2 + rank<=2, vwap 二次确认）
 │   ├── fetch_tick_abr.py                 —          历史逐笔拉取 + ABR 聚合（mootdx）
 │   ├── bt_abr_gate_fullchain.py          —          P2 买入 + ABR 门回测（双源合并）
 │   ├── bt_abr_sell_early.py              —          ASR 卖出早退回测
@@ -87,7 +87,7 @@ production_strategies/
 |------|----------|
 | `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | QMT 模拟盘 python 目录（明文复制，勿粘贴） |
 | `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | QMT 实盘，每个账户复制一份，改 CONFIG 块 |
-| `track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py` | TDX 通达信量化端 `PYPlugins\user` 目录 |
+| `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` | TDX 通达信量化端 `PYPlugins\user` 目录 |
 | `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` | QMT 模拟盘（**第二个模拟账户**），python 目录 |
 | `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` | QMT 实盘，每账户一份，改 CONFIG |
 | `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` | TDX 量化端 `PYPlugins\user`（独立 `.py` 运行） |
@@ -134,7 +134,7 @@ mootdx_feed.py（本机独立进程，交易日 09:15-15:00）
 |------|------|------|
 | 轨道 A QMT 模拟（`TrackA_track_a_qmt_full_chain_sim_v2.45.py`） | v2.45 | ✅ peel 回撤上限2% + peel 次bar确认 |
 | 轨道 A QMT 实盘模板（`TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py`） | v2.38-tpl | ✅ 实盘模板（落后模拟，正常） |
-| 轨道 A TDX（`TrackA_track_a_tdx_full_chain_sim_v2.30.py`） | v2.30 | ✅ TDX 模拟盘 |
+| 轨道 A TDX（`TrackA_track_a_tdx_full_chain_sim_v2.31.py`） | v2.31 | ✅ TDX 模拟盘 |
 | 轨道 B QMT 模拟（`TrackB_track_b_qmt_auction_sim_v2.13.py`） | v2.13 | ✅ LIM10 fail-safe + ACCOUNT_ID=62128716（**老板 QMT 部署件**） |
 | 轨道 B QMT 实盘模板（`TrackB_track_b_qmt_auction_live_v2.7-tpl.py`） | v2.7-tpl | ✅ fullpool_live 实时池已同步 |
 | 轨道 B TDX（`TrackB_track_b_tdx_auction_sim_v1.20.py`） | v1.20 | ✅ fullpool_live 实时池已同步 |

@@ -174,7 +174,7 @@ score = pipeline_z × 0.6 + 实时资金动量z × 0.4
 |------|--------|--------|
 | QMT 模拟盘 | `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` |
 | QMT 实盘模板 | `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` |
-| TDX 模拟盘 | `track_a/TrackA_track_a_tdx_full_chain_sim_v2.30.py` | `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` |
+| TDX 模拟盘 | `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` | `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` |
 | 免费逐笔数据 | —（A 直接读 mootdx_feed） | `track_b/mootdx_feed.py`（B 部署为独立进程，A 也读） |
 | 服务器导出 | `server/export_qmt_scores.py`（默认 `{date}.json`） | `server/export_qmt_scores.py --fullpool-live` |
 | 独立服务 | — | `track_b/mootdx_feed.py`（交易日 09:15-15:00 常驻） |

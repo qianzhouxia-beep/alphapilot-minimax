@@ -539,7 +539,7 @@ def init(C):
         print("[INIT] universe=" + str(codes or ["600519.SH"]))
     except BaseException as e:
         print("[INIT] set_universe fail: " + str(e))
-    print("[INIT] track-A qmt-live v2.37-tpl (gene+path_fade+loud_vol+D8, rank<=3) | acct=" + ACCOUNT_ID +
+    print("[INIT] track-A qmt-live v2.38-tpl (gene+path_fade+loud_vol+D8, rank<=3) | acct=" + ACCOUNT_ID +
           " | holdings=" + str(len(codes)) + " | score_dir=" + str(C.score_dir) +
           " | pos_state=" + str(len(getattr(C, "pos_state", {}) or {})))
     try:
@@ -3245,7 +3245,7 @@ def _snap_daily(C, today, now):
 #    and encrypts the file, which can corrupt UTF-8 and raise SyntaxError).
 #    Keep it plaintext on disk; QMT runs plaintext files fine.
 # 4) In QMT, create a strategy pointing at that python file and start it.
-# 5) Check the log prints "[INIT] track-A qmt-live v2.37-tpl ... acct=<ACCOUNT_ID>".
+# 5) Check the log prints "[INIT] track-A qmt-live v2.38-tpl ... acct=<ACCOUNT_ID>".
 #
 # Per-account local files (auto-created):
 #   C:\alphapilot\<ACCOUNT_TAG>_trades_fullchain.json  - trade journal

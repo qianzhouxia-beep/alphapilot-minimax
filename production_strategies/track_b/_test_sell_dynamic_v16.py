@@ -316,7 +316,10 @@ C9.position_map = {
 }
 QUOTES["300591.SZ"] = (7.80, 8.41, 8.33, 8.33)
 SELL_CALLS.clear(); SELL_HALF_CALLS.clear()
+# v2.4/v2.5 two-minute confirm: first still-below minute only arms (wait1);
+# the sell fires on a later minute while still below vwap_ref.
 mod._check_sell(C9, None, 9 * 60 + 40, "20260820")
+mod._check_sell(C9, None, 9 * 60 + 41, "20260820")
 check("next-morning vwap_weak_early sell", len(SELL_CALLS) == 1 and "vwap_weak_early" in SELL_CALLS[0][1])
 mod._day_vwap = _day_vwap
 
@@ -355,7 +358,9 @@ C11.position_map = {
 }
 QUOTES["300591.SZ"] = (7.80, 8.41, 8.33, 8.33)   # price 7.80 < vwap_ref 8.05
 SELL_CALLS.clear(); SELL_HALF_CALLS.clear()
+# two-minute confirm: arm on the first minute, fire on the second still-below.
 mod._check_sell(C11, None, 9 * 60 + 40, "20260820")
+mod._check_sell(C11, None, 9 * 60 + 41, "20260820")
 check("still weak -> vwap_weak_early sell", len(SELL_CALLS) == 1 and "vwap_weak_early" in SELL_CALLS[0][1])
 
 print(f"\n===== {passed} passed, {failed} failed =====")

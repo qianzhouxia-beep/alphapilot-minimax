@@ -33,7 +33,9 @@ sys.modules["tracka_ptrade"] = mod
 
 # ---- Ptrade builtins + helpers stubs (module-level names) ----
 class _C:
-    pass
+    # strategy _check_buy logs via C.run_count % 60; the offline fixture must
+    # provide it (class attr so every _C() instance has one).
+    run_count = 0
 
 
 def _get_snapshot(code):
@@ -301,6 +303,11 @@ SNAPS["600004.SS"] = {"last_px": 50.5, "preclose_px": 50.0, "open_px": 50.5, "hi
 P2_RESULT = (10.0, "dyn_confirm")
 SELL_CALLS.clear(); SELL_HALF_CALLS.clear(); TRADE_CALLS.clear()
 
+# prod ships ROTATION_ENABLE=False (v2.29); enable it here to exercise the
+# rotation branch this test is about, then restore.
+_rot_prev = mod.ROTATION_ENABLE
+mod.ROTATION_ENABLE = True
+
 class _PF:
     cash = 1000000.0
     portfolio_value = 2000000.0
@@ -313,6 +320,7 @@ mod.portfolio_cash_total = _pct
 
 mod._check_buy(C3, None, 10 * 60 + 20, "20260818",
                [{"symbol": "300999.SZ", "rank": 1}])
+mod.ROTATION_ENABLE = _rot_prev
 check("rotation sold exactly 1", len(SELL_CALLS) == 1)
 check("weakest sold is 600002 (-4%)",
       SELL_CALLS[0][0] == "600002.SS" if SELL_CALLS else False)
