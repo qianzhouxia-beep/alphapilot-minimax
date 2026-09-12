@@ -18,6 +18,21 @@
 
 ---
 
+## 2026-09-12 同类旧副本续加 `_backup`（老板点名「都加」；仅改名，内容零改动）
+
+- 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 点名
+- 背景：接上一条「旧备份加 `_backup` 后缀」。同目录另有**两份同类旧副本**（自带可用账户号、均不在 README 目录树、无任何活动引用）：
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.26.py`（`[INIT] track-A tdx-sim v2.26`；已被 **v2.31** 取代；TDX 账户 `1190388433` ⇒ 误加载 = 同账户重复决策）
+  - `track_b/TrackB_track_b_qmt_auction_live_v2.6-tpl.py`（内部 **v2.6-tpl**；已被 **v2.7-tpl** 取代；实盘账户 `8886269286` ⇒ 误部署 = 两个 live 策略同账户）
+- 涉及文件（`git mv`）：
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.26.py` → `…_tdx_full_chain_sim_v2.26_backup.py`
+  - `track_b/TrackB_track_b_qmt_auction_live_v2.6-tpl.py` → `…_auction_live_v2.6-tpl_backup.py`
+- 修改内容：**仅改名**（`git diff -M` 相似度 100%）；**无引用需同步**（全仓库对该两名的唯一命中是历史回帖正文 `bt_research/_reply_backup_suffix.md`，按审计铁律留旧名）。
+- 版本变化：无（不含策略逻辑；6 个部署件字节未变 ⇒ §四 基线 md5 不变）
+- 原因/依据：老板 2026-09-12 点名「都加」；WB-Mac 开工前核对点出的同类风险。
+- 验证：两件改名后 `git status` 为 `R`、相似度 100%；`ast.parse` 通过（内容未动）；6 个部署件 md5 复算仍命中 §四。
+- 部署：不需要（均**非部署目标**）。**其头注释由 WB-Mac 另行处理，本次不碰字节**（已与老板确认）。
+
 ## 2026-09-12 旧备份加 `_backup` 后缀（防误部署；仅改名 + 引用同步，逻辑零改动）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 点头（应 WB-Mac「Track A/B 模拟端卖出代码文件身份」核对暴露的现场风险）
