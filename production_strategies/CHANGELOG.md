@@ -18,6 +18,21 @@
 
 ---
 
+## 2026-09-12 探针改用 `inspect.signature` 打印完整 xttype 字段名（现场首跑暴露：无 `__slots__`、异常消息被截断）
+
+- 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 现场首跑后
+- 背景：老板周末晚间首跑探针，`ORDER/DEAL n=0`（周末无委托，**预期**）。但 `[PROBE] CLASS …` 段暴露**关键事实**：`xtquant.xttype` 类**没有 `__slots__` / `__annotations__` / 类级字段**，字段名只存在于 **`__init__` 的必需位置参数**里，且命名风格是 **snake_case**（`account_id` / `stock_code` / `order_id`），**不是** `m_strOrderSysID` 那套（CTP 风格）。原 dump 只打印异常消息 `str(e)[:90]` ⇒ **被截断**（`XtOrder` 15 个参数只见到前 3 个），拿不到完整名单。**幸好未照猜写入 Fix C**，否则又是一次静默回退。
+- 涉及文件：`track_b/_probe_qmt_order_fields.py`（Fix C step 0 只读探针）
+- 修改内容：
+  - 新增 `_ctor_param_names(cls)`：以 `inspect.signature(cls.__init__)` 取**完整**参数名（回退 `__code__.co_varnames[:co_argcount]`），打印 `CTOR_PARAMS n=… -> a,b,c…` 与完整 `SIGNATURE`（**不再截断**）；
+  - 新增 `_placeholder(name)`：按参数名给安全占位值（`code/id/name/msg/remark/date/time` → `""`，`price/amount/balance` → `0.0`，其余 `0`），用于**真正构造实例**；
+  - 构造失败再回退 `cls.__new__(cls)`，随后 `_dump(inst, …)` 打印**实例真实属性名与值**；
+  - 弃用「靠异常消息反推字段名」的旧路径。
+- 版本变化：无（探针脚本，不属 6 个部署件；不涉及策略逻辑）
+- 原因/依据：现场首跑证据；Fix C 的字段名必须以**现场 xttype 真实签名**为准，放弃 `m_strXxx` 猜测。
+- 验证（本机 Mac 干跑，用 mock `xtquant.xttype` 覆盖 15/12 参数类）：完整参数名逐项打印、实例构造成功、属性 dump 正常；`ast.parse` 通过、**纯 ASCII**、LF 保持（314 行）；`README.md` §四 六个部署件 md5 未变。
+- 部署：不需要（探针不部署到 QMT 策略目录）。**待办**：老板再跑一次（本轮带落盘，直接开 `[PROBE] OUT FILE` 全选回传）。
+
 ## 2026-09-12 探针加「落盘」输出（QMT 日志面板复制不便；老板反馈 ORDER 段只有一行）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 选择「加落盘」

@@ -169,12 +169,46 @@ def _probe_account(acct, q):
             _out("[PROBE] " + kind + " query fail: " + str(e)[:120])
 
 
+def _ctor_param_names(cls):
+    """Full, untruncated __init__ parameter names (excluding self).
+
+    The xttype classes carry no __slots__/__annotations__; their field names
+    live in the constructor signature (e.g. account_id, stock_code, order_id).
+    """
+    names = []
+    try:
+        import inspect
+        sig = inspect.signature(cls.__init__)
+        for p in list(sig.parameters.values())[1:]:
+            names.append(p.name)
+        return names
+    except BaseException:
+        pass
+    try:
+        code = cls.__init__.__code__
+        return list(code.co_varnames[1:code.co_argcount])
+    except BaseException:
+        return []
+
+
+def _placeholder(name):
+    """A harmless placeholder value for a constructor parameter."""
+    n = name.lower()
+    for kw in ("code", "id", "name", "msg", "remark", "date", "time", "str"):
+        if kw in n:
+            return ""
+    if "price" in n or "amount" in n or "balance" in n:
+        return 0.0
+    return 0
+
+
 def _dump_type_schema():
     """Dump the CLASS schema of the order/trade/position types.
 
-    This does not need any live order: QMT's get_trade_detail_data returns
-    xtquant.xttype objects, whose field names can be read off the class
-    itself (__slots__ / dir / annotations / an empty instance).
+    Does not need a live order: QMT's get_trade_detail_data returns
+    xtquant.xttype objects, whose field names are the __init__ parameter
+    names. This prints the FULL signature (no truncation) and then tries to
+    build a real instance with placeholder values and dump its attributes.
     """
     mods = []
     for mn in ("xtquant.xttype", "xtquant.xttrader", "xtquant"):
@@ -193,30 +227,37 @@ def _dump_type_schema():
                 continue
             tag = getattr(mod, "__name__", "?") + "." + nm
             _out("[PROBE] CLASS " + tag)
-            for attr in ("__slots__", "__annotations__"):
-                v = getattr(cls, attr, None)
-                if v:
-                    _out("[PROBE]   " + tag + "." + attr + " = " + str(v)[:300])
-            # enumerate class-level dict (methods excluded)
+            params = _ctor_param_names(cls)
+            _out("[PROBE]   " + tag + " CTOR_PARAMS n=" + str(len(params)) +
+                 " -> " + ",".join(params))
             try:
-                for k in sorted(dir(cls)):
-                    if k.startswith("_"):
-                        continue
-                    try:
-                        v = getattr(cls, k)
-                    except BaseException:
-                        continue
-                    if callable(v):
-                        continue
-                    _out("[PROBE]   " + tag + "." + k + " = " + str(v)[:70])
-            except BaseException:
-                pass
-            # try a no-arg instance -> instance attrs (most reliable)
-            try:
-                inst = cls()
-                _dump(inst, tag + "()", ORDER_FIELDS)
+                import inspect
+                _out("[PROBE]   " + tag + " SIGNATURE = " +
+                     str(inspect.signature(cls.__init__)))
             except BaseException as e:
-                _out("[PROBE]   " + tag + "() not instantiable: " + str(e)[:90])
+                _out("[PROBE]   " + tag + " signature fail: " + str(e)[:90])
+            doc = getattr(cls.__init__, "__doc__", None)
+            if doc:
+                _out("[PROBE]   " + tag + " __init__.__doc__ = " +
+                     str(doc)[:200])
+            # instance attrs: try the real constructor with placeholders,
+            # then fall back to __new__ (no args) which still has the layout.
+            inst = None
+            try:
+                inst = cls(**dict((p, _placeholder(p)) for p in params))
+                _out("[PROBE]   " + tag + " constructed via ctor OK")
+            except BaseException as e:
+                _out("[PROBE]   " + tag + " ctor(*placeholders) fail: " +
+                     str(e)[:110])
+            if inst is None:
+                try:
+                    inst = cls.__new__(cls)
+                    _out("[PROBE]   " + tag + " constructed via __new__ OK "
+                         "(attrs may be unset)")
+                except BaseException as e:
+                    _out("[PROBE]   " + tag + " __new__ fail: " + str(e)[:90])
+            if inst is not None:
+                _dump(inst, tag + " <inst>", params)
 
 
 def probe(C=None, account_id=None):
