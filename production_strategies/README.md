@@ -11,8 +11,9 @@
 > 旧快照/备份同样按其**真实内容版本**命名（如 `…_sim_v2.12.py`）。
 > **权威文件 = 本文件夹内带版本号、且版本号与文件头一致的那一个**；不带版本号或版本号对不上的，一律视为历史副本。
 >
-> **行尾约定（2026-09-12）**：QMT/TDX 策略 `.py` 保持 **CRLF**（Windows 部署件原生），文档/知识卡保持 **LF**。
-> **禁止整文件重写行尾**（文本模式 `read_text/write_text` 会静默把 CRLF 变 LF，作废 md5 基线并让现场核对系统性假报警）。改动后请核对 `git diff --stat` 量级是否与改动相称。
+> **行尾约定（2026-09-12，订正）**：`.py` 一律**保持各自原生行尾**，**禁止整文件重写行尾**（文本模式 `read_text/write_text` 会静默把 CRLF 变 LF，作废 md5 基线并让现场核对系统性假报警）。改动后请核对 `git diff --stat` 量级是否与改动相称。
+> ⚠️ **不是"都该是 CRLF"**：实测本文件夹 CRLF 仅 4 个（`server/pre_market_gate.py` + 3 个模拟盘），其余 49 个 `.py` 为 LF ⇒ **6 个部署文件 = 2 CRLF + 4 LF**（逐文件见 §四）。现场核 md5 前**先确认该文件 `\r\n` 是否存在**，勿按"统一 CRLF"对表。
+> **md5 基线冻结（2026-09-12）**：部署清单一旦发给现场，**在部署完成前不再做改名/引用同步等会改字节的动作**；否则基线会在同一天内反复移动（09-12 已三次：`a972e0a5…`→`3d76848a…`→`a360126e…`）导致现场假报警。基线以 §四 表为准，**部署后以现场文件反算**。
 
 ---
 
@@ -83,17 +84,21 @@ production_strategies/
 
 ## 四、部署对照表
 
-| 文件 | 部署目标 |
-|------|----------|
-| `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | QMT 模拟盘 python 目录（明文复制，勿粘贴） |
-| `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | QMT 实盘，每个账户复制一份，改 CONFIG 块 |
-| `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` | TDX 通达信量化端 `PYPlugins\user` 目录 |
-| `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` | QMT 模拟盘（**第二个模拟账户**），python 目录 |
-| `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` | QMT 实盘，每账户一份，改 CONFIG |
-| `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` | TDX 量化端 `PYPlugins\user`（独立 `.py` 运行） |
-| `track_b/mootdx_feed.py` | 本机独立 Python 环境（已 `pip install mootdx`），交易日 09:15 启动常驻 |
-| `server/export_qmt_scores.py` | 服务器 `/home/ubuntu/alphapilot/`（scp 覆盖） |
-| `server/fix_kline_server.py` | 服务器 `/home/ubuntu/alphapilot/`（scp 覆盖；16:15 cron 补 K 线） |
+**md5 基线随本表冻结**（2026-09-12）。现场核对：**先看行尾（`\r\n` 是否存在）→ 再比 md5 → 再比 `[INIT]` 版本串**；三者任一不符才判"部署件≠仓库"。表值只对"本文件当前字节"有效，**每次改字节（含引用同步）都必须同步更新本表**。
+
+| 文件 | 部署目标 | 行尾 | md5（权威 · 2026-09-12） | `[INIT]` 预期 |
+|------|----------|------|--------------------------|----------------|
+| `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | QMT 模拟盘 python 目录（明文复制，勿粘贴） | **CRLF** | `4d43f181cc804d597723c0df9cf62fec` | `track-A qmt-sim v2.45 (… cond-dayhigh, peel-cap2%+nextbar)` |
+| `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | QMT 实盘，每个账户复制一份，改 CONFIG 块 | LF | `34d62a96410e58f16e66700b32eaa49d` | `track-A qmt-live v2.38-tpl (…)` |
+| `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` | TDX 通达信量化端 `PYPlugins\user` 目录 | LF | `924a3bf99809ab1c98abd124cb28bd4c` | `track-A tdx-sim v2.31` |
+| `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` | QMT 模拟盘（**第二个模拟账户**），python 目录 | **CRLF** | `a360126e16b8609ba30d69b8fd4b033b` | `track-B v2.13 (LIM10-failsafe+LIM10+…)` |
+| `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` | QMT 实盘，每账户一份，改 CONFIG | LF | `7e1d1a86df85c6d0a2c04ed96bac378c` | `track-B v2.7-tpl (auction-select, vwap 2nd)` |
+| `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` | TDX 量化端 `PYPlugins\user`（独立 `.py` 运行） | LF | `03de7b1bbac8b846bcc7d0f48966a686` | `track-B tdx v1.20` |
+| `track_b/mootdx_feed.py` | 本机独立 Python 环境（已 `pip install mootdx`），交易日 09:15 启动常驻 | — | — | — |
+| `server/export_qmt_scores.py` | 服务器 `/home/ubuntu/alphapilot/`（scp 覆盖） | — | —（待其未提交改动定稿后补） | — |
+| `server/fix_kline_server.py` | 服务器 `/home/ubuntu/alphapilot/`（scp 覆盖；16:15 cron 补 K 线） | — | —（同上） | — |
+
+> 注：`live`/`tdx` 模板与 `tdx sim` 在仓库中为 **LF**（历史如此，非本次改）；`A sim v2.45`、`B sim v2.13` 为 **CRLF**。§四 md5 与 `a972e0a5…`/`3d76848a…` 等历史值**互不复用**——历史值仅见于 CHANGELOG / checkpoints 审计条目。
 
 ## 五、数据链路速览
 

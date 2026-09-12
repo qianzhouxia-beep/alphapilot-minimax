@@ -18,6 +18,33 @@
 
 ---
 
+## 2026-09-12 README 行尾约定订正 + 部署表加「行尾 / md5 / `[INIT]`」基线（WB-Mac 核出）
+
+- 修改人/Agent：主控 Agent（Cursor）；WB-Mac 复核指出 README 行尾约定与仓库实况不符
+- 背景：README 原文写「QMT/TDX 策略 `.py` 保持 CRLF，文档/知识卡保持 LF」，会被读成"部署文件都该是 CRLF"。WB-Mac 普查 `production_strategies/`：**CRLF 仅 4 个**（`server/pre_market_gate.py`、`track_a/…_sim_v2.45.py`、`track_b/…_sim_v2.12.py`、`track_b/…_sim_v2.13.py`），其余 **49 个 `.py` 为 LF**。⇒ **6 个部署文件 = 2 CRLF + 4 LF**，现场按"统一 CRLF"核对会误判 4 个文件"不匹配"。
+- 涉及文件：`production_strategies/README.md`（§头部行尾约定 + §四 部署对照表）
+- 修改内容：
+  1. 行尾约定改为「`.py` 保持**各自原生行尾**，禁止整文件重写行尾」，并显式列出实测 CRLF/LF 分布、提示现场**先确认 `\r\n` 是否存在**再比 md5；
+  2. 新增「**md5 基线冻结**」条：部署清单发出后、部署完成前**不再做改名/引用同步等会改字节的动作**（09-12 基线已三次移动：`a972e0a5…`→`3d76848a…`→`a360126e…`）；基线以部署表为准，**部署后以现场文件反算**；
+  3. §四 部署表新增三列 **行尾 / md5（权威）/ `[INIT]` 预期**，逐文件填当前值（6 个策略文件）。
+- 版本变化：无（仅 README 文档；不涉及任何策略逻辑/字节）
+- 原因/依据：WB-Mac 2026-09-12 复核（issue #6 `c5644871387`）；行尾约定与实况不符是"现场核 md5 的隐形地雷"。
+- 验证：逐文件重算 md5 + 行尾（见下表）；README 仍 LF；`git diff --stat` 18 增 13 删（README）。
+- 部署：不需要（README 不在交易端运行）。**但部署时请照 §四 表逐文件核对行尾 + md5 + `[INIT]`**。
+
+**当前部署基线（2026-09-12，随 §四 表冻结；任一文件改字节后必须同步更新）**
+
+| 文件 | 行尾 | md5（权威） |
+|---|---|---|
+| `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | CRLF | `4d43f181cc804d597723c0df9cf62fec` |
+| `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | LF | `34d62a96410e58f16e66700b32eaa49d` |
+| `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` | LF | `924a3bf99809ab1c98abd124cb28bd4c` |
+| `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` | CRLF | `a360126e16b8609ba30d69b8fd4b033b` |
+| `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` | LF | `7e1d1a86df85c6d0a2c04ed96bac378c` |
+| `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` | LF | `03de7b1bbac8b846bcc7d0f48966a686` |
+
+说明：`a360126e…` 取代 `3d76848a…`（后者因 `7a96ce5` 同步 3 个 Track B 文件的注释内文件名引用而作废）。历史值仅保留在 CHANGELOG / checkpoints 审计条目中。
+
 ## 2026-09-12 订正：改名提交 `4389153` 的实际范围（WB-Mac 核出；含 Track A v2.43/44/45 补交 + flat-log 移除）
 
 - 修改人/Agent：主控 Agent（Cursor）；WB-Mac 同机直读逐字节核出
