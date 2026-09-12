@@ -10,14 +10,15 @@
 # HOW TO RUN (QMT, pure ASCII):
 #   1. In QMT strategy editor, open/create a stock strategy file and REPLACE
 #      its whole content with this file's content.
-#   2. Bind the account in strategy config (either 98009473 SIM or
-#      8886269286 LIVE both work -- this file tries both).
+#   2. Bind the account in strategy config (either 62128716 SIM or
+#      98009473 SIM both work -- this file tries the two SIM accounts only;
+#      the LIVE account is deliberately NOT queried).
 #   3. Start the strategy in trading mode. It prints [PROBE] once.
 #   4. Copy every [PROBE] line from the strategy log and send to Cursor.
 #
 # Read-only: only queries get_trade_detail_data; NEVER calls passorder.
 
-DEFAULT_ACCOUNTS = ["62128716", "98009473", "8886269286"]  # B SIM, A SIM, LIVE
+DEFAULT_ACCOUNTS = ["62128716", "98009473"]  # B SIM, A SIM only (LIVE excluded)
 
 ORDER_FIELDS = [
     "m_strOrderSysID", "m_strOrderID", "m_nOrderStatus", "m_nOrderType",
