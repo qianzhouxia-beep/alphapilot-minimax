@@ -1,5 +1,7 @@
 # coding:utf-8
 # AlphaPilot -- Track B QMT LIVE strategy TEMPLATE v2.6-tpl (trading-day hold)
+# File: TrackB_track_b_qmt_auction_live_v2.6-tpl_backup.py
+# [BACKUP / NOT A DEPLOYMENT TARGET] superseded by TrackB_track_b_qmt_auction_live_v2.7-tpl.py
 # =========================================================
 # v2.6-tpl (2026-08-31): _hold_days counts TRADING days, not calendar days.
 # (today - buy_date).days counted weekends/holidays, so a Friday buy read as

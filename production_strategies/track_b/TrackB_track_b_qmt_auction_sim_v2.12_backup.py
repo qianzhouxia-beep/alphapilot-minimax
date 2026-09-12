@@ -1,6 +1,7 @@
 # coding:utf-8
 # AlphaPilot -- Track B QMT SIM auction-select strategy v2.12
-# (fixed-name deployment copy; QMT loads TrackB_track_b_qmt_auction_sim_v2.12.py)
+# (BACKUP COPY -- NOT a deployment target; QMT loads TrackB_track_b_qmt_auction_sim_v2.13.py)
+# [BACKUP / NOT A DEPLOYMENT TARGET] audit copy only -- never copy this file into a QMT/TDX strategy dir
 # =========================================================
 # v2.12 (2026-09-05, call-auction shadow record, aligned with Track A v2.38):
 #   * Log server 09:25 call-auction volume once/day/row as [SHADOW-CALL]

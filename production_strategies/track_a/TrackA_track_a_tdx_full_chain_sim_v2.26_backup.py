@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # AlphaPilot full-chain strategy - Track A TDX sim (TongDaXin TdxQuant port)
-# File: TrackA_track_a_tdx_full_chain_sim_v2.30.py
+# File: TrackA_track_a_tdx_full_chain_sim_v2.26_backup.py
+# [BACKUP / NOT A DEPLOYMENT TARGET] superseded by TrackA_track_a_tdx_full_chain_sim_v2.31.py
 # v2.26 2026-08-31 (trading-day hold fix, aligned with QMT v2.27):
 #   * _hold_days counts TRADING days, not calendar days. The old
 #     (today - buy_date).days counted weekends/holidays, so a Friday buy read
