@@ -39,7 +39,7 @@
 - ⚠️ **看 QMT 买卖逻辑，请查本地 `production_strategies/`，不要去服务器找。**
 - 服务器上的 `trade_executor.py` + `data/paper_trading.json` 是**选股端自带的服务器纸面模拟**，**不是 QMT 交易端**（勿再把它的规则当成"生产真实出场"）。
 - 交易端版本：Track A 实盘 `TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py`（v2.38-tpl）/ 模拟 `TrackA_track_a_qmt_full_chain_sim_v2.45.py`（v2.45）；Track B `TrackB_track_b_qmt_auction_live_v2.7-tpl.py` / `TrackB_track_b_qmt_auction_sim_v2.13.py`（**老板 QMT 部署此份**）。实盘落后模拟若干版本属正常。
-- ⚠️ **文件命名铁律（2026-09-12 起）：文件名里的版本号 = 文件内版本号**；升版 = 改名 + 重新部署。**权威文件 = 带版本号且与文件头一致的那一个**；不带版本号/版本对不上的是历史副本。`TrackB_track_b_qmt_auction_sim_v2.12.py` 是老板本地旧备份、**非部署目标**。
+- ⚠️ **文件命名铁律（2026-09-12 起）：文件名里的版本号 = 文件内版本号**；升版 = 改名 + 重新部署。**权威文件 = 带版本号且与文件头一致的那一个**；不带版本号/版本对不上的是历史副本。`TrackB_track_b_qmt_auction_sim_v2.12_backup.py` 是老板本地旧备份、**非部署目标**。
 - 部署分工：**交易端由用户手动**复制到 QMT/TDX（规则 5）；**服务器端由 Agent 直接部署**。
 
 ---

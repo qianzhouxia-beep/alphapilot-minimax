@@ -18,6 +18,22 @@
 
 ---
 
+## 2026-09-12 旧备份加 `_backup` 后缀（防误部署；仅改名 + 引用同步，逻辑零改动）
+
+- 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 点头（应 WB-Mac「Track A/B 模拟端卖出代码文件身份」核对暴露的现场风险）
+- 背景：WB-Mac 开工前核对发现两类"看着可部署"的旧副本**自带可用账户号**，一旦被放进 QMT 策略目录即出事：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.12.py` 的 `ACCOUNT_ID=98009473` = **轨道 A 的模拟账户** ⇒ Track B 卖单会打进 A 账户（09-12 刚修的账户串扰翻版）；
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.27.py` 同账户 ⇒ 与 v2.45 并存 = 同账户重复决策。
+- 涉及文件（`git mv` 改名 + 引用同步）：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.12.py` → `…_auction_sim_v2.12_backup.py`
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.27.py` → `…_sim_v2.27_backup.py`
+  - 引用同步（**已入库活动引用**，4 文件 5 处，字节级替换、行尾保留）：`README.md`（目录树 + 命名铁律段，2 处）、`MEMORY.md`（1）、`_test_vwap_second_hit.py`（1，并修陈旧标签 `v2.6`→`v2.12 backup`）、`_port_weak_regime_v231.py`（1）。另 `bt_research/cursor_trackb_replay.py`（**本地未入库脚本**，249 行）同步指向新名但**不入库**——避免「改名」夹带新增文件。
+- 修改内容：仅改名 + 引用串同步；**两个备份文件的内容/字节完全未动**（`git mv` 零改动）。**历史文档有意保留旧名**（CHANGELOG 旧条目、`knowledge/ops/2026-09-09-trackb-sim-nobuy.md`、`bt_research/_reply_*.md`）——它们是当时事实的记录，按审计铁律不改写。
+- 版本变化：无（不含任何策略逻辑；**6 个部署件字节未变 ⇒ §四 基线 md5 全部不变**）
+- 原因/依据：WB-Mac 2026-09-12 开工前核对（issue #6 `5645882552`）+ 老板拍板；约定固化为 README「命名铁律」：非部署旧副本在版本号后加 `_backup` 后缀、策略目录只放不带此后缀的现行件。
+- 验证：两个改名件 `git diff -M` 相似度 **100%**（0 增 0 删）⇒ 内容零改动；被改文件行尾逐一保留（CRLF 保 CRLF / LF 保 LF）；改名后仓库内仅剩历史文档 + 备份文件自身头注释含旧名。
+- 部署：不需要（`_backup` 件**非部署目标**）。⚠️ **仍待办**：`track_a/…_tdx_…_v2.26.py`、`track_b/…_auction_live_v2.6-tpl.py` 属同类旧副本（分别被 v2.31 / v2.7-tpl 取代，且不在 README 目录树），本次**未动**，待老板点名。
+
 ## 2026-09-12 补交 v2.43/44/45 三个单测入库（此前 untracked，证据不在 git）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-12 点头

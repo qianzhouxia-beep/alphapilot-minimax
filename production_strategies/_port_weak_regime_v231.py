@@ -545,7 +545,7 @@ FILES = {
         (C_FLOOR_OLD, C_FLOOR_NEW),
         (C_CAPEXT_OLD, C_CAPEXT_NEW),
     ],
-    "track_b/TrackB_track_b_qmt_auction_sim_v2.12.py": [
+    "track_b/TrackB_track_b_qmt_auction_sim_v2.12_backup.py": [
         hdr("# AlphaPilot -- Track B QMT SIM auction-select strategy v2.7",
             "# AlphaPilot -- Track B QMT SIM auction-select strategy v2.8",
             "v2.8"),

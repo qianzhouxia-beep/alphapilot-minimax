@@ -8,7 +8,7 @@
 
 > **⚠️ 文件命名铁律（2026-09-12 起）：文件名里的版本号 = 文件内的版本号。**
 > 现行策略文件一律带版本号（如 `TrackB_track_b_qmt_auction_sim_v2.13.py`），升版 = **改名 + 重新部署**，文件名永远能自己说明版本。
-> 旧快照/备份同样按其**真实内容版本**命名（如 `…_sim_v2.12.py`）。
+> 旧快照/备份同样按其**真实内容版本**命名，**并在版本号后加 `_backup` 后缀**（如 `…_sim_v2.12_backup.py`）⇒ 一眼可辨**非部署目标**；QMT/TDX 策略目录只放**不带 `_backup`** 的现行件。
 > **权威文件 = 本文件夹内带版本号、且版本号与文件头一致的那一个**；不带版本号或版本号对不上的，一律视为历史副本。
 >
 > **行尾约定（2026-09-12，订正）**：`.py` 一律**保持各自原生行尾**，**禁止整文件重写行尾**（文本模式 `read_text/write_text` 会静默把 CRLF 变 LF，作废 md5 基线并让现场核对系统性假报警）。改动后请核对 `git diff --stat` 量级是否与改动相称。
@@ -47,7 +47,7 @@ production_strategies/
 │
 ├── track_b/                  ← 轨道 B（09:25-09:35 竞价选股）
 │   ├── TrackB_track_b_qmt_auction_sim_v2.13.py        v2.13      QMT 模拟盘（LIM10-failsafe + LIM10 + path_fade + loud_vol + R5 + call-shadow）← 老板 QMT 部署此文件
-│   ├── TrackB_track_b_qmt_auction_sim_v2.12.py   v2.12      ⚠️ 老板本地旧备份，**非部署目标**（QMT 部署的是上一行 v2.13）
+│   ├── TrackB_track_b_qmt_auction_sim_v2.12_backup.py   v2.12      ⚠️ 老板本地旧备份，**非部署目标**（QMT 部署的是上一行 v2.13）
 │   ├── TrackB_track_b_qmt_auction_live_v2.7-tpl.py       v2.7-tpl   QMT 实盘模板（每账户一份）
 │   ├── TrackB_track_b_tdx_auction_sim_v1.20.py        v1.20      TDX 模拟盘
 │   ├── mootdx_feed.py                    —          免费逐笔数据服务（独立进程，非交易端内运行）
