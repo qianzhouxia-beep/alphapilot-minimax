@@ -24,6 +24,27 @@
 
 ---
 
+## 算力分工铁律：上海=生产机 / 新加坡=重算力沙箱（2026-09-13 用户拍板）⚠️
+
+**上海（`150.158.100.236`）= 生产机，只有 3.6 GB 内存。禁止在其上跑回测 / walk-forward / 训练 / 因子挖掘。**
+触发：2026-09-13 全市场 walk-forward 在上海**连续两次被 OOM killer 杀掉**（`anon-rss 3.14 GB`）。
+
+- **重算力任务一律去新加坡（`43.156.119.47`）**：15.6 GB 内存 / 4 核 / 178 G，且与生产隔离。
+- 沙箱：`/home/ubuntu/bt_sandbox/`（`alphapilot/` 代码+数据镜像；`pylibs/` 锁定版本依赖）。
+- **必须用锁定依赖**（生产同版本），否则结果不可比：
+  ```bash
+  ALPHAPILOT_ROOT=/home/ubuntu/bt_sandbox/alphapilot \
+  PYTHONPATH=/home/ubuntu/bt_sandbox/pylibs nice -n 10 python3 -u <脚本>
+  ```
+- 数据**只从上海单向下拉**（SG→上海免密 `-i /home/ubuntu/.ssh/alphapilot.pem`），**绝不反向写生产数据**。
+- 一键入口：`python3 scripts/sg_sandbox.py --sync --run "<脚本>"`（`--sync-data` 拉数据 / `--status` 看状态 / `--fetch` 取产物）。
+- **口径与结论仍以上海生产为准**；沙箱只是算力。已验证：300 只 smoke 两臂 AUC 与上海**16 位小数一致**。
+- 只读轻量任务（<30s、<200MB）可留上海；**凡 hold 千万行级数据或训练模型的，一律去 SG**。
+
+详述：`.cursor/rules/compute-host.mdc` · `knowledge/decisions/2026-09-13-compute-host-split.md`
+
+---
+
 ## 代码流向铁律 + 量化两端模型（2026-09-11 用户拍板）
 
 **代码流向：仓库 → 服务器（repo-first）。** 先改仓库，再从仓库推送到服务器；**不再"在服务器上直接改"**（新加坡服务器旧流程即如此）。
