@@ -1,0 +1,347 @@
+{
+  "generated_at": "2026-09-13 20:16:23",
+  "run_id": "sg_placebo_full_0913",
+  "boundary": {
+    "writes_production_models": false,
+    "auto_promotion": false,
+    "reads": [
+      "models/*.ubj",
+      "data/kline_cache/kline_all.parquet"
+    ],
+    "writes": [
+      "/home/ubuntu/bt_sandbox/alphapilot/rd_workshop/walkforward_runs/sg_placebo_full_0913"
+    ]
+  },
+  "config": {
+    "folds": 6,
+    "test_days": 21,
+    "end": "2026-09-09",
+    "train_tail": 180,
+    "max_stocks": 0,
+    "extra_factors": "rd_workshop/data_support/inbound/placebo_noise.parquet",
+    "extra_factor_cols": [
+      "rd_noise1",
+      "rd_noise2",
+      "rd_noise3"
+    ],
+    "forward_days": 1,
+    "threshold": 0.03,
+    "n_features": 109,
+    "control_arm": "retrain",
+    "boot_block": 5,
+    "boot_iters": 2000
+  },
+  "production_model": {
+    "n_boosters": 3,
+    "tag": "3 models",
+    "trained_at": "2026-08-21",
+    "lookahead_folds": []
+  },
+  "arm_parity_ok": null,
+  "folds": [
+    {
+      "fold": 1,
+      "test_start": "2026-03-11",
+      "test_end": "2026-04-09",
+      "test_days": 21,
+      "train_cutoff": "2026-03-09",
+      "n_train": 887860,
+      "n_test": 104119,
+      "candidate_val_auc": [
+        0.6787,
+        0.7463,
+        0.697
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 104119,
+        "auc": 0.6566053157334432,
+        "rank_ic": 0.01893719749689472,
+        "base_ret_pct": -0.21311354003636873,
+        "top5_ret_pct": 0.42215770910144335,
+        "top5_excess_pct": 0.6352712491378121,
+        "top10_ret_pct": 0.22862867481706414,
+        "top10_excess_pct": 0.4417422148534329
+      },
+      "incumbent": {
+        "n": 104119,
+        "auc": 0.6566053157334432,
+        "rank_ic": 0.01893719749689472,
+        "base_ret_pct": -0.21311354003636873,
+        "top5_ret_pct": 0.42215770910144335,
+        "top5_excess_pct": 0.6352712491378121,
+        "top10_ret_pct": 0.22862867481706414,
+        "top10_excess_pct": 0.4417422148534329
+      },
+      "delta": {
+        "auc": 0.0,
+        "rank_ic": 0.0,
+        "top5_excess_pct": 0.0,
+        "top10_excess_pct": 0.0
+      }
+    },
+    {
+      "fold": 2,
+      "test_start": "2026-04-10",
+      "test_end": "2026-05-13",
+      "test_days": 21,
+      "train_cutoff": "2026-04-08",
+      "n_train": 889021,
+      "n_test": 104133,
+      "candidate_val_auc": [
+        0.6887,
+        0.7496,
+        0.701
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 104133,
+        "auc": 0.7170680480437053,
+        "rank_ic": 0.060706353422890366,
+        "base_ret_pct": 0.32192764574386323,
+        "top5_ret_pct": 1.4530631094200652,
+        "top5_excess_pct": 1.1311354636762019,
+        "top10_ret_pct": 1.2950233341729824,
+        "top10_excess_pct": 0.9730956884291192
+      },
+      "incumbent": {
+        "n": 104133,
+        "auc": 0.7170680480437053,
+        "rank_ic": 0.060706353422890366,
+        "base_ret_pct": 0.32192764574386323,
+        "top5_ret_pct": 1.4530631094200652,
+        "top5_excess_pct": 1.1311354636762019,
+        "top10_ret_pct": 1.2950233341729824,
+        "top10_excess_pct": 0.9730956884291192
+      },
+      "delta": {
+        "auc": 0.0,
+        "rank_ic": 0.0,
+        "top5_excess_pct": 0.0,
+        "top10_excess_pct": 0.0
+      }
+    },
+    {
+      "fold": 3,
+      "test_start": "2026-05-14",
+      "test_end": "2026-06-11",
+      "test_days": 21,
+      "train_cutoff": "2026-05-12",
+      "n_train": 890063,
+      "n_test": 104167,
+      "candidate_val_auc": [
+        0.6897,
+        0.7496,
+        0.703
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 104167,
+        "auc": 0.682147202216432,
+        "rank_ic": 0.0354062672432567,
+        "base_ret_pct": -0.4433884246337644,
+        "top5_ret_pct": 0.8763033049094262,
+        "top5_excess_pct": 1.3196917295431905,
+        "top10_ret_pct": 0.5734289209547739,
+        "top10_excess_pct": 1.0168173455885383
+      },
+      "incumbent": {
+        "n": 104167,
+        "auc": 0.682147202216432,
+        "rank_ic": 0.0354062672432567,
+        "base_ret_pct": -0.4433884246337644,
+        "top5_ret_pct": 0.8763033049094262,
+        "top5_excess_pct": 1.3196917295431905,
+        "top10_ret_pct": 0.5734289209547739,
+        "top10_excess_pct": 1.0168173455885383
+      },
+      "delta": {
+        "auc": 0.0,
+        "rank_ic": 0.0,
+        "top5_excess_pct": 0.0,
+        "top10_excess_pct": 0.0
+      }
+    },
+    {
+      "fold": 4,
+      "test_start": "2026-06-12",
+      "test_end": "2026-07-13",
+      "test_days": 21,
+      "train_cutoff": "2026-06-10",
+      "n_train": 891009,
+      "n_test": 104063,
+      "candidate_val_auc": [
+        0.6919,
+        0.7464,
+        0.7056
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 104063,
+        "auc": 0.6645282419479234,
+        "rank_ic": 0.0014469345378054698,
+        "base_ret_pct": -0.17603524169022197,
+        "top5_ret_pct": 1.379093719199675,
+        "top5_excess_pct": 1.555128960889897,
+        "top10_ret_pct": 0.9436260506326967,
+        "top10_excess_pct": 1.1196612923229186
+      },
+      "incumbent": {
+        "n": 104063,
+        "auc": 0.6645282419479234,
+        "rank_ic": 0.0014469345378054698,
+        "base_ret_pct": -0.17603524169022197,
+        "top5_ret_pct": 1.379093719199675,
+        "top5_excess_pct": 1.555128960889897,
+        "top10_ret_pct": 0.9436260506326967,
+        "top10_excess_pct": 1.1196612923229186
+      },
+      "delta": {
+        "auc": 0.0,
+        "rank_ic": 0.0,
+        "top5_excess_pct": 0.0,
+        "top10_excess_pct": 0.0
+      }
+    },
+    {
+      "fold": 5,
+      "test_start": "2026-07-14",
+      "test_end": "2026-08-11",
+      "test_days": 21,
+      "train_cutoff": "2026-07-10",
+      "n_train": 891876,
+      "n_test": 104181,
+      "candidate_val_auc": [
+        0.6872,
+        0.7416,
+        0.7037
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 104181,
+        "auc": 0.667802107309297,
+        "rank_ic": -0.03746353219311629,
+        "base_ret_pct": 0.2360018417093459,
+        "top5_ret_pct": 0.9621066259672852,
+        "top5_excess_pct": 0.7261047842579393,
+        "top10_ret_pct": 0.3736647581212171,
+        "top10_excess_pct": 0.13766291641187117
+      },
+      "incumbent": {
+        "n": 104181,
+        "auc": 0.667802107309297,
+        "rank_ic": -0.03746353219311629,
+        "base_ret_pct": 0.2360018417093459,
+        "top5_ret_pct": 0.9621066259672852,
+        "top5_excess_pct": 0.7261047842579393,
+        "top10_ret_pct": 0.3736647581212171,
+        "top10_excess_pct": 0.13766291641187117
+      },
+      "delta": {
+        "auc": 0.0,
+        "rank_ic": 0.0,
+        "top5_excess_pct": 0.0,
+        "top10_excess_pct": 0.0
+      }
+    },
+    {
+      "fold": 6,
+      "test_start": "2026-08-12",
+      "test_end": "2026-09-09",
+      "test_days": 21,
+      "train_cutoff": "2026-08-10",
+      "n_train": 892558,
+      "n_test": 104235,
+      "candidate_val_auc": [
+        0.6928,
+        0.7451,
+        0.7085
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 104235,
+        "auc": 0.7009382935907312,
+        "rank_ic": -0.023157759558631544,
+        "base_ret_pct": -0.018665708066357693,
+        "top5_ret_pct": 1.176317842580365,
+        "top5_excess_pct": 1.1949835506467228,
+        "top10_ret_pct": 0.6163252170890297,
+        "top10_excess_pct": 0.6349909251553874
+      },
+      "incumbent": {
+        "n": 104235,
+        "auc": 0.7009382935907312,
+        "rank_ic": -0.023157759558631544,
+        "base_ret_pct": -0.018665708066357693,
+        "top5_ret_pct": 1.176317842580365,
+        "top5_excess_pct": 1.1949835506467228,
+        "top10_ret_pct": 0.6163252170890297,
+        "top10_excess_pct": 0.6349909251553874
+      },
+      "delta": {
+        "auc": 0.0,
+        "rank_ic": 0.0,
+        "top5_excess_pct": 0.0,
+        "top10_excess_pct": 0.0
+      }
+    }
+  ],
+  "aggregate": {
+    "n_folds": 6,
+    "auc": {
+      "mean_delta": 0.0,
+      "std": 0.0,
+      "se": 0.0,
+      "noise_band_95": 0.0,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    },
+    "rank_ic": {
+      "mean_delta": 0.0,
+      "std": 0.0,
+      "se": 0.0,
+      "noise_band_95": 0.0,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    },
+    "top5_excess_pct": {
+      "mean_delta": 0.0,
+      "std": 0.0,
+      "se": 0.0,
+      "noise_band_95": 0.0,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    },
+    "top10_excess_pct": {
+      "mean_delta": 0.0,
+      "std": 0.0,
+      "se": 0.0,
+      "noise_band_95": 0.0,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    }
+  },
+  "block_bootstrap": {
+    "rank_ic": {
+      "n_days": 126,
+      "mean": 0.0,
+      "se": 0.0,
+      "lo95": 0.0,
+      "hi95": 0.0,
+      "p_beyond0": 0.0
+    },
+    "top10_excess_pct": {
+      "n_days": 126,
+      "mean": 0.0,
+      "se": 0.0,
+      "lo95": 0.0,
+      "hi95": 0.0,
+      "p_beyond0": 0.0
+    }
+  },
+  "note": "历史 walk-forward：两臂同截断同配方，唯一差别 = 待测增量因子；噪声带用逐日配对差的块自举（非折间 t 检验）。结论仍是历史 OOS，不自动晋升。"
+}

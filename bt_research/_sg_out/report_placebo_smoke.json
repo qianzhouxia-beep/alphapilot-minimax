@@ -1,0 +1,183 @@
+{
+  "generated_at": "2026-09-13 21:15:20",
+  "run_id": "sg_placebo_smoke_0913c",
+  "boundary": {
+    "writes_production_models": false,
+    "auto_promotion": false,
+    "reads": [
+      "models/*.ubj",
+      "data/kline_cache/kline_all.parquet"
+    ],
+    "writes": [
+      "/home/ubuntu/bt_sandbox/alphapilot/rd_workshop/walkforward_runs/sg_placebo_smoke_0913c"
+    ]
+  },
+  "config": {
+    "folds": 2,
+    "test_days": 10,
+    "end": "2026-09-09",
+    "train_tail": 180,
+    "max_stocks": 300,
+    "extra_factors": "rd_workshop/data_support/inbound/placebo_noise.parquet",
+    "extra_factor_cols": [
+      "rd_noise1",
+      "rd_noise2",
+      "rd_noise3"
+    ],
+    "forward_days": 1,
+    "threshold": 0.03,
+    "n_features": 109,
+    "control_arm": "retrain",
+    "boot_block": 5,
+    "boot_iters": 2000
+  },
+  "production_model": {
+    "n_boosters": 3,
+    "tag": "3 models",
+    "trained_at": "2026-08-21",
+    "lookahead_folds": []
+  },
+  "arm_parity_ok": null,
+  "folds": [
+    {
+      "fold": 1,
+      "test_start": "2026-08-13",
+      "test_end": "2026-08-26",
+      "test_days": 10,
+      "train_cutoff": "2026-08-11",
+      "n_train": 53580,
+      "n_test": 2980,
+      "candidate_val_auc": [
+        0.6881,
+        0.7315,
+        0.6968
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 2980,
+        "auc": 0.6809433081888171,
+        "rank_ic": 0.020614665017744834,
+        "base_ret_pct": 0.04853228631036961,
+        "top5_ret_pct": 1.29144384130959,
+        "top5_excess_pct": 1.2429115549992202,
+        "top10_ret_pct": 0.6895333990200161,
+        "top10_excess_pct": 0.6410011127096464
+      },
+      "incumbent": {
+        "n": 2980,
+        "auc": 0.6827003460611245,
+        "rank_ic": 0.033492613098934546,
+        "base_ret_pct": 0.04853228631036961,
+        "top5_ret_pct": 0.9552795039878567,
+        "top5_excess_pct": 0.906747217677487,
+        "top10_ret_pct": 0.7522529653581554,
+        "top10_excess_pct": 0.7037206790477858
+      },
+      "delta": {
+        "auc": -0.00176,
+        "rank_ic": -0.01288,
+        "top5_excess_pct": 0.33616,
+        "top10_excess_pct": -0.06272
+      }
+    },
+    {
+      "fold": 2,
+      "test_start": "2026-08-27",
+      "test_end": "2026-09-09",
+      "test_days": 10,
+      "train_cutoff": "2026-08-25",
+      "n_train": 53600,
+      "n_test": 2980,
+      "candidate_val_auc": [
+        0.6806,
+        0.7277,
+        0.6922
+      ],
+      "lookahead_risk": false,
+      "candidate": {
+        "n": 2980,
+        "auc": 0.6612490869247627,
+        "rank_ic": -0.11465242006869898,
+        "base_ret_pct": -0.04188149533870914,
+        "top5_ret_pct": -0.31883813848643994,
+        "top5_excess_pct": -0.2769566431477308,
+        "top10_ret_pct": -0.515480248602076,
+        "top10_excess_pct": -0.4735987532633668
+      },
+      "incumbent": {
+        "n": 2980,
+        "auc": 0.6568263315806313,
+        "rank_ic": -0.11850846115118747,
+        "base_ret_pct": -0.04188149533870914,
+        "top5_ret_pct": 0.14940979726450054,
+        "top5_excess_pct": 0.19129129260320968,
+        "top10_ret_pct": -0.2805118172448253,
+        "top10_excess_pct": -0.2386303219061162
+      },
+      "delta": {
+        "auc": 0.00442,
+        "rank_ic": 0.00386,
+        "top5_excess_pct": -0.46825,
+        "top10_excess_pct": -0.23497
+      }
+    }
+  ],
+  "aggregate": {
+    "n_folds": 2,
+    "auc": {
+      "mean_delta": 0.00133,
+      "std": 0.00437,
+      "se": 0.00309,
+      "noise_band_95": 0.00606,
+      "wins": 1,
+      "n": 2,
+      "beyond_noise": false
+    },
+    "rank_ic": {
+      "mean_delta": -0.00451,
+      "std": 0.01184,
+      "se": 0.00837,
+      "noise_band_95": 0.01641,
+      "wins": 1,
+      "n": 2,
+      "beyond_noise": false
+    },
+    "top5_excess_pct": {
+      "mean_delta": -0.06604,
+      "std": 0.5688,
+      "se": 0.4022,
+      "noise_band_95": 0.78832,
+      "wins": 1,
+      "n": 2,
+      "beyond_noise": false
+    },
+    "top10_excess_pct": {
+      "mean_delta": -0.14885,
+      "std": 0.1218,
+      "se": 0.08612,
+      "noise_band_95": 0.1688,
+      "wins": 0,
+      "n": 2,
+      "beyond_noise": false
+    }
+  },
+  "block_bootstrap": {
+    "rank_ic": {
+      "n_days": 20,
+      "mean": -0.00438,
+      "se": 0.00361,
+      "lo95": -0.01116,
+      "hi95": 0.00283,
+      "p_beyond0": 0.123
+    },
+    "top10_excess_pct": {
+      "n_days": 20,
+      "mean": -0.18851,
+      "se": 0.04767,
+      "lo95": -0.28639,
+      "hi95": -0.10156,
+      "p_beyond0": 0.0
+    }
+  },
+  "note": "历史 walk-forward：两臂同截断同配方，唯一差别 = 待测增量因子；噪声带用逐日配对差的块自举（非折间 t 检验）。结论仍是历史 OOS，不自动晋升。"
+}

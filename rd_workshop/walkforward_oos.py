@@ -17,10 +17,12 @@
 
 每折在**同一批测试样本**上同时评估两臂：
   · 候选：只用「该折测试窗之前」的数据现场训练（含可选 RD 增量因子）
-  · 生产：读 `models/v25_opt_ensemble_{1,2,3}.ubj` 冻结模型，不重训
+  · 对照：同截断、同配方、**不含**增量因子的现场重训（默认 `--control retrain`）
+    （`--control frozen` 读冻结 `.ubj`，仅当模型训练早于测试窗才合法；否则标前视）
 
-输出逐折 AUC / RankIC / TopK 超额，以及**配对差（候选 − 生产）**与折间
-离散度 ⇒ 得到「多少提升才算超过噪声」的**数据驱动**门槛，替代拍脑袋的 40 天。
+输出逐折 AUC / RankIC / TopK 超额，以及**配对差（候选 − 对照）**与逐日
+配对差的块自举噪声带 ⇒ 得到「多少提升才算超过噪声」的**数据驱动**门槛，
+替代拍脑袋的 40 天。
 
 ## 边界（ADR-0001）
 
@@ -500,18 +502,24 @@ def main() -> int:
         if lookahead:
             lookahead_folds.append(fi)
 
-        Xtr = Xall[tr_idx]
-        Xte = Xall[te_mask]
-        boosters, val_aucs = _fit_candidate(Xtr, y_tr.astype(float), N_MODELS)
-        cand_pred = _predict_ensemble(boosters, Xte, needed)
+        # 对照臂必须去掉增量因子列；候选保留全列 —— 唯一差别 = 待测因子
+        # （2026-09-13 安慰剂全量曾因两臂同训含噪声的 109 维矩阵 ⇒ Δ≡0 假阴性）
+        base_needed = [c for c in needed if c not in extra_cols]
+        base_pos = [i for i, c in enumerate(needed) if c not in extra_cols]
+        Xtr_full = Xall[tr_idx]
+        Xte_full = Xall[te_mask]
+        boosters, val_aucs = _fit_candidate(Xtr_full, y_tr.astype(float), N_MODELS)
+        cand_pred = _predict_ensemble(boosters, Xte_full, needed)
         if ctrl_mode == "retrain":
-            # 同截断、同配方、同特征重训 —— 与候选唯一差别 = 待测增量因子
-            ctrl_boosters, _ = _fit_candidate(Xtr, y_tr.astype(float), N_MODELS)
-            ctrl_pred = _predict_ensemble(ctrl_boosters, Xte, needed)
-            del ctrl_boosters
+            Xtr_base = Xtr_full[:, base_pos]
+            Xte_base = Xte_full[:, base_pos]
+            ctrl_boosters, _ = _fit_candidate(Xtr_base, y_tr.astype(float), N_MODELS)
+            ctrl_pred = _predict_ensemble(ctrl_boosters, Xte_base, base_needed)
+            del ctrl_boosters, Xtr_base, Xte_base
         else:
-            ctrl_pred = _predict_ensemble(prod_boosters, Xte, needed)
-        del Xtr
+            # 冻结生产模型只认生产特征名；多余列在 _predict_ensemble 里按名对齐
+            ctrl_pred = _predict_ensemble(prod_boosters, Xte_full, needed)
+        del Xtr_full, Xte_full
         gc.collect()
 
         y_bin = y_all[te_mask].astype(float)
@@ -545,7 +553,7 @@ def main() -> int:
               f"cand AUC={c.get('auc')} IC={c.get('rank_ic')} top10ex={c.get('top10_excess_pct')} || "
               f"ctrl AUC={p.get('auc')} IC={p.get('rank_ic')} top10ex={p.get('top10_excess_pct')} || "
               f"ΔAUC={rep.get('delta', {}).get('auc')} | RSS={_rss_gb():.2f}GB{la}", flush=True)
-        del boosters, cand_pred, ctrl_pred, Xte
+        del boosters, cand_pred, ctrl_pred
         gc.collect()
 
     # 聚合：配对差均值 + 折间标准误（噪声带）
