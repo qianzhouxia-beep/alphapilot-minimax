@@ -1,9 +1,10 @@
 # Fix C Ticket — Track B QMT 模拟盘 `passorder` 无委托/成交回报校验（幽灵账）
 
 - 来源：WB-Mac `issuecomment-5634114857` §一(A) / 老板授权 `issuecomment-5634160271`
-- 范围：**仅 `production_strategies/track_b/TrackB_track_b_qmt_auction_sim_v2.13.py`**（模拟盘）
+- 范围：**仅 Track B QMT 模拟盘**（现 `production_strategies/track_b/TrackB_track_b_qmt_auction_sim_v2.14.py`；落码前为 `…_v2.13.py`）
 - 授权红线：**不碰** `track_b/*_live*.py`、`track_a/*`、服务器选股端
-- 状态：**待设计确认后落码**（本 ticket 为"先只读定位 + 调用方清单"交付物）
+- 状态：**已落码（2026-09-13，v2.13 → v2.14）**——按老板拍板的设计 **B（次 bar 挂起确认）+ `VERIFY_FILL` 默认开**实现；**字段名未定论已由双 API 解析器 `_fval()` 在代码层消解**（同时读经典 `m_*` 与 xttrader snake_case）。回归 `track_b/_test_order_confirm.py` **26/26 PASS**（先红后绿已证）。**待部署 + 首个交易日看现场日志**。
+- 落地实现要点（与本文设计票的差异）：见 §三 补注
 - 关联已闭环：Fix A（LIM10 fail-open）`fe8f751` + 部署确认 `51818d8`
 
 ---
@@ -55,6 +56,8 @@
 ---
 
 ## 三、建议设计（最小、fail-safe、可离线测）
+
+> **补注（2026-09-13 落码实现，v2.14）**：字段名**未等现场定论**，改为在**代码层消解**——新增 `_fval()` **双 API 解析器**（依次尝试经典 `m_*` 与 xttrader snake_case），原设计里的 `m_strOrderSysID` / `m_nOrderStatus` / `m_nVolumeTotalTraded` / `m_dAveragePrice` 改为**按概念的候选名列表**（`_FC_CODE`/`_FC_REMARK`/`_FC_OVOL`/`_FC_TVOL`/`_FC_TPX`/`_FC_DVOL`/`_FC_DPX`/…）。三处下单点（买 / 全卖 / 半卖）均加**唯一 `userOrderId`**（`_next_oref`）并改走 `_confirm_pending()`（每 bar 在 sell/buy 前调用）；`_order_snapshot(code, remark, want_vol)` 优先按 `order_remark` 关联，remark 字段全空时回退"该 code 最新一笔"。成交判据用 **DEAL 求和 / `traded_volume`**，**不猜** `order_status` 枚举（现场状态码未取到）。实现落在 `TrackB_track_b_qmt_auction_sim_v2.14.py`；回归 `track_b/_test_order_confirm.py` **26/26**。
 
 ### 新增 1 个纯函数 + 1 个确认器
 

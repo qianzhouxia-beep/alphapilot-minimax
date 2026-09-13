@@ -19,7 +19,7 @@ import types
 from types import SimpleNamespace
 from unittest.mock import patch
 
-MOD = str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py")
+MOD = str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.14.py")
 
 # --- load module without executing QMT globals ---
 import importlib.util

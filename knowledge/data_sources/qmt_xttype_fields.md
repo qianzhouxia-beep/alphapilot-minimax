@@ -1,6 +1,7 @@
 # QMT 委托/成交/持仓对象字段名（⚠️ 尚未定论，2026-09-12）
 
-> 状态：**未定论 — 两套 API 混淆，禁止据此落码**
+> 状态：**未定论 — 两套 API 混淆，禁止硬编码字段名落码**
+> ✅ **2026-09-13 进展**：Fix C 已落码为 `TrackB_track_b_qmt_auction_sim_v2.14.py`，**不再依赖先定论**——新增双 API 解析器 `_fval()`（同时尝试 `m_*` 与 snake_case），成交判据用 `traded_volume`、关联键用 `order_remark`。现场首日看 `[PENDING]/[CONFIRM]/[GHOST]` 日志即可反推真实 API；若 `[GHOST]` 频发则回传日志修订解析器。详见 `bt_research/FixC_ghost_ledger_ticket.md` §三 补注。
 > 触发：Fix C（`passorder` 成交确认）需要真实字段名；2026-09-12 现场跑探针，但**dump 到的可能是错误的对象类型**。
 > 证据原文：`bt_research/_probe_qmt_field_names_2026-09-12.txt`；探针：`production_strategies/track_b/_probe_qmt_order_fields.py`
 

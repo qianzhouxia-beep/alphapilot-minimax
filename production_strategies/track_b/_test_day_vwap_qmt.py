@@ -13,7 +13,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-STRAT = Path(str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py"))
+STRAT = Path(str(_REPO / "production_strategies" / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.14.py"))
 
 spec = importlib.util.spec_from_file_location("trackb_vwap", STRAT)
 mod = importlib.util.module_from_spec(spec)

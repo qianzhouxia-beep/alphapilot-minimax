@@ -18,6 +18,31 @@
 
 ---
 
+## 2026-09-13 Track B sim v2.13 → v2.14：Fix C `passorder` 成交确认（幽灵账修复，独立提交）
+
+- 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-13 拍板设计 **B（次 bar 挂起确认）** + `VERIFY_FILL` **默认开**
+- 涉及文件：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` → **`track_b/TrackB_track_b_qmt_auction_sim_v2.14.py`**（`git mv` + 落码改名；QMT 模拟盘部署件）
+  - 新增 `track_b/_test_order_confirm.py`（Fix C 回归，**26 PASS**）
+  - 同步活动引用 14 文件：`README.md`、`MEMORY.md`、`docs/AGENT_RULES.md`、`docs/TRACK_A_B_SELECTION_COMPARISON.md`、`_test_hold_days_trading.py`、`_test_vwap_second_hit.py`、`_port_weak_regime_v231.py`、`track_b/_test_{buy_window,qmt_mootdx,sell_dynamic_v16,day_vwap_qmt,rotation_v15,lim10_failopen,sell_rotation_v14}.py`
+- 版本变化：v2.13 → **v2.14**（改买卖记账逻辑）
+- 修改内容：
+  1. **成交确认（核心）**：`passorder` 的 `ret==0` 只代表"委托已提交"。新增 `VERIFY_FILL`（默认 True）——下单后**不立即记账**，登记 pending（唯一 `userOrderId` → `order_remark`），由新函数 `_confirm_pending()`（每根 bar 在 sell/buy 前调用）用 ORDER/DEAL 确认：
+     - **买入**：不建仓、不记 BUY；pending 槽保位；成交后按 **DEAL 实际成交量/均价** 落账（不再是信号价）；券商无此委托（宽限 3 次）或长期未成交（30 次）⇒ `[GHOST]` **回滚**（撤仓、清锁、允许重试）。
+     - **卖出/半卖**：**不 pop、不减股**；确认后才落账；未确认 ⇒ 清锁保留持仓（fail-safe，可重试）。
+     - `_sync_holdings` 的 POSITION 对账仍为最终兜底。
+  2. **双 API 字段解析器 `_fval()`**：同时读经典 `m_*` 与 `xttrader` snake_case 两套名（字段名当时未定论，见 `knowledge/data_sources/qmt_xttype_fields.md`）⇒ 无论现场哪套都能工作。成交判据用 `traded_volume`、关联键用 `order_remark`，**不猜** `order_status` 枚举。
+  3. 三个下单点的 `userOrderId` 由 `""` 改为唯一串（`_next_oref`）。
+  4. `[INIT]` 串 → `track-B v2.14 (…+verify_fill)`，并打印 `verify_fill=` 开关值。
+- 原因/依据：Fix C ticket（`bt_research/FixC_ghost_ledger_ticket.md`）；幽灵账 = 策略账本与券商不一致（买入幽灵持仓 / 卖出幽灵平仓）。
+- 验证：
+  - `_test_order_confirm.py` **26/26 PASS**；**先红后绿已证**（同一测试跑 v2.13 ⇒ `AttributeError`，跑 v2.14 ⇒ 全绿）
+  - 受影响的既有回归全绿：lim10 3/3、buy_window 9/9、sell_dynamic 18/18、day_vwap 4/4、rotation_v15 9/9、sell_rotation_v14 10/10、vwap 9/9、hold_days 102/102、qmt_mootdx 9/9
+  - 新文件 AST + 纯 ASCII 通过、CRLF 原生保持（3479/3479）
+  - **6 个部署件中其余 5 个 md5 未变**（未改其注释，避免重演"注释同步 → 基线移动"）；B sim v2.14 新 md5 `b4ee7167d40fec9145946741f63e5a7c`
+- 部署：**需要**——将 `track_b/TrackB_track_b_qmt_auction_sim_v2.14.py` 复制到 QMT 模拟盘策略目录（替换 v2.13）。`VERIFY_FILL=False` 可一键回退旧行为。
+- 备注：**未改**任何其他可部署策略件的注释（含 live/tdx 内指向本文件的旧注释）；4 份 `_backup` 头部归属 WB-Mac，未碰。
+
 ## 2026-09-12 ⚠️ 更正：QMT 字段名"实测结论"作废 —— 探针 dump 错了 API 类（Fix C 重新阻塞）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板现场跑探针后 Cursor 复核发现

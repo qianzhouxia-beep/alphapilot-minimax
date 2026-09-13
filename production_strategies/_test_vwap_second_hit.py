@@ -19,7 +19,7 @@ FILES = [
     ("QMT sim A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py"),
     ("TDX sim A", ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim_v2.31.py"),
     ("QMT live B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_live_v2.7-tpl.py"),
-    ("QMT sim B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.13.py"),
+    ("QMT sim B", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.14.py"),
     ("QMT sim B backup (v2.12)", ROOT / "track_b" / "TrackB_track_b_qmt_auction_sim_v2.12_backup.py"),
     ("TDX sim B", ROOT / "track_b" / "TrackB_track_b_tdx_auction_sim_v1.20.py"),
     ("ptrade live A", ROOT / "ptrade" / "TrackA_track_a_ptrade_live.py"),

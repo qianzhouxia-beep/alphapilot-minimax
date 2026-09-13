@@ -5,7 +5,7 @@
 >
 > 基线版本：
 > - 轨道 A QMT 模拟盘 `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` **v2.13**
-> - 轨道 B QMT 模拟盘 `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` **v1.1（fullpool_live 实时池 + 分段买入窗口）**
+> - 轨道 B QMT 模拟盘 `track_b/TrackB_track_b_qmt_auction_sim_v2.14.py` **v1.1（fullpool_live 实时池 + 分段买入窗口）**
 > - 轨道 B QMT 实盘模板 `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` **v1.2-tpl**、TDX 模拟盘
 >   `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` **v1.2**（2026-08-17 起与 QMT 模拟盘 fullpool_live 逻辑一致）
 >
@@ -172,7 +172,7 @@ score = pipeline_z × 0.6 + 实时资金动量z × 0.4
 
 | 角色 | 轨道 A | 轨道 B |
 |------|--------|--------|
-| QMT 模拟盘 | `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | `track_b/TrackB_track_b_qmt_auction_sim_v2.13.py` |
+| QMT 模拟盘 | `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | `track_b/TrackB_track_b_qmt_auction_sim_v2.14.py` |
 | QMT 实盘模板 | `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` |
 | TDX 模拟盘 | `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` | `track_b/TrackB_track_b_tdx_auction_sim_v1.20.py` |
 | 免费逐笔数据 | —（A 直接读 mootdx_feed） | `track_b/mootdx_feed.py`（B 部署为独立进程，A 也读） |
