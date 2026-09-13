@@ -115,3 +115,16 @@ def _order_snapshot(code):        # 读 ORDER+DEAL，返回该 code 当日委托
 
 - 本 ticket：`bt_research/FixC_ghost_ledger_ticket.md`
 - 落码后：`TrackB_..._sim.py` v2.14 + `_test_order_confirm.py` + CHANGELOG + 独立 commit（与 Fix A 分开）
+
+---
+
+## 七、补记（2026-09-13）：轨道 A 同修（v2.45 → v2.46）
+
+老板纠正了范围理解：**A/B 双模拟盘是并行对照实验**（98009473=A、62128716=B），将来"哪条轨道好就上哪条实盘"。故 **B 修的洞 A 必须同修、同口径**，否则两轨账本精度不同、对照结论失真。本文 §二.2 早已点明 `track_a/TrackA_..._{sim,live}.py` 属"同一 3 点模式"。
+
+- 落地：`track_a/TrackA_track_a_qmt_full_chain_sim_v2.46.py`，与 B v2.14 语义逐点对齐（`VERIFY_FILL` / `_next_oref` / `_confirm_pending` / `_fval` / `[GHOST]` 回滚）。
+- A 专属差异：`_log_trade(pos=)` 保留；**买入冷却 `_mark_cooldown` 改为"确认成交后才 arm"**（新增 `_arm_cooldown_sell`）——避免"卖单未成交却禁买"。
+- 回归：`track_a/_test_order_confirm.py` **26/26**（对 v2.45 先红）；A 侧既有 9 组回归全绿；行尾 CRLF；md5 `9d8ba58234176937e770741df9d464c4`。
+- 仍**未同步**：`track_a/*_live*`、`track_a TDX`、`track_b/*_live*`、`track_b TDX`、`ptrade/*`（红线：需老板单独拍板，实盘等两轨分优劣）。
+- 遗留：A 的 `_rotation_sell` 在 `VERIFY_FILL=True` 下返回值语义未改（`ROTATION_ENABLE=False`，两轨一致）；若启用轮动需单开 ticket。
+

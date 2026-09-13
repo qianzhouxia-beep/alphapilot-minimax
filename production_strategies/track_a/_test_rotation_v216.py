@@ -14,7 +14,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
-STRAT = Path(str(_REPO / "production_strategies" / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py"))
+STRAT = Path(str(_REPO / "production_strategies" / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.46.py"))
 
 spec = importlib.util.spec_from_file_location("tracka_v216", STRAT)
 mod = importlib.util.module_from_spec(spec)

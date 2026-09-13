@@ -1,5 +1,17 @@
 # coding:utf-8
-# AlphaPilot -- Track A QMT sim full-chain strategy v2.45 (gene + path_fade + loud_vol + R5 + D1-D5 stop-bleeding + D8 observe + B3/B1 shadow + TSDOWN/D8-3C + conditional day-high + peel-cap + peel-nextbar)
+# AlphaPilot -- Track A QMT sim full-chain strategy v2.46 (gene + path_fade + loud_vol + R5 + D1-D5 stop-bleeding + D8 observe + B3/B1 shadow + TSDOWN/D8-3C + conditional day-high + peel-cap + peel-nextbar + verify_fill)
+# v2.46 (2026-09-13, SIM ONLY): Fix C -- passorder fill confirmation (ghost
+#   ledger). passorder ret==0 only means "submitted", not "filled"; before this
+#   the strategy booked position/SELL at the SIGNAL price before any broker
+#   acknowledgement. Now a unique userOrderId is attached and _confirm_pending()
+#   resolves each order against broker ORDER/DEAL every bar: BUY books the real
+#   traded volume/avg price (or rolls back + frees the slot/lock when never
+#   acked); SELL/SELL_HALF keep the position and release the lock until the fill
+#   is confirmed (cooldown arms only on confirmed sell). Field names are read
+#   through the dual-API resolver _fval() (classic m_* OR xttrader snake_case).
+#   VERIFY_FILL=True default; False restores exact v2.45 immediate booking.
+#   Mirror of Track B v2.14 so the A/B sim comparison stays on equal footing.
+#   NOT deployed to live.
 # v2.45 (2026-09-10, SIM ONLY): require a NEXT-BAR confirmation before the
 #   adaptive peel sells. Before this, the peel sold HALF on the FIRST 5m bar
 #   whose pullback from the running peak reached the trigger (peak*(1-pb)).
@@ -124,7 +136,7 @@
 # Weak regime: t2_force floor x0.6, peel pullback x0.7, T+2 extension only
 # for trend-intact (price >= day VWAP), T+3 hold-cap becomes a breakdown
 # check (intact keeps running, daily recheck). Non-weak: unchanged.
-# File: TrackA_track_a_qmt_full_chain_sim_v2.45.py
+# File: TrackA_track_a_qmt_full_chain_sim_v2.46.py
 # =========================================================
 # v2.30 changes vs v2.29 (2026-09-02, vwap 2nd confirm):
 #   * vwap_weak_early needs TWO still-below minutes in 09:35-09:50.
@@ -402,6 +414,16 @@ LEDGER_SNAP_MIN = 15 * 60 + 5
 # calls. Guarantee at most 1 BUY and 1 SELL(reason) per symbol per day.
 ORDER_LOCK_FILE = r"C:\alphapilot\order_locks.json"
 
+# ---- Fix C (v2.46): passorder fill confirmation (ghost-ledger guard) ----
+# passorder ret==0 means "submitted", NOT "filled". Without ORDER/DEAL
+# verification the strategy books a phantom position/sell at the SIGNAL price.
+# VERIFY_FILL=True defers booking until the broker confirms the fill; a never-
+# acknowledged order is rolled back (BUY) or kept+unlocked (SELL). Set False to
+# restore the legacy immediate-booking behaviour (A/B comparison switch).
+VERIFY_FILL = True
+VERIFY_MAX_CHECKS = 30   # roll back a never-acked order after this many checks
+VERIFY_GRACE_CHECKS = 3  # "no order at broker at all" rollback threshold
+
 POS_STATE_FILE = r"C:\alphapilot\sim_pos_state.json"
 POS_STATE_PERSIST = (
     "buy_date", "buy_price", "peak", "peel_count", "peel_peak_snapshot",
@@ -676,6 +698,9 @@ def init(C):
     C._univ_codes = []
     C._univ_dirty = True
     C.run_count = 0
+    # Fix C (v2.46): pending-order registry + unique userOrderId counter
+    C.pending_orders = {}
+    C._oref_seq = 0
     C.cool_log = {}            # v2.41 {code: last-logged date} (cooldown log once/day)
     C.vwap_wait_logged = set()  # v2.41 codes already printing D2-2 wait (log once)
     C.risk_log = ""            # v2.41 date of the last [RISK] log line
@@ -698,8 +723,9 @@ def init(C):
         print("[INIT] universe=" + str(codes or ["600519.SH"]))
     except BaseException as e:
         print("[INIT] set_universe fail: " + str(e))
-    print("[INIT] track-A qmt-sim v2.45 (gene+R5+D1-D5+D8, rank<=3, cond-dayhigh, peel-cap2%+nextbar) | acct=" + ACCOUNT_ID +
+    print("[INIT] track-A qmt-sim v2.46 (gene+R5+D1-D5+D8, rank<=3, cond-dayhigh, peel-cap2%+nextbar+verify_fill) | acct=" + ACCOUNT_ID +
           " | holdings=" + str(len(codes)) + " | score_dir=" + str(C.score_dir) +
+          " | verify_fill=" + str(VERIFY_FILL) +
           " | pos_state=" + str(len(getattr(C, "pos_state", {}) or {})))
     try:
         _locks = _load_order_locks()
@@ -733,6 +759,11 @@ def handlebar(C):
     if ts - C._last_resync >= RESYNC_SEC:
         C._last_resync = ts
         _sync_holdings(C)
+    # Fix C (v2.46): resolve pending passorder fills/rollbacks before sell/buy
+    try:
+        _confirm_pending(C)
+    except BaseException as e:
+        print("[CONFIRM-ERR] " + repr(e)[:120])
 
     cands = _load_candidates(C, today)
     if cands is None:
@@ -3244,6 +3275,322 @@ def _shadow_b1_log(C, code, name, rank, fill, now_min, today):
             print("[SHADOW-B1] log err: " + str(e)[:80])
 
 
+# ================= Fix C (v2.46): passorder fill confirmation =================
+# Field names: QMT exposes two APIs (classic get_trade_detail_data with m_*
+# fields, and xtquant.xttrader with snake_case). Which one the runtime returns
+# was NOT verified when this shipped, so _fval() tries both name sets.
+_FC_CODE = ("m_strInstrumentID", "stock_code")
+_FC_REMARK = ("m_strRemark", "m_strRemark1", "order_remark")
+_FC_OVOL = ("m_nVolumeTotalOriginal", "order_volume")
+_FC_TVOL = ("m_nVolumeTraded", "m_nVolumeTotalTraded", "traded_volume")
+_FC_TPX = ("m_dTradedPrice", "m_dAveragePrice", "traded_price")
+_FC_DVOL = ("m_nVolume", "traded_volume")
+_FC_DPX = ("m_dPrice", "m_dTradedPrice", "traded_price")
+_FC_SYSID = ("m_strOrderSysID", "order_sysid")
+
+
+def _fval(obj, names, default=None):
+    """Dual-API field reader (classic m_* OR xttrader snake_case)."""
+    for n in names:
+        try:
+            v = getattr(obj, n)
+        except BaseException:
+            continue
+        if v is None:
+            continue
+        if isinstance(v, str) and v.strip() == "":
+            continue
+        return v
+    return default
+
+
+def _next_oref(C, code, today):
+    """Unique short userOrderId -> lands in order_remark for later linkage."""
+    try:
+        C._oref_seq = int(getattr(C, "_oref_seq", 0)) + 1
+    except BaseException:
+        C._oref_seq = 1
+    dig = "".join(ch for ch in str(code) if ch.isdigit())[:6]
+    return ("a" + str(today)[4:8] + dig + str(C._oref_seq))[:20]
+
+
+def _today_orders_deals(code):
+    """Today's broker ORDER / DEAL objects for one QMT code (best effort)."""
+    qmt = _qmt_code(code)
+    orders, deals = [], []
+    try:
+        for o in get_trade_detail_data(ACCOUNT_ID, "STOCK", "ORDER") or []:
+            if _qmt_code(_fval(o, _FC_CODE, "")) == qmt:
+                orders.append(o)
+    except BaseException:
+        pass
+    try:
+        for d in get_trade_detail_data(ACCOUNT_ID, "STOCK", "DEAL") or []:
+            if _qmt_code(_fval(d, _FC_CODE, "")) == qmt:
+                deals.append(d)
+    except BaseException:
+        pass
+    return orders, deals
+
+
+def _order_snapshot(code, remark, want_vol):
+    """Aggregate today's ORDER/DEAL for `code`.
+
+    remark is preferred for linkage; when the remark field is entirely empty
+    (some builds do not populate it) we fall back to the latest order for the
+    code, and to all deals for the code. Returns:
+      found     - an ORDER row exists for this code today
+      filled    - traded volume (DEAL sum, or ORDER traded_volume)
+      avg_px    - volume-weighted average fill price (0 when unknown)
+      ovol      - ordered volume
+      remark_ok - the order was matched by our own remark
+      sysid     - broker order sys id
+    """
+    snap = {"found": False, "filled": 0, "avg_px": 0.0, "ovol": 0,
+            "remark_ok": False, "sysid": ""}
+    orders, deals = _today_orders_deals(code)
+    if not orders:
+        return snap
+    snap["found"] = True
+    hit = None
+    remarks_readable = False
+    for o in orders:
+        r = str(_fval(o, _FC_REMARK, "") or "")
+        if r:
+            remarks_readable = True
+        if remark and r == remark:
+            hit = o
+    if hit is not None:
+        snap["remark_ok"] = True
+    elif not remarks_readable:
+        hit = orders[-1]
+    if hit is None:
+        return snap
+    try:
+        snap["ovol"] = int(_fval(hit, _FC_OVOL, 0) or 0)
+    except BaseException:
+        snap["ovol"] = 0
+    snap["sysid"] = str(_fval(hit, _FC_SYSID, "") or "")
+    # DEAL aggregation
+    fvol = 0
+    amt = 0.0
+    deal_remarks = [str(_fval(d, _FC_REMARK, "") or "") for d in deals]
+    any_deal_remark = any(deal_remarks)
+    for d, r in zip(deals, deal_remarks):
+        if remark and any_deal_remark and r != remark:
+            continue
+        try:
+            v = int(_fval(d, _FC_DVOL, 0) or 0)
+        except BaseException:
+            v = 0
+        try:
+            px = float(_fval(d, _FC_DPX, 0) or 0)
+        except BaseException:
+            px = 0.0
+        fvol += v
+        amt += v * px
+    if fvol <= 0:
+        # some builds expose fills only on ORDER, not as DEAL rows
+        try:
+            fvol = int(_fval(hit, _FC_TVOL, 0) or 0)
+        except BaseException:
+            fvol = 0
+        try:
+            tpx = float(_fval(hit, _FC_TPX, 0) or 0)
+        except BaseException:
+            tpx = 0.0
+        amt = fvol * tpx
+    snap["filled"] = fvol
+    snap["avg_px"] = (amt / fvol) if fvol > 0 else 0.0
+    return snap
+
+
+def _clear_order_locked(today, code, reason):
+    try:
+        d = _load_order_locks()
+        day = d.get(today) or {}
+        if code in day:
+            day[code].pop(reason, None)
+            if not day[code]:
+                day.pop(code, None)
+        _save_order_locks(d)
+    except Exception:
+        pass
+
+
+def _arm_cooldown_sell(code, today, reason):
+    """v2.41 D3: arm the buy cooldown only once the SELL is confirmed."""
+    try:
+        _mark_cooldown(code, today,
+                       "stop" if _is_discipline_stop(reason) else "sold")
+    except Exception:
+        pass
+
+
+def _register_pending(C, kind, code, oref, vol, px, reason, today, lockk):
+    if getattr(C, "pending_orders", None) is None:
+        C.pending_orders = {}
+    C.pending_orders[oref] = {
+        "kind": kind, "code": code, "remark": oref, "vol": int(vol or 0),
+        "px": float(px or 0), "reason": reason, "today": today,
+        "lockk": lockk, "checks": 0, "logged": False,
+    }
+
+
+def _drop_pending(C, oref):
+    try:
+        (getattr(C, "pending_orders", None) or {}).pop(oref, None)
+    except Exception:
+        pass
+
+
+def _rollback_buy(C, rec, why):
+    code = rec["code"]
+    print("[GHOST] BUY " + code + " not acknowledged (" + why +
+          ") -> rollback, no position/lock")
+    try:
+        C.position_map.pop(code, None)
+    except Exception:
+        pass
+    try:
+        C.stop_watch.pop(code, None)
+    except Exception:
+        pass
+    _clear_order_locked(rec["today"], code, "BUY")
+    try:
+        C.sent_today.discard(code)
+    except Exception:
+        pass
+    _drop_pending(C, rec["remark"])
+    _save_pos_state(C)
+
+
+def _release_sell(C, rec, why):
+    code = rec["code"]
+    print("[GHOST] " + rec["kind"] + " " + code + " not acknowledged (" + why +
+          ") -> keep position, unlock for retry")
+    _clear_order_locked(rec["today"], code,
+                        rec.get("lockk") or _sell_lock_key(rec.get("reason")))
+    pos = C.position_map.get(code)
+    if pos is not None:
+        try:
+            pos.pop("sell_pending", None)
+        except Exception:
+            pass
+    _drop_pending(C, rec["remark"])
+
+
+def _confirm_one(C, rec, snap):
+    code = rec["code"]
+    kind = rec["kind"]
+    reason = rec.get("reason") or "p2_dyn_confirm"
+    pos = C.position_map.get(code)
+    if kind == "BUY":
+        if pos is None:
+            _drop_pending(C, rec["remark"])
+            return
+        if not pos.get("pending"):
+            # _sync_holdings already reconciled the real POSITION
+            if not rec["logged"]:
+                px = float(pos.get("buy_price") or rec["px"] or 0)
+                vol = int(pos.get("shares") or rec["vol"] or 0)
+                _log_trade(C, "BUY", code, px, vol, reason, pos=pos)
+                rec["logged"] = True
+                print("[CONFIRM] BUY " + code + " x" + str(vol) + " @ " +
+                      str(round(px, 3)) + " (position)")
+            _drop_pending(C, rec["remark"])
+            return
+        if snap["filled"] > 0:
+            px = float(snap["avg_px"] or pos.get("buy_price") or rec["px"] or 0)
+            vol = int(snap["filled"])
+            pos["shares"] = vol
+            pos["buy_price"] = px
+            pos["pending"] = False
+            if not rec["logged"]:
+                _log_trade(C, "BUY", code, px, vol, reason, pos=pos)
+                rec["logged"] = True
+            print("[CONFIRM] BUY " + code + " x" + str(vol) + " @ " +
+                  str(round(px, 3)) + " (deal)")
+            _save_pos_state(C)
+            _drop_pending(C, rec["remark"])
+            return
+        if not snap["found"] and rec["checks"] >= VERIFY_GRACE_CHECKS:
+            _rollback_buy(C, rec, "no order at broker")
+            return
+        rec["checks"] += 1
+        if rec["checks"] >= VERIFY_MAX_CHECKS:
+            _rollback_buy(C, rec, "unfilled after " + str(rec["checks"]) +
+                          " checks")
+        return
+    # ---- SELL / SELL_HALF ----
+    if pos is None:
+        if not rec["logged"]:
+            px = float(snap["avg_px"] or rec["px"] or 0)
+            vol = int(snap["filled"] or rec["vol"] or 0)
+            _log_trade(C, "SELL" if kind == "SELL" else "SELL_HALF",
+                       code, px, vol, reason)
+            rec["logged"] = True
+            if kind == "SELL":
+                _arm_cooldown_sell(code, rec["today"], reason)
+            print("[CONFIRM] " + kind + " " + code + " x" + str(vol) + " @ " +
+                  str(round(px, 3)) + " (position gone)")
+        _drop_pending(C, rec["remark"])
+        return
+    if snap["filled"] > 0:
+        px = float(snap["avg_px"] or rec["px"] or 0)
+        vol = int(snap["filled"])
+        if not rec["logged"]:
+            _log_trade(C, "SELL" if kind == "SELL" else "SELL_HALF",
+                       code, px, vol, reason, pos=pos)
+            rec["logged"] = True
+        if kind == "SELL":
+            _arm_cooldown_sell(code, rec["today"], reason)
+            C.position_map.pop(code, None)
+            C.stop_watch.pop(code, None)
+            _save_pos_state(C)
+        else:
+            try:
+                pos.pop("sell_pending", None)
+            except Exception:
+                pass
+        print("[CONFIRM] " + kind + " " + code + " x" + str(vol) + " @ " +
+              str(round(px, 3)))
+        _drop_pending(C, rec["remark"])
+        return
+    if not snap["found"] and rec["checks"] >= VERIFY_GRACE_CHECKS:
+        _release_sell(C, rec, "no order at broker")
+        return
+    rec["checks"] += 1
+    if rec["checks"] >= VERIFY_MAX_CHECKS:
+        _release_sell(C, rec, "unfilled after " + str(rec["checks"]) +
+                      " checks")
+
+
+def _confirm_pending(C):
+    """Fix C: resolve pending passorder orders against broker ORDER/DEAL."""
+    if not VERIFY_FILL:
+        return
+    po = getattr(C, "pending_orders", None)
+    if not po:
+        return
+    today = datetime.now().strftime("%Y%m%d")
+    for oref in list(po.keys()):
+        rec = po.get(oref)
+        if not rec:
+            continue
+        if rec.get("today") != today:
+            _drop_pending(C, oref)
+            continue
+        try:
+            snap = _order_snapshot(rec.get("code"), rec.get("remark"),
+                                   rec.get("vol"))
+        except BaseException as e:
+            print("[CONFIRM] " + str(rec.get("code")) +
+                  " snapshot fail: " + str(e)[:80])
+            continue
+        _confirm_one(C, rec, snap)
+
+
 def _do_sell(C, code, pos, price, reason):
     vol = pos.get("shares", 0)
     can_use = pos.get("can_use", vol)
@@ -3264,13 +3611,14 @@ def _do_sell(C, code, pos, price, reason):
         return
     print("[SELL] " + code + " " + reason + " all " + str(vol) +
           "sh @ " + str(round(price, 2)))
+    oref = _next_oref(C, code, today) if VERIFY_FILL else ""
     try:
         # v2.9: passorder(24,...) with quickTrade=1 fires immediately. The old
         # order_shares is K-line driven (=quickTrade=0) and only sends at the
         # first tick of the NEXT bar, so sells printed but never reached the
         # broker in realtime.
         ret = passorder(24, 1101, ACCOUNT_ID, code, 5, -1, vol,
-                        "fullchain", 1, "", C)
+                        "fullchain", 1, oref, C)
         if ret != 0:
             # v2.11: rejected sell -> no lock, no trade log, keep position so
             # it is retried next period (2026-08-14: rejected sell of 301202
@@ -3282,6 +3630,15 @@ def _do_sell(C, code, pos, price, reason):
         _mark_order_locked(today, code, lockk)
     except BaseException as e:
         print("[SELL] order fail: " + str(e))
+        return
+    if VERIFY_FILL:
+        # Fix C (v2.46): do NOT pop / log / arm cooldown until the broker
+        # confirms the fill. Register pending and let _confirm_pending resolve.
+        _register_pending(C, "SELL", code, oref, vol, price, reason,
+                          today, lockk)
+        pos["sell_pending"] = oref
+        print("[PENDING] SELL " + code + " " + reason + " x" + str(vol) +
+              " oref=" + oref + " -> await fill confirm")
         return
     _log_trade(C, "SELL", code, price, vol, reason, pos=pos)
     # v2.41 D3-2/D3-3: a discipline stop (hard_stop / stop_fixed / observe_floor
@@ -3316,11 +3673,12 @@ def _do_sell_half(C, code, pos, price, reason):
         return
     print("[SELL] " + code + " " + reason + " half " + str(half) +
           "sh @ " + str(round(price, 2)))
+    oref = _next_oref(C, code, today) if VERIFY_FILL else ""
     try:
         # v2.9: passorder quickTrade=1 -> immediate fire (order_shares was
         # K-line driven and only sent at the next bar's first tick).
         ret = passorder(24, 1101, ACCOUNT_ID, code, 5, -1, half,
-                        "fullchain", 1, "", C)
+                        "fullchain", 1, oref, C)
         if ret != 0:
             print("[SELL] " + code + " " + reason + " half " + str(half) +
                   "sh order REJECTED ret=" + str(ret) + " (no lock, retry)")
@@ -3328,6 +3686,14 @@ def _do_sell_half(C, code, pos, price, reason):
         _mark_order_locked(today, code, lockk)
     except BaseException as e:
         print("[SELL] order fail: " + str(e))
+        return
+    if VERIFY_FILL:
+        # Fix C (v2.46): no share reduction / trade log until confirmed.
+        _register_pending(C, "SELL_HALF", code, oref, half, price, reason,
+                          today, lockk)
+        pos["sell_pending"] = oref
+        print("[PENDING] SELL_HALF " + code + " " + reason + " x" + str(half) +
+              " oref=" + oref + " -> await fill confirm")
         return
     pos["shares"] = shares - half
     pos["can_use"] = max(0, can_use - half)
@@ -3569,12 +3935,13 @@ def _check_buy(C, now, now_min, today, cands):
             print("[SKIP] " + code + " insufficient cash")
             continue
         shares = min(shares, max_cash_shares)
+        oref = _next_oref(C, code, today) if VERIFY_FILL else ""
         try:
             # v2.9: quickTrade=1 -> fire immediately (default 0 is K-line
             # driven and only sends at the next bar's first tick, so the
             # order printed but never reached the broker in realtime).
             ret = passorder(23, 1101, ACCOUNT_ID, code, 5, -1, shares,
-                            "fullchain", 1, "", C)
+                            "fullchain", 1, oref, C)
             if ret != 0:
                 # v2.11: passorder non-zero = REJECTED. Never write lock /
                 # position / trade log on a rejected order: those fake records
@@ -3601,17 +3968,28 @@ def _check_buy(C, now, now_min, today, cands):
                 "t2_extended": False,
                 "vwap_broken": False,
                 "wy_bc_armed": False,
-                "pending": False,
+                "pending": bool(VERIFY_FILL),
                 "today_high": fill,
                 "fusion_scores": _fusion_from_item(item, C.cand_cache.get(today) or []),
             }
             today_bought += 1
             sweet_tag = " SWEET" if _is_sweet_zone(C, code) else ""
-            print("[BUY] " + code + " x" + str(shares) + " @ " +
-                  str(round(fill, 2)) + " P2=dyn_confirm rank=" + str(rank) +
-                  sweet_tag)
-            _log_trade(C, "BUY", code, fill, shares, "p2_dyn_confirm",
-                       pos=C.position_map[code])
+            if VERIFY_FILL:
+                # Fix C (v2.46): provisional slot; _confirm_pending books the
+                # real traded volume/avg price (or rolls back if never acked).
+                C.position_map[code]["_oref"] = oref
+                _register_pending(C, "BUY", code, oref, shares, fill,
+                                  "p2_dyn_confirm", today, "BUY")
+                print("[PENDING] BUY " + code + " x" + str(shares) +
+                      " @ signal " + str(round(fill, 2)) +
+                      " P2=dyn_confirm rank=" + str(rank) + sweet_tag +
+                      " oref=" + oref + " -> await fill confirm")
+            else:
+                print("[BUY] " + code + " x" + str(shares) + " @ " +
+                      str(round(fill, 2)) + " P2=dyn_confirm rank=" + str(rank) +
+                      sweet_tag)
+                _log_trade(C, "BUY", code, fill, shares, "p2_dyn_confirm",
+                           pos=C.position_map[code])
             # v2.40: [SHADOW-B1] read-only trigger-level shape snapshot.
             _shadow_b1_log(C, code, item.get("name"), rank, fill, now_min, today)
             _save_pos_state(C)

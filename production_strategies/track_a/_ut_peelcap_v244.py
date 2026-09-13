@@ -15,7 +15,7 @@ import importlib.util
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SIM = os.path.join(HERE, "TrackA_track_a_qmt_full_chain_sim_v2.45.py")
+SIM = os.path.join(HERE, "TrackA_track_a_qmt_full_chain_sim_v2.46.py")
 LIVE = os.path.join(HERE, "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py")
 
 fail = []

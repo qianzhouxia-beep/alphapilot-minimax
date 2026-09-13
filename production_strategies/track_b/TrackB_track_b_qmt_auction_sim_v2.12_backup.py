@@ -133,7 +133,7 @@
 #   skip_high_turnover now permanently abandon the candidate (sent_today).
 #   wait_confirm logs silenced (would spam 40-80 lines/bar on the widened pool).
 # Track B (NEW): QMT-side 09:25-09:35 full-pool gate + auction select.
-# Key differences vs Track A (TrackA_track_a_qmt_full_chain_sim_v2.45.py):
+# Key differences vs Track A (TrackA_track_a_qmt_full_chain_sim_v2.46.py):
 #   [A] Track A reads {date}.candidates.json (Top10, server pre-picked)
 #       -> P2 dynamic confirm -> Top2 buy.
 #   [B] Track B reads {date}.fullpool.json (05:00 full candidate pool,
@@ -163,7 +163,7 @@
 #     constituents of candidate sectors (wider sample, avoids n=1 distortion).
 #
 # Naming convention (instantly distinguishable from Track A):
-#   Track A: TrackA_track_a_qmt_full_chain_sim_v2.45.py  (QMT SIM)
+#   Track A: TrackA_track_a_qmt_full_chain_sim_v2.46.py  (QMT SIM)
 #            TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py (QMT LIVE template)
 #            TrackA_track_a_tdx_full_chain_sim_v2.30.py  (TDX SIM)
 #   Track B: TrackB_track_b_qmt_auction_sim_v2.14.py   (QMT SIM account)

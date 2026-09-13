@@ -17,7 +17,7 @@ ROOT = Path(str(_REPO / "production_strategies"))
 FILES = [
     # label, path, expected version banner, expected MAX_CAND_RANK
     ("QMT live A", ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py", "v2.38-tpl", 3),
-    ("QMT sim A",  ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.45.py", "v2.45", 3),
+    ("QMT sim A",  ROOT / "track_a" / "TrackA_track_a_qmt_full_chain_sim_v2.46.py", "v2.46", 3),
     ("TDX sim A",  ROOT / "track_a" / "TrackA_track_a_tdx_full_chain_sim_v2.31.py", "v2.31", 2),
     ("ptrade sim A", ROOT / "ptrade" / "TrackA_track_a_ptrade_sim.py", "v1.7", 2),
     ("ptrade live A", ROOT / "ptrade" / "TrackA_track_a_ptrade_live.py", "v1.7-tpl", 2),

@@ -31,7 +31,7 @@ production_strategies/
 ├── CHANGELOG.md              ← 修改日志（每次改动必须追加）
 │
 ├── track_a/                  ← 轨道 A（QMT/TDX 现有链路）
-│   ├── TrackA_track_a_qmt_full_chain_sim_v2.45.py  v2.45      QMT 模拟盘（gene+path_fade+loud_vol+R5+TSDOWN+D8 + 条件式日内位置门 + peel 回撤上限2% + peel 次bar确认）
+│   ├── TrackA_track_a_qmt_full_chain_sim_v2.46.py  v2.46      QMT 模拟盘（gene+path_fade+loud_vol+R5+TSDOWN+D8 + 条件式日内位置门 + peel 回撤上限2% + peel 次bar确认 + Fix C 成交确认）
 │   ├── TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py v2.38-tpl  QMT 实盘模板（gene+path_fade+loud_vol+R5+TSDOWN+D8；日内位置门 0.85 未改）
 │   ├── TrackA_track_a_tdx_full_chain_sim_v2.31.py  v2.31      TDX 模拟盘（P2 + rank<=2, vwap 二次确认）
 │   ├── fetch_tick_abr.py                 —          历史逐笔拉取 + ABR 聚合（mootdx）
@@ -92,7 +92,7 @@ production_strategies/
 
 | 文件 | 部署目标 | 行尾 | md5（权威 · 2026-09-12） | `[INIT]` 预期 |
 |------|----------|------|--------------------------|----------------|
-| `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` | QMT 模拟盘 python 目录（明文复制，勿粘贴） | **CRLF** | `4d43f181cc804d597723c0df9cf62fec` | `track-A qmt-sim v2.45 (… cond-dayhigh, peel-cap2%+nextbar)` |
+| `track_a/TrackA_track_a_qmt_full_chain_sim_v2.46.py` | QMT 模拟盘 python 目录（明文复制，勿粘贴） | **CRLF** | `9d8ba58234176937e770741df9d464c4` | `track-A qmt-sim v2.46 (… cond-dayhigh, peel-cap2%+nextbar+verify_fill)` |
 | `track_a/TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py` | QMT 实盘，每个账户复制一份，改 CONFIG 块 | LF | `34d62a96410e58f16e66700b32eaa49d` | `track-A qmt-live v2.38-tpl (…)` |
 | `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` | TDX 通达信量化端 `PYPlugins\user` 目录 | LF | `924a3bf99809ab1c98abd124cb28bd4c` | `track-A tdx-sim v2.31` |
 | `track_b/TrackB_track_b_qmt_auction_sim_v2.14.py` | QMT 模拟盘（**第二个模拟账户**），python 目录 | **CRLF** | `b4ee7167d40fec9145946741f63e5a7c` | `track-B v2.14 (LIM10-failsafe+…+verify_fill)` |
@@ -137,11 +137,11 @@ mootdx_feed.py（本机独立进程，交易日 09:15-15:00）
 `MIN_ACTIVE_BUY=0.52` → `skip_low_abr` 当日放弃。**软门**：数据不可用不拦截。
 部署 QMT 轨道 A 前需先启动 `mootdx_feed.py`。
 
-## 六、当前版本基线（更新 2026-09-12；文件名版本 = 文件内版本）
+## 六、当前版本基线（更新 2026-09-13；文件名版本 = 文件内版本）
 
 | 文件 | 版本 | 状态 |
 |------|------|------|
-| 轨道 A QMT 模拟（`TrackA_track_a_qmt_full_chain_sim_v2.45.py`） | v2.45 | ✅ peel 回撤上限2% + peel 次bar确认 |
+| 轨道 A QMT 模拟（`TrackA_track_a_qmt_full_chain_sim_v2.46.py`） | v2.46 | ✅ peel 回撤上限2% + peel 次bar确认 + Fix C 成交确认（VERIFY_FILL） |
 | 轨道 A QMT 实盘模板（`TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py`） | v2.38-tpl | ✅ 实盘模板（落后模拟，正常） |
 | 轨道 A TDX（`TrackA_track_a_tdx_full_chain_sim_v2.31.py`） | v2.31 | ✅ TDX 模拟盘 |
 | 轨道 B QMT 模拟（`TrackB_track_b_qmt_auction_sim_v2.14.py`） | v2.14 | ✅ LIM10 fail-safe + ACCOUNT_ID=62128716 + Fix C 成交确认（**老板 QMT 部署件**） |

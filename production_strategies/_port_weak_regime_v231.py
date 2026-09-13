@@ -512,7 +512,7 @@ def hdr(old_title: str, new_title: str, ver: str) -> tuple[str, str]:
 
 FILES = {
     # ---- QMT C flavor ----
-    "track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py": [
+    "track_a/TrackA_track_a_qmt_full_chain_sim_v2.46.py": [
         hdr("# AlphaPilot -- Track A QMT sim full-chain strategy v2.30 (vwap 2nd confirm)",
             "# AlphaPilot -- Track A QMT sim full-chain strategy v2.31 (weak-regime exits)",
             "v2.31"),

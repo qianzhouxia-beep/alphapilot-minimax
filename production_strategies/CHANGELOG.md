@@ -18,6 +18,25 @@
 
 ---
 
+## 2026-09-13 Track A sim v2.45 → v2.46：Fix C `passorder` 成交确认（A/B 对照公平性，独立提交）
+
+- 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-13 定调——**A/B 双模拟盘是并行对照实验，B 修了洞 A 必须同修**，否则两轨账本精度不同、对照结论失真（实盘部署仍待两轨分出优劣后）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.45.py` → **`track_a/TrackA_track_a_qmt_full_chain_sim_v2.46.py`**（`git mv` + 落码改名；QMT 模拟盘部署件）
+  - 新增 `track_a/_test_order_confirm.py`（Fix C 回归，**26 PASS**，先红后绿已证）
+  - 同步活动引用：`README.md`、`MEMORY.md`、`docs/AGENT_RULES.md`、`docs/TRACK_A_B_SELECTION_COMPARISON.md`、`_test_max_cand_rank.py`（期望版本 v2.45→v2.46）、`_test_hold_days_trading.py`、`_test_vwap_second_hit.py`、`_port_weak_regime_v231.py`、`track_a/_ut_{peelcap_v244,peelnextbar_v245,tsdown_v242,dayhigh_v243}.py`、`track_a/_test_{sell_rotation_v215,rotation_v216}.py`、`track_b/{sim_v2.14,live_v2.7-tpl,tdx_v1.20,sim_v2.12_backup,live_v2.6-tpl_backup}.py`、`ptrade/{sim,live}`、备份件头注释
+- 版本变化：v2.45 → **v2.46**（改买卖记账逻辑）
+- 修改内容：**与 Track B v2.14 语义逐点对齐**，仅按 A 特性适配：
+  1. 新增 `VERIFY_FILL`（默认 True）/`VERIFY_MAX_CHECKS=30`/`VERIFY_GRACE_CHECKS=3`；`init()` 增 `C.pending_orders`/`C._oref_seq`；`handlebar` 在 `_sync_holdings` 后、sell/buy 前调 `_confirm_pending(C)`。
+  2. 三处 `passorder`（全卖 L~3620 / 半卖 L~3676 / 买 L~3930）加唯一 `userOrderId`（`_next_oref`，前缀 `a` 区分 B 的 `b`），改走 pending 注册。
+  3. 移植 `_fval`（双 API 字段解析）、`_today_orders_deals`、`_order_snapshot`、`_clear_order_locked`、`_register_pending`、`_drop_pending`、`_rollback_buy`、`_release_sell`、`_confirm_one`、`_confirm_pending`。
+  4. **A 专属适配**：`_log_trade(..., pos=pos)` 签名保留；**冷却（`_mark_cooldown`）改为"确认成交后才 arm"**（新增 `_arm_cooldown_sell`，`_confirm_one` SELL 成交/仓位已消失时调用）——避免"卖单没成交却禁买"。
+  5. `[INIT]` → `track-A qmt-sim v2.46 (… peel-cap2%+nextbar+verify_fill)`；文件头补 v2.46 段。
+- 原因/依据：与 B 同源缺陷（`ret==0` 即按**信号价**记账；买入幽灵占 `today_bought`/额度，卖出幽灵平仓）。工单 `bt_research/FixC_ghost_ledger_ticket.md` §二.2 明列 `track_a/TrackA_..._{sim,live}.py` 为"同一 3 点模式"；老板 2026-09-13 指示 A/B 对照须同修。
+- 验证：`_test_order_confirm.py` **26/26 PASS**（对 v2.45 先红：`AttributeError _next_oref`）；A 侧回归 `_test_max_cand_rank` 40/40、`_ut_peelcap_v244`/`_ut_peelnextbar_v245`/`_ut_tsdown_v242`/`_ut_dayhigh_v243` 全 PASS、`_test_sell_rotation_v215` 11/11、`_test_rotation_v216` 9/9、`_test_vwap_second_hit` 9/9、`_test_hold_days_trading` 102/102；B 侧 `_test_order_confirm` 26/26（注释改动无回归）；ASCII+AST 通过；行尾仍 **CRLF**（4246 CRLF / 0 单独 LF）。
+- 部署：**需要**。老板把 `track_a/TrackA_track_a_qmt_full_chain_sim_v2.46.py`（**CRLF**，md5 **`9d8ba58234176937e770741df9d464c4`**）复制到 QMT 模拟盘 python 目录；次日查 `[INIT] track-A qmt-sim v2.46 … verify_fill=True`。**A live / TDX / B 均不动**（B 老板已部署 v2.14）。
+- 备注：A 的 `_rotation_sell` 在 `VERIFY_FILL=True` 下"下单成功即认为已卖"的返回值语义未改（`ROTATION_ENABLE=False`，两轨一致，不影响对照）；如需启用轮动需单开 ticket。
+
 ## 2026-09-13 规则固化：WB-Mac 改仓免写 CHANGELOG，由主控 Agent 代补（老板拍板）
 
 - 修改人/Agent：老板拍板；主控 Agent（Cursor）落文本

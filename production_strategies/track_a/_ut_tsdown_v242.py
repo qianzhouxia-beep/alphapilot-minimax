@@ -17,7 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 
 FILES = {
-    "sim": os.path.join(HERE, "TrackA_track_a_qmt_full_chain_sim_v2.45.py"),
+    "sim": os.path.join(HERE, "TrackA_track_a_qmt_full_chain_sim_v2.46.py"),
     "live": os.path.join(HERE, "TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py"),
 }
 ENG = os.path.join(ROOT, "bt_research", "_ts_engine.py")
