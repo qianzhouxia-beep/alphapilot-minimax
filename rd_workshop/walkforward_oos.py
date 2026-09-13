@@ -96,6 +96,16 @@ CAND_PARAMS = {
 }
 
 
+def _rss_gb() -> float:
+    """当前进程 RSS（GB），用于诊断内存峰值；读取失败返回 0。"""
+    try:
+        with open("/proc/self/statm", encoding="ascii") as fh:
+            pages = int(fh.read().split()[1])
+        return pages * os.sysconf("SC_PAGE_SIZE") / 1e9
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
 # ────────────────────────────── 面板构建 ──────────────────────────────
 
 def _kline_frame() -> pd.DataFrame:
@@ -198,8 +208,17 @@ def build_panel(max_stocks: int, extra_path: str | None, forward_days: int, thre
         raise SystemExit("no panels built")
     panel = pd.concat(panels, ignore_index=True)
     panel["date"] = panel["date"].astype(str).str[:10]
+    # ── 内存优化（2026-09-13 OOM 修复）──
+    # 原实现保留 float64 全表（2.0M 行 × 106 列 ≈ 1.7GB），叠加每折整表副本后在
+    # 3.6GB 机器上触发 OOM（实测 anon-rss 3.14GB 被杀）。这里只留必要列并降 float32。
+    keep_cols = ["date", "symbol", "ret_fwd", "label"] + [c for c in needed if c in panel.columns]
+    panel = panel[keep_cols].copy()
+    for c in needed:
+        if c in panel.columns and panel[c].dtype != np.float32:
+            panel[c] = panel[c].astype(np.float32)
     print(f"  面板合计 {len(panel)} 行 / {panel['symbol'].nunique()} 只 / "
-          f"{panel['date'].min()}~{panel['date'].max()} | 特征 {len(needed)} 列", flush=True)
+          f"{panel['date'].min()}~{panel['date'].max()} | 特征 {len(needed)} 列 "
+          f"| 表内存 {panel.memory_usage(deep=True).sum() / 1e9:.2f} GB", flush=True)
     return panel, needed, extra_cols
 
 
@@ -219,18 +238,42 @@ def make_folds(all_dates: list[str], end: str, n_folds: int, test_days: int):
     return list(reversed(folds))
 
 
-def _train_slice(panel: pd.DataFrame, test_start: str, purge_days: int, train_tail: int) -> pd.DataFrame:
-    """训练集 = 测试窗之前；去掉最后 purge_days 个交易日（防 T+H 标签越界）；每股截尾 train_tail。"""
-    tr = panel[panel["date"] < test_start]
-    if tr.empty:
-        return tr
-    dates = sorted(tr["date"].unique())
+def _train_cutoff(all_dates: list[str], test_start: str, purge_days: int) -> str | None:
+    """训练截止日 = 测试窗之前、再去掉 purge_days 个交易日（防 T+H 标签越界）。
+
+    日期为 'YYYY-MM-DD'，字符串比较即时序比较；返回 None 表示无可用训练日。
+    """
+    prior = [d for d in all_dates if d < test_start]
+    if not prior:
+        return None
     if purge_days > 0:
-        keep = set(dates[:-purge_days]) if len(dates) > purge_days else set()
-        tr = tr[tr["date"].isin(keep)]
-    if train_tail > 0:
-        tr = tr.sort_values("date").groupby("symbol", group_keys=False).tail(train_tail)
-    return tr
+        if len(prior) <= purge_days:
+            return None
+        prior = prior[:-purge_days]
+    return prior[-1]
+
+
+def _train_positions(
+    date_arr: np.ndarray, sym_arr: np.ndarray, cutoff: str, train_tail: int
+) -> np.ndarray:
+    """返回训练集的行位索引：date<=cutoff，且每股只保留最后 train_tail 行。
+
+    面板已按 symbol 连续排列（build_panel 逐 symbol concat），故同一 symbol 的行在
+    `idx` 中是一段连续区间，直接对每段取尾部即可 —— 无需 groupby / 整表复制。
+    """
+    idx = np.flatnonzero(date_arr <= cutoff)
+    if idx.size == 0 or not train_tail or train_tail <= 0:
+        return idx
+    s = sym_arr[idx]
+    bnd = np.flatnonzero(s[1:] != s[:-1]) + 1
+    starts = np.concatenate(([0], bnd))
+    ends = np.concatenate((bnd, [idx.size]))
+    keep = []
+    for a, b in zip(starts, ends):
+        if (b - a) > train_tail:
+            a = b - train_tail
+        keep.append(idx[a:b])
+    return np.concatenate(keep) if keep else idx[:0]
 
 
 def _fit_candidate(X: np.ndarray, y: np.ndarray, n_models: int):
@@ -254,24 +297,25 @@ def _fit_candidate(X: np.ndarray, y: np.ndarray, n_models: int):
 
 def _predict_ensemble(
     boosters: list[xgb.Booster],
-    df: pd.DataFrame,
-    default_cols: list[str] | None = None,
+    X: np.ndarray,
+    feature_names: list[str],
 ) -> np.ndarray | None:
-    """对一组 booster 取均值预测。
+    """对一组 booster 取均值预测（输入已是按 `feature_names` 排好的 float32 矩阵）。
 
-    `default_cols`：当 booster 自身没带 feature_names（候选模型用 numpy 训练）时
-    的回退列顺序。生产冻结模型 `.ubj` 自带特征名，必须按名取列并回填
-    `feature_names=`，否则 xgboost 会因「DMatrix 无特征名」直接抛 ValueError。
+    生产冻结模型 `.ubj` 自带特征名，必须按名取列并回填 `feature_names=`，
+    否则 xgboost 会因「DMatrix 无特征名」直接抛 ValueError。
+    候选模型用 numpy 训练、自身无名，回退用传入的 `feature_names` 顺序。
     """
     if not boosters:
         return None
+    posmap = {c: i for i, c in enumerate(feature_names)}
     total, n = None, 0
     for b in boosters:
-        cols = list(getattr(b, "feature_names", None) or []) or list(default_cols or [])
-        cols = [c for c in cols if c in df.columns]
-        if not cols:
+        cols = list(getattr(b, "feature_names", None) or []) or list(feature_names)
+        if any(c not in posmap for c in cols):
             return None
-        dmat = xgb.DMatrix(df[cols].to_numpy(dtype=np.float32), feature_names=cols)
+        pos = [posmap[c] for c in cols]
+        dmat = xgb.DMatrix(X[:, pos], feature_names=cols)
         pred = b.predict(dmat)
         total = pred if total is None else total + pred
         n += 1
@@ -341,28 +385,50 @@ def main() -> int:
     prod_boosters, prod_tag = _load_prod_boosters()
     print(f"  生产冻结模型: {prod_tag}", flush=True)
 
+    # ── 内存优化（2026-09-13 OOM 修复）──
+    # 一次性抽出 float32 特征矩阵与元数据，之后按「行位索引」取折，不再每折整表复制。
+    Xall = panel[needed].to_numpy(dtype=np.float32)
+    y_all = panel["label"].to_numpy(dtype=np.float32)
+    ret_all = panel["ret_fwd"].to_numpy(dtype=np.float32)
+    date_arr = panel["date"].to_numpy()
+    # 面板由 per-symbol 帧按 symbol 顺序 concat 而来 ⇒ 每个 symbol 的行连续、内部按日期升序
+    sym_arr = panel["symbol"].to_numpy()
+    panel = None
+    gc.collect()
+    print(f"  特征矩阵 {Xall.shape} float32 = {Xall.nbytes / 1e9:.2f} GB", flush=True)
+
     fold_reports = []
     for fi, f in enumerate(folds, 1):
-        tr = _train_slice(panel, f["test_start"], args.forward_days, args.train_tail)
-        te = panel[(panel["date"] >= f["test_start"]) & (panel["date"] <= f["test_end"])]
-        if tr.empty or te.empty:
-            print(f"  折{fi} 跳过：train={len(tr)} test={len(te)}", flush=True)
+        cutoff = _train_cutoff(all_dates, f["test_start"], args.forward_days)
+        if cutoff is None:
+            print(f"  折{fi} 跳过：无可用训练日", flush=True)
             continue
-        y_tr = tr["label"].to_numpy(dtype=float)
-        if len(set(y_tr.tolist())) < 2:
+        tr_idx = _train_positions(date_arr, sym_arr, cutoff, args.train_tail)
+        te_mask = (date_arr >= f["test_start"]) & (date_arr <= f["test_end"])
+        n_tr, n_te = int(tr_idx.size), int(te_mask.sum())
+        if n_tr == 0 or n_te == 0:
+            print(f"  折{fi} 跳过：train={n_tr} test={n_te}", flush=True)
+            continue
+        y_tr = y_all[tr_idx]
+        if len(np.unique(y_tr)) < 2:
             print(f"  折{fi} 跳过：训练标签单类", flush=True)
             continue
 
-        boosters, val_aucs = _fit_candidate(tr[needed].to_numpy(dtype=np.float32), y_tr, N_MODELS)
-        cand_pred = _predict_ensemble(boosters, te, needed)
-        prod_pred = _predict_ensemble(prod_boosters, te, needed)
+        Xtr = Xall[tr_idx]
+        Xte = Xall[te_mask]
+        boosters, val_aucs = _fit_candidate(Xtr, y_tr.astype(float), N_MODELS)
+        cand_pred = _predict_ensemble(boosters, Xte, needed)
+        prod_pred = _predict_ensemble(prod_boosters, Xte, needed)
+        del Xtr
+        gc.collect()
 
-        y_bin = te["label"].to_numpy(dtype=float)
-        y_ret = te["ret_fwd"].to_numpy(dtype=float)
+        y_bin = y_all[te_mask].astype(float)
+        y_ret = ret_all[te_mask].astype(float)
         rep = {
             "fold": fi,
             "test_start": f["test_start"], "test_end": f["test_end"], "test_days": len(f["days"]),
-            "n_train": int(len(tr)), "n_test": int(len(te)),
+            "train_cutoff": cutoff,
+            "n_train": n_tr, "n_test": n_te,
             "candidate_val_auc": [round(a, 4) for a in val_aucs],
             "candidate": _metrics(y_bin, y_ret, cand_pred) if cand_pred is not None else None,
             "incumbent": _metrics(y_bin, y_ret, prod_pred) if prod_pred is not None else None,
@@ -378,8 +444,8 @@ def main() -> int:
         print(f"  折{fi} {f['test_start']}~{f['test_end']} n={rep['n_test']} | "
               f"cand AUC={c.get('auc')} IC={c.get('rank_ic')} top10ex={c.get('top10_excess_pct')} || "
               f"prod AUC={p.get('auc')} IC={p.get('rank_ic')} top10ex={p.get('top10_excess_pct')} || "
-              f"ΔAUC={rep.get('delta', {}).get('auc')}", flush=True)
-        del boosters, cand_pred, prod_pred
+              f"ΔAUC={rep.get('delta', {}).get('auc')} | RSS={_rss_gb():.2f}GB", flush=True)
+        del boosters, cand_pred, prod_pred, Xte
         gc.collect()
 
     # 聚合：配对差均值 + 折间标准误（噪声带）
