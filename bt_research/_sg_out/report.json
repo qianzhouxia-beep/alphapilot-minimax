@@ -1,0 +1,313 @@
+{
+  "generated_at": "2026-09-13 18:43:09",
+  "run_id": "sg_baseline_full_0913",
+  "boundary": {
+    "writes_production_models": false,
+    "auto_promotion": false,
+    "reads": [
+      "models/*.ubj",
+      "data/kline_cache/kline_all.parquet"
+    ],
+    "writes": [
+      "/home/ubuntu/bt_sandbox/alphapilot/rd_workshop/walkforward_runs/sg_baseline_full_0913"
+    ]
+  },
+  "config": {
+    "folds": 6,
+    "test_days": 21,
+    "end": "2026-09-09",
+    "train_tail": 180,
+    "max_stocks": 0,
+    "extra_factors": null,
+    "extra_factor_cols": [],
+    "forward_days": 1,
+    "threshold": 0.03,
+    "n_features": 106
+  },
+  "production_model": {
+    "n_boosters": 3,
+    "tag": "3 models"
+  },
+  "folds": [
+    {
+      "fold": 1,
+      "test_start": "2026-03-11",
+      "test_end": "2026-04-09",
+      "test_days": 21,
+      "train_cutoff": "2026-03-09",
+      "n_train": 887860,
+      "n_test": 104119,
+      "candidate_val_auc": [
+        0.6786,
+        0.7462,
+        0.6967
+      ],
+      "candidate": {
+        "n": 104119,
+        "auc": 0.657498091324604,
+        "rank_ic": 0.01903879332116391,
+        "base_ret_pct": -0.21311354003636873,
+        "top5_ret_pct": 0.3557426292489718,
+        "top5_excess_pct": 0.5688561692853406,
+        "top10_ret_pct": 0.1977142526991938,
+        "top10_excess_pct": 0.4108277927355625
+      },
+      "incumbent": {
+        "n": 104119,
+        "auc": 0.740190569486292,
+        "rank_ic": 0.11716539879822382,
+        "base_ret_pct": -0.21311354003636873,
+        "top5_ret_pct": 2.0324790417027447,
+        "top5_excess_pct": 2.2455925817391136,
+        "top10_ret_pct": 1.3507547672395162,
+        "top10_excess_pct": 1.563868307275885
+      },
+      "delta": {
+        "auc": -0.08269,
+        "rank_ic": -0.09813,
+        "top5_excess_pct": -1.67674,
+        "top10_excess_pct": -1.15304
+      }
+    },
+    {
+      "fold": 2,
+      "test_start": "2026-04-10",
+      "test_end": "2026-05-13",
+      "test_days": 21,
+      "train_cutoff": "2026-04-08",
+      "n_train": 889021,
+      "n_test": 104133,
+      "candidate_val_auc": [
+        0.6886,
+        0.7496,
+        0.7011
+      ],
+      "candidate": {
+        "n": 104133,
+        "auc": 0.716756810985736,
+        "rank_ic": 0.060816208280623764,
+        "base_ret_pct": 0.32192764574386323,
+        "top5_ret_pct": 1.4553021675709696,
+        "top5_excess_pct": 1.1333745218271063,
+        "top10_ret_pct": 1.305237865003173,
+        "top10_excess_pct": 0.9833102192593098
+      },
+      "incumbent": {
+        "n": 104133,
+        "auc": 0.7263348221440796,
+        "rank_ic": 0.07481280848166791,
+        "base_ret_pct": 0.32192764574386323,
+        "top5_ret_pct": 1.8189792236019353,
+        "top5_excess_pct": 1.497051577858072,
+        "top10_ret_pct": 1.5200501152237846,
+        "top10_excess_pct": 1.1981224694799213
+      },
+      "delta": {
+        "auc": -0.00958,
+        "rank_ic": -0.014,
+        "top5_excess_pct": -0.36368,
+        "top10_excess_pct": -0.21481
+      }
+    },
+    {
+      "fold": 3,
+      "test_start": "2026-05-14",
+      "test_end": "2026-06-11",
+      "test_days": 21,
+      "train_cutoff": "2026-05-12",
+      "n_train": 890063,
+      "n_test": 104167,
+      "candidate_val_auc": [
+        0.6899,
+        0.7497,
+        0.7027
+      ],
+      "candidate": {
+        "n": 104167,
+        "auc": 0.6821948162378987,
+        "rank_ic": 0.035070853337325014,
+        "base_ret_pct": -0.4433884246337644,
+        "top5_ret_pct": 0.8751843278280981,
+        "top5_excess_pct": 1.3185727524618625,
+        "top10_ret_pct": 0.5542385882739775,
+        "top10_excess_pct": 0.9976270129077419
+      },
+      "incumbent": {
+        "n": 104167,
+        "auc": 0.70885702253689,
+        "rank_ic": 0.04005098449129955,
+        "base_ret_pct": -0.4433884246337644,
+        "top5_ret_pct": 1.3305107241837146,
+        "top5_excess_pct": 1.773899148817479,
+        "top10_ret_pct": 0.7456324750916922,
+        "top10_excess_pct": 1.1890208997254565
+      },
+      "delta": {
+        "auc": -0.02666,
+        "rank_ic": -0.00498,
+        "top5_excess_pct": -0.45533,
+        "top10_excess_pct": -0.19139
+      }
+    },
+    {
+      "fold": 4,
+      "test_start": "2026-06-12",
+      "test_end": "2026-07-13",
+      "test_days": 21,
+      "train_cutoff": "2026-06-10",
+      "n_train": 891009,
+      "n_test": 104063,
+      "candidate_val_auc": [
+        0.6918,
+        0.7469,
+        0.7055
+      ],
+      "candidate": {
+        "n": 104063,
+        "auc": 0.6653401749370762,
+        "rank_ic": 0.0026187689127255393,
+        "base_ret_pct": -0.17603524169022197,
+        "top5_ret_pct": 1.4829288416312896,
+        "top5_excess_pct": 1.6589640833215116,
+        "top10_ret_pct": 0.9967218586842127,
+        "top10_excess_pct": 1.1727571003744346
+      },
+      "incumbent": {
+        "n": 104063,
+        "auc": 0.699628330346544,
+        "rank_ic": 0.07641399914573367,
+        "base_ret_pct": -0.17603524169022197,
+        "top5_ret_pct": 2.679996435264052,
+        "top5_excess_pct": 2.8560316769542737,
+        "top10_ret_pct": 1.7846439386973976,
+        "top10_excess_pct": 1.9606791803876196
+      },
+      "delta": {
+        "auc": -0.03429,
+        "rank_ic": -0.0738,
+        "top5_excess_pct": -1.19707,
+        "top10_excess_pct": -0.78792
+      }
+    },
+    {
+      "fold": 5,
+      "test_start": "2026-07-14",
+      "test_end": "2026-08-11",
+      "test_days": 21,
+      "train_cutoff": "2026-07-10",
+      "n_train": 891876,
+      "n_test": 104181,
+      "candidate_val_auc": [
+        0.6877,
+        0.742,
+        0.7038
+      ],
+      "candidate": {
+        "n": 104181,
+        "auc": 0.6664267794158247,
+        "rank_ic": -0.037727036146464644,
+        "base_ret_pct": 0.2360018417093459,
+        "top5_ret_pct": 0.7367129140673031,
+        "top5_excess_pct": 0.5007110723579572,
+        "top10_ret_pct": 0.2341434689992652,
+        "top10_excess_pct": -0.0018583727100807135
+      },
+      "incumbent": {
+        "n": 104181,
+        "auc": 0.7259994938468023,
+        "rank_ic": 0.06683198728085109,
+        "base_ret_pct": 0.2360018417093459,
+        "top5_ret_pct": 3.039000816417291,
+        "top5_excess_pct": 2.802998974707945,
+        "top10_ret_pct": 1.8345815396358105,
+        "top10_excess_pct": 1.5985796979264646
+      },
+      "delta": {
+        "auc": -0.05957,
+        "rank_ic": -0.10456,
+        "top5_excess_pct": -2.30229,
+        "top10_excess_pct": -1.60044
+      }
+    },
+    {
+      "fold": 6,
+      "test_start": "2026-08-12",
+      "test_end": "2026-09-09",
+      "test_days": 21,
+      "train_cutoff": "2026-08-10",
+      "n_train": 892558,
+      "n_test": 104235,
+      "candidate_val_auc": [
+        0.694,
+        0.7456,
+        0.7085
+      ],
+      "candidate": {
+        "n": 104235,
+        "auc": 0.702385181512178,
+        "rank_ic": -0.019982639732510535,
+        "base_ret_pct": -0.018665708066357693,
+        "top5_ret_pct": 1.217028848598235,
+        "top5_excess_pct": 1.2356945566645927,
+        "top10_ret_pct": 0.6636099843405152,
+        "top10_excess_pct": 0.6822756924068729
+      },
+      "incumbent": {
+        "n": 104235,
+        "auc": 0.7136477707040499,
+        "rank_ic": -0.005265085137145454,
+        "base_ret_pct": -0.018665708066357693,
+        "top5_ret_pct": 1.4243084347221924,
+        "top5_excess_pct": 1.44297414278855,
+        "top10_ret_pct": 0.7799340249274971,
+        "top10_excess_pct": 0.7985997329938548
+      },
+      "delta": {
+        "auc": -0.01126,
+        "rank_ic": -0.01472,
+        "top5_excess_pct": -0.20728,
+        "top10_excess_pct": -0.11632
+      }
+    }
+  ],
+  "aggregate": {
+    "n_folds": 6,
+    "auc": {
+      "mean_delta": -0.03734,
+      "std": 0.02872,
+      "se": 0.01173,
+      "noise_band_95": 0.02298,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    },
+    "rank_ic": {
+      "mean_delta": -0.0517,
+      "std": 0.04563,
+      "se": 0.01863,
+      "noise_band_95": 0.03651,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    },
+    "top5_excess_pct": {
+      "mean_delta": -1.03373,
+      "std": 0.83856,
+      "se": 0.34234,
+      "noise_band_95": 0.67099,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    },
+    "top10_excess_pct": {
+      "mean_delta": -0.67732,
+      "std": 0.60917,
+      "se": 0.24869,
+      "noise_band_95": 0.48744,
+      "wins": 0,
+      "n": 6,
+      "beyond_noise": false
+    }
+  },
+  "note": "历史 walk-forward，用于替代『等 40 个真实交易日』的死循环；结论仍是历史 OOS，不自动晋升。"
+}
