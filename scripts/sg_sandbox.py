@@ -96,21 +96,48 @@ def sync_code(sg) -> None:
 
 
 def _md5_local(p: pathlib.Path) -> str:
-    return hashlib.md5(p.read_bytes()).hexdigest()
+    """内容 md5（忽略 CRLF/LF），避免「仅换行差异」被当成代码漂移。"""
+    return hashlib.md5(p.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")).hexdigest()
 
 
 def drift_check(sg) -> None:
-    """比对「本地仓库 vs 生产服务器」关键模块 md5 —— 有差异即报（防用错代码源）。"""
+    """比对「本地仓库 vs 生产服务器」关键模块内容 md5（换行无关）。
+
+    2026-09-13：`features_v2.py` 曾被 raw md5 误报漂移，实际仅 CRLF vs LF。
+    """
     rs = f"ssh -i {SG_KEY} -o StrictHostKeyChecking=no -o ConnectTimeout=20 -o BatchMode=yes"
-    paths = " ".join(f"{SH_ROOT}/{f}" for f in CRITICAL_MODULES)
-    o, _, _ = sg_util.run(sg, f"{rs} {SH} 'md5sum {paths} 2>/dev/null'", timeout=90)
+    remote_py = (
+        "import hashlib, pathlib, os, sys\n"
+        "root = '/home/ubuntu/alphapilot'\n"
+        "def nmd5(p):\n"
+        "    b = pathlib.Path(p).read_bytes().replace(b'\\r\\n', b'\\n').replace(b'\\r', b'\\n')\n"
+        "    return hashlib.md5(b).hexdigest()\n"
+        "for n in sys.argv[1:]:\n"
+        "    p = os.path.join(root, n)\n"
+        "    if os.path.isfile(p):\n"
+        "        print(nmd5(p), n)\n"
+    )
+    sftp = sg.open_sftp()
+    try:
+        with sftp.file("/tmp/_nmd5_prod.py", "w") as fh:
+            fh.write(remote_py)
+    finally:
+        sftp.close()
+    names = " ".join(CRITICAL_MODULES)
+    o, e, c = sg_util.run(
+        sg,
+        f"scp -q -i {SG_KEY} -o StrictHostKeyChecking=no -o BatchMode=yes "
+        f"/tmp/_nmd5_prod.py {SH}:/tmp/_nmd5_prod.py && "
+        f"{rs} {SH} 'python3 /tmp/_nmd5_prod.py {names}'",
+        timeout=120,
+    )
     remote = {}
     for line in o.splitlines():
         parts = line.split()
         if len(parts) == 2:
-            remote[parts[1].rsplit("/", 1)[-1]] = parts[0]
+            remote[parts[1]] = parts[0]
     drift = []
-    print("[drift] 本地仓库 vs 生产服务器")
+    print("[drift] 本地仓库 vs 生产服务器（内容 md5，忽略 CRLF/LF）")
     for f in CRITICAL_MODULES:
         lp = ROOT / f
         if not lp.exists():
@@ -129,7 +156,9 @@ def drift_check(sg) -> None:
         print(f"\n⚠️ {len(drift)} 个关键模块「仓库≠生产」：{', '.join(drift)}")
         print("   → 沙箱复现生产请用服务器版（--sync 已按此拉取）；并尽快核对是否应把生产版回写仓库。")
     else:
-        print("   ✅ 无漂移")
+        print("   ✅ 无内容漂移（换行差异已忽略）")
+    if c != 0 and not remote:
+        print(f"   remote rc={c} err={e[-200:]}")
 
 
 def sync_data(sg) -> None:
