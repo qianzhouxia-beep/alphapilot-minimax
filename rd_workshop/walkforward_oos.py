@@ -137,7 +137,15 @@ def build_panel(max_stocks: int, extra_path: str | None, forward_days: int, thre
         symbols = sorted(rng.choice(symbols, size=max_stocks, replace=False).tolist())
 
     tech_cols = tech_col_names()
-    panels: list[pd.DataFrame] = []
+    # ── 内存（2026-09-13 二次 OOM 修复）──
+    # 不再累积 per-symbol DataFrame 再 pd.concat（concat 峰值 = 双份 float64 ≈ 3.6GB，实测被 OOM 杀）。
+    # 改为逐股只保留 float32 numpy 块，最后 np.concatenate。
+    feat_blocks: list[np.ndarray] = []
+    y_blocks: list[np.ndarray] = []
+    ret_blocks: list[np.ndarray] = []
+    date_blocks: list[np.ndarray] = []
+    sym_blocks: list[np.ndarray] = []
+    n_rows = 0
     base_cols: list[str] | None = None
     skipped = 0
 
@@ -190,10 +198,15 @@ def build_panel(max_stocks: int, extra_path: str | None, forward_days: int, thre
             full["label"] = (full["ret_fwd"] > threshold).astype(float)
             full = full.replace([np.inf, -np.inf], np.nan)
 
-            keep = ["date", "symbol", "close", "open", "ret_fwd", "label"] + needed
+            keep = ["date", "ret_fwd", "label"] + needed
             vo = full[keep].dropna(subset=["ret_fwd", "label"] + needed)
             if len(vo) >= 10:
-                panels.append(vo)
+                feat_blocks.append(vo[needed].to_numpy(dtype=np.float32))
+                y_blocks.append(vo["label"].to_numpy(dtype=np.float32))
+                ret_blocks.append(vo["ret_fwd"].to_numpy(dtype=np.float32))
+                date_blocks.append(vo["date"].to_numpy(dtype="<U10"))
+                sym_blocks.append(np.full(len(vo), code, dtype=object))
+                n_rows += len(vo)
             else:
                 skipped += 1
         except Exception as exc:  # noqa: BLE001
@@ -201,25 +214,26 @@ def build_panel(max_stocks: int, extra_path: str | None, forward_days: int, thre
             if skipped <= 3:
                 print(f"  [skip] {sym}: {exc}", flush=True)
         if (i + 1) % 500 == 0:
-            print(f"  面板 {i+1}/{len(symbols)} | 已收 {len(panels)} 只 | skip {skipped}", flush=True)
+            print(f"  面板 {i+1}/{len(symbols)} | 已收 {len(feat_blocks)} 只 | skip {skipped} | "
+                  f"累计 {n_rows} 行 RSS={_rss_gb():.2f}GB", flush=True)
             gc.collect()
 
-    if not panels:
+    if not feat_blocks:
         raise SystemExit("no panels built")
-    panel = pd.concat(panels, ignore_index=True)
-    panel["date"] = panel["date"].astype(str).str[:10]
-    # ── 内存优化（2026-09-13 OOM 修复）──
-    # 原实现保留 float64 全表（2.0M 行 × 106 列 ≈ 1.7GB），叠加每折整表副本后在
-    # 3.6GB 机器上触发 OOM（实测 anon-rss 3.14GB 被杀）。这里只留必要列并降 float32。
-    keep_cols = ["date", "symbol", "ret_fwd", "label"] + [c for c in needed if c in panel.columns]
-    panel = panel[keep_cols].copy()
-    for c in needed:
-        if c in panel.columns and panel[c].dtype != np.float32:
-            panel[c] = panel[c].astype(np.float32)
-    print(f"  面板合计 {len(panel)} 行 / {panel['symbol'].nunique()} 只 / "
-          f"{panel['date'].min()}~{panel['date'].max()} | 特征 {len(needed)} 列 "
-          f"| 表内存 {panel.memory_usage(deep=True).sum() / 1e9:.2f} GB", flush=True)
-    return panel, needed, extra_cols
+    del kdf, fundamentals, fund_flow, margin, event, lhb_hist
+    gc.collect()
+    Xall = np.concatenate(feat_blocks) if len(feat_blocks) > 1 else feat_blocks[0]
+    y_all = np.concatenate(y_blocks)
+    ret_all = np.concatenate(ret_blocks)
+    date_arr = np.concatenate(date_blocks)
+    sym_arr = np.concatenate(sym_blocks)
+    del feat_blocks, y_blocks, ret_blocks, date_blocks, sym_blocks
+    gc.collect()
+    _dts = date_arr.tolist()  # numpy 2.x 对 '<U10' 不支持 .min()/.max()
+    print(f"  面板合计 {len(Xall)} 行 / {len(np.unique(sym_arr))} 只 / "
+          f"{min(_dts)}~{max(_dts)} | 特征 {len(needed)} 列 "
+          f"| 矩阵 {Xall.nbytes / 1e9:.2f} GB | RSS={_rss_gb():.2f}GB", flush=True)
+    return Xall, y_all, ret_all, date_arr, sym_arr, needed, extra_cols
 
 
 # ────────────────────────────── 折 / 训练 ──────────────────────────────
@@ -352,6 +366,73 @@ def _metrics(y_bin: np.ndarray, y_ret: np.ndarray, pred: np.ndarray) -> dict:
     return out
 
 
+def _daily_paired_delta(date_sub: np.ndarray, y_ret: np.ndarray, pred_a, pred_b):
+    """按**交易日**配对：逐日算 a−b 的 RankIC 差 与 Top10 超额差（百分点）。
+
+    为什么按日：折内样本高度同期相关，跨折只有 6 个点 ⇒ 「1.96×折间 SE」的
+    独立性假设不成立。逐日配对差保留时间序列结构，交给块自举估计噪声带。
+    """
+    from scipy.stats import spearmanr
+
+    ic, ex = [], []
+    for d in pd.unique(date_sub):
+        m = date_sub == d
+        n = int(m.sum())
+        if n < 20:
+            continue
+        yr = y_ret[m]
+        pa, pb = pred_a[m], pred_b[m]
+        ra = spearmanr(pa, yr).correlation
+        rb = spearmanr(pb, yr).correlation
+        if np.isfinite(ra) and np.isfinite(rb):
+            ic.append(float(ra - rb))
+        k = max(1, int(n * 0.10))
+        base = float(np.mean(yr))
+        ea = float(np.mean(yr[np.argsort(-pa)[:k]])) - base
+        eb = float(np.mean(yr[np.argsort(-pb)[:k]])) - base
+        ex.append((ea - eb) * 100.0)
+    return np.array(ic, float), np.array(ex, float)
+
+
+def _block_bootstrap(delta: np.ndarray, block: int, iters: int, seed: int = 7):
+    """循环块自举：块长 block ≥ 标签持有期，保住自相关结构。
+
+    返回 dict(mean, se, lo95, hi95, p_beyond0)。`lo95>0` ⇒ 配对差在 95% 下仍为正。
+    """
+    n = int(delta.size)
+    if n < max(4, 2 * block):
+        return None
+    rng = np.random.default_rng(seed)
+    nb = int(np.ceil(n / block))
+    off = np.arange(block)[None, :]
+    means = np.empty(iters, float)
+    for i in range(iters):
+        starts = rng.integers(0, n, size=nb)
+        idx = (starts[:, None] + off).ravel() % n
+        means[i] = delta[idx[:n]].mean()
+    lo, hi = np.percentile(means, [2.5, 97.5])
+    return {
+        "n_days": n,
+        "mean": round(float(delta.mean()), 5),
+        "se": round(float(means.std(ddof=1)), 5),
+        "lo95": round(float(lo), 5),
+        "hi95": round(float(hi), 5),
+        "p_beyond0": float(np.mean(means > 0)),
+    }
+
+
+def _prod_trained_at() -> str | None:
+    """生产冻结模型训练时间（前视护栏用）。"""
+    for name in ("v25_meta.json",):
+        p = PROD_MODELS / name
+        if p.exists():
+            try:
+                return str(json.loads(p.read_text(encoding="utf-8")).get("trained_at") or "")[:10] or None
+            except Exception:  # noqa: BLE001
+                return None
+    return None
+
+
 # ────────────────────────────── 主流程 ──────────────────────────────
 
 def main() -> int:
@@ -362,6 +443,10 @@ def main() -> int:
     ap.add_argument("--train-tail", type=int, default=180, help="每折训练每股截尾（对齐生产 tail(180)）")
     ap.add_argument("--max-stocks", type=int, default=0, help="限股票数（smoke）")
     ap.add_argument("--extra-factors", default="", help="RD 增量因子（归一化 parquet/csv）")
+    ap.add_argument("--control", choices=("retrain", "frozen"), default="retrain",
+                    help="对照臂：retrain=同截断同配方重训（无前视，默认）；frozen=读冻结 .ubj（仅当训练早于测试窗才合法）")
+    ap.add_argument("--boot-iters", type=int, default=2000, help="块自举次数")
+    ap.add_argument("--boot-block", type=int, default=5, help="块自举块长（交易日，应 ≥ 标签持有期）")
     ap.add_argument("--forward-days", type=int, default=FORWARD_DAYS)
     ap.add_argument("--threshold", type=float, default=THRESHOLD)
     ap.add_argument("--run-id", default="")
@@ -372,10 +457,10 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print("=== 历史 walk-forward OOS（候选 vs 冻结生产）===", flush=True)
-    panel, needed, extra_cols = build_panel(
+    Xall, y_all, ret_all, date_arr, sym_arr, needed, extra_cols = build_panel(
         args.max_stocks, args.extra_factors or None, args.forward_days, args.threshold)
 
-    all_dates = sorted(panel["date"].unique())
+    all_dates = sorted(set(date_arr.tolist()))
     end = args.end or all_dates[-1]
     folds = make_folds(all_dates, end, args.folds, args.test_days)
     if not folds:
@@ -383,21 +468,15 @@ def main() -> int:
     print(f"  折数 {len(folds)} | 测试窗 {folds[0]['test_start']}~{folds[-1]['test_end']} | end={end}", flush=True)
 
     prod_boosters, prod_tag = _load_prod_boosters()
-    print(f"  生产冻结模型: {prod_tag}", flush=True)
-
-    # ── 内存优化（2026-09-13 OOM 修复）──
-    # 一次性抽出 float32 特征矩阵与元数据，之后按「行位索引」取折，不再每折整表复制。
-    Xall = panel[needed].to_numpy(dtype=np.float32)
-    y_all = panel["label"].to_numpy(dtype=np.float32)
-    ret_all = panel["ret_fwd"].to_numpy(dtype=np.float32)
-    date_arr = panel["date"].to_numpy()
-    # 面板由 per-symbol 帧按 symbol 顺序 concat 而来 ⇒ 每个 symbol 的行连续、内部按日期升序
-    sym_arr = panel["symbol"].to_numpy()
-    panel = None
+    prod_trained = _prod_trained_at()
+    ctrl_mode = args.control
+    print(f"  生产冻结模型: {prod_tag} | trained_at={prod_trained} | 对照臂={ctrl_mode}", flush=True)
     gc.collect()
-    print(f"  特征矩阵 {Xall.shape} float32 = {Xall.nbytes / 1e9:.2f} GB", flush=True)
 
     fold_reports = []
+    lookahead_folds: list[int] = []
+    all_ic_delta: list[np.ndarray] = []
+    all_ex_delta: list[np.ndarray] = []
     for fi, f in enumerate(folds, 1):
         cutoff = _train_cutoff(all_dates, f["test_start"], args.forward_days)
         if cutoff is None:
@@ -414,11 +493,24 @@ def main() -> int:
             print(f"  折{fi} 跳过：训练标签单类", flush=True)
             continue
 
+        # 前视护栏：冻结生产模型若训练于本折 cutoff 之后 ⇒ 它见过测试期，本折不可用
+        lookahead = bool(
+            ctrl_mode == "frozen" and prod_trained and cutoff < prod_trained
+        )
+        if lookahead:
+            lookahead_folds.append(fi)
+
         Xtr = Xall[tr_idx]
         Xte = Xall[te_mask]
         boosters, val_aucs = _fit_candidate(Xtr, y_tr.astype(float), N_MODELS)
         cand_pred = _predict_ensemble(boosters, Xte, needed)
-        prod_pred = _predict_ensemble(prod_boosters, Xte, needed)
+        if ctrl_mode == "retrain":
+            # 同截断、同配方、同特征重训 —— 与候选唯一差别 = 待测增量因子
+            ctrl_boosters, _ = _fit_candidate(Xtr, y_tr.astype(float), N_MODELS)
+            ctrl_pred = _predict_ensemble(ctrl_boosters, Xte, needed)
+            del ctrl_boosters
+        else:
+            ctrl_pred = _predict_ensemble(prod_boosters, Xte, needed)
         del Xtr
         gc.collect()
 
@@ -430,8 +522,9 @@ def main() -> int:
             "train_cutoff": cutoff,
             "n_train": n_tr, "n_test": n_te,
             "candidate_val_auc": [round(a, 4) for a in val_aucs],
+            "lookahead_risk": lookahead,
             "candidate": _metrics(y_bin, y_ret, cand_pred) if cand_pred is not None else None,
-            "incumbent": _metrics(y_bin, y_ret, prod_pred) if prod_pred is not None else None,
+            "incumbent": _metrics(y_bin, y_ret, ctrl_pred) if ctrl_pred is not None else None,
         }
         if rep["candidate"] and rep["incumbent"]:
             rep["delta"] = {
@@ -439,13 +532,20 @@ def main() -> int:
                     else round(rep["candidate"][k] - rep["incumbent"][k], 5))
                 for k in ("auc", "rank_ic", "top5_excess_pct", "top10_excess_pct")
             }
+            if cand_pred is not None and ctrl_pred is not None:
+                d_ic, d_ex = _daily_paired_delta(date_arr[te_mask], y_ret, cand_pred, ctrl_pred)
+                if d_ic.size:
+                    all_ic_delta.append(d_ic)
+                if d_ex.size:
+                    all_ex_delta.append(d_ex)
         fold_reports.append(rep)
         c, p = rep["candidate"] or {}, rep["incumbent"] or {}
+        la = " ⚠LOOKAHEAD" if lookahead else ""
         print(f"  折{fi} {f['test_start']}~{f['test_end']} n={rep['n_test']} | "
               f"cand AUC={c.get('auc')} IC={c.get('rank_ic')} top10ex={c.get('top10_excess_pct')} || "
-              f"prod AUC={p.get('auc')} IC={p.get('rank_ic')} top10ex={p.get('top10_excess_pct')} || "
-              f"ΔAUC={rep.get('delta', {}).get('auc')} | RSS={_rss_gb():.2f}GB", flush=True)
-        del boosters, cand_pred, prod_pred, Xte
+              f"ctrl AUC={p.get('auc')} IC={p.get('rank_ic')} top10ex={p.get('top10_excess_pct')} || "
+              f"ΔAUC={rep.get('delta', {}).get('auc')} | RSS={_rss_gb():.2f}GB{la}", flush=True)
+        del boosters, cand_pred, ctrl_pred, Xte
         gc.collect()
 
     # 聚合：配对差均值 + 折间标准误（噪声带）
@@ -466,6 +566,22 @@ def main() -> int:
             "beyond_noise": bool(np.isfinite(se) and arr.mean() > 1.96 * se),
         }
 
+    # 块自举噪声带（不依赖「折独立」假设；块长 ≥ 标签持有期，保住自相关）
+    boot: dict = {}
+    for name, chunks in (("rank_ic", all_ic_delta), ("top10_excess_pct", all_ex_delta)):
+        if chunks:
+            b = _block_bootstrap(np.concatenate(chunks), args.boot_block, args.boot_iters)
+            if b:
+                boot[name] = b
+
+    # 两臂等同性自检：无增量因子 + 同截断重训 ⇒ 候选与对照应逐位相同（Δ≡0）
+    arm_parity_ok = None
+    if ctrl_mode == "retrain" and not extra_cols:
+        arm_parity_ok = all(
+            r.get("delta") and all(abs(v) < 1e-9 for v in r["delta"].values() if v is not None)
+            for r in fold_reports
+        )
+
     report = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "run_id": run_id,
@@ -480,18 +596,31 @@ def main() -> int:
             "extra_factors": args.extra_factors or None, "extra_factor_cols": extra_cols,
             "forward_days": args.forward_days, "threshold": args.threshold,
             "n_features": len(needed),
+            "control_arm": ctrl_mode, "boot_block": args.boot_block, "boot_iters": args.boot_iters,
         },
-        "production_model": {"n_boosters": len(prod_boosters), "tag": prod_tag},
+        "production_model": {
+            "n_boosters": len(prod_boosters), "tag": prod_tag, "trained_at": prod_trained,
+            "lookahead_folds": lookahead_folds,
+        },
+        "arm_parity_ok": arm_parity_ok,
         "folds": fold_reports,
         "aggregate": agg,
-        "note": ("历史 walk-forward，用于替代『等 40 个真实交易日』的死循环；"
-                 "结论仍是历史 OOS，不自动晋升。"),
+        "block_bootstrap": boot,
+        "note": ("历史 walk-forward：两臂同截断同配方，唯一差别 = 待测增量因子；"
+                 "噪声带用逐日配对差的块自举（非折间 t 检验）。结论仍是历史 OOS，不自动晋升。"),
     }
     rp = out_dir / "report.json"
     rp.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print("\n======== WALK-FORWARD 汇总 ========")
     print(json.dumps(agg, ensure_ascii=False, indent=2))
+    if boot:
+        print("--- block bootstrap（逐日配对差）---")
+        print(json.dumps(boot, ensure_ascii=False, indent=2))
+    if lookahead_folds:
+        print(f"⚠️ 前视风险折（冻结模型训练晚于该折 cutoff）: {lookahead_folds} —— 该模式下结论不可用")
+    if arm_parity_ok is not None:
+        print(f"两臂等同性自检（无增量因子）: {'PASS Δ≡0' if arm_parity_ok else 'FAIL 存在臂间偏差'}")
     print(f"report={rp}")
     print("AUTO_PROMOTION=FORBIDDEN — 仅历史证据，晋升仍需人工")
     return 0

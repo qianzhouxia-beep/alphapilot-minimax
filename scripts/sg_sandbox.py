@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import pathlib
 import sys
@@ -32,6 +33,16 @@ PYLIBS = "/home/ubuntu/bt_sandbox/pylibs"
 SH = "ubuntu@150.158.100.236"
 SH_ROOT = "/home/ubuntu/alphapilot"
 SG_KEY = "/home/ubuntu/.ssh/alphapilot.pem"
+
+# 复现生产口径所依赖的根级模块（md5 漂移检查用）
+CRITICAL_MODULES = [
+    "train_v25.py",
+    "features_v2.py",
+    "auto_factor_engine.py",
+    "data_fetcher.py",
+    "vm25_scorer.py",
+    "recommend.py",
+]
 
 DATA_FILES = [
     "data/kline_cache/kline_all.parquet",
@@ -54,22 +65,71 @@ MODEL_FILES = [
 
 
 def sync_code(sg) -> None:
-    """把本地仓库的根级 *.py + rd_workshop/*.py 打包上传（repo-first）。"""
+    """代码同步（两种来源，各司其职）：
+
+      · 根级 `*.py` ← 从**生产服务器** rsync（沙箱须复现生产口径；本地仓库可能与生产漂移，
+        2026-09-13 实测 `features_v2.py` 本地 `eaeb2915…` ≠ 生产 `67f6b0ff…`）
+      · `rd_workshop/*.py` ← 从**本地仓库**推（研究代码以仓库为准）
+    """
+    rs = f"ssh -i {SG_KEY} -o StrictHostKeyChecking=no -o ConnectTimeout=20 -o BatchMode=yes"
+    o, e, c = sg_util.run(
+        sg,
+        f"rsync -az --timeout=120 -e \"{rs}\" --include='/*.py' --exclude='*' "
+        f"{SH}:{SH_ROOT}/ {DEST}/ ; echo root_rc=$?",
+        timeout=600,
+    )
+    print(f"[sync] 生产根级 *.py ← 服务器 ({o.strip()}) {e.strip()[-200:]}")
+
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tf:
-        for p in sorted(ROOT.glob("*.py")):
-            tf.add(p, arcname=p.name)
         for p in sorted((ROOT / "rd_workshop").glob("*.py")):
             tf.add(p, arcname=f"rd_workshop/{p.name}")
     n = len(tarfile.open(fileobj=io.BytesIO(buf.getvalue()), mode="r:gz").getnames())
     buf.seek(0)
     sftp = sg.open_sftp()
     try:
-        sftp.putfo(buf, "/tmp/sg_code.tgz")
+        sftp.putfo(buf, "/tmp/sg_rw.tgz")
     finally:
         sftp.close()
-    o, e, c = sg_util.run(sg, f"tar xzf /tmp/sg_code.tgz -C {DEST} && echo ok", timeout=120)
-    print(f"[sync] {n} 个 .py 已同步 → {DEST} ({o.strip()})")
+    o, e, c = sg_util.run(sg, f"tar xzf /tmp/sg_rw.tgz -C {DEST} && echo ok", timeout=120)
+    print(f"[sync] rd_workshop {n} 个 .py ← 本地仓库 ({o.strip()})")
+
+
+def _md5_local(p: pathlib.Path) -> str:
+    return hashlib.md5(p.read_bytes()).hexdigest()
+
+
+def drift_check(sg) -> None:
+    """比对「本地仓库 vs 生产服务器」关键模块 md5 —— 有差异即报（防用错代码源）。"""
+    rs = f"ssh -i {SG_KEY} -o StrictHostKeyChecking=no -o ConnectTimeout=20 -o BatchMode=yes"
+    paths = " ".join(f"{SH_ROOT}/{f}" for f in CRITICAL_MODULES)
+    o, _, _ = sg_util.run(sg, f"{rs} {SH} 'md5sum {paths} 2>/dev/null'", timeout=90)
+    remote = {}
+    for line in o.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            remote[parts[1].rsplit("/", 1)[-1]] = parts[0]
+    drift = []
+    print("[drift] 本地仓库 vs 生产服务器")
+    for f in CRITICAL_MODULES:
+        lp = ROOT / f
+        if not lp.exists():
+            print(f"  --   {f}  （本地缺）")
+            continue
+        lm = _md5_local(lp)
+        rm = remote.get(f)
+        if rm is None:
+            print(f"  ?    {f}  （服务器缺）")
+        elif lm == rm:
+            print(f"  OK   {f}  {lm[:12]}")
+        else:
+            drift.append(f)
+            print(f"  ⚠DRIFT {f}  本地 {lm[:12]} ≠ 生产 {rm[:12]}")
+    if drift:
+        print(f"\n⚠️ {len(drift)} 个关键模块「仓库≠生产」：{', '.join(drift)}")
+        print("   → 沙箱复现生产请用服务器版（--sync 已按此拉取）；并尽快核对是否应把生产版回写仓库。")
+    else:
+        print("   ✅ 无漂移")
 
 
 def sync_data(sg) -> None:
@@ -131,8 +191,9 @@ def fetch(sg, remote: str, local: str) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="新加坡算力沙箱")
-    ap.add_argument("--sync", action="store_true", help="同步本地代码 → SG 沙箱")
+    ap.add_argument("--sync", action="store_true", help="同步代码 → SG 沙箱（根模块←生产 / rd_workshop←仓库）")
     ap.add_argument("--sync-data", action="store_true", help="从上海拉数据/模型 → SG 沙箱")
+    ap.add_argument("--drift", action="store_true", help="比对本地仓库 vs 生产服务器关键模块 md5")
     ap.add_argument("--run", default="", help="在沙箱里跑的脚本+参数（相对沙箱根）")
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--fetch", nargs=2, metavar=("REMOTE", "LOCAL"), default=None)
@@ -142,6 +203,8 @@ def main() -> int:
     try:
         if args.status:
             status(sg)
+        if args.drift:
+            drift_check(sg)
         if args.sync:
             sync_code(sg)
         if args.sync_data:
@@ -150,7 +213,7 @@ def main() -> int:
             fetch(sg, args.fetch[0], args.fetch[1])
         if args.run:
             return run_script(sg, args.run)
-        if not (args.status or args.sync or args.sync_data or args.fetch):
+        if not (args.status or args.sync or args.sync_data or args.fetch or args.drift):
             ap.print_help()
     finally:
         sg.close()
