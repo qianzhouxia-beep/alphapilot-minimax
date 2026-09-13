@@ -7,10 +7,17 @@
   - 绝不修改生产 models/、cron、paper_trading
   - 报告结论最多到 READY_FOR_HUMAN_REVIEW；无自动 Promotion
 
+OOS 天数不足时（2026-09-13 起）:
+  - 不再「干等 40 天」—— 走历史 walk-forward（--walkforward / --walkforward-report）
+  - 全量请在新加坡沙箱跑（上海 3.6GB 会 OOM）；见 PROMOTION_CHECKLIST.md
+
 用法:
   python3 -u rd_workshop/run_promotion_adapter.py --factors path/to/raw_or_normalized.parquet
   python3 -u rd_workshop/run_promotion_adapter.py --factors ... --skip-train   # 已有候选模型
   python3 -u rd_workshop/run_promotion_adapter.py --factors ... --max-stocks 80 --opt-only  # smoke
+  python3 -u rd_workshop/run_promotion_adapter.py --factors ... --skip-train --skip-normalize --walkforward
+  python3 -u rd_workshop/run_promotion_adapter.py --factors ... --skip-train --skip-normalize \\
+      --walkforward-report rd_workshop/walkforward_runs/wf_<id>/report.json
 """
 from __future__ import annotations
 
@@ -34,6 +41,13 @@ MIN_DAYS = 40
 MIN_FILL = 0.70
 MIN_HIT3 = 0.35
 PRODUCTION_ARM = "A1_permission"
+
+# 历史 walk-forward 运气阈值（2026-09-13 安慰剂全量 sg_placebo_full_0913b 校准）
+# 详见 knowledge/decisions/2026-09-13-promotion-gate-redesign.md §6.3.3
+WF_MIN_WINS = 5          # 折间 wins ≥ 5/6
+WF_REQUIRE_AUC_BN = True  # AUC beyond_noise
+WF_REQUIRE_IC_LO95 = True # 块自举 RankIC lo95 > 0
+WF_MIN_MEM_GB = 8.0       # 低于此内存拒绝本地全量（上海 3.6GB 会 OOM → 去新加坡）
 
 
 def _run(cmd: list[str], env: dict | None = None) -> None:
@@ -82,6 +96,135 @@ def _gate(kpi: dict, n_days: int) -> dict:
     return {"verdict": verdict, "reason": reason, "checks": checks}
 
 
+def _mem_available_gb() -> float:
+    try:
+        with open("/proc/meminfo", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) / 1e6
+    except Exception:  # noqa: BLE001
+        pass
+    return 0.0
+
+
+def _sg_walkforward_cmd(norm_path: Path, run_id: str) -> str:
+    rel = norm_path
+    try:
+        rel = norm_path.relative_to(ROOT)
+    except ValueError:
+        pass
+    return (
+        f"python3 scripts/sg_sandbox.py --sync --run "
+        f"\"rd_workshop/walkforward_oos.py --folds 6 --test-days 21 --control retrain "
+        f"--extra-factors {rel} --run-id wf_{run_id}\""
+    )
+
+
+def _eval_walkforward(report: dict) -> dict:
+    """用安慰剂校准的运气阈值判 walk-forward 报告。"""
+    agg = report.get("aggregate") or {}
+    boot = report.get("block_bootstrap") or {}
+    auc = agg.get("auc") or {}
+    ric = agg.get("rank_ic") or {}
+    ric_boot = boot.get("rank_ic") or {}
+    t10_boot = boot.get("top10_excess_pct") or {}
+
+    wins = int(auc.get("wins") or 0)
+    n = int(auc.get("n") or agg.get("n_folds") or 0)
+    auc_bn = bool(auc.get("beyond_noise"))
+    ric_bn = bool(ric.get("beyond_noise"))
+    lo95 = ric_boot.get("lo95")
+    lo95_ok = lo95 is not None and float(lo95) > 0
+
+    checks = {
+        "auc_beyond_noise": auc_bn,
+        "rank_ic_beyond_noise": ric_bn,
+        "rank_ic_lo95_gt0": lo95_ok,
+        "wins_ge_5": wins >= WF_MIN_WINS,
+        "wins": wins,
+        "n_folds": n,
+        "auc_mean_delta": auc.get("mean_delta"),
+        "rank_ic_mean_delta": ric.get("mean_delta"),
+        "rank_ic_lo95": lo95,
+        "rank_ic_hi95": ric_boot.get("hi95"),
+        "top10_lo95": t10_boot.get("lo95"),
+        "top10_hi95": t10_boot.get("hi95"),
+        "control_arm": (report.get("config") or {}).get("control_arm"),
+        "lookahead_folds": (report.get("production_model") or {}).get("lookahead_folds") or [],
+    }
+    fail_reasons = []
+    if WF_REQUIRE_AUC_BN and not auc_bn:
+        fail_reasons.append("AUC not beyond_noise")
+    if not ric_bn:
+        fail_reasons.append("RankIC not beyond_noise")
+    if WF_REQUIRE_IC_LO95 and not lo95_ok:
+        fail_reasons.append(f"RankIC lo95={lo95} ≤ 0")
+    if wins < WF_MIN_WINS:
+        fail_reasons.append(f"wins {wins}/{n} < {WF_MIN_WINS}")
+    if checks["lookahead_folds"]:
+        fail_reasons.append(f"lookahead folds {checks['lookahead_folds']}")
+
+    if fail_reasons:
+        return {
+            "verdict": "WALKFORWARD_FAIL",
+            "reason": "; ".join(fail_reasons),
+            "checks": checks,
+            "thresholds": {
+                "source": "sg_placebo_full_0913b",
+                "min_wins": WF_MIN_WINS,
+                "require_auc_beyond_noise": WF_REQUIRE_AUC_BN,
+                "require_rank_ic_lo95_gt0": WF_REQUIRE_IC_LO95,
+            },
+        }
+    return {
+        "verdict": "WALKFORWARD_PASS",
+        "reason": "beyond_noise + RankIC lo95>0 + wins≥5/6 (vs placebo)",
+        "checks": checks,
+        "thresholds": {
+            "source": "sg_placebo_full_0913b",
+            "min_wins": WF_MIN_WINS,
+            "require_auc_beyond_noise": WF_REQUIRE_AUC_BN,
+            "require_rank_ic_lo95_gt0": WF_REQUIRE_IC_LO95,
+        },
+    }
+
+
+def _run_walkforward(norm_path: Path, run_dir: Path, run_id: str, folds: int, test_days: int) -> dict:
+    """在本机跑历史 walk-forward；内存不足则拒绝（应去新加坡沙箱）。"""
+    mem = _mem_available_gb()
+    if 0 < mem < WF_MIN_MEM_GB:
+        return {
+            "verdict": "NEED_WALKFORWARD_ON_SG",
+            "reason": (
+                f"MemAvailable={mem:.1f}GB < {WF_MIN_MEM_GB}GB — "
+                f"full walk-forward OOMs on Shanghai; run on SG sandbox"
+            ),
+            "sg_command": _sg_walkforward_cmd(norm_path, run_id),
+            "checks": {"mem_available_gb": mem},
+        }
+    wf_id = f"wf_{run_id}"
+    out_dir = ROOT / "rd_workshop" / "walkforward_runs" / wf_id
+    cmd = [
+        sys.executable, "-u", str(WS / "walkforward_oos.py"),
+        "--folds", str(folds), "--test-days", str(test_days),
+        "--control", "retrain",
+        "--extra-factors", str(norm_path),
+        "--run-id", wf_id,
+    ]
+    print(f"[walkforward] mem_available={mem:.1f}GB → running locally", flush=True)
+    _run(cmd)
+    rp = out_dir / "report.json"
+    if not rp.exists():
+        return {"verdict": "WALKFORWARD_ERROR", "reason": f"missing {rp}", "checks": {}}
+    # 拷贝进候选目录便于人工审
+    dest = run_dir / "walkforward_report.json"
+    shutil.copy2(rp, dest)
+    evaluated = _eval_walkforward(_load_json(rp))
+    evaluated["report_path"] = str(dest)
+    evaluated["source_run_id"] = wf_id
+    return evaluated
+
+
 def _compare(cand: dict, prod: dict | None) -> dict:
     if not prod:
         return {"available": False, "note": "no production OOS baseline on disk"}
@@ -120,7 +263,24 @@ def main() -> int:
     ap.add_argument("--skip-train", action="store_true")
     ap.add_argument("--skip-oos", action="store_true")
     ap.add_argument("--skip-normalize", action="store_true", help="factors already normalized")
+    ap.add_argument(
+        "--walkforward",
+        action="store_true",
+        help="OOS 天数不足时自动跑历史 walk-forward（内存不足则提示去新加坡）",
+    )
+    ap.add_argument(
+        "--walkforward-report",
+        default="",
+        help="已有 walk-forward report.json（例如在 SG 跑完后回填），直接用运气阈值判定",
+    )
+    ap.add_argument("--walkforward-folds", type=int, default=6)
+    ap.add_argument("--walkforward-test-days", type=int, default=21)
     args = ap.parse_args()
+
+    # 环境变量也可打开自动 walk-forward（cron / SG 沙箱）
+    auto_wf = args.walkforward or os.environ.get("ALPHAPILOT_AUTO_WALKFORWARD", "").strip() in (
+        "1", "true", "TRUE", "yes",
+    )
 
     run_id = args.run_id or datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = CAND_ROOT / run_id
@@ -145,7 +305,8 @@ def main() -> int:
 
     # 1) normalize
     if args.skip_normalize:
-        shutil.copy2(factor_src, norm_path)
+        if factor_src.resolve() != norm_path.resolve():
+            shutil.copy2(factor_src, norm_path)
     else:
         _run(
             [
@@ -223,6 +384,51 @@ def main() -> int:
         n_days = int(cand_kpi.get("n_days") or 0)
         cand_gate = _gate(cand_kpi, n_days)
 
+    # 3b) 历史 walk-forward（替代「干等 40 天」死循环）
+    # 依据：2026-09-13 ADR promotion-gate-redesign；安慰剂校准运气阈值
+    wf_gate: dict = {}
+    attach_wf = bool(args.walkforward_report)
+    need_wf = cand_gate.get("verdict") == "INSUFFICIENT_OOS"
+    if attach_wf or need_wf:
+        if args.walkforward_report:
+            wrp = Path(args.walkforward_report)
+            if not wrp.is_absolute():
+                wrp = (ROOT / wrp).resolve()
+            if not wrp.exists():
+                raise SystemExit(f"walkforward report not found: {wrp}")
+            shutil.copy2(wrp, run_dir / "walkforward_report.json")
+            wf_gate = _eval_walkforward(_load_json(wrp))
+            wf_gate["report_path"] = str(run_dir / "walkforward_report.json")
+            wf_gate["source"] = "attached"
+        elif auto_wf:
+            wf_gate = _run_walkforward(
+                norm_path, run_dir, run_id, args.walkforward_folds, args.walkforward_test_days
+            )
+            wf_gate["source"] = "auto"
+        else:
+            wf_gate = {
+                "verdict": "NEED_WALKFORWARD",
+                "reason": (
+                    "OOS days insufficient; do NOT wait 40 days — run historical walk-forward "
+                    "(prefer Singapore sandbox if MemAvailable < 8GB)"
+                ),
+                "sg_command": _sg_walkforward_cmd(norm_path, run_id),
+                "local_command": (
+                    f"python3 -u rd_workshop/run_promotion_adapter.py --factors {norm_path} "
+                    f"--run-id {run_id} --skip-train --skip-normalize --walkforward"
+                ),
+                "attach_command": (
+                    f"python3 -u rd_workshop/run_promotion_adapter.py --factors {norm_path} "
+                    f"--run-id {run_id} --skip-train --skip-normalize "
+                    f"--walkforward-report rd_workshop/walkforward_runs/wf_{run_id}/report.json"
+                ),
+                "checks": {},
+            }
+        print(
+            f"[walkforward] verdict={wf_gate.get('verdict')} reason={wf_gate.get('reason')}",
+            flush=True,
+        )
+
     # 4) compare production baseline (read-only)
     prod_oos = _load_json(PROD_OOS)
     prod_arm = None
@@ -237,10 +443,43 @@ def main() -> int:
     comparison = _compare(cand_kpi, prod_arm if prod_arm else None)
 
     # 5) human-review packet — never auto promote
+    wf_verdict = (wf_gate or {}).get("verdict")
     ready = (
         cand_gate.get("verdict") == "PASS"
         and comparison.get("suggest_better_or_equal") is True
+    ) or (
+        wf_verdict == "WALKFORWARD_PASS"
+        and comparison.get("suggest_better_or_equal") is not False
     )
+    # 综合 backtest 标签：有 walk-forward 结论时优先展示它
+    backtest_label = cand_gate.get("verdict")
+    if wf_verdict in ("WALKFORWARD_PASS", "WALKFORWARD_FAIL", "NEED_WALKFORWARD",
+                      "NEED_WALKFORWARD_ON_SG", "WALKFORWARD_ERROR"):
+        backtest_label = wf_verdict
+
+    if wf_verdict == "WALKFORWARD_PASS":
+        next_step = (
+            "WALKFORWARD_PASS: historical paired uplift beyond placebo noise — "
+            "Human Review + short canary (5~10d) before any production install. "
+            "Adapter will not promote."
+        )
+    elif wf_verdict == "WALKFORWARD_FAIL":
+        next_step = (
+            "WALKFORWARD_FAIL: uplift within placebo noise (or worse) — "
+            "do NOT wait for 40 OOS days; reject or redesign factors."
+        )
+    elif wf_verdict in ("NEED_WALKFORWARD", "NEED_WALKFORWARD_ON_SG"):
+        next_step = (
+            f"Run walk-forward (not wait 40d). SG: {(wf_gate or {}).get('sg_command')}"
+        )
+    elif cand_gate.get("verdict") == "INSUFFICIENT_OOS":
+        next_step = "Accumulate more OOS days OR pass --walkforward / --walkforward-report."
+    else:
+        next_step = (
+            "HUMAN_REVIEW: compare packet vs production; if approved, manually install "
+            "candidate artifacts into production models/ (Promotion). Adapter will not do it."
+        )
+
     track = (
         "track_a_current_model"
         if "track_a" in run_id
@@ -276,6 +515,7 @@ def main() -> int:
             "gate": cand_gate,
             "gated_path": str(gated_out),
         },
+        "walkforward": wf_gate or None,
         "production_baseline": {
             "meta_trained_at": (prod_meta or {}).get("trained_at"),
             "oos_path": str(PROD_OOS),
@@ -283,21 +523,22 @@ def main() -> int:
         },
         "comparison": comparison,
         "verdict": {
-            "backtest": cand_gate.get("verdict"),
+            "backtest": backtest_label,
+            "tradable_oos_gate": cand_gate.get("verdict"),
+            "walkforward_gate": wf_verdict,
             "ready_for_human_review": bool(
-                ready or cand_gate.get("verdict") in ("PASS", "FAIL", "INSUFFICIENT_OOS")
+                ready
+                or cand_gate.get("verdict") in ("PASS", "FAIL")
+                or wf_verdict in ("WALKFORWARD_PASS", "WALKFORWARD_FAIL",
+                                  "NEED_WALKFORWARD", "NEED_WALKFORWARD_ON_SG")
             ),
             "suggest_promotion_discussion": bool(ready),
-            "next_step": (
-                "HUMAN_REVIEW: compare packet vs production; if approved, manually install "
-                "candidate artifacts into production models/ (Promotion). Adapter will not do it."
-                if cand_gate.get("verdict") != "INSUFFICIENT_OOS"
-                else "Accumulate more OOS days; do not promote."
-            ),
+            "next_step": next_step,
         },
         "checklist": [
             "Candidate models only under rd_workshop/candidates/",
-            "Backtest Validation completed (this report.oos.gate)",
+            "Backtest Validation completed (oos.gate and/or walkforward)",
+            "If INSUFFICIENT_OOS: run walk-forward — do NOT wait 40 calendar days",
             "Human Review required before any production install",
             "Compare Candidate vs Production Model metrics",
             "No cron / paper_trading / live scorer path changed by this adapter",
@@ -310,7 +551,8 @@ def main() -> int:
     print("\n======== PROMOTION ADAPTER ========")
     print(f"track={track} run_id={run_id}")
     print(f"candidate_dir={model_dir}")
-    print(f"backtest={cand_gate.get('verdict')} suggest_discuss={ready}")
+    print(f"tradable_oos={cand_gate.get('verdict')} walkforward={wf_verdict} suggest_discuss={ready}")
+    print(f"next_step={next_step}")
     print(f"report={report_path}")
     print("AUTO_PROMOTION=FORBIDDEN — await Human Review")
     return 0

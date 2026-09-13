@@ -222,9 +222,10 @@ RankIC −0.05170 / 带 0.03651；Top5 超额 −1.034 pp / 带 0.671；Top10 �
    - §6.3 安慰剂两臂同特征 → 对照臂去掉增量列；smoke 已证随机因子不能过门
 4. ✅ 安慰剂全量 `0913b`（校准运气阈值）—— 随机因子不能过门，见 §6.3.3
 5. ✅ 拿真候选过门（09-12）→ **FAIL**（见 §6.4）；新门能诚实否决，不用空等 40 天
-6. ⏳ 评审是否改 `run_promotion_adapter.py` / `run_oos_tradable_top2.py`（建议：`INSUFFICIENT_OOS` 时改跑 walk-forward）
+6. ✅ 新门接入 `run_promotion_adapter.py`（2026-09-13）：`INSUFFICIENT_OOS` → `NEED_WALKFORWARD` / 自动或回填 walk-forward → `WALKFORWARD_PASS|FAIL`；运气阈值来自安慰剂 §6.3.3；内存 <8GB 拒本地全量并给出 SG 命令
+7. ⏳ `scripts/run_oos_tradable_top2.py` 仍保留 40 天门槛（生产模型验收口径，与 RD 候选门分离）；若要统一再议
 
-> 本轮基准的价值：**用真实数据两次证伪并修掉自己方案里的设计缺陷** —— 比带着前视/同特征假阴性的 harness 上线当晋升门安全得多。
+> 本轮基准的价值：**用真实数据两次证伪并修掉自己方案里的设计缺陷**，再用真候选证明「不用等 40 天也能诚实否决」—— 比带着前视/同特征假阴性的 harness 上线当晋升门安全得多。
 
 ## 8. 证据
 
