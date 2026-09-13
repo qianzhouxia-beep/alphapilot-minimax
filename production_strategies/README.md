@@ -80,7 +80,7 @@ production_strategies/
    ```bash
    python -c "import ast,pathlib; p=pathlib.Path(r'...'); b=p.read_bytes(); b.decode('ascii'); ast.parse(b.decode('ascii'))"
    ```
-4. 任何 Agent（本会话、DeepSeek Harness、其他 AI）修改了生产文件，**同样必须把更新后的文件放回本文件夹并写日志**。
+4. 任何 Agent（本会话、DeepSeek Harness、其他 AI）修改了生产文件，**同样必须把更新后的文件放回本文件夹并写日志**。**唯一例外（2026-09-13 老板拍板，仅限 WB-Mac）**：**WB-Mac 经授权直接修改本文件夹内文件时，不写 `CHANGELOG.md`**（其红线把 CHANGELOG 列为主控 Agent 专属）；由**主控 Agent（Cursor）复核后按「修改人：WB-Mac / 补录人：Cursor」代补**，使「WB 不碰 CHANGELOG」与「审计链不断」同时成立。其他外部 Agent（DeepSeek Harness 等）仍按默认规则：谁改谁写。
 5. 版本号：改选股/卖出逻辑 → 升版本号（v1.0→v1.1）；只改配置/注释 → 不改版本号，只在日志说明。
 6. **部署由用户手动执行**：Agent 只更新本文件夹（本地权威版），**不直接写交易端文件**（QMT 加密目录 / TDX `PYPlugins\user`）。用户会自行把本文件夹的文件复制/导入到 QMT 和通达信。Agent 在 CHANGELOG 里写明"需要部署到哪些交易端"即可，不做复制动作。
 

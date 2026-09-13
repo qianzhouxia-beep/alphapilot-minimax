@@ -18,6 +18,16 @@
 
 ---
 
+## 2026-09-13 规则固化：WB-Mac 改仓免写 CHANGELOG，由主控 Agent 代补（老板拍板）
+
+- 修改人/Agent：老板拍板；主控 Agent（Cursor）落文本
+- 涉及文件：`README.md`（规则 #4）、`docs/AGENT_RULES.md`（§2 / §4）、`.cursor/rules/production-strategies.mdc`（规则 #4）
+- 版本变化：无（仅规则文档）
+- 修改内容：把 WB-Mac round-5（issue #6 `5646413074`）提出的规则冲突固化——**WB-Mac 经授权直接修改 `production_strategies/` 内文件时不写 `CHANGELOG.md`**（其红线把 CHANGELOG 列为主控 Agent 专属），由主控 Agent（Cursor）复核后按「修改人：WB-Mac / 补录人：Cursor」代补；其他外部 Agent（DeepSeek Harness 等）仍按"谁改谁写"。
+- 原因/依据：两条规则打架（README「任何 Agent 改了必须写日志」vs WB 红线「不碰 CHANGELOG」）；老板 2026-09-13 拍板采纳 WB 建议。
+- 验证：仅文档改动，未碰任何策略文件 ⇒ §四 部署基线不变。
+- 部署：不需要。
+
 ## 2026-09-13 Track B sim v2.13 → v2.14：Fix C `passorder` 成交确认（幽灵账修复，独立提交）
 
 - 修改人/Agent：主控 Agent（Cursor）；老板 2026-09-13 拍板设计 **B（次 bar 挂起确认）** + `VERIFY_FILL` **默认开**

@@ -33,6 +33,7 @@ C:\Users\elvisq\Projects\alphapilot\production_strategies\
 - 追加到 `production_strategies/CHANGELOG.md`（在最新一条上方插入，倒序）。
 - 按模板字段填写：修改人/Agent、涉及文件、版本变化、修改内容、原因/依据、验证、部署。
 - 如果修改是你（外部 Agent）做的，修改人/Agent 一栏写你的名字，例如 `DeepSeek Harness`。
+- **例外（2026-09-13 老板拍板，仅限 WB-Mac）**：WB-Mac 经授权直接改本文件夹内的文件时，**不写 `CHANGELOG.md`**（其红线把 CHANGELOG 列为主控 Agent 专属）；改完在 issue/回帖说明改了什么即可，由**主控 Agent（Cursor）复核后按「修改人：WB-Mac / 补录人：Cursor」代补**。其他外部 Agent（DeepSeek Harness 等）仍按上面的默认规则：谁改谁写。
 
 ### 3. QMT 文件必须纯 ASCII
 
@@ -48,7 +49,7 @@ C:\Users\elvisq\Projects\alphapilot\production_strategies\
 完成修改后，你的交付物必须包含：
 
 1. `production_strategies/` 内更新后的文件（你自己放回）。
-2. `CHANGELOG.md` 追加记录。
+2. `CHANGELOG.md` 追加记录（**WB-Mac 例外见 §2：由主控 Agent 代补**）。
 3. 验证结果（ASCII / 语法 / 离线测试，含跑过的命令和输出）。
 4. 明确说明：是否需要重新部署、部署到哪些交易端。
 

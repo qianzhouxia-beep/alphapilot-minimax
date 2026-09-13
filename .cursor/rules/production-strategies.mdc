@@ -16,7 +16,7 @@ alwaysApply: true
    ```bash
    python -c "import ast,pathlib; p=pathlib.Path(r'...'); b=p.read_bytes(); b.decode('ascii'); ast.parse(b.decode('ascii'))"
    ```
-4. **任何 Agent**（本会话、其他 Cursor Agent、DeepSeek Harness、WorkBuddy、其他 AI）修改了生产文件后，必须把更新后的文件放回 `production_strategies/` 并写日志。
+4. **任何 Agent**（本会话、其他 Cursor Agent、DeepSeek Harness、WorkBuddy、其他 AI）修改了生产文件后，必须把更新后的文件放回 `production_strategies/` 并写日志。**唯一例外（2026-09-13 老板拍板，仅限 WB-Mac）**：WB-Mac 经授权直接改本文件夹内文件时**不写 `CHANGELOG.md`**；由主控 Agent（Cursor）复核后按「修改人：WB-Mac / 补录人：Cursor」代补。
 5. **部署由用户手动执行（2026-08-29 固化）**：Agent 只更新 `production_strategies/` 内的文件，**禁止直接写交易端文件**（QMT python 目录 / TDX `PYPlugins\user`）。用户会自行复制/导入到 QMT 和通达信。Agent 只需在 CHANGELOG 写明"需要部署到哪些交易端"。
 6. 版本号：改选股/卖出逻辑 → 升版本号（v1.0→v1.1）；只改配置/注释 → 不改版本号，只在日志说明。
 
