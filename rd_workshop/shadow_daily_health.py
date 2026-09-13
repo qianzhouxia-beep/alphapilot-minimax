@@ -14,6 +14,11 @@
 防误报: 若目标日疑似非交易日(8 个 09:35 影全部无该日 + market_tone 未到该日 + 竞价归档
 缺失), 判 SKIP 退出 0, 不发告警(法定节假日 cron 仍会触发)。
 
+2026-09-13: kline 依赖型影子(P1-DOWN / turnover+weakscore 双跑 CSV)改按 kline_all 实际
+最大交易日校验, 不再要求 = 墙钟目标日——kline_all 是 T+1(最大日通常=上一交易日), 旧口径
+每天必报假 ALERT。同时加 kdep_fresh 闸: 若 kline 连"上一交易日"都没到, 这些项一律 FAIL,
+真数据停摆仍会告警。
+
 用法: python3 -u rd_workshop/shadow_daily_health.py [--asof YYYY-MM-DD | --prev-trading] [--dry]
 """
 from __future__ import annotations
@@ -93,6 +98,29 @@ def prev_trading_day(d: _dt.date) -> _dt.date:
     return d
 
 
+# 2026-09-13: kline_all is T+1 (its max is normally the previous trading day),
+# so the following shadows are keyed to kline_max, not to the wall-clock `asof`.
+# Before this fix the health check demanded the same calendar day from them and
+# raised false ALERTs every day (and masked nothing real: a true stall still
+# fails the kdep_fresh gate below).
+KDEP_NAMES = {
+    "P1-DOWN 影子(16:50)",   # processes latest archive day covered by kline
+    "turnover 双跑 CSV",      # records the kline max_date window
+    "weakscore 双跑 CSV",
+}
+
+
+def _kline_max_date():
+    """kline_all max trading date (YYYY-MM-DD) or None on failure."""
+    try:
+        import pandas as pd
+        df = pd.read_parquet(ROOT / "data" / "kline_cache" / "kline_all.parquet",
+                             columns=["date"])
+        return str(pd.to_datetime(df["date"]).max())[:10]
+    except Exception:
+        return None
+
+
 # (名称, 类型, 相对路径) ; 类型: jsonl=append按末行日期 / json=覆写按内容日期 / mtime=覆写按文件mtime日 / log=日志按mtime日 / file=存在即可
 def build_checks(asof: str):
     O = ROOT / "output"
@@ -168,6 +196,14 @@ def main() -> int:
         _log(f"shadow_daily_health asof={asof} -> SKIP (疑似非交易日: 09:35影全无/market_tone未写/竞价归档缺失)")
         return 0
 
+    km = _kline_max_date()
+    try:
+        _asof_d = _dt.date.fromisoformat(asof)
+    except Exception:
+        _asof_d = today
+    kdep_exp = km if km else asof
+    kdep_fresh = bool(km) and km >= prev_trading_day(_asof_d).isoformat()
+
     checks = build_checks(asof)
     fails: list[tuple[str, str]] = []
     oks: list[str] = []
@@ -181,14 +217,18 @@ def main() -> int:
         ]
 
     for name, typ, rel in checks + csv_checks:
+        exp = kdep_exp if name in KDEP_NAMES else asof
         if typ == "csv":
             got = _csv_last_date(ROOT / "rd_workshop" / rel)
-            if got and got >= asof:
+            ok = bool(got) and got >= exp and kdep_fresh
+            if ok:
                 oks.append(name)
             else:
                 fails.append((name, got or "MISSING"))
             continue
-        ok, got = _eval(typ, ROOT / "output" / rel, asof)
+        ok, got = _eval(typ, ROOT / "output" / rel, exp)
+        if name in KDEP_NAMES and not kdep_fresh:
+            ok = False
         if ok:
             oks.append(name)
         else:
@@ -197,6 +237,8 @@ def main() -> int:
     summary = {
         "checked_at": _dt.datetime.now().isoformat(timespec="seconds"),
         "asof": asof,
+        "kline_max": km,
+        "kdep_exp": kdep_exp,
         "ok": not fails,
         "ok_count": len(oks),
         "fail_count": len(fails),

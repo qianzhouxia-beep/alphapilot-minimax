@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """重建 backtest_cache: 从 kline_all.parquet (100% 08-03) 生成全部 pkl"""
 import pandas as pd
-import os, time
+import os, sys, time
 from prod_op_lock import acquire_prod_lock, release_prod_lock
 
 KLINE = '/home/ubuntu/alphapilot/data/kline_cache/kline_all.parquet'

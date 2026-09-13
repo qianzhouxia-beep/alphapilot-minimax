@@ -34,7 +34,7 @@
 
 | 观察 | cron | 输出 | 状态 | 下次看 |
 |---|---|---|---|---|
-| **🛡️ 影子健康体检(防空转)** | **16:55 工作日(当天闭环) + 09:10 周二~六(上交易日闭环+双跑CSV)** | output/logs/shadow_daily_health.{log,json} | ✅ **2026-09-06 上线**：逐项核对所有影子在目标日写新记录，FAIL 才企微告警(PASS 静默)；疑似非交易日自动 SKIP；脚本 `rd_workshop/shadow_daily_health.py`（`--dry` 可演练） | 每日自动；若有告警 → 企微群 + 查 registry 对应行 | 不是 rd_health(那是模型/单位健康)；只在"影子没写"时报 |
+| **🛡️ 影子健康体检(防空转)** | **16:55 工作日(当天闭环) + 09:10 周二~六(上交易日闭环+双跑CSV)** | output/logs/shadow_daily_health.{log,json} | ✅ **2026-09-06 上线**：逐项核对所有影子在目标日写新记录，FAIL 才企微告警(PASS 静默)；疑似非交易日自动 SKIP；脚本 `rd_workshop/shadow_daily_health.py`（`--dry` 可演练）。**2026-09-13 修口径**：kline 依赖型三项（P1-DOWN / turnover+weakscore 双跑 CSV）改按 **kline_all 实际最大交易日**校验（不再要求=墙钟目标日），并加 `kdep_fresh` 闸（kline 连上一交易日都没到则一律 FAIL）；json 新增 `kline_max`/`kdep_exp` 字段 | 每日自动；若有告警 → 企微群 + 查 registry 对应行 | 不是 rd_health(那是模型/单位健康)；只在"影子没写"时报；**kline 依赖项按 kline_max 比对是设计（T+1），不是放宽** |
 | shadow_top2 主影子(RD 候选模型) | 09:35 写入 + 16:26 report | output/shadow_top2_history.jsonl（15 天）→ report.json/.md + wecom | ✅ 每日 append；报告/Excel 推送 ok=True | 攒够 8 到期日下 CAND/PROD 结论 |
 | reversal 弱转强影子 | 14:50 scanner + 16:30 report | output/reversal_shadow_history.jsonl（9 天）+ reversal_shadow/{date}.json | ✅ | 满样本后再评 |
 | top2_t1t5 结算 | 16:25 | output/top2_t1t5.json + report.md | ✅ 09-04 正常 | — |
@@ -43,7 +43,10 @@
 | rd_health 健康检查 | 10:00 cron + 16:26 附带 | output/logs/rd_health.json | 🔶 09-06 修复告警链路（wecom import + auc_gate_rejected 降级），实测 RC=0 | 有真实告警应能推到企微 |
 | **C1 裸突破 T+5 超额周度衰减** | 16:28 工作日 | output/logs/breakout_monitor.log（**未建**） | ⚠️ 09-07 首跑建 log | ALERT 判定 roll8≈-1.9pp 阈值 |
 | **C2 Top2 T+5 超额累计** | 16:29 工作日 | output/top2_t1t5_excess.json + logs/top2_excess.log | ⚠️ 09-06 12:13 手动测试产物已存在；cron 首跑 09-07 | 周看累计超额 |
-| **P1-DOWN 影子（TrendState 只读，Issue#6 A 项）** | 16:50 工作日 | output/p1_down_shadow.jsonl（marker）+ rd_workshop/shadow_p1_down/events.jsonl + ledger.csv | ⚠️ **09-07 首写**：池 10→DOWN 5（本应被 P1 veto），T+5 未到账 pending | 09-21 复盘累计 **n≥30** 再议转正；期间每日 16:50 应 +1 marker | 只对 top10_ungated 打分**不产生交易动作**；DOWN 事件是"本应剔除"不是"应该买入" |
+| **P1-DOWN 影子（TrendState 只读，Issue#6 A 项）** | 16:50 工作日 | output/p1_down_shadow.jsonl（marker）+ rd_workshop/shadow_p1_down/events.jsonl + ledger.csv | 🔶 **09-10~09-11 停摆 3 日**（`asof > kline max → SKIP`）→ **2026-09-13 已修**：默认 asof 改为「**kline 已覆盖的最新归档日**」+ 多日 catch-up（每次≤5 日），与 docstring 原意一致（`shadow_p1_down_daily.py`） | 09-21 复盘累计 **n≥30** 再议转正；修复后每次 16:50 应写 1 条 marker（asof=上一交易日） | 只对 top10_ungated 打分**不产生交易动作**；DOWN 事件是"本应剔除"不是"应该买入"；**kline_all 是 T+1 ⇒ marker asof 天然滞后 1 交易日**，非故障 |
+| **G1 走向判别影子（gap 走向 veto，只读）** | 17:10 工作日 | output/g1_shadow/{date}.json + logs/g1_shadow.log | ✅ **09-11 首写**（10 候选；S0全买 T0 +1.25% vs G1执行 +1.66%，否决 2 含走高误杀 1）**2026-09-13 补登记**（先前 cron 已装、registry 未记） | 攒 2–4 周真实 weak/走向样本后重判是否转 G1(weak 只买 rank1) | 是 gap「走向判别器」veto 影子，**不是 registry §D 的 G1 未写码项**；只读不改分 |
+| **FB 首板 setup 纸面观察池（只读）** | 17:20 工作日 | output/fb_shadow/fb_shadow.jsonl | ⚠️ **脚本 09-11 20:15 装，首跑 09-14（周一）**（首板方向 hold 的落地轻活，老板 09-11 拍板） | 积累后看 t1_lu / t1_ret_open / t1_ret_0935 / abs3_trail | setup 当**额外截面**、不加仓不排序不改管线；**不是**把首板当选股信号 |
+| **pool_archive 更大候选池固化（只读）** | 17:25 工作日 | output/pool_archive/pool_archive.jsonl | ⚠️ **脚本 09-11 20:15 装，首跑 09-14（周一）** | 供 G1 扩样（~500 只/日 vs top10 归档 ~12 只/日） | append-only 固化 `rf_score_archive`，**不改生产**；不是新的打分源 |
 
 ## D. 交易端 sim 只读影子（用户本地 QMT/TDX — Agent 无法覆盖，需用户复制后自查）
 
@@ -68,6 +71,13 @@
 | **GENE_plus_LOWACT6** | 现行 gene 3 成分（`limit_cnt_10d`+`ma25_slope`+`ret_10d`）**追加** 低活跃 6 因子（`turnover`/`box20`/`atr14`/`ret_std20`/`shrink_days`/`vol_5_20`）等权 rank-sum，符号按全市场 triage（低值优先） | 📋 **设计已定、未写码**（复用 `bt_research/bt_gene_redesign.py holdout`，无 cron、无输出） | 真实 Top10 归档累计 **≥90~120 交易日**后同 harness 重跑：对 `GENE_base` 的配对 95%CI 排除 0，且**不依赖出场口径** | 真实归档达标时（≥90 TD，约 2026-12 起） | **不是已部署影子**（不改 `export_qmt_scores.py`、无新文件）；**不部署 ≠ 现行 gene 有效**——现行 gene 样本外未被确认（P2 OOS IC5 t=−2.7），只是"保持现状 pending" |
 
 ---
+
+## 快查：09-14（周一）首验证清单（2026-09-13 修复后）
+
+- **P1-DOWN 恢复**：跑完后 `tail -3 output/logs/p1_down_shadow.log` 应见 `asof=2026-09-10` / `2026-09-11`（catch-up，不再 SKIP）；`tail -3 output/p1_down_shadow.jsonl` 应补出这两日 marker；累计 n_down_total 应 ≥13 继续增
+- **体检口径**：`python3 -u rd_workshop/shadow_daily_health.py --prev-trading --dry` 应不再报 turnover/weakscore 假 ALERT（改按 `kline_max` 比对）；json 新增 `kline_max`/`kdep_exp`
+- **新影首跑**：17:10 `output/g1_shadow/2026-09-14.json`；17:20 `output/fb_shadow/fb_shadow.jsonl`；17:25 `output/pool_archive/pool_archive.jsonl`
+- **registry 三影已补登**（G1 / FB / pool_archive）——后续新增影子先登记再动码
 
 ## 快查：09-07（周一）首验证清单
 
