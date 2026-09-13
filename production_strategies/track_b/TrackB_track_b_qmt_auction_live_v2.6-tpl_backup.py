@@ -96,7 +96,7 @@
 # is shared strategy logic. See README at the bottom of the file.
 #
 # Track B (NEW): QMT-side 09:25-09:35 full-pool gate + auction select.
-# This is the LIVE template. Same logic as TrackB_track_b_qmt_auction_sim_v2.13.py;
+# This is the LIVE template. Same logic as TrackB_track_b_qmt_auction_sim_v2.13.py (v2.13-era logic only, NOT v2.14: sim v2.14 adds Fix C passorder fill confirmation, absent here);
 # ONLY the CONFIG block differs (live account id + board permissions).
 #
 # Key differences vs Track A (TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py):
@@ -132,7 +132,7 @@
 #   Track A: TrackA_track_a_qmt_full_chain_sim_v2.45.py  (QMT SIM)
 #            TrackA_track_a_qmt_full_chain_live_v2.38-tpl.py (QMT LIVE template)
 #            TrackA_track_a_tdx_full_chain_sim_v2.30.py  (TDX SIM)
-#   Track B: TrackB_track_b_qmt_auction_sim_v2.13.py   (QMT SIM account)
+#   Track B: TrackB_track_b_qmt_auction_sim_v2.14.py   (QMT SIM account)
 #            TrackB_track_b_qmt_auction_live_v2.7-tpl.py  (QMT LIVE template, one copy per account)
 #            TrackB_track_b_tdx_auction_sim_v1.20.py   (TDX SIM account)
 #
