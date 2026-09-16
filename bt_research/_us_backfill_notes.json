@@ -1,0 +1,3 @@
+{
+ "2026-09-16": "2026-09-16 05:30 BJT ingest ran OK but the Sina daily API had not yet published the 2026-09-15 US session (cache last=2026-09-14). The old forward-roll logic silently reused us 09-14 for cn 09-16 (fake fresh date, stale foreign values). Re-ingested 2026-09-16 ~23:50 BJT once 09-15 was available; row recomputed from true closes (NVDA +0.5734%, QQQ -0.6543%), g1_flag=none (was wrongly ai_rebound_watch). Fix v1.1: missing expected session => explicit stale row, never forward-roll."
+}
