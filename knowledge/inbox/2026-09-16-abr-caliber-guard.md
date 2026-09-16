@@ -57,5 +57,5 @@ WB（评论 `5695430096`）指出：护栏只修了「L1 vs feed 的**源**混�
 
 **同版本覆盖**（A v2.49 / B v2.20；日志级，规则 6 不升版；未部署故直接并入）。验证：单测 18/18、11/11；pyflakes 无新增未定义名；md5 A=`1be520f9544daa3286273ee35b794c22` / B=`4ee750c73d1c58c348a0285505bd86de`（**取代上文旧 md5**）。
 
-**仍待现场**：feed JSON 的 key 必须与 QMT `code` 串完全一致（如 `002218.SZ`）；若用裸码会 `data.get(code)` miss → 静默回退 L1。一条 `findstr 002218 C:\alphapilot\l2_feed\{date}.json` 即可核。
+**仍待现场**：feed JSON 的 key 必须与 QMT `code` 串完全一致（如 `002218.SZ`）；若用裸码会 `data.get(code)` miss → 静默回退 L1。**已核（老板 2026-09-16 21:37，交易机）**：`findstr 002218 C:\alphapilot\l2_feed\20260916.json` → `"002218.SZ": {` ✅ **带市场后缀，格式与 QMT `code` 一致，feed 生效**。⇒ 读取侧无 key 失配。
 

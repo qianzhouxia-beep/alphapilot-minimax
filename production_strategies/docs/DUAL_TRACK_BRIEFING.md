@@ -425,8 +425,12 @@ active_buy_ratio = 主动买量 / 总成交量
 - 服务器输出：`output/qmt_scores/{date}.json`、`{date}.candidates.json`（+ 新增 `{date}.fullpool.json`）
 - nginx：`/qmt_scores/`
 - QMT 本地：`C:\alphapilot\scores\{date}.json`
-- QMT 日志：`D:\国金QMT交易端模拟\userdata\log\XtClient_FormulaOutput_*.log`
-- QMT 引擎日志：`D:\国金QMT交易端模拟\userdata\log\XtClient_Message_*.log`
+- QMT 日志（**2026-09-16 订正：用账号目录；旧的 `D:\国金QMT交易端模拟\...` 已是空壳，读不到**）：
+  - A 轨模拟：`D:\（98009473）国金QMT交易端模拟轨道A\userdata\log\XtClient_FormulaOutput_*.log`
+  - B 轨模拟：`D:\（62128716）国金QMT交易端模拟轨道B\userdata\log\XtClient_FormulaOutput_*.log`
+  - 实盘：`D:\国金证券QMT实盘交易端\userdata\log\XtClient_FormulaOutput_*.log`
+- QMT 引擎日志：同上目录下 `XtClient_Message_*.log`
+- 目录拓扑详见 `knowledge/ops/qmt_client_dirs.md`
 
 ---
 
