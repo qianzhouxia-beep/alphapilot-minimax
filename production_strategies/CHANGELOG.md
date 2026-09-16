@@ -1,5 +1,146 @@
 # 生产策略更新日志（CHANGELOG）
 
+## 2026-09-16（addendum）— A v2.49 / B v2.20：abr 证据日志 `src=… win=N`（同版本，日志级，逻辑零改动）
+
+- 修改人：Cursor（应 WB 09-16 评论 5695430096 口径残留追问 + 老板拍板「并入同一版再部署」）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.49.py`（同版本覆盖；**尚未部署，故直接并入**）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.20.py`（同上）
+  - `track_a/_ut_abr_caliber_v249.py`（18/18）、`track_b/_ut_abr_caliber_v220.py`（11/11）—— 标定源标签 mootdx→feed
+  - `README.md` §二/§四/§六
+- 版本变化：**不变**（A v2.49 / B v2.20；仅日志/注释，规则 6）
+- 修改内容：
+  1. feed 读取器 `_get_active_buy_from_mootdx` 额外返回 `n`（feed 窗口笔数，变量 `win`）；返回值由 2 元组改 3 元组，两处调用点同步。
+  2. P2 abr 日志补窗口：`[P2] … abr=0.51 src=feed win=800`；A 记 `item["abr_src"]/["abr_win"]`，B 记 `it["abr_src"]/["abr_win"]`（pass 情形也有证据）。
+  3. 标定源标签 `"mootdx"` → 常量 **`ABR_CALIBRATED_SRC="feed"`**（生产者无关：读的是文件，不是进程；mootdx 已被 tencent_tick_feed 取代）。
+  4. **口径注释纠错**：v2.49/v2.20 原文写「feed = 全日累计 = P2_cum」——那是**旧 mootdx** 生产者的性质；腾讯替代件 abr = **末 800 笔滚动窗**，与 0.52 标定的 P2_cum 窗口**不同**。注释改为如实描述，并标注 E20 残留。
+- 原因/依据：WB 评论 5695430096 指出：护栏只修了「L1 vs feed 源混用」，**未修 feed 自身窗口 vs 标定窗口**；`deliver/DELIVERY_tencent_tick_feed.md` 亦自认「0.52 为 TDX 口径标定、同日 TDX↔腾讯对照未做」。**刻意不重标定**（无同日对照 → 不拍数，E20/E29 纪律）；只补可审计证据，供 E23 与未来重标定。
+- 验证：`_ut_abr_caliber_v249` 18/18、`_ut_abr_caliber_v220` 11/11；pyflakes 仅 QMT 运行期注入名（`passorder`/`get_trade_detail_data`/`C`），**无新增未定义名**；ASCII + AST + CRLF 通过；md5 A=`1be520f9544daa3286273ee35b794c22` / B=`4ee750c73d1c58c348a0285505bd86de`。
+- 部署：仍需部署 A v2.49 / B v2.20（一次部署即含护栏 + 证据日志）。`[INIT]` 版本串不变。**上一节「abr 口径护栏」记录的 md5 与单测数（12/12、9/9）已被本节取代。**
+
+## 2026-09-16 — A/B 模拟盘 abr 口径护栏：非标定源/越界值 fail-open（A v2.49 / B v2.20）
+
+- 修改人：Cursor
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.49.py`（新建，现行 A 模拟部署件）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.20.py`（新建，现行 B 模拟部署件）
+  - `track_a/_ut_abr_caliber_v249.py`（12/12）、`track_b/_ut_abr_caliber_v220.py`（9/9）
+  - `README.md` §二/§四/§六
+- 版本变化：A **v2.48→v2.49**；B **v2.19→v2.20**（均仅模拟盘；P2 交易端口径）
+- 修改内容：
+  1. 新增 **`ABR_CALIBRATED_SRC_ONLY = True`** + `_abr_in_range()` + `_abr_verdict()`。
+  2. **`MIN_ACTIVE_BUY=0.52` 只在标定口径（mootdx 全日累计逐笔）生效**；`src=l1`（QMT 末 120 笔近似，**另一口径**）低于 0.52 时 **fail-open**（不再硬弃）。
+  3. **值域护栏**：abr 非 [0,1]/非有限 → fail-open（视同缺失）。
+  4. A 落点 `_p2_decide` abr 段；B 落点 **`_p2_gate`（逐 bar 硬重判）+ `_p2_decide`** 两处。
+  5. 日志：`[P2] abr out-of-range -> fail-open …` / `[P2] abr uncalibrated -> fail-open …`；B gate notes 增 `abr=oob_open` / `abr=uncal_open`。
+- 原因/依据：WB 空单诊断（09-16）实锤 A 轨头号弃票=`skip_low_abr`；根因=**口径错配**——0.52 由全日累计逐笔标定（`BT_ABR_GATE_REPORT.md` P2_cum_052），却施加在 feed 缺位时的 L1 末 120 笔近似值上（000722 09-16 等）。WB 规格 §8.1 决策 A-1/A-2 同向。
+- 验证：`_ut_abr_caliber_v249` 12/12、`_ut_abr_caliber_v220` 9/9；ASCII + AST + CRLF；md5 A=`4ddcc871b8841f0550ff629541424d2a` / B=`7a789479f58354025b6442df0f8ba640`。
+- 部署：**需要**部署 **A v2.49**（替换 v2.48；含 fixed-stop off + abr 口径护栏）与 **B v2.20**（替换 v2.19；含弱市 regime + abr 口径护栏）。查 `[INIT] … v2.49 … abr-caliber-guard` / `[INIT] … v2.20 … abr-caliber-guard`。**实盘 tpl / TDX 不动**。
+
+## 2026-09-16 — Track A 模拟盘 v2.48：关闭 D3-1 固定 −4% 止损（不部署该项）
+
+- 修改人：Cursor
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.48.py`（新建，现行 A 模拟部署件）
+  - `README.md` §二/§四/§六
+- 版本变化：A **v2.47→v2.48**（卖出；仅模拟盘）
+- 修改内容：
+  1. 新增 **`FIXED_STOP_ENABLE = False`**；`_check_sell` 中 `stop_fixed` 路径改为 `FIXED_STOP_ENABLE and ret <= -FIXED_STOP_PCT`。
+  2. `FIXED_STOP_PCT=4.0` / D8 observe 豁免 / `observe_floor` 代码保留（开关关时 inert；灾难底原先只作 −4% 旁路）。
+  3. **不**把 −4% 搬到 Track B；卖出统一原「P2 影子 −4%/TSDOWN/D8」中的 **−4% 项取消**（TSDOWN/D8 另议）。
+- 原因/依据：老板判定固定 −4% 过直接——买入当日 T+1 不可卖，规则实际从**首个可卖日**起砍；要求更多验证或取消，**A 端先不部署此项**。A live tpl 本就无 `FIXED_STOP`。
+- 验证：ASCII + AST + CRLF；import `FIXED_STOP_ENABLE is False`。
+- 部署：**需要**部署 `TrackA_…_sim_v2.48.py`（替换 v2.47）；查 `[INIT] … v2.48 … fixed-stop-OFF`。**实盘不动**。B 不动。
+
+## 2026-09-16 — Track B 模拟盘 v2.19：弱市 regime 对齐 A（floor×0.6 + MA25）【卖出统一 P1】
+
+- 修改人：Cursor
+- 涉及文件：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.19.py`（新建，现行 B 模拟部署件）
+  - `track_b/_ut_weak_regime_v219.py`（15/15）
+  - `README.md` §二/§四/§六
+- 版本变化：B **v2.18→v2.19**（卖出；仅模拟盘）
+- 修改内容：
+  1. **`WEAK_REGIME_ENABLE`**：从 `fullpool_live` / `fullpool` / `candidates` 读 `market_env.weak_regime`（与服务器 `export_qmt_scores` 一致）。
+  2. **弱市**：`t2_force` 动态 floor × `WEAK_FLOOR_MULT=0.6`（更早砍亏）；T+3 到期/延持需看 **MA25**（趋势完好可不过期；破位才砍；破位不延持）。
+  3. **peel 不变**（与 A v2.33 一致）。日志：`[REGIME]` / `[HOLD] weak-regime` / `[EXT] … below ma25`。
+- 原因/依据：卖出统一 P1（老板按序）；与 A 读同一 `market_env` 源。
+- 验证：`_ut_weak_regime_v219` 15/15；peel/early-vol/LIM10 回归绿；ASCII+AST+CRLF。
+- 部署：**需要**部署 `TrackB_…_sim_v2.19.py`；查 `[INIT] … v2.19 … weak-regime`。弱市日应见 `[REGIME] weak day…`。A 仍 v2.47。实盘不动。**下一步 P2（未做）**：−4%/TSDOWN/D8 仅影子。
+
+## 2026-09-16 — Track B 模拟盘 v2.18：卖出 peel 对齐 A（帽 2% + 次棒确认）【卖出统一 P0】
+
+- 修改人：Cursor
+- 涉及文件：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.18.py`（新建，现行 B 模拟部署件）
+  - `track_b/_ut_peel_v218.py`（11/11）
+  - `README.md` §二/§四/§六
+- 版本变化：B **v2.17→v2.18**（卖出逻辑；仅模拟盘）
+- 修改内容：
+  1. **`PEEL_PB_MAX=0.02`**：`_adaptive_params` 由 `min(0.05,…)` 改为 `min(PEEL_PB_MAX,…)`（对齐 A v2.44）。
+  2. **`PEEL_NEXT_BAR_CONFIRM=True`**：回撤触价只武装，须更晚 5m bar 仍破位才 peel；创新高作废 pending；`False` 可回退首触即卖（对齐 A v2.45）。
+  3. `POS_STATE_PERSIST` 增加 `peel_pending/peel_touch_bar/peel_touch_peak`。
+- 原因/依据：老板拍板卖出端按序统一；P0=已验证的 peel 改进，**不动** −4%/TSDOWN/D8/rotation。
+- 验证：`_ut_peel_v218` 11/11；early-vol 9/9；LIM10 3/3；ASCII+AST+CRLF。
+- 部署：**需要**部署 `TrackB_…_sim_v2.18.py`（覆盖 v2.17）；查 `[INIT] … v2.18 … peel-cap2%+nextbar` 与（触发时）`[PEEL] … touch armed`。A 模拟仍用 v2.47。实盘不动。**下一步（P1，未做）**：弱市 floor×0.6。
+
+## 2026-09-16 — A/B 模拟盘 P2 交易端对齐（early-vol + 条件式日内位置）
+
+- 修改人：Cursor
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.47.py`（新建）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.17.py`（新建；取代待部署的 v2.16）
+  - `track_a/_ut_early_vol_v247.py`、`track_b/_ut_early_vol_v217.py`
+  - `README.md` §二/§四/§六
+- 版本变化：A **v2.46→v2.47**；B **v2.16→v2.17**（均仅模拟盘）
+- 修改内容（目标：**执行端 P2 一致，差异留在选股端**）：
+  1. **A 补齐 B 的早盘放量**：Plan A 同槽历史 ≥1.3；Plan B 09:36–09:45 且涨幅&lt;+4% 豁免放量；`_get_m5_bars` 允许 1 根今日 bar。
+  2. **B 补齐 A 的条件式日内位置**：`DAYHIGH_CONDITIONAL`（低位 `ma60_pos&lt;0 & up_low&lt;0.5` → cap=1.00）；`_p2_decide(..., item)` 传入候选行；`[DAYHIGH]` 日志。
+  3. **选股端仍不同**：A = `candidates.json` rank≤3；B = live LIM10。卖出/仓位等非 P2 模块本轮不动。
+- 原因/依据：老板要求 A/B 交易端 P2 统一，便于以后实盘合并上线；今日 002218 复盘暴露早盘放量死门，A 侧此前仅有条件式 day-high。
+- 验证：A `_ut_early_vol_v247` 9/9；B `_ut_early_vol_v217` 9/9 + LIM10 3/3；ASCII+AST+CRLF。
+- 部署：**需要**老板部署：
+  - A 模拟：`TrackA_…_sim_v2.47.py`（替换 v2.46）
+  - B 模拟：`TrackB_…_sim_v2.17.py`（若已拷 v2.16 则改拷 v2.17）
+  - 查 `[INIT] … v2.47 … early-vol-A/B` / `[INIT] … v2.17 … cond-dayhigh`
+  - **实盘 tpl 仍不动**（A live v2.38 / B live v2.8）
+
+## 2026-09-16 — Track B 模拟盘 v2.15→v2.16：早盘放量 Plan A/B（同槽历史 + 温和涨幅豁免）
+
+- 修改人：Cursor
+- 涉及文件：
+  - `production_strategies/track_b/TrackB_track_b_qmt_auction_sim_v2.16.py`（已由 v2.17 取代为现行件；本条保留审计）
+  - `production_strategies/track_b/_ut_early_vol_v216.py`（单测 9/9）
+  - `production_strategies/README.md`（目录树 / §四 md5 / §六基线）
+  - `TrackB_track_b_qmt_auction_sim_v2.15.py` 保留为上一版，勿部署
+- 版本变化：v2.15 → **v2.16**（选股/买入确认逻辑）→ **已被同日 v2.17 取代**
+- 修改内容：
+  1. **Plan A（同槽历史放量）**：日内 `vol_ma5×1.3` 不过时，若当日该 5m 时点成交量 / 近 5 日**同时点**均量 ≥ 1.3 → 视为放量通过。修复「首根 5m 上 vol/ma 恒为 1.0」的结构性死门。
+  2. **Plan B（早盘温和涨幅豁免）**：墙钟 **09:36–09:45** 且触发价相对昨收 **&lt;+4%** → 豁免放量门（趋势/VWAP/不追高/日位置/R5 仍要过）。覆盖 +2~4% 及从约 −1% 抬升的票。
+  3. **`_get_m5_bars`**：允许仅 1 根今日 bar（原 `len&lt;2`→`None`/`no_m5`，09:36–09:39 根本进不了 `_p2_decide`）。
+  4. 日志：`[P2] early_waive` / `[P2] same_slot`（每票每天每种至多一条）。
+- 原因/依据：002218（2026-09-16）09:36 复盘：gap=+2.15%、day_pos=0.435、ABR 过，唯放量门结构性不过；老板拍板落地 A+B（不改全天 6% 不追高、不改实盘）。
+- 验证：ASCII + AST 通过；`_ut_early_vol_v216.py` **9/9 PASS**（含 002218 形态 Plan B 确认）。
+- 部署：**已被同日 v2.17 取代**；请直接部署 v2.17，勿再部署 v2.16。
+
+## 2026-09-16 — fix_kline「探针滞后误判已齐」根治 + 预检级联修因子
+
+- 修改人：Cursor
+- 涉及文件：
+  - `production_strategies/server/fix_kline_server.py`（同步根目录 `fix_kline_server.py`）
+  - `scripts/preflight_checkpoint.py`（级联两轮 repair）
+  - `scripts/data_readiness_gate.py`（extra_factors repair 带 `--workers 12`）
+- 版本变化：无策略版本号（数据管线）
+- 修改内容：
+  1. **根因**：TDX 每日熔断后，16:15 新浪/腾讯探针常仍停在 T-1；旧逻辑用探针差集为空 +「本地 T-1 覆盖≥90%」判定「已齐」→ **静默跳过当日写入**。凌晨 00:30 预检再补 K 线 → `extra_factors` 少一天 → 企微每日轰炸。
+  2. **修复**：引入日历期望日 `_expected_latest_trade_date`；探针 < 期望则等待最多 20min；**禁止**在 `local_max < expected` 时跳过；期望日强制进待补；兜底后 `_cov_latest` 跟新。
+  3. **预检**：repair 最多两轮，避免「修完 K 线级联出因子缺口却不修」。
+  4. **cron**：新增 `30 17 * * 1-5 fix_kline_server.py --skip-tdx` 作为 16:15 后安全网（不新增授权边界外任务类型，同属 K 线补全）。
+- 原因/依据：09-14/09-15 连续 `fix_kline.log` 证据「缺口检测…跳过兜底」且探针目标日=本地旧日。
+- 验证：语法通过；部署后看今晚/明日 16:15 日志应出现「日历期望」且写入当日；00:30 不应再因 extra_factors 日 lag 企微。
+- 部署：**已部署上海服务器**；非 QMT/通达信交易端，无需老板拷贝策略文件。
+
+
 > 所有对 `production_strategies/` 内生产文件的修改，必须在此追加记录。
 > **追加在最新一条的上面（倒序）**，不要覆盖旧记录。
 
@@ -17,6 +158,108 @@
 ```
 
 ---
+
+---
+
+## 2026-09-15 盘中：`tencent_tick_feed.py` 替代 mootdx 实时源（WB 出件 + Cursor 暖轮热修 + 镜像）
+
+- 修改人/Agent：WB-Mac（初版出件）／主控 Agent Cursor（复核热修、镜像、CHANGELOG）
+- 涉及文件：
+  - 新建 `production_strategies/track_b/tencent_tick_feed.py`
+  - 新建 `deliver/tencent_tick_feed.py` + `DELIVERY_tencent_tick_feed.md`
+- 版本变化：无（feed 独立进程；Track B QMT 不改、下游 JSON 契约不变）
+- 修改内容：
+  1. 数据源：TDX/mootdx 实时坏 → 腾讯 gtimg 逐笔；输出仍为 `l2_feed/{YYYYMMDD}.json` `{abr,buy_vol,sell_vol,ts,n}`
+  2. WB 已修：页码正则一位数静默失配；防双写锁；真空页 vs 网络失败；原子写
+  3. **Cursor 热修**：暖轮从 `last_page` 续翻（原 `range(5)` 从 p=0 起会导致每轮冷重建）
+- 原因/依据：Issue #6 WB 交件帖；老板点名修 feed；Cursor 被派「复核 + 镜像、勿重复出件」
+- 验证：盘中 `--once` 2/2 n=800；warm 第二轮 `cold=False`；sha256 `7ea3a4c160cd9e6799e0a7f597c75ece5c50cf417761e35baf59bee4552a6583`（17357 B）。WB 旧 hash `1fd3b0bd…` 作废
+- 部署：
+  - **上海镜像**：`http://150.158.100.236/qmt_scores/_deliver/tencent_tick_feed.py`
+  - **老板手动**：curl + certutil（见交付单）→ `C:\alphapilot\tencent_tick_feed.py`；明日 09:31 前用新脚本替 mootdx 拉起；`mootdx_feed.py` 保留
+  - **Cursor 不碰交易机**；Track B 策略零改动
+
+## 2026-09-14 晚：`mootdx_feed.py` 首次部署出件 → `deliver/`（W-0914-FEED）
+
+- 修改人/Agent：主控 Agent（Cursor）；工单 WB-Mac `FEED_FIRST_DEPLOY_ORDER_20260915.md`
+- 涉及文件：
+  - `production_strategies/track_b/mootdx_feed.py`（最小加固）
+  - 新建 `deliver/mootdx_feed.py` + `DELIVERY_mootdx_feed.md` + `mootdx_mock.py` + `_test_mootdx_feed.py` + `README.md`
+- 版本变化：无（非 QMT 策略版本；feed 独立进程）
+- 修改内容：
+  1. 出件：正本拷到仓库 `deliver/`（最终名、不带日期后缀）
+  2. 正本两处加固（**非阶段 2**）：`makedirs(..., exist_ok=True)`；`refresh` 单票异常吞掉并打日志，保证 `updated=0` 仍打印
+  3. **明确未做**阶段 2（分页日累计 / 热重载 / `[ABR]` 留痕）——工单禁止本单改
+- 原因/依据：交易机预检无 `mootdx_feed.py`（首次部署）；09-15 09:30 前老板需手动拷到 `C:\alphapilot\`
+- 验证：venv Python3.14.5 + mootdx 0.11.7；`_test_mootdx_feed.py` **17/17**；收盘后联网 `--once` → `updated=0` 不崩；sha256 见 `deliver/DELIVERY_mootdx_feed.md`
+- 部署：
+  - **WB-Mac**：镜像到 `http://150.158.100.236/qmt_scores/_deliver/mootdx_feed.py`
+  - **老板手动**：09-15 09:30 前拷到 `C:\alphapilot\mootdx_feed.py`（见 FEED_COPY_GUIDE / RUNBOOK §四·0）
+  - **Cursor 不碰交易机**
+
+## 2026-09-14 晚：CHANGELOG 热切更正 + W1–W4 + prType 答 + 日志补丁（不升版）
+
+- 修改人/Agent：主控 Agent（Cursor）；规格 WB-Mac Issue#6 今晚帖（`5663406142` / `5663456868` / `5663522519` / `5663735047`）
+- 涉及文件：
+  - `rd_workshop/research_factory/archive_score_snapshot.py`（W1）
+  - `scripts/wb_micro_watchdog.sh`（W2 新）
+  - `scripts/abr_eod_reconcile.py`（W4 第三源）
+  - `track_b/…_sim_v2.15.py` / `…_live_v2.8-tpl.py`（W3 日志，**不升版**）
+  - `track_a/…_sim_v2.46.py` / `…_live_v2.38-tpl.py`（W3 日志，**不升版**）
+- 版本变化：无（买卖逻辑未改；只加 print）
+- 修改内容：
+  1. **热切更正**：B sim **v2.15 已由老板 09-14 14:09:31 手动热切**。上条 CHANGELOG「QMT 模拟：待部署 v2.15」作废（原文保留）。
+  2. **实盘项降级**：live 暂停空仓。v2.8-tpl / A live 落后 sim 等 = **实盘恢复前 gate**，不是当前待办。持仓核对已撤销（空仓）。`l2_feed` 仍影响**模拟盘** ABR 源，不算 live-only。
+  3. **W1**：归档去掉死文件 `call_auction_snapshot.json`；改拷 `pre_market_archive/<D>.json`；`_archive_meta.json` 含 `verdict`/`stale[]`（内容日或 mtime 日 ≠ 归档日 → STALE）。
+  4. **W2**：`scripts/wb_micro_watchdog.sh` 每 5 分钟 `pgrep`，挂了才拉起 guard；**不把采集本身放进 cron**。
+  5. **W3-a**：`skip_low_abr` 打印 `abr=<val> src=<mootdx|l1|none>`。
+  6. **W3-b**：`[PENDING] SELL` / `SELL_HALF` 加 `@ signal <price>`。
+  7. **W4**：对账 CSV 增 `l1_last120`（`wb_micro` tick 末 120 笔）。三窗标签：THS=即时资金流；TDX tick 09:35=日累计至 09:35；L1=末 120 笔近似。**不对减当精度**。09-14 尚无 tick dump（采集 09-15 09:15 起）。
+- 原因/依据：WB 今晚清单一次做完；老板刚热切，升 2.15/2.46 会逼第二次热切。
+- 验证：ASCII+ast 过；LIM10 3/3；归档 tmp STALE 单测过；reconcile py_compile。新 md5：B sim `0cb9e89098eca6c47d06d133dda2dbbc`；A sim `46692842ee914ef783176564384fbe2a`；B live-tpl `edeb493319e7504e0cf1bcf036bb25e3`；A live-tpl `6f4926bf53b8d5c2e54c6bf4bdc6992c`
+- 部署：
+  - **上海**：已 scp 归档脚本 + watchdog + reconcile；crontab `*/5 * * * 1-5` watchdog
+  - **QMT 模拟**：**需再覆盖同名文件**才能看到新日志（版本号仍 v2.15 / v2.46）
+  - **QMT 实盘模板**：实盘恢复前再复制；现在不部署
+
+## 2026-09-14 abr 软门 + thr(t) 换手 + B 逐 bar 硬判（WB 终稿 5659273652）
+
+- 修改人/Agent：主控 Agent（Cursor）；规格/定标 WB-Mac（Issue#6 `5659139947` / `5659273652`）
+- 涉及文件：
+  - 服务器：`money_flow_gate.py`、`turnover_share.py`（新）、`export_qmt_scores.py`（及 `server/export_qmt_scores.py` 同步）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.14.py` → **`…_sim_v2.15.py`**
+  - `track_b/TrackB_track_b_qmt_auction_live_v2.7-tpl.py` → **`…_live_v2.8-tpl.py`**
+  - `track_b/_test_lim10_failopen.py`（默认指向 v2.15）
+  - `scripts/abr_eod_reconcile.py`（D3 盘后逐笔复核）
+  - `README.md` 基线
+- 版本变化：B sim **v2.14→v2.15**；B live **v2.7-tpl→v2.8-tpl**；服务器资金门逻辑变更（无选股版本号）
+- 修改内容：
+  1. **A1**：`money_flow_pass` 硬门去掉 abr；abr 偏低只降权（×0.88）；abr∉[0,1]、vr<0 → 缺失 fail-open（不再 data_error）
+  2. **A2**：换手下限 `thr(t)=2.0%×share(t)`（48 点常量表，WB §3.2 锚点 + 线性插值）
+  3. **export**：abr/vr/to 越界置空告警 fail-open；chg 垃圾仍硬 fail
+  4. **C1**：LIM10 fail-safe 改为「本 bar 硬门全否 → 本 bar flat」，日志 `hard_all_rejected`；服务器 `money_flow_pass` 仅软偏好
+  5. **C2**：B live/sim live-pool **逐 bar 硬判 abr**；`_p2_decide` 增 `skip_low_abr`（live 放弃列表同步）
+  6. **D3**：`scripts/abr_eod_reconcile.py` 盘后 TDX 逐笔 vs THS abr CSV
+- 原因/依据：09-14 `money_flow_pass=0/22` 主因=固定 2% 换手+abr 硬门错配；B 全天 flat；WB 老板授权终稿
+- 验证：gate 单测 7/7；`_test_lim10_failopen` 3/3；QMT 件 ASCII+ast 过；sim md5(CRLF)=`97423ff03cda7a7dbab2e5dec167335c`
+- 部署：
+  - **上海选股服务器**：**已部署** `money_flow_gate.py` + `turnover_share.py` + `export_qmt_scores.py` + `scripts/abr_eod_reconcile.py`（明日 09:35 生效）
+  - **QMT 模拟**：**待部署** `…_sim_v2.15.py`（替换 v2.14）
+  - **QMT 实盘模板**：**待**按账户复制 `…_live_v2.8-tpl.py`；**待现场（需老板）**确认 `C:\alphapilot\l2_feed\{date}.json` 是否存在 / mtime / `abr` 有值（勿写「待 WB-Win」——Win 侧 Agent 在 Linux 容器读不到该路径）
+
+## 2026-09-14 数据：回填 WB 缺口差集 + Cursor 收尾三遗留（server，非交易端）
+
+- 修改人/Agent：WB-Mac（授权直改服务器，回帖 `5654892521`）→ 主控 Agent（Cursor）复核回填仓库并收尾
+- 涉及文件：
+  - `server/fix_kline_server.py`（及根目录同名生产件）
+  - 根目录 `rebuild_backtest_cache.py`、`prod_op_lock.py`（cron 实跑件；锁模块不在 `production_strategies/`）
+- 版本变化：无（数据链路，非选股/买卖逻辑版本号）
+- 修改内容：
+  1. **WB**：兜底目标从「探针单点最新日」改为「本地缺口日差集」`_probe_recent_dates`；`rebuild_backtest_cache` 抢锁改为等锁重试 + 重建后 pkl vs kline 日期校验；crontab 增 **04:00** 凌晨链（`--skip-tdx` → rebuild pkl → rebuild 因子）绕开「新浪当日线次日凌晨才出 + 04:50 窗口不够」
+  2. **Cursor 收尾**：① 无缺口且本地覆盖≥90% → **跳过**无意义单日全量兜底（遗留1）；② `prod_op_lock` **死进程锁可覆盖** + 同 pid 重入（遗留2）；③ parquet **临时文件 + `os.replace` 原子写**（遗留3 的写入侧；持锁窗口仍≈拉取时长，拆锁另排期）
+- 原因/依据：`backtest_cache/*.pkl` 才是 `recommend.py` 实际 K 线源；09-10/09-11 连续两天被 `fix_kline` 持锁跳过且零告警；TDX 主源仍断
+- 验证：语法 `py_compile` 过；SH 死 pid 锁 smoke 过；pkl 末日期已对齐 kline=09-11
+- 部署：**已部署上海选股服务器**（非 QMT/通达信）。交易端无需操作。
 
 ## 2026-09-13 Track A sim v2.45 → v2.46：Fix C `passorder` 成交确认（A/B 对照公平性，独立提交）
 
