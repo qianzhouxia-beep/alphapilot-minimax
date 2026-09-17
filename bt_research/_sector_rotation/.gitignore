@@ -1,0 +1,2 @@
+# 派生数据切片（可由脚本从服务器只读重取，见 SECTOR_ROTATION_STUDY_20260917.md 第 6 节）
+data/
