@@ -1,5 +1,425 @@
 # 生产策略更新日志（CHANGELOG）
 
+## 2026-09-24 — B 轨清掉已卖出的持仓账本，升 v2.25 / v1.25
+
+- 修改人：Cursor
+- 涉及文件：`track_b/TrackB_track_b_qmt_auction_sim_v2.25.py`（新建）、`track_b/TrackB_track_b_tdx_auction_sim_v1.25.py`（新建）
+- 版本变化：QMT v2.24→v2.25；通达信 v1.24→v1.25。v2.24 / v1.24 保留为 09-23 已部署的那一档（仓库里的 v2.24 另含日志去重，见下条）。
+- 修改内容：卖出确认时若持仓已不在内存，仍从 `position_map` 去掉并重写 `b_pos_state.json`。FULLPOOL 同一天同一只数只打一次，一并带上。
+- 原因/依据：09-24 B 轨 688796 已全部卖出，账本仍留着该票。Issue #6 `5812626066`。
+- 验证：QMT 文件 ASCII + ast。通达信文件 ast。
+- 部署：09-28 开盘前由用户复制这两个新文件进 QMT 模拟轨道 B 和通达信轨道 B。不要覆盖正在跑的 v2.24 文件名。Agent 不写交易端。
+
+## 2026-09-24 — B 轨 FULLPOOL 日志只在池子变化时打
+
+- 修改人：Cursor
+- 涉及文件：`track_b/TrackB_track_b_qmt_auction_sim_v2.24.py`、`track_b/TrackB_track_b_tdx_auction_sim_v1.24.py`
+- 版本变化：不升版本。买卖逻辑没改。
+- 修改内容：`[FULLPOOL] LIVE mode` 同一天、同一只数只打一次。换日或只数变了再打。
+- 原因/依据：09-23 B 轨日志里这一行打了 5065 次，去重后是同一句 `LIVE mode n=34`。文件解析那行只有 16 次，缓存是好的。Issue #6 `5799714264`。
+- 验证：两文件 ASCII + ast 通过。
+- 部署：需要用户在下一交易日 09-28 前，把这两个文件复制进 QMT 模拟轨道 B 和通达信轨道 B。Agent 不写交易端。
+
+## 2026-09-24 — 权重 IC 改为全池日度横截面
+
+- 修改人：Cursor
+- 涉及文件：`server/fusion_scorer.py`（与仓库根目录 `fusion_scorer.py` 一致）
+- 版本变化：无交易端版本。负 IC 保险丝保留。
+- 修改内容：`output/feedback/pool_xs_ic.jsonl` 有记录时，权重按这些日度秩相关逐日走保险丝，不再用最近 20 笔平仓。同一天不重复走。文件由 `scripts/pool_xs_ic.py` 从 fullpool 和单只缓存生成，不读整份 K 线。
+- 原因/依据：20 笔平仓的 IC 方差太大。工单要求换成每日全池横截面。
+- 验证：`scripts/_ut_fusion_neg_ic_guard.py` PASS。服务器已写出 25 个信号日，最后一天 2026-09-22。游标未写，今天 16:15 一次走完这 25 天。回放入口 `alphapilot_pipeline_v3.py --replay` 已在上海，弱分训练占用内存，一年重放没有开跑。
+- 部署：已上传上海。未改 QMT/通达信。未在夜间手动改 `model_weights.json`。
+
+## 2026-09-24 — 负 IC 保险丝改生产公式
+
+- 修改人：Cursor
+- 涉及文件：`server/fusion_scorer.py`（与仓库根目录 `fusion_scorer.py` 一致）
+- 版本变化：无交易端版本。
+- 修改内容：生产权重的 IC 映射改为 IC≥0 仍用 `(ic+1)/2`，IC<0 用 `max(0.05, 0.5+2*ic)`。减出的份额仍归一化补给另外两路。0.20 封顶守卫保留。影子日志已去掉，不再写 `fuse_shadow.jsonl`。
+- 原因/依据：`(ic+1)/2` 把 IC=−0.2455 映成 0.377，封顶只拦住上涨，板块路停在 0.20。老板要求直接改生产，不再加影子。
+- 验证：`scripts/_ut_fusion_neg_ic_guard.py` PASS。信号表 +0.39→0.695、0→0.500、−0.10→0.300、−0.2455→0.05。
+- 部署：已上传上海 `/home/ubuntu/alphapilot/fusion_scorer.py`。今天 16:15 反馈闭环按新公式写 `model_weights.json`。未在夜间手动重算，避免和 16:15 叠成两步。未改 QMT/通达信。
+
+## 2026-09-24 — 负 IC 保险丝只记影子
+
+- 修改人：Cursor
+- 涉及文件：`server/fusion_scorer.py`（与仓库根目录 `fusion_scorer.py` 一致）
+- 版本变化：无交易端版本。生产权重公式未改。
+- 修改内容：负 IC 的影子映射为 `ic<0` 时 `max(0.05, 0.5+2*ic)`，IC≥0 仍是 `(ic+1)/2`。影子权重按自己的 EMA 逐日走一步，写入 `output/feedback/fuse_shadow.jsonl`。`model_weights.json` 仍走现行公式和 0.20 封顶。
+- 原因/依据：现行 `(ic+1)/2` 把 IC=−0.2455 映成 0.377，封顶守卫只拦住上涨，负 IC 的板块路停在 0.20。先影子 20 个交易日，对上规格再切生产。
+- 验证：`scripts/_ut_fusion_neg_ic_guard.py` PASS。信号表 +0.39→0.695、0→0.500、−0.10→0.300、−0.2455→0.05。生产权重文件不含影子字段。
+- 部署：已上传上海 `/home/ubuntu/alphapilot/fusion_scorer.py`。下次 16:15 反馈闭环写第一行影子。未改 QMT/通达信。
+
+## 2026-09-23 — 把 WB 已上线的 K 线门槛改动收回仓库
+
+- 修改人：WB-Mac（服务器根目录活件）／补录人：Cursor
+- 涉及文件：
+  - `server/fix_kline_server.py`（与仓库根目录同名文件一并对齐）
+  - `server/daily_coverage_check.py`、仓库根目录同名文件
+  - `server/chip_date_guard.py`、`scripts/chip_date_guard.py`
+  - `server/data_readiness_gate.py`（归档补上一份）、`scripts/data_readiness_gate.py`
+- 版本变化：无交易端版本。cron 时刻未改。K 线数据未改。
+- 修改内容：从上海活件拉回 00:13 的四份脚本。`fix_kline_server.py` 去掉「占历史票池 90% 就算齐」的三处判断，改成近 10 日票池差分；兜底失败后再慢速重试一轮；新写入的 volume 取整。覆盖检查和 04:50 闸门加上基线对账。Cursor 原先的「比前一日少 20 只」仍在。
+- 原因/依据：cron 跑的是 `/home/ubuntu/alphapilot/fix_kline_server.py`。WB 按分工只改了那份活件，没有写 `production_strategies/`。不拉回的话，仓库副本还是旧门槛，下次从仓库部署会把活件盖回去。
+- 验证：四份与服务器 md5 一致。`scripts/test_chip_date_guard.py` 11 项 PASS。`py_compile` 通过。服务器 kline md5 仍是 `24ad22a595cd9d546a57ebc0a692d0bc`，chip 仍是 `7728d5809cd3c667e60ccb39779fd0d5`。
+- 部署：活件已在服务器，本次只同步仓库，没有再上传。
+- md5：`fix_kline_server.py` `c3706e4575443064d6d64a5c1850573f`；`daily_coverage_check.py` `65539d5d247f6a4be4ac0109ad7b7725`；`chip_date_guard.py` `a7077491d9ec78510db6065903767b61`；`data_readiness_gate.py` `cf87b505fa6ec2d0ef695282296e3ea6`
+
+## 2026-09-22 — 18:15 增加 K 线票池差分
+
+- 修改人：Cursor（WB 派单：收盘票池对账。Issue #6 `5779088853`）
+- 涉及文件：`server/daily_coverage_check.py`（与仓库根目录同名文件一致）、`server/chip_date_guard.py`（与 `scripts/chip_date_guard.py` 一致）、`scripts/test_chip_date_guard.py`
+- 版本变化：无交易端版本。
+- 修改内容：最新交易日相对前一日，消失超过 20 只就告警，并写出板块只数和样例代码。原来只在少于 4500 只时告警，4930 这种收缩会被放行。
+- 原因/依据：16:15 补 K 线的写入门槛是「最新日覆盖历史票池的 90%」。少 50 只大约是 99%，会照写。18:15 的 4500 下限也看不见。
+- 验证：`scripts/test_chip_date_guard.py` 11 项 PASS。两个 `daily_coverage_check.py` 字节相同。
+- 部署：**23:21 已上传上海。** `daily_coverage_check.py` md5 `e8a005cf554e442fc11c51a3497b1a62`；`scripts/chip_date_guard.py` md5 `c4fa9fbbd10bfec0d8e902d31aba6283`。服务器上用 51 只创业板消失的样例复核通过。未改 16:15 的 90% 写入门槛，未在上海读 parquet，未补那 52 行。
+
+## 2026-09-22 — 筹码检查：18:15 跟 K 线对日，15:40 不把未上传判失败
+
+- 修改人：Cursor（WB 已派两件：18:15 覆盖检查不跟 K 线对日；15:40 新鲜度排在筹码上传之前）
+- 涉及文件：
+  - `server/daily_coverage_check.py`（与仓库根目录同名文件保持一致）
+  - `server/data_freshness_check.py`（与 `scripts/data_freshness_check.py` 保持一致）
+  - `server/chip_date_guard.py`（与 `scripts/chip_date_guard.py` 保持一致）
+  - `server/README.md`、`server/DEPLOY_MANIFEST.md`
+  - `scripts/test_chip_date_guard.py`
+- 版本变化：无交易端版本。检查脚本。
+- 修改内容：18:15 的 chip 段在内部覆盖率之外，用筹码最新日对 K 线最新日。两天不一致就告警，哪怕筹码文件内部是 100%。15:40 在 18:15 之前，筹码落后今天 1～3 个日历日只记 `pending`，退出码仍是 0；落后超过 3 个日历日照旧 fail。18:15 及以后再跑新鲜度检查时，筹码日必须等于 K 线日。
+- 原因/依据：2026-09-22 同一份筹码，18:15 打印 `[CHIP] 最新 2026-09-21: 4981/4981 (100.0%)` 且结果 OK，15:40 却 `[fail] chip STALE expect=2026-09-22`。覆盖检查只数筹码文件里各日期的占比。新鲜度检查用 `--require-today`，而上传发生在 15:40 之后（09-18 为 15:47，09-21 为 16:30）。前两天是虚警，09-22 到检查时确实还没传。
+- 验证：`scripts/test_chip_date_guard.py` 9 项 PASS。两个 `daily_coverage_check.py` 字节相同。`data_freshness_check.py` 与 `chip_date_guard.py` 的 `scripts/` 与 `server/` 副本字节相同。`ast.parse` 通过。
+- 部署：**需要把三个文件拷到上海才生效，本次没有上传。** `daily_coverage_check.py` → `/home/ubuntu/alphapilot/daily_coverage_check.py`（md5 `a8cd9fdf28fc2874b72c10f8239a8de7`）。`scripts/data_freshness_check.py`（md5 `2f8640ec83fc4b30f4204951500da8b1`）和 `scripts/chip_date_guard.py`（md5 `527182199e91e76370d3a6b8fad84bda`）→ 服务器 `scripts/`。cron 时刻不用改。
+- 不在本次：生产模型仍冻在 08-21，AUC 安全门与 21:20 `train_v25.py` 另案，未改。
+- 部署补记（22:30）：上海 SSH 恢复后已上传。`daily_coverage_check.py` md5 `a8cd9fdf28fc2874b72c10f8239a8de7`；`scripts/data_freshness_check.py` md5 `2f8640ec83fc4b30f4204951500da8b1`；`scripts/chip_date_guard.py` md5 `527182199e91e76370d3a6b8fad84bda`（新文件）。服务器上用 09-21 对 09-22 的样例复核：覆盖检查会告警「不一致」，15:40 的一天落后判为 pending。旧文件留了 `.bak_20260922_223035`。cron 时刻未改。未在上海读 parquet，未动夜训。
+
+## 2026-09-22 — gapdn 开盘价改为会话开盘价，09:30:30 冻结并打行日志
+
+- 修改人：Cursor（WB 已派两件：修 `_get_open_px` 口径；给 gapdn 加评估时刻和每只候选的 px/prev/gap）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.56.py`（**新建**，现行 A QMT 模拟）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.24.py`（**新建**，现行 B QMT 模拟）
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.36.py`（**新建**，现行 A TDX）
+  - `track_b/TrackB_track_b_tdx_auction_sim_v1.24.py`（**新建**，现行 B TDX）
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.55_ai.py`、`track_a/TrackA_track_a_tdx_full_chain_sim_v2.35_ai.py`（旁路，同一口径）
+  - `track_a/_ut_gapdn_open_v256.py`
+- 版本变化：A QMT **v2.54→v2.56**（v2.55 是 AI 版号）；B QMT **v2.23→v2.24**；A TDX **v2.34→v2.36**（v2.35 是 AI 版号）；B TDX **v1.23→v1.24**。AI 版号不改。实盘模板不动。
+- 修改内容：gap 的分子改为会话开盘价。QMT 顺序是合约详情里的 Open、`get_full_tick` 的 `open`、当日日线 open。不再用 `period=1m, count=1` 那根会跟着现价走的 K 线。通达信只用快照 Open。评估在 09:30:30 之前不缓存；09:30 这一分钟里只要还有票没有开盘价就重试，09:31 起冻结。日志多两行：`[GAPDN] eval=日期 时分秒`，以及每只前 30 名一行 `px prev gap fp src band`。
+- 原因/依据：2026-09-22 日志 gap 688796 −2.54%、300434 −1.12%，反解价贴近当时现价，不是集合竞价开盘价。源码注释写的 auction print 与实测不符，日内缓存又把「哪一秒算」锁死。
+- 验证：QMT 文件 ASCII + `ast.parse`，行尾 CRLF。TDX 文件 UTF-8 + `ast.parse`，行尾 LF。`_ut_gapdn_open_v256.py` 10 项 PASS（tick open 优先、拒用 1 分钟线、09:30:30 前不缓存、行日志含 px/prev/gap）。
+- 部署：**需要用户手动复制后才生效**。本次不往 QMT / 通达信里拷。认 `[INIT]` 含 `v2.56` / `v2.24` / `v2.36` / `v1.24` 且带 `gapdn-open-pin`。正在跑的 v2.54 / v2.23 仍是旧口径。AI 版不要和对应模拟版装在同一个客户端。
+- md5：A QMT v2.56 `34933a04b2060295cc6fed0fcf69e1ed`；A QMT v2.55-ai `999fc0749fa12fcdefb6f880a937c70b`；B QMT v2.24 `bae9186dc5ce8cc4454d938ca1ce5619`；A TDX v2.36 `d92478cdb54e21bb8758006126e6973e`；A TDX v2.35-ai `5e6a84d0810107eb14c5e65c551accd1`；B TDX v1.24 `08bc59289b64d36d89f2c843e76bce1b`
+
+## 2026-09-22 — 文件头版本说明改成从新到旧（只注释，不升版，不部署）
+
+- 修改人：Cursor（老板：说明里 v2.49 排在 v2.54 下面，顺序乱了；只改本地，QMT 端不部署）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.50.py` … `v2.54.py`、`v2.55_ai.py`
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.31.py` … `v2.34.py`、`v2.35_ai.py`
+  - `README.md`（上表 4 个现行文件的 md5）
+- 版本变化：无。买卖逻辑、`[INIT]` 字符串未改。
+- 修改内容：文件头改动说明按版本号从新到旧重排。QMT 上 v2.49 从 v2.54 正下方挪到 v2.50 与 v2.48 之间。通达信上 v2.31 挪到 v2.30 前面，v2.23 挪到 v2.22 前面。代码行未动。`v2.26_backup.py` 未改。
+- 原因/依据：新说明插在旧段下面，读起来像版本倒退。
+- 验证：QMT 六文件 ASCII + `ast.parse`，行尾仍 CRLF。通达信五文件 UTF-8 + `ast.parse`，行尾仍 LF。文件头之后的正文与改前逐行相同。
+- 部署：**不部署**。交易端里已打开的 v2.54 仍是旧说明顺序；本次只改仓库。不要用下面的新 md5 去对已经拷进 QMT / 通达信的文件。
+- md5（仅仓库）：A QMT v2.54 `12ea16e47749cd26e247b015528383cc`（旧 `2f060e99822705d66593eab09ee7f91f`）；A QMT v2.55-ai `b8b21fb28c5addbb7beca94d4633b5be`（旧 `56fa8cbcd88da294f265554bb2855f62`）；A TDX v2.34 `dfb11b45880fdace926494873f8eb542`（旧 `7b7c92b329e05a762ce5c9e441cc0f88`）；A TDX v2.35-ai `a83ba83b394361fe604a01f4efc7c45f`（旧 `4bef1f466e26efe27400257a7cc9afff`）。其余历史版 md5 不入部署表。
+
+## 2026-09-22 — 轨道 A AI 版（新建，不覆盖 v2.54 / v2.34）
+
+- 修改人：Cursor（老板：通达信轨道 A 模拟盘接入 AI；另写一份 QMT 轨道 A，标明 AI 版，不覆盖原文件）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.55_ai.py`（**新建**）
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.35_ai.py`（**新建**）
+  - `track_a/_ut_ai_plan_v255.py`
+- 版本变化：原 A QMT v2.54、原 A TDX v2.34 **字节未改**。AI 版为旁路文件。
+- 修改内容：买卖规则从对应原版复制。另读 `C:\alphapilot\position_plan.json`（固定名，`meta.for_trading_day` 必须是当天 `YYYYMMDD`）。缺失、过期、`consumable=false` 时行为与原版相同，只打 `[PLAN]`。`consumable=true` 时：`EXIT_AT_T2` 不打 `t2_extended`（14:45 地板照旧先卖）；`ROLLOVER_TO_T3` 必须先过地板，且 `conditions.levels.ma5_ref` 有价并满足涨幅；`EXIT_EARLY` 只在 `sell_below` 为具体价格且未封涨停时卖；`entry_veto.veto_symbols` 与 `buy_veto.json` 的 `drop` 跳过买入。账本分开：QMT 用 `ai_pos_state.json` 等，通达信用 `tdx_ai_*`。
+- 原因/依据：QMT 原模拟盘继续当现有策略的成绩单。AI 单子接到单独文件，避免和 v2.54 写同一份持仓。
+- 验证：QMT AI 文件 ASCII + `ast.parse`，行尾 CRLF；TDX AI 文件 UTF-8 + `ast.parse`，行尾 LF。`_ut_ai_plan_v255.py` 10 项 PASS。原版 md5 仍是 v2.54 `2f060e99822705d66593eab09ee7f91f`、v2.34 `7b7c92b329e05a762ce5c9e441cc0f88`。
+- 部署：**需用户手动复制**。通达信模拟端用 v2.35-ai，不要覆盖正在跑的 v2.34 文件名。QMT 的 v2.55-ai **不要和 v2.54 装在同一个客户端**（账号相同会重复下单）。认 `[INIT]` 含 `v2.55-ai AI-BUILD` 或 `v2.35-ai AI-BUILD`。计划件要先放到 `C:\alphapilot\position_plan.json`，且 `consumable` 为 true 才会改买卖。
+- md5：QMT AI `56fa8cbcd88da294f265554bb2855f62`；TDX AI `4bef1f466e26efe27400257a7cc9afff`
+
+## 2026-09-22 — wyckoff_bc 涨停延续不卖（A v2.54 / B v2.23 / TDX A v2.34 / TDX B v1.23）
+
+- 修改人：Cursor（老板：002290 今日涨停且高于昨收、昨高，次日清仓是逻辑错误）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.54.py`（**新建**，现行 A QMT 模拟）
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.23.py`（**新建**，现行 B QMT 模拟）
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.34.py`（**新建**，现行 A TDX）
+  - `track_b/TrackB_track_b_tdx_auction_sim_v1.23.py`（**新建**，现行 B TDX）
+  - `track_a/_ut_bc_limitup_v254.py`
+- 版本变化：A QMT **v2.53→v2.54**；B QMT **v2.22→v2.23**；A TDX **v2.33→v2.34**；B TDX **v1.22→v1.23**。实盘模板不动。
+- 修改内容：`wy_bc_armed` 在次日 09:35–09:50 全平之前，若现价封涨停、高于昨收，且高于昨高（昨高读不到也撤销），清掉标记并跳过。未封板、或仍未越过昨高，原来的 `wyckoff_bc` 照卖。peel / VWAP / T+2 不动。
+- 同日补充（仍是上述版本，未再升版；部署前并入）：低开（开盘 < 昨收）且现价仍高于今开，09:35–09:50 **先不卖**，标记留着。当天任何时刻现价高于昨高，或封涨停且高于昨收，标记作废。低开后又回到今开或更低，才在窗口内卖。平开/高开且没过昨高，原来的次日清仓保留。09:50 之后才跌破今开，这条早退不再补刀。
+- 原因/依据：2026-09-22 09:35 `[SELL] 002290.SZ wyckoff_bc 24.4% all 18300sh @ 77.85`。昨收 70.77，一字板 77.85。标记是前一交易日高潮 K 留下的，次日窗口不看今天是否涨停。低开后趋势向上、稍后才过昨高的情形，09:35 会卖在起涨之前，一并挡住。
+- 验证：QMT 两文件 ASCII + `ast.parse`；TDX 两文件 UTF-8 + `ast.parse`；`_ut_bc_limitup_v254.py` 13 项 PASS。行尾保持（QMT CRLF，TDX LF）。
+- 部署：**需用户手动复制**到对应模拟端。认 `[INIT]` 含 `v2.54` / `v2.23` / `v2.34` / `v1.23` 且带 `bc-limitup-cancel` 与 `bc-gapdn-defer`。今天 002290 已成交，本改动管下一笔。实盘模板本次不部署。
+- md5：A QMT `2f060e99822705d66593eab09ee7f91f`；B QMT `d9982db4897cbe412a1914677dfc8f4a`；A TDX `7b7c92b329e05a762ce5c9e441cc0f88`；B TDX `80e313b83345204907f4aafdafba2d98`
+
+## 2026-09-21 — 10:02 二次导出取证 + caller 审计落盘
+
+- 修改人：Cursor（老板：未发令给任何 AI，查 10:02 是谁；未完成的继续做）
+- 涉及文件：`server/export_qmt_scores.py`（`_audit_export_caller` → `output/logs/export_qmt_caller.jsonl`）
+- 版本变化：不改版本号；审计补丁
+- 修改内容：每次导出开头记录 argv / pid / `SSH_CLIENT` / `SSH_CONNECTION`，下次盘中二次导可直接归因
+- 原因/依据：今日 10:02 覆写无进程账；auth.log 仅见 `119.2.186.93` + 共享 `AlphaPiolot.pem`（与 WB `alphapilot-shanghai.pem` 同指纹）
+- 验证：AST；部署后 `md5` 对齐上海 `export_qmt_scores.py` + `production_strategies/server/`
+- 部署：上海 Cursor 代部署；**不需**拷 QMT
+
+## 2026-09-21 — 链路重设计：gapdn 独立买入路径 + 导出 settle/freeze
+
+- 修改人：Cursor（老板要求把链路改完整、QMT 策略端不再错）
+- 涉及文件：
+  - `track_a/…_sim_v2.53.py`：新增 `_check_buy_gapdn_e2`；`ENTRY_MODE=gapdn_e2` 时**不再进入** P2/D2W 共用段（对齐 B 轨结构）
+  - `server/export_qmt_scores.py`：`_load_rec_settled`（分数指纹稳定）+ `_write_primary_or_rerank`（契约件只写一次，再导写 `.rerank`）
+- 版本变化：不改文件名；行为补丁
+- 修改内容：
+  1. **澄清开关**：`ENTRY_MODE` 只切买谁/何时买；Wyckoff 等风控仍共享
+  2. **QMT A**：gapdn 与 P2 代码隔离，杜绝再叠 `[D2W]`
+  3. **服务器**：cron `09:36→09:38`；定稿后再导；二次导出不覆盖 QMT 契约件
+- 验证：A ASCII+AST；远端 `REMOTE_OK settle+freeze`；crontab 两行 export 均为 `38 9`
+- 部署：上海已就位；**QMT A 需你拷**本版 `…_sim_v2.53.py`。设计卡：`knowledge/strategies/entry_mode_gapdn_chain.md`
+
+## 2026-09-21 — P0/P1：评分件消费快照 + gapdn 去 D2W + 成本冲减（WB 当日复盘）
+
+- 修改人：Cursor（WB-Mac `5758244001` / `wb_daily_review_20260921.md`）
+- 涉及文件：
+  - `server/export_qmt_scores.py`：覆写前快照 `{date}.asofHHMM.json` / `.candidates.asofHHMM.json`
+  - `track_a/…_sim_v2.53.py`：`gapdn_e2` 直买时跳过 D2-2 `[D2W]`；`_merge_pos_state` 保留策略建仓价（QMT 半仓后均价冲减）
+  - `track_b/…_sim_v2.22.py`：同上建仓价保留（B 无 D2W）
+- 版本变化：**不升文件名版号**（逻辑补丁记本条；A/B 模拟部署件仍叫 v2.53 / v2.22）
+- 修改内容：
+  1. **P0**：盘中二次 `export_qmt_scores`（今日 asof 10:02，分数真变）会毁掉 QMT 09:36 已消费件 → 覆写前若尚无快照则按原 asof 另存
+  2. **P1**：`ENTRY_MODE=gapdn_e2` + `GAPDN_DIRECT_BUY` 时不再走 D2W「等回踩 VWAP」（与 09-20 规格「开盘窗直买」一致；今日 601112 多付 0.59% 即此叠层）
+  3. **P1**：`pos_state.buy_price` 优先保留；QMT `m_dOpenPrice` 写入 `broker_avg_cost`（避免 peel 后 EXT ret 虚增）
+- 原因/依据：Issue#6 `5758244001`；本地 CHANGELOG 09-20 已有 v2.53/v2.22 条目，共享库 docs 副本滞后到 09-06（归档缺口，非未改）
+- 验证：A 轨 ASCII + `ast.parse`；export AST OK
+- 部署：① **上海已部署** `export_qmt_scores.py`（md5 `c088154b`，备份 `…bak_pre_snap_20260921`；今日 QMT 消费件已另存 `20260921.candidates.asof0936.json`）；② **用户手动**拷 A v2.53 / B v2.22 补丁到 QMT 模拟
+- 附：TrackD/CheapEntry cron 已于同日早些时候改为 18:15/18:17（影子空转 P0-②）
+
+## 2026-09-21 — P0：`pre_market_gate.py` 补回主入口 `def`（禁盘后补跑）
+
+- 修改人：Cursor（WB-Mac 取证 `5757998641` / triage `shadow_alert_triage_20260921.md`）
+- 涉及文件：
+  - `server/pre_market_gate.py`（权威；与根目录部署件对齐）
+  - 服务器 `/home/ubuntu/alphapilot/pre_market_gate.py`（已覆盖；坏件备份 `…bak_broken_20260919`）
+  - `rd_workshop/shadow_daily_health.py`：16:55 当天对**全部 KDEP**豁免（含 TrackD/CheapEntry）；勿再只豁免 P1-DOWN
+- 版本变化：服务器生产脚本修复（无 QMT/TDX 版本号）
+- 修改内容：
+  1. **P0**：在 `_write_adjusted` 末尾与主入口 docstring 之间补回 `def run_pre_market_gate() -> int:`（09-19 损版把主入口体吞进上一函数 → 09:25 `NameError`，今日竞价门控整段未跑）
+  2. **P1**：crontab TrackD `16:40→18:15`、CheapEntry `16:42→18:17`（避开 `fix_kline` 16:39~17:04 落盘）
+  3. **只静态校验**（`ast.parse` + import callable）；**禁止盘后补跑门控**（会假归档污染 09-21）
+- 验证：远端 `REMOTE_OK tops=14 has run_pre_market_gate`；今日体检只剩真实项「竞价归档 MISSING」（TrackD/CheapEntry 不再误报）
+- 部署：服务器已就位；明早 **09:25:55** 看 `pre_market_gate.log` 无 NameError + 产出 `pre_market_archive/2026-09-22.json`；**18:15/18:17** 看两影子写当日 kline_max
+- md5（权威）：见部署后 `md5 production_strategies/server/pre_market_gate.py`
+
+## 2026-09-21 — A QMT sim v2.53：STRENGTH_PICK 不足额打点（只日志）
+
+- 修改人：Cursor（WB 09-19 采纳项；评估协议同步后落地）
+- 涉及文件：`track_a/TrackA_track_a_qmt_full_chain_sim_v2.53.py`
+- 版本变化：**不升版**（仅 observability；买卖规则零改）
+- 修改内容：`_filter_cands_by_strength` 在 `len(kept) < STRENGTH_PICK` 时打
+  `[STR] short_pick want=… got=… pool=… scored=… (no fill-up / no fallback)`（无静默少买、无兜底填坑）
+- 原因/依据：Issue#6 WB `5742992850` 修补 #1；现行默认 `ENTRY_MODE=gapdn_e2` 时本路径少走，切回 `strength_0950` 时可见
+- 验证：ASCII + `ast.parse`
+- 部署：**需用户手动复制**现行 `…_sim_v2.53.py` 到 QMT A 模拟（若已在跑 v2.53）。认当日若强度池不足 2 只有 `[STR] short_pick`。实盘/TDX/B **本次不动**。
+
+## 2026-09-20 — 通达信 A/B 模拟：ENTRY_MODE 对齐 QMT（A v2.33 / B v1.22）
+
+- 修改人：Cursor（老板：通达信轨道 A/B 也改；QMT 模拟已手动部署）
+- 涉及文件：
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.33.py`（**新建**，现行 A TDX 部署件）
+  - `track_b/TrackB_track_b_tdx_auction_sim_v1.22.py`（**新建**，现行 B TDX 部署件）
+  - `track_a/_ut_tdx_entry_mode_v233.py` / `track_b/_ut_tdx_entry_mode_v122.py`
+  - `README.md`
+- 版本变化：A TDX **v2.32→v2.33**；B TDX **v1.21→v1.22**（仅买入/`ENTRY_MODE`；UTF-8 LF）
+- 修改内容：
+  1. 主开关 **`ENTRY_MODE`**（与 QMT A v2.53 / B v2.22 同名同语义，默认 **`gapdn_e2`**）
+  2. **`gapdn_e2`**：classic `fullpool.json` Top30 ∩ gap∈(−4%,0) → hybrid Top2；09:30–09:50 直买（跳过 P2 / 拍卖 LIM10）
+  3. **卖出零改动**（相对各自上一版函数体 md5 一致）；未移植 QMT VERIFY_FILL/ghost
+- 验证：`compile`/ast；两份 UT ALL PASS；md5 A **`5a6006fb971473d356a7a71071b71954`** / B **`49d25d85297a0d819162751656c361ac`**
+- 部署：**需用户手动复制**到通达信 `PYPlugins\user`（替换 v2.32 / v1.21）。认 `[INIT] … tdx-sim v2.33 (ENTRY_MODE=gapdn_e2 …)` / `[INIT] … tdx v1.22 (ENTRY_MODE=gapdn_e2 …)`。QMT 端本次不动。
+
+## 2026-09-20 — Track B 模拟盘 v2.22：ENTRY_MODE 对齐 A（默认 gapdn_e2）
+
+- 修改人：Cursor（老板：卖出没改；轨道 B 模拟也整合对齐）
+- 涉及文件：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.22.py`（**新建**，现行 B 模拟部署件）
+  - `track_b/_ut_entry_mode_v222.py`（离线单测）
+  - `README.md`（版本基线 / md5）
+- 版本变化：B **v2.21→v2.22**（买入选股策略开关；仅模拟盘）
+- 修改内容：
+  1. 主开关 **`ENTRY_MODE`**（与 A v2.53 同名同语义）：
+     - **`strength_0950`**：B2d 强度@09:50（原 v2.21）
+     - **`chase_top2`**：LIM10 among money_pass（v2.20 路径；等效关 B2d）
+     - **`gapdn_e2`**（**默认**）：06:30 classic `fullpool.json` Top30 ∩ gap∈(−4%,0) → hybrid Top2；**09:30–09:50 直买**（跳过拍卖/LIM10/P2）；滑点超 1.5% 弃当日
+  2. **卖出端零改动**：`_check_sell` / `_do_sell` / peel / t2_force 等与 v2.21 函数体 md5 一致
+  3. gapdn 模式订阅 classic Top30；满仓可旋转后买
+- 原因/依据：与 A 模拟同一 ENTRY_MODE 口径做低开 E2 验证，避免 AB 模拟分叉
+- 验证：ASCII + CRLF + `ast.parse`；`_ut_entry_mode_v222.py` ALL PASS；md5 **`480720a61e1d1a69792ef83ab2793e06`**
+- 部署：**需用户手动复制** `…_sim_v2.22.py` 到 QMT **Track B 模拟盘**（账户 `62128716`，替换 v2.21）。认 `[INIT] … v2.22 (ENTRY_MODE=gapdn_e2 …)`。改模式：顶部改 `ENTRY_MODE` 后重载。实盘 tpl / TDX **本次不动**。回滚：退回 v2.21 或 `ENTRY_MODE="strength_0950"`。
+
+## 2026-09-20 — Track A 模拟盘 v2.53：ENTRY_MODE 三模式手动开关（默认 gapdn_e2）
+
+- 修改人：Cursor（老板：QMT 模拟用来验证；三种买法写进代码用开关切；先手动）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.53.py`（**新建**，现行 A 模拟部署件）
+  - `track_a/_ut_entry_mode_v253.py`（离线单测）
+  - `README.md`（版本基线 / md5）
+- 版本变化：A **v2.52→v2.53**（买入选股策略开关；仅模拟盘）
+- 修改内容：
+  1. 新增主开关 **`ENTRY_MODE`**（字符串，改一处即切换）：
+     - **`strength_0950`**：gene Top5 → 09:50 起按涨幅取 Top2 进 P2（原 v2.51）
+     - **`chase_top2`**：gene rank≤`MAX_CAND_RANK` 进 P2（经典追买）
+     - **`gapdn_e2`**（**默认**）：06:30 `fullpool.json` Top30 ∩ 开盘 gap∈(−4%,0) → hybrid(score_0500, gap) Top2；**09:30–09:50 直接买**（跳过 P2）；滑点超 `GAPDN_MAX_SLIP=1.5%` 弃当日
+  2. 远程拉取增加 `{date}.fullpool.json`；gapdn 模式订阅 fullpool Top30
+  3. `[INIT]` / `[ENTRY]` / `[GAPDN]` 日志可辨模式
+- 原因/依据：9 月纸面 E2 可交易低开相对追买更好；模拟盘验证滑点/能否成交；8 月热市仍可能输 → 用手动开关而非自动 regime
+- 验证：ASCII + CRLF + `ast.parse`；`_ut_entry_mode_v253.py` ALL PASS；md5 **`ad6b292afb2711274d6b3a0788b94235`**
+- 部署：**需用户手动复制** `…_sim_v2.53.py` 到 QMT **Track A 模拟盘**（替换 v2.52）。认 `[INIT] … v2.53 (ENTRY_MODE=gapdn_e2 …)`。改模式：文件顶部改 `ENTRY_MODE = "..."` 后重载策略。实盘/TDX/B 轨 **本次不动**。回滚：退回 v2.52 或 `ENTRY_MODE="strength_0950"`。
+
+## 2026-09-19 — 全链对齐：小池不再丢掉融合分，09:25 改的是融合分
+
+- 修改人：Cursor（老板：全链条模拟，不要某一环对不上）
+- 涉及文件：
+  - 仓库根 `live_momentum_scanner.py`（池 &lt;100 且已有 `fusion_ic_score` 时不跳 Top1000；代码对 `sz` 前缀）
+  - 仓库根 `pre_market_gate.py` 与 `server/pre_market_gate.py`（竞价加减乘在 `fusion_ic_score` 上，不改 `ml_score`）
+  - `scripts/_ut_fusion_chain.py`
+- 版本变化：无 QMT/TDX 版本号
+- 修改内容：近端 05:00 池经常不到 100 只，旧 09:35 会整池改走涨幅 Top1000，融合分写了也读不到。09:25 原先只改 `score`，09:35 改读融合分后竞价降权会失效。两处已接上。
+- 原因/依据：链上模拟发现断点，不是新的选股规则。
+- 验证：`scripts/_ut_fusion_chain.py` CHAIN_OK（n=80、三腿、JSON 无毒池、竞价降权打在融合分、z 有限、`sz` 代码对上 6 位）
+- 部署：同步上海 `live_momentum_scanner.py`、`pre_market_gate.py`。下一交易日 05:00 / 09:25 / 09:35 生效。QMT/TDX 不用拷。09:36 gene 重排仍在，融合改的是进 gene 之前的底分和池子，不是 QMT 最终名次。
+
+## 2026-09-19 — 05:00 池后融合 IC 排序（不碰 09:38）
+
+- 修改人：Cursor（老板：融合跟在 5 点管线后面，用前一日权重排；09:38 不用管）
+- 涉及文件：
+  - `server/fusion_scorer.py`（新增 `rank_pipeline_by_ic`）
+  - 仓库根 `alphapilot_pipeline_v3.py`（落盘前调用）
+  - 仓库根 `live_momentum_scanner.py`（09:35 管线底分改读 `fusion_ic_score`）
+- 版本变化：无 QMT/TDX 版本号
+- 修改内容：05:00 漏斗完成后，用 `model_weights.json`（昨日 16:15）对池内历史三路重排：`ml_score` min-max、`main_net_5d` tanh、`sector_trend_score` min-max。不读 09:38 竞价/主线热度。`score` 不覆盖。09:35 仍用实时动量 0.6/0.4，但底分改为融合分。
+- 原因/依据：融合 IC 权重是 T-1；09:35 是当日实时层，两者串联不是互替。
+- 验证：`scripts/_ut_fusion_pipeline_rank.py` PASS
+- 部署：已同步上海 `/home/ubuntu/alphapilot` 三文件；下一交易日 05:00 生效。QMT/TDX 不用拷。
+
+## 2026-09-18 — 通达信 A/B 选股同步 QMT（A tdx v2.32 / B tdx v1.21）
+
+- 修改人：Cursor（老板：「通达信 AB 轨都改、同步」）
+- 涉及文件：
+  - `track_a/TrackA_track_a_tdx_full_chain_sim_v2.32.py`（**新建**，现行 A TDX 部署件）
+  - `track_b/TrackB_track_b_tdx_auction_sim_v1.21.py`（**新建**，现行 B TDX 部署件）
+  - `README.md`（版本基线 / md5）
+- 版本变化：A TDX **v2.31→v2.32**；B TDX **v1.20→v1.21**（仅选股/买入过滤；UTF-8 LF）
+- 修改内容：
+  1. **A**：对齐 QMT v2.50/v2.51 选股层 — `STRENGTH_RERANK`（09:50 gene Top5→live 强度 Top2）、`MAX_CAND_RANK=3`、踢 path_fade/loud_vol；`R5_GATE_MODE=0`、`SWEET_ZONE_MODE=0`。
+  2. **B**：对齐 QMT v2.21 B2d — live 池域=mp 否则 !fund_hard_fail，09:50 强度 Top2；path_fade/loud_vol；`STRENGTH_B2D` 可关回 FCFS。
+  3. **未移植**：QMT `VERIFY_FILL`/GHOST（通达信用 order lock，无 passorder 幽灵账路径）。
+- 原因/依据：与今晚 QMT A v2.52 / B v2.21 选股口径一致，避免双端行为分叉。
+- 验证：`compile()` UTF-8 通过；离线强度/B2d helper 自检 PASS；md5 A **`6e89aa530ff31bf66ded262af4d46f38`** / B **`390026cf3a99dc515eb3f0ab405fe872`**
+- 部署：**需用户手动复制**两文件到通达信 `PYPlugins\user`（替换 v2.31 / v1.20）。认 `[INIT] … tdx-sim v2.32 … STR@0950` / `[INIT] … tdx v1.21 … B2d-STR@0950`。QMT 端不动。
+
+## 2026-09-18 — Track B 模拟盘 v2.21：B2d 强度选股 + GHOST 风暴修复
+
+- 修改人：Cursor（老板确认落地 B2d + ghost）
+- 涉及文件：
+  - `track_b/TrackB_track_b_qmt_auction_sim_v2.21.py`（**新建**，现行 B 模拟部署件）
+  - `track_b/_ut_b2d_ghost_v221.py`（离线单测）
+  - `track_b/_test_lim10_failopen.py`（指向 v2.21；A/B/C 关 B2d 守旧 fail-safe；新增 D 软后备）
+  - `README.md`（版本基线 / md5）
+- 版本变化：B **v2.20→v2.21**（买入选股 + 成交确认防抖；仅模拟盘）
+- 修改内容：
+  1. **B2d 选股**（`STRENGTH_B2D=True`）：live 池可买域 = **money_pass（若有）否则 !fund_hard_fail**；域内自 **09:50** 起按 live `last/prev_close` 取 **Top2**（替代 LIM10 `limit_cnt_10d`）。money_pass 层仍踢 path_fade/loud_vol。`STRENGTH_B2D=False` 回退 v2.20 LIM10（含空 mp 日 flat）。
+  2. **GHOST 风暴**（对齐 A v2.52）：BUY GHOST → **日弃**（保留 `sent_today`+BUY lock）；`VERIFY_GRACE_SEC=45`；pending BUY 去重；CONFIRM 按 code/日去重；deal 量 cap 到本单 `vol`。
+- 原因/依据：`bt_research/trackb_b1_b2_bt.txt` — 9 月空仓 4→0、miss 8→4、T+1高 +3.39→+4.41、收盘 −0.59→+0.65；8 月不伤。B1 单独不够；B2d=B1+B2b。
+- 验证：ASCII + CRLF + `ast.parse`；`_ut_b2d_ghost_v221.py` ALL PASS；`_test_lim10_failopen.py` 4/4 PASS；md5 **`8ddb10bb7c975b0594af86e4b9c0b9ae`**
+- 部署：**需用户手动复制** `…_sim_v2.21.py` 到 QMT **Track B 模拟盘**（账户 `62128716`，替换 v2.20）。认 `[INIT] … v2.21 … B2d-STR@0950+ghost-storm-fix`。实盘 tpl / TDX **本次不动**。回滚：关 `STRENGTH_B2D=False` 或退回 v2.20。
+
+## 2026-09-18 — Track A 模拟盘 v2.52：GHOST 风暴叠仓修复 + 封板 abr 归因（WB T1/T2）
+
+- 修改人：Cursor（接 WB Issue#6 09-18 收盘回执 T1/T2；老板「继续」）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.52.py`（**新建**，现行 A 模拟部署件）
+  - `track_a/_ut_ghost_storm_v252.py`（离线单测）
+  - `README.md`（版本基线 / md5）
+- 版本变化：A **v2.51→v2.52**（成交确认 / 下单防抖；仅模拟盘）
+- 修改内容：
+  1. **T2 根因**：`VERIFY_FILL` 下 BUY GHOST 回滚会 `sent_today.discard` + 清 BUY lock；ORDER 查询滞后时，同一 bar 内 ~1 万次 PENDING→GHOST→重发（2026-09-18 `002290`），最终 `[CONFIRM] x36600` = 2× 意图量 18300
+  2. **修复**：
+     - BUY GHOST → **日弃**（保留 `sent_today` + BUY lock，禁止同日重发）
+     - 新增 `VERIFY_GRACE_SEC=45`：`checks` 与墙钟宽限**同时**满足才允许「broker 无单」回滚
+     - 已有 pending BUY 的 code → `[LOCK] pending fill confirm` 跳过
+     - CONFIRM 日志按 code/日去重；deal 成交量 cap 到本单 `vol`（防 sibling 聚合胀仓）
+  3. **T1**：`abr≈0` 且涨停/跌停封板 → 日志 `skip_limit_up_board` / `skip_limit_down_board`（不再误标 `skip_low_abr`）
+- 原因/依据：WB 回帖 `5730629014`；本地日志 `qmt_full_20260918.log` 核 PENDING/GHOST 各约 10326/10325 次
+- 验证：ASCII + CRLF + `ast.parse`；`_ut_ghost_storm_v252.py` ALL PASS；md5 **`b8cc71bdff84c51ae4230130d11db41c`**
+- 部署：**需用户手动复制** `…_sim_v2.52.py` 到 QMT 模拟盘（替换 v2.51/v2.50）。认 `[INIT] … v2.52 … ghost-storm-fix`。实盘/TDX 本次不动。回滚：退回 v2.51。
+
+## 2026-09-18 — Track A 模拟盘 v2.51：Top2 盘中强度重排（修「Top10 有命中、Top2 全 miss」）
+
+- 修改人：Cursor（老板定调「病症在 Top2 排序，要修好选到对的票」）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.51.py`（**新建**，现行 A 模拟部署件）
+  - `README.md`（版本基线）
+  - 证据脚本（SG `bt_research/`，非生产件）：`vm25_rank_loss.py`、`vm25_rerank_fix.py`、`vm25_rerank_v2.py`、`vm25_rerank_v3.py`、`vm25_rerank_v4.py`、`vm25_rerank_v5_intraday.py`
+- 版本变化：A **v2.50→v2.51**（买入排序；仅模拟盘）
+- 修改内容：
+  1. 新增开关 **`STRENGTH_RERANK=True`** + `STRENGTH_POOL=5` / `STRENGTH_PICK=2` / `STRENGTH_START_MIN=09:50`
+  2. 新增 **`_filter_cands_by_strength`**：09:50 前返回空（本 bar 不买）；09:50 起从 gene **Top5**（仍踢 path_fade/loud_vol）按 **live last/prev_close** 降序取 **Top2** 进 P2
+  3. `_check_buy`：`STRENGTH_RERANK` 开时走强度过滤，关时回退 `MAX_CAND_RANK` 旧逻辑
+  4. 日志：`[STR] wait until 09:50...` / `[STR] pool=N pick=2 code(rK,+x.xx%)* ...`
+- 原因/依据（老板观察被数据钉死）：
+  1. **病症**：Top10 日均 2.8~4.3 只摸到 +3%，但 **9 月 8/12 天 Top2 全 miss**（有机会却选错）；命中票平均名次≈未命中（5.6≈5.6）⇒ **gene/score 排序对次日最高几乎无信息（IC≈0）**
+  2. **静态字段重排证伪**：turnover / dist_hi / fund_rank / 线性组合 / 滤贴高等，9 月 miss 最多 6→4，**无法上线**
+  3. **盘中强度重排有效**（`vm25_rerank_v5_intraday.py`，买价=09:40、命中=次日最高/买≥3%）：
+     - **推荐上线口径 Top5@09:50 相对前收**：9 月 miss **6→2**，Top2 高 **+1.55%→+4.58%**；8 月 miss 1→2，Top2 高 +4.26%→+4.87%
+     - 更晚更强（参考）：Top10@10:30 相对 09:35 → 9 月 miss 1/12、8 月 0/10；偏晚，先用 09:50
+- 验证：`python -c "ascii+ast.parse"` 通过；逻辑与回测脚本同口径（gene Top5 × last/prev_close）
+- 部署：**需用户手动复制**到 QMT 模拟盘（替换 v2.50）。实盘/TDX **本次不动**。回滚：关 `STRENGTH_RERANK=False` 或退回 v2.50。
+
+## 2026-09-18 — server/export_qmt_scores.py：09:36 导出竞态治本（morning_live_at 轮询等待）
+
+- 修改人：Cursor（老板拍板「导出竞态治本」）
+- 涉及文件：
+  - `server/export_qmt_scores.py`（**已部署到服务器 `/home/ubuntu/alphapilot/`**；备份 `~/cron_backups/export_qmt_scores.py.bak_20260918_*`）
+- 版本变化：无版本号（server 组件不适用 A/B 版本号；**规则级逻辑变更**已在本文记录）
+- 修改内容：
+  1. 新增 `import time`。
+  2. 新增 **`_load_rec_fresh(tag, no_wait)`** + 常量 `EXPORT_ML_WAIT_SEC`(默认 15s) / `EXPORT_ML_WAIT_MAX_SEC`(默认 480s) / CLI **`--no-wait`**：`daily_recommend.json` 的 `morning_live_at` 非今日时，**每 15s 重读文件**轮询直到为今日，最多 480s；超时才保留原 `SKIP + return 1` 行为。文案：`[tag] … 轮询等待最多 Ns …` / `… 09:35 数据已就绪 (等了 Ns)`。
+  3. `export_fullpool_live()` 与 `main()` 的**两处** freshness 校验改为调用该助手（原为一次性读文件 + 非今日即永久 SKIP）。
+- 原因/依据：老板报 Track B `fullpool_live` 404。定位为**竞态**：`export_qmt_scores.py` 挂 09:36，依赖 09:35 链（`live_momentum_scanner.py`→`morning_live_fund_select.py`）写完 `morning_live_picks.json`/`daily_recommend.json`；2026-09-18 导出 09:36:01 跑、picks **09:36:49** 才落盘（**只差 48 秒**），且 `return 1` **全天不再重试** ⇒ `20260918.fullpool_live.json` 全天缺失。正常日子 picks 09:35:54~09:36:00 落盘 ⇒ **仅 1~7 秒余量**的脆弱竞态。历史频率：自 08-17 上线 57 个交易日只缺 08-20、09-18 两次（约 1/20 天，罕见但会复发）。同一 race 也命中 gated 导出（它被别的机制在 09:57 补出）。
+- 验证（隔离目录 `/tmp/exptest` 四例 + 服务器真实数据回归）：
+  1. 陈旧 + 上限 8s → 打印等待提示、等 8s 后 `SKIP`、`return 1` ✓
+  2. 陈旧 + `--no-wait` → **立即**放弃、用时 0s ✓
+  3. 陈旧、后台 4s 后写入今日数据 → 轮询到 `09:35 数据已就绪 (等了 4s)`、**成功导出** ✓
+  4. 数据已今日 → 直接成功、用时 0s ✓
+  5. 服务器真实数据：`OK 34 只 / money_flow_pass=25/34`，无等待（14s，为正常计算耗时）✓
+  - AST / `py_compile` 通过；LF 行尾；md5 **`b2f0cc93eeaf970b4aa39ff8eedae8a3`**（本地权威副本与服务器**一致**）。
+- 部署：**已部署**（服务器副本与 `production_strategies/server/` 同步）。生效时间：**下一个交易日 09:36**。回滚：`cp ~/cron_backups/export_qmt_scores.py.bak_* /home/ubuntu/alphapilot/export_qmt_scores.py`。**QMT/TDX 交易端不动**。
+
+## 2026-09-18 — Track A 模拟盘 v2.50：关闭买入侧两个 gap 闸门（R5_GATE_MODE 1→0、SWEET_ZONE_MODE 1→0）
+
+- 修改人：Cursor（老板拍板「先关掉 gap 闸门，恢复成交、收真实样本」）
+- 涉及文件：
+  - `track_a/TrackA_track_a_qmt_full_chain_sim_v2.50.py`（新建，现行 A 模拟部署件）
+  - `README.md` §二/§四/§六（版本基线）
+  - 证据脚本（上海服务器 `bt_research/`，非生产件）：`_sep_rank_perf.py`、`_sep_gate_check.py`、`_gap_bucket.py`、`_gap_robust.py`、`_rank13_gap_fixed.py`、`_r5_call.py`
+- 版本变化：A **v2.49→v2.50**（买入闸门；仅模拟盘）
+- 修改内容（**代码级 diff 仅 3 行**）：
+  1. `SWEET_ZONE_MODE = 1` → **`0`**（甜区优先级关闭；非甜区票不再被降序）
+  2. `R5_GATE_MODE = 1` → **`0`**（R5-GAP / R5-CALL / R5-TIME 三个条件整体关闭；`R5_GAP_LO/HI`、`R5_CALL_MAX`、`R5_MAX_TRIG_MIN` 常量**原样保留**，随时可回开）
+  3. `[INIT]` 版本串 `v2.49 … gene+R5+…` → `v2.50 … gene+R5-off+sweet-off+…`
+  - **`MAX_CAND_RANK=3` 不变**；`_wyckoff_distribution` 闸门**保留**（见依据）。
+- 原因/依据：老板报「最近 Top3 一直买不进」（日志全为 `[WYCKOFF]`/`[R5] gate=r5_gap`/`[P2]=skip_r5`）。上海服务器用归档 + 自洽 5m 复核（entry=D 收盘、净 15bp、窗口 2026-07-27~09-16 / 33 天）：
+  1. **放宽到 Top10 不是答案**：Sep1-16（119 笔）**rank1-3 −0.57%/日 vs rank4-10 −1.05%（t=−2.60）**；rank 排序本身有信息，放宽会把钱投到更差的一档（最差 rank8 −1.92% t=−3.14、武装率 0%）。
+  2. **R5 闸门选错了一半**：在**真正可交易的 rank≤3**（n=98）上，**三种出场口径方向一致** —— 卖 D+1 开：放行 −0.62% vs 拦下 −0.16%；卖 D+1 收：−0.72% vs **+0.52%**；P2 卖：−0.77% vs −0.05%。按日配对 19 日：收盘 **+1.24pp t=+1.77**、P2 **+2.17pp t=+1.89**、63~68% 的日为正。**闸门全开（买全部 rank1-3）= −0.36%/−0.01%/−0.36%，优于现状「只买放行」的 −0.62%/−0.72%/−0.77%** ⇒ 关掉是**改进**而非退步。
+  3. **甜区优先级同样反了**：gap 分桶（卖 D+1 收）甜区 `(−1.5,0]` **−0.98%（最差）** vs `(1.5,99]` **+0.37%（最好）**；`SWEET_ZONE_MODE=1` 恰好在优先最差的一档。
+  4. **Wyckoff 闸门保留**：离线复现 002303/09-18 的 `wy_bc`（09-17 放量收红长阳，典型 buy climax）**与实盘日志 `[WYCKOFF] 002303 distribution` 完全一致**；且 Sep 在 rank1-3 上触发 **0 次** ⇒ 它不是「买不进」的原因，属有效风控，不随本次关闭。
+  5. **⚠️不承诺转正**：9 月**每一个** gap 分桶均 ≤0 ⇒ 本次只消除「闸门选错半边」，**不能把 9 月变成正收益**，与「卖出侧已穷尽、瓶颈在选股侧」既有结论一致。
+  6. **⚠️测量陷阱（本次踩到并已修正）**：把候选 `code` 经 CSV 中转会被 pandas 推断为 int64，`002303`→`2303`，**静默丢弃全部 0xx 深主板票**，一度得出相反结论（36/98 行、全为 3xx/6xx）。**今后凡按 code 回读行情，必须 `zfill(6)`**（已写入 v2.50 头部注释）。
+- 验证：v2.50 **纯 ASCII 通过**；**CRLF 保留**（bare LF = 0）；`ast.parse` 通过；代码级 diff 确认仅上述 3 行；常量终值复核 `MAX_CAND_RANK=3` / `SWEET_ZONE_MODE=0` / `R5_GATE_MODE=0`；md5 **`77ddcf6f51c92d6ca73927c7053b888c`**（v2.49 = `1be520f9544daa3286273ee35b794c22`）。
+- 部署：**需要**部署 `TrackA_…_sim_v2.50.py`（替换 v2.49）到 A 轨模拟端；查 `[INIT] … qmt-sim v2.50 … gene+R5-off+sweet-off …`。**A 轨实盘 tpl / TDX 不动**（依据样本 n=98/33 天、配对 t≈1.8~1.9 属临界显著，且原 R5 依据仅 78 触发/16 通过 —— 未达实盘放行标准）。**Track B 不动**（其 R5/竞价口径独立，未同步复核）。
+- 回滚：把 `SWEET_ZONE_MODE` / `R5_GATE_MODE` 改回 `1` 即可（常量与代码路径均原样保留，`R5_GATE_MODE=0` 时 `_r5_gate` 直接 return None）。
+
 ## 2026-09-16（addendum）— A v2.49 / B v2.20：abr 证据日志 `src=… win=N`（同版本，日志级，逻辑零改动）
 
 - 修改人：Cursor（应 WB 09-16 评论 5695430096 口径残留追问 + 老板拍板「并入同一版再部署」）
