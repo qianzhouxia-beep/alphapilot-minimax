@@ -283,11 +283,43 @@ function IconSliders() {
   );
 }
 
+// Hero 背景视频（旋转金币）：2026-10-02 老板要求恢复。
+// 为首屏性能做两点妥协：preload="none" + 挂载后延迟 300ms 再设置 src，
+// 避免 7.7MB 视频阻塞 LCP；muted 内联自动播放，与旧版行为一致。
+const HERO_VIDEO_URL =
+  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260606_131516_eca35265-ea66-4fbd-8d52-22aae6e1a503.mp4";
+
+function HeroVideoBg() {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    const t = setTimeout(() => {
+      v.src = HERO_VIDEO_URL;
+      v.play().catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div aria-hidden className="absolute inset-0 z-0 pointer-events-none">
+      <video
+        ref={ref}
+        muted
+        loop
+        playsInline
+        preload="none"
+        className="w-full h-full object-cover opacity-15"
+      />
+    </div>
+  );
+}
+
 // Hero 区域：价值主张 + 主/次 CTA + 示例清单卡片
 function Hero() {
   return (
     <section className="relative w-full overflow-hidden">
-      {/* 纯 CSS 背景光晕（取代原先的第三方背景视频，减少首屏流量与外部依赖） */}
+      <HeroVideoBg />
+      {/* 纯 CSS 背景光晕（叠在背景视频之上） */}
       <div aria-hidden className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute -top-[180px] left-1/2 -translate-x-1/2 w-[900px] h-[520px] rounded-full bg-purple-glow blur-3xl max-sm:w-[420px]" />
       </div>
