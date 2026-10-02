@@ -30,6 +30,7 @@ const DIRECT_LINKS: NavLink[] = [
   { href: "/cn", label: "工作台" },
   { href: "/cn/framework", label: "策略全景" },
   { href: "/cn/backtest", label: "选股回测" },
+  { href: "/cn/forum", label: "社区" },
 ];
 
 const NAV_GROUPS: NavGroup[] = [
@@ -58,7 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 const focusRing =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-primary/50";
-const pillBase = `rounded-full px-3 py-1.5 text-[13px] leading-5 whitespace-nowrap transition-colors cursor-pointer select-none ${focusRing}`;
+const pillBase = `rounded-full px-2.5 xl:px-3 py-1.5 text-[13px] leading-5 whitespace-nowrap transition-colors cursor-pointer select-none ${focusRing}`;
 const pillIdle = "text-text-secondary hover:text-text-primary hover:bg-black/[0.04]";
 const pillActive = "bg-purple-light text-purple-primary font-semibold";
 const itemIdle = "text-text-secondary hover:text-text-primary hover:bg-black/[0.04]";

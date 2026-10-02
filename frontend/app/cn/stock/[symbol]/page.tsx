@@ -247,11 +247,11 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-disabled">目标价</span>
-                <span className="font-display-numeric text-[16px] text-[#3EE6A8]">¥{targetPrice > 0 ? targetPrice.toFixed(2) : "—"}</span>
+                <span className="font-display-numeric text-[16px] text-[#FF5D5D]">¥{targetPrice > 0 ? targetPrice.toFixed(2) : "—"}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-text-disabled">止损价</span>
-                <span className="font-display-numeric text-[16px] text-[#FF5D5D]">¥{stopPrice > 0 ? stopPrice.toFixed(2) : "—"}</span>
+                <span className="font-display-numeric text-[16px] text-[#3EE6A8]">¥{stopPrice > 0 ? stopPrice.toFixed(2) : "—"}</span>
               </div>
             </div>
           </div>
@@ -260,7 +260,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
           {targetPrice > 0 && buyPrice > 0 && (
             <div className="mb-4 rounded-xl border border-border-subtle bg-surface-card p-3">
               <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">盈亏比</div>
-              <div className="text-[24px] font-semibold text-[#3EE6A8]">
+              <div className="text-[24px] font-semibold text-text-primary">
                 {((targetPrice - buyPrice) / (buyPrice - stopPrice)).toFixed(2)} : 1
               </div>
             </div>
@@ -306,15 +306,15 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
             <div className="space-y-2 text-[12px] text-text-secondary">
               <div className="flex items-center justify-between">
                 <span>Sharpe</span>
-                <span className="text-[#3EE6A8] font-semibold">5.16</span>
+                <span className="text-text-primary font-semibold">5.16</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>累计收益</span>
-                <span className="text-[#3EE6A8] font-semibold">+164.4%</span>
+                <span className="text-[#FF5D5D] font-semibold">+164.4%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>最大回撤</span>
-                <span className="text-[#FF5D5D] font-semibold">-6.4%</span>
+                <span className="text-[#3EE6A8] font-semibold">-6.4%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>正收益期数</span>

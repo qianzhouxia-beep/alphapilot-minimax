@@ -13,6 +13,8 @@ import {
 } from "@/lib/score-display";
 import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 import { LockedHint, useUnlocked } from "@/components/LoginGate";
+import { PostList } from "@/components/forum/ForumBits";
+import { FORUM_IS_MOCK, listPosts } from "@/lib/forum-mock";
 
 // ---------- types ----------
 type FundBar = { date: string; main_net: number };
@@ -356,11 +358,11 @@ export default function CNStockDetail() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-text-disabled">目标价</span>
-                  <span className="font-display-numeric text-[16px] text-status-success">¥{stock?.target_price && stock.target_price > 0 ? stock.target_price.toFixed(2) : "—"}</span>
+                  <span className="font-display-numeric text-[16px] text-status-danger">¥{stock?.target_price && stock.target_price > 0 ? stock.target_price.toFixed(2) : "—"}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-text-disabled">止损价</span>
-                  <span className="font-display-numeric text-[16px] text-status-danger">¥{stock?.stop_price && stock.stop_price > 0 ? stock.stop_price.toFixed(2) : "—"}</span>
+                  <span className="font-display-numeric text-[16px] text-status-success">¥{stock?.stop_price && stock.stop_price > 0 ? stock.stop_price.toFixed(2) : "—"}</span>
                 </div>
               </div>
             </div>
@@ -371,7 +373,7 @@ export default function CNStockDetail() {
               && stock.buy_price > stock.stop_price && (
               <div className="mt-3 rounded-xl border border-border-subtle bg-surface-panel p-3">
                 <div className="mb-1 text-[10px] uppercase tracking-wider text-text-disabled">盈亏比</div>
-                <div className="text-[22px] font-semibold text-status-success">
+                <div className="text-[22px] font-semibold text-text-primary">
                   {((stock.target_price - stock.buy_price) / (stock.buy_price - stock.stop_price)).toFixed(2)}
                   <span className="text-[13px] text-text-secondary"> : 1</span>
                 </div>
@@ -585,6 +587,28 @@ export default function CNStockDetail() {
           </section>
         </div>
       </div>
+
+      {/* 讨论：该股票的社区帖子（示例数据，接入论坛后端后替换） */}
+      <section id="discussion" aria-labelledby="discussion-title" className="mt-6 rounded-2xl border border-border-subtle bg-surface-card p-4 shadow-sm sm:p-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="discussion-title" className="text-[18px] font-semibold text-text-primary">
+              讨论{stock?.name ? ` · ${stock.name}` : ""}
+            </h2>
+            <p className="mt-0.5 text-[12px] text-text-tertiary">
+              {FORUM_IS_MOCK ? "示例数据：以下为演示用的虚构帖子。" : "来自社区的相关讨论。"}讨论仅供学习交流，不构成投资建议。
+            </p>
+          </div>
+          <Link href="/cn/forum" className="shrink-0 rounded-full border border-border-subtle px-4 py-1.5 text-[13px] text-purple-primary transition-colors hover:border-purple-primary/40 hover:bg-purple-light/50">
+            去社区发帖 →
+          </Link>
+        </div>
+        <PostList
+          posts={listPosts({ symbol: code, sort: "hot" }).slice(0, 5)}
+          emptyTitle="这只股票还没有相关讨论"
+          emptyHint="去社区发第一帖，用 $股票名$ 引用它即可出现在这里。"
+        />
+      </section>
 
       <footer className="mx-auto mt-10 max-w-3xl text-center text-[11px] leading-relaxed text-text-tertiary">
         {DISCLAIMER_FULL}
