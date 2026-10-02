@@ -13,8 +13,7 @@ import {
 } from "@/lib/score-display";
 import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 import { LockedHint, useUnlocked } from "@/components/LoginGate";
-import { PostList } from "@/components/forum/ForumBits";
-import { FORUM_IS_MOCK, listPosts } from "@/lib/forum-mock";
+import { StockDiscussion } from "@/components/forum/StockDiscussion";
 
 // ---------- types ----------
 type FundBar = { date: string; main_net: number };
@@ -588,7 +587,7 @@ export default function CNStockDetail() {
         </div>
       </div>
 
-      {/* 讨论：该股票的社区帖子（示例数据，接入论坛后端后替换） */}
+      {/* 讨论：该股票的社区帖子（真实接口，按 symbol 过滤） */}
       <section id="discussion" aria-labelledby="discussion-title" className="mt-6 rounded-2xl border border-border-subtle bg-surface-card p-4 shadow-sm sm:p-6">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
@@ -596,18 +595,14 @@ export default function CNStockDetail() {
               讨论{stock?.name ? ` · ${stock.name}` : ""}
             </h2>
             <p className="mt-0.5 text-[12px] text-text-tertiary">
-              {FORUM_IS_MOCK ? "示例数据：以下为演示用的虚构帖子。" : "来自社区的相关讨论。"}讨论仅供学习交流，不构成投资建议。
+              来自社区的相关讨论。讨论仅供学习交流，不构成投资建议。
             </p>
           </div>
-          <Link href="/cn/forum" className="shrink-0 rounded-full border border-border-subtle px-4 py-1.5 text-[13px] text-purple-primary transition-colors hover:border-purple-primary/40 hover:bg-purple-light/50">
+          <Link href="/cn/forum/" className="shrink-0 rounded-full border border-border-subtle px-4 py-1.5 text-[13px] text-purple-primary transition-colors hover:border-purple-primary/40 hover:bg-purple-light/50">
             去社区发帖 →
           </Link>
         </div>
-        <PostList
-          posts={listPosts({ symbol: code, sort: "hot" }).slice(0, 5)}
-          emptyTitle="这只股票还没有相关讨论"
-          emptyHint="去社区发第一帖，用 $股票名$ 引用它即可出现在这里。"
-        />
+        <StockDiscussion symbol={code} />
       </section>
 
       <footer className="mx-auto mt-10 max-w-3xl text-center text-[11px] leading-relaxed text-text-tertiary">

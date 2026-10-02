@@ -1,27 +1,29 @@
 // 社区通用小组件：头像 / 股票标签 / 带 $股票$ 的富文本 / 帖子卡片 / 帖子列表 / 社区规则
-// 数据来自 lib/forum-mock.ts（示例数据）。
+// 数据来自 lib/forum-api.ts（真实接口）。
 "use client";
 
 import Link from "next/link";
 import { useState } from "react";
 import {
+  type ForumAuthor,
   type ForumPost,
+  type ForumStock,
   OFFICIAL_NAME,
+  type PinScope,
   SECTION_LABEL,
-  STOCK_MAP,
-  avatarInitial,
-  excerptOf,
   formatTime,
-} from "@/lib/forum-mock";
+  postHref,
+  stripMarks,
+} from "@/lib/forum-api";
 
-export function Avatar({ name, size = 32 }: { name: string; size?: number }) {
+export function Avatar({ initial, size = 32 }: { initial: string; size?: number }) {
   return (
     <span
       aria-hidden
       style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
       className="inline-flex shrink-0 items-center justify-center rounded-full bg-purple-light font-semibold text-purple-primary"
     >
-      {avatarInitial(name)}
+      {initial}
     </span>
   );
 }
@@ -43,8 +45,8 @@ export function OfficialAvatar({ size = 32 }: { size?: number }) {
 }
 
 /** 头像：官方帖/官方回复用品牌头像，其余用昵称首字 */
-export function AuthorAvatar({ name, official, size = 32 }: { name: string; official?: boolean; size?: number }) {
-  return official ? <OfficialAvatar size={size} /> : <Avatar name={name} size={size} />;
+export function AuthorAvatar({ author, size = 32 }: { author: ForumAuthor; size?: number }) {
+  return author.is_official ? <OfficialAvatar size={size} /> : <Avatar initial={author.avatar_initial || author.nickname.slice(0, 1)} size={size} />;
 }
 
 /** 「AlphaPilot 官方」徽标 */
@@ -63,12 +65,13 @@ export function OfficialBadge({ className = "" }: { className?: string }) {
 }
 
 /** 作者名：官方帖显示徽标（徽标自带站点名），普通用户显示昵称 */
-export function AuthorName({ name, official }: { name: string; official?: boolean }) {
-  return official ? <OfficialBadge /> : <span className="max-w-[160px] truncate text-text-secondary">{name}</span>;
+export function AuthorName({ author }: { author: ForumAuthor }) {
+  return author.is_official ? <OfficialBadge /> : <span className="max-w-[160px] truncate text-text-secondary">{author.nickname}</span>;
 }
 
 /** 置顶标签：global=全站置顶，section=本版置顶 */
-export function PinTag({ scope }: { scope: NonNullable<ForumPost["pinScope"]> }) {
+export function PinTag({ scope }: { scope: PinScope }) {
+  if (scope === "none") return null;
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-purple-primary px-2 py-0.5 text-[11px] font-medium text-white">
       置顶
@@ -86,20 +89,21 @@ export function StockChip({ name, code }: { name: string; code: string }) {
     >
       <span aria-hidden>$</span>
       {name}
-      <span className="font-mono text-[11px] text-purple-primary/70">{code}</span>
+      {name !== code && <span className="font-mono text-[11px] text-purple-primary/70">{code}</span>}
     </Link>
   );
 }
 
 /** 把正文里的 $股票名$ 渲染成链接，其余原样输出（保留换行）；不认识的名称按普通文本显示 */
-export function RichText({ text, className = "" }: { text: string; className?: string }) {
+export function RichText({ text, stocks = [], className = "" }: { text: string; stocks?: ForumStock[]; className?: string }) {
+  const codeOf = (n: string) => stocks.find((s) => s.name === n || s.code === n || s.symbol === n)?.code;
   const parts = text.split(/(\$[^$]+\$)/g);
   return (
     <p className={`whitespace-pre-wrap break-words ${className}`}>
       {parts.map((part, i) => {
         const m = part.match(/^\$([^$]+)\$$/);
         if (!m) return <span key={i}>{part}</span>;
-        const code = STOCK_MAP[m[1]];
+        const code = codeOf(m[1]);
         return code ? (
           <span key={i} className="mx-0.5 inline-block align-baseline">
             <StockChip name={m[1]} code={code} />
@@ -126,60 +130,57 @@ const Icon = {
 };
 
 export function PostCard({ post, showSection = true }: { post: ForumPost; showSection?: boolean }) {
+  const folded = post.status === "folded";
   return (
     <li>
       <article
         className={`card-lift relative rounded-2xl border p-4 shadow-sm transition-colors hover:border-purple-primary/30 sm:p-5 ${
-          post.isOfficial ? "border-purple-primary/20 bg-purple-light/30" : "border-border-subtle bg-surface-card"
+          post.is_official ? "border-purple-primary/20 bg-purple-light/30" : "border-border-subtle bg-surface-card"
         }`}
       >
         <div className="flex flex-wrap items-center gap-2 text-[12px]">
-          {post.pinScope && <PinTag scope={post.pinScope} />}
+          <PinTag scope={post.pin_scope} />
           {showSection && (
-            <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-text-secondary">{SECTION_LABEL[post.section]}</span>
+            <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-text-secondary">{post.section_label || SECTION_LABEL[post.section]}</span>
           )}
-          <span className="rounded-full border border-dashed border-border-medium px-2 py-0.5 text-[11px] text-text-tertiary">
-            {post.id.startsWith("local-") ? "刚刚发布 · 示例，仅本页可见" : "示例数据"}
-          </span>
+          {folded && <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-text-tertiary">已折叠</span>}
         </div>
 
         <h3 className="mt-2 text-[16px] font-semibold leading-snug text-text-primary sm:text-[17px]">
           {/* 整卡可点：标题链接用 ::after 撑满卡片，内部的股票标签用 relative z-10 保持可点 */}
-          {post.id.startsWith("local-") ? (
-            <span className="break-words">{post.title.replace(/\$([^$]+)\$/g, "$1")}</span>
-          ) : (
-            <Link
-              href={`/cn/forum/${post.id}`}
-              className="break-words after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-purple-primary/50"
-            >
-              {post.title.replace(/\$([^$]+)\$/g, "$1")}
-            </Link>
-          )}
+          <Link
+            href={postHref(post.id)}
+            className="break-words after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-purple-primary/50"
+          >
+            {stripMarks(post.title)}
+          </Link>
         </h3>
-        <p className="mt-1.5 line-clamp-2 break-words text-[13px] leading-relaxed text-text-secondary">{excerptOf(post.body)}</p>
+        <p className="mt-1.5 line-clamp-2 break-words text-[13px] leading-relaxed text-text-secondary">
+          {folded ? post.fold_reason_label || "该帖已被折叠，点开可查看原文。" : post.excerpt ? stripMarks(post.excerpt) : ""}
+        </p>
 
         {post.stocks.length > 0 && (
           <div className="relative z-10 mt-3 flex flex-wrap gap-1.5">
             {post.stocks.map((s) => (
-              <StockChip key={s.code} {...s} />
+              <StockChip key={s.code} name={s.name} code={s.code} />
             ))}
           </div>
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-text-tertiary">
           <span className="inline-flex min-w-0 items-center gap-2">
-            <AuthorAvatar name={post.author} official={post.isOfficial} size={24} />
-            <AuthorName name={post.author} official={post.isOfficial} />
+            <AuthorAvatar author={post.author} size={24} />
+            <AuthorName author={post.author} />
           </span>
-          <time dateTime={post.time}>{formatTime(post.time)}</time>
+          <time dateTime={post.created_at}>{formatTime(post.created_at)}</time>
           <span className="ml-auto inline-flex items-center gap-3">
-            <span className="inline-flex items-center gap-1" aria-label={`${post.replies} 条回复`}>
+            <span className="inline-flex items-center gap-1" aria-label={`${post.reply_count} 条回复`}>
               {Icon.reply}
-              {post.replies}
+              {post.reply_count}
             </span>
-            <span className="inline-flex items-center gap-1" aria-label={`${post.likes} 个赞`}>
+            <span className="inline-flex items-center gap-1" aria-label={`${post.like_count} 个赞`}>
               {Icon.like}
-              {post.likes}
+              {post.like_count}
             </span>
           </span>
         </div>
@@ -199,23 +200,21 @@ export function PinnedBlock({ posts, showSection = false }: { posts: ForumPost[]
       <ul className="divide-y divide-purple-primary/10">
         {shown.map((p) => (
           <li key={p.id} className="relative flex items-start gap-2 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-white/60 sm:items-center sm:gap-3 sm:px-3">
-            <span className="mt-0.5 shrink-0 sm:mt-0">{p.pinScope && <PinTag scope={p.pinScope} />}</span>
+            <span className="mt-0.5 shrink-0 sm:mt-0"><PinTag scope={p.pin_scope} /></span>
             <span className="min-w-0 flex-1">
               <Link
-                href={`/cn/forum/${p.id}`}
+                href={postHref(p.id)}
                 className="block break-words text-[14px] font-medium leading-snug text-text-primary after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-purple-primary/50 sm:truncate"
               >
                 {p.title}
               </Link>
               <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 sm:hidden">
-                {p.isOfficial && <OfficialBadge />}
-                <span className="text-[11px] text-text-tertiary">示例数据</span>
+                {p.is_official && <OfficialBadge />}
               </span>
             </span>
             <span className="hidden shrink-0 items-center gap-2 sm:inline-flex">
               {showSection && <span className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[11px] text-text-secondary">{SECTION_LABEL[p.section]}</span>}
-              {p.isOfficial && <OfficialBadge />}
-              <span className="rounded-full border border-dashed border-border-medium px-2 py-0.5 text-[11px] text-text-tertiary">示例数据</span>
+              {p.is_official && <OfficialBadge />}
             </span>
           </li>
         ))}
@@ -259,6 +258,41 @@ export function PostList({
         <PostCard key={p.id} post={p} showSection={showSection} />
       ))}
     </ul>
+  );
+}
+
+/** 加载中占位 */
+export function LoadingList({ rows = 3 }: { rows?: number }) {
+  return (
+    <ul className="grid gap-3" aria-busy="true" aria-label="加载中">
+      {Array.from({ length: rows }).map((_, i) => (
+        <li key={i} className="animate-pulse rounded-2xl border border-border-subtle bg-surface-card p-4 sm:p-5">
+          <div className="h-3 w-16 rounded-full bg-black/[0.06]" />
+          <div className="mt-3 h-4 w-3/4 rounded bg-black/[0.07]" />
+          <div className="mt-2 h-3 w-full rounded bg-black/[0.05]" />
+          <div className="mt-4 h-3 w-1/3 rounded bg-black/[0.05]" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** 错误提示（带重试） */
+export function ErrorBox({ message, onRetry, className = "" }: { message: string; onRetry?: () => void; className?: string }) {
+  return (
+    <div role="alert" className={`rounded-2xl border border-status-danger/30 bg-status-danger/5 px-4 py-6 text-center ${className}`}>
+      <p className="text-[14px] font-medium text-text-primary">加载失败</p>
+      <p className="mt-1 text-[13px] text-text-secondary">{message}</p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 cursor-pointer rounded-full bg-purple-primary px-5 py-2 text-[13px] font-semibold text-on-primary hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-primary/50"
+        >
+          重试
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -1,64 +1,89 @@
-// 发帖面板（示例版：不会真正发布到服务器，只加入当前页面的本地列表）
+// 发帖面板：调用 POST /posts；被拒绝时在表单内显示中文原因（昵称含保留词时可直接改昵称）
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useReloginPrompt } from "@/lib/forum-hooks";
 import {
+  type CreatePostResponse,
   FORUM_LIMITS,
-  type ForumPost,
+  type Quota,
   SECTIONS,
-  STOCK_MAP,
   type SectionKey,
-  checkContent,
-  nowShanghaiIso,
-} from "@/lib/forum-mock";
+  contentHint,
+  createPost,
+  describeError,
+  setNickname,
+} from "@/lib/forum-api";
 
 export function Composer({
   defaultSection,
-  author,
+  quota,
   presetStock,
-  onPublish,
+  onPublished,
   onClose,
 }: {
   defaultSection: SectionKey;
-  author: string;
+  quota: Quota | null;
   presetStock?: { name: string; code: string };
-  onPublish: (post: ForumPost) => void;
+  onPublished: (r: CreatePostResponse) => void;
   onClose: () => void;
 }) {
+  const relogin = useReloginPrompt();
   const [section, setSection] = useState<SectionKey>(defaultSection);
   const [title, setTitle] = useState(presetStock ? `关于 $${presetStock.name}$ ：` : "");
   const [body, setBody] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [needNick, setNeedNick] = useState(false);
+  const [nick, setNick] = useState("");
+  const [nickBusy, setNickBusy] = useState(false);
+  const [nickOk, setNickOk] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
 
-  const liveCheck = checkContent(`${title}\n${body}`);
+  const hint = contentHint(`${title}\n${body}`);
   const tooLong = title.length > FORUM_LIMITS.titleMax || body.length > FORUM_LIMITS.bodyMax;
   const empty = !title.trim() || !body.trim();
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     if (empty) return setErr("标题和正文都不能为空。");
     if (tooLong) return setErr("内容超出长度限制，请精简后再发布。");
-    if (liveCheck.blocked) return setErr(liveCheck.blocked);
-    const stocks = Array.from(`${title}${body}`.matchAll(/\$([^$]+)\$/g)).map((m) => m[1]);
-    onPublish({
-      id: `local-${Date.now()}`,
-      section,
-      title: title.trim(),
-      body: body.trim(),
-      author,
-      time: nowShanghaiIso(),
-      replies: 0,
-      likes: 0,
-      stocks: Array.from(new Set(stocks)).filter((n) => STOCK_MAP[n]).map((n) => ({ name: n, code: STOCK_MAP[n] })),
-      // 注意：用户发帖永远不带 isOfficial / pinScope —— 官方帖与置顶只能由管理员在后台设置（见后端规格 §4.11），这里没有也不应该有对应入口
-      isExample: true,
-    });
-    onClose();
+    setErr(null);
+    setBusy(true);
+    try {
+      const r = await createPost({ section, title: title.trim(), body: body.trim() });
+      onPublished(r);
+      onClose();
+    } catch (ex) {
+      const d = describeError(ex);
+      setErr(d.message);
+      if (d.action === "nickname") setNeedNick(true);
+      if (d.action === "login") relogin("/cn/forum/");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveNick() {
+    const v = nick.trim();
+    if (!v || nickBusy) return;
+    setNickBusy(true);
+    setNickOk(null);
+    try {
+      const r = await setNickname(v);
+      setNickOk(`昵称已改为「${r.nickname}」，可以再次点击发布。`);
+      setErr(null);
+      setNeedNick(false);
+    } catch (ex) {
+      setErr(describeError(ex).message);
+    } finally {
+      setNickBusy(false);
+    }
   }
 
   const counter = (n: number, max: number) => (
@@ -125,24 +150,57 @@ export function Composer({
 
         <ul id="cmp-help" className="space-y-1 rounded-xl bg-purple-light/40 px-3 py-2.5 text-[12px] leading-relaxed text-text-secondary">
           <li>⚠️ 禁止留下微信 / QQ / 电话等联系方式及外部链接，含有此类内容的帖子无法发布。</li>
-          <li>每日最多发 {FORUM_LIMITS.dailyPostLimit} 帖；账号注册满 {FORUM_LIMITS.minAccountAgeDays} 天后可发帖。</li>
+          <li>每日最多发 {quota?.posts_limit ?? FORUM_LIMITS.dailyPostLimit} 帖；账号注册满 {FORUM_LIMITS.minAccountAgeDays} 天后可发帖。</li>
           <li>先发后审：违规内容会被折叠或删除。内容仅供学习交流，不构成投资建议。</li>
         </ul>
 
-        {(err || liveCheck.blocked) && (
+        {hint && !err && (
+          <p className="rounded-xl border border-border-medium bg-black/[0.03] px-3 py-2 text-[12px] text-text-secondary">{hint}</p>
+        )}
+
+        {err && (
           <p role="alert" className="rounded-xl border border-status-danger/30 bg-status-danger/5 px-3 py-2 text-[13px] text-status-danger">
-            {err ?? liveCheck.blocked}
+            {err}
           </p>
         )}
 
+        {needNick && (
+          <div className="rounded-xl border border-purple-primary/30 bg-purple-light/40 p-3">
+            <label htmlFor="cmp-nick" className="block text-[12px] text-text-secondary">
+              修改社区昵称{quota?.nickname ? `（当前：${quota.nickname}）` : ""}
+            </label>
+            <div className="mt-1.5 flex gap-2">
+              <input
+                id="cmp-nick"
+                value={nick}
+                onChange={(e) => setNick(e.target.value)}
+                maxLength={20}
+                placeholder="输入新昵称，不含官方、站务等词"
+                className="min-w-0 flex-1 rounded-xl border border-border-subtle bg-white px-3 py-2 text-[14px] text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-primary/50"
+              />
+              <button
+                type="button"
+                onClick={saveNick}
+                disabled={!nick.trim() || nickBusy}
+                className="shrink-0 cursor-pointer rounded-full bg-purple-primary px-4 py-2 text-[13px] font-semibold text-on-primary hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {nickBusy ? "保存中" : "保存昵称"}
+              </button>
+            </div>
+          </div>
+        )}
+        {nickOk && <p role="status" className="text-[12px] text-text-secondary">{nickOk}</p>}
+
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[11px] text-text-tertiary">示例版本：提交后只会出现在本页面的本地列表里，不会真正发布。</p>
+          <p className="text-[11px] text-text-tertiary">
+            {quota ? `发布昵称：${quota.nickname}，今日还可发 ${quota.remaining_today} 帖` : "发布后会立即显示，违规内容会被折叠或删除"}
+          </p>
           <button
             type="submit"
-            disabled={empty || tooLong || !!liveCheck.blocked}
+            disabled={empty || tooLong || busy}
             className="cursor-pointer rounded-full bg-purple-primary px-5 py-2 text-[13px] font-semibold text-on-primary transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-primary/50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            发布
+            {busy ? "发布中" : "发布"}
           </button>
         </div>
       </form>
