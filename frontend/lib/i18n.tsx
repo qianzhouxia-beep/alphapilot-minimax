@@ -4,6 +4,7 @@
 // 2026-07-06: 纯 A 股市场，不需要多语言
 
 import { createContext, useContext } from "react";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 
 export type Locale = "zh-CN";
 
@@ -90,7 +91,7 @@ const zhCN: Dict = {
   "stock.multi.neutral": "中性",
   "stock.multi.caution": "谨慎",
   "footer.disclaimer":
-    "AlphaPilot 提供 AI 辅助分析,仅供教育用途,非投资建议。过往表现不保证未来收益。所有概率为估计值,非保证。",
+    DISCLAIMER_FULL,
   "error.backend": "后端无法连接",
   "error.backend.tip": "提示:请确认后端运行在 localhost:8002",
   "tab.us": "美股",

@@ -59,6 +59,18 @@ function settleAtT3(w: WatchlistItem): {
   };
 }
 
+/** 请求超时保护：避免后端无响应时页面永远停在“加载中” */
+const LOAD_TIMEOUT_MS = 12_000;
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("TIMEOUT")), ms);
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); },
+    );
+  });
+}
+
 export default function WatchlistPage() {
   const { session, ready, openAuth } = useAuth();
   const [items, setItems] = useState<WatchlistItem[]>([]);
@@ -73,13 +85,14 @@ export default function WatchlistPage() {
 
   const load = async (refresh = true) => {
     try {
-      const wl = await fetchWatchlist(refresh);
-      setItems(wl.watchlist || []);
+      const wl = await withTimeout(fetchWatchlist(refresh), LOAD_TIMEOUT_MS);
+      setItems(wl?.watchlist || []);
       setError(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (/\b401\b|未登录/.test(msg)) {
         openAuth("login", "/cn/watchlist");
+        setError(msg);
         return;
       }
       setError(msg);
@@ -88,9 +101,17 @@ export default function WatchlistPage() {
     }
   };
 
+  const retryLoad = () => {
+    setError(null);
+    setLoading(true);
+    void load(true);
+  };
+
   useEffect(() => {
     if (!ready) return;
     if (!session) {
+      // 未登录：不再停留在“加载中”，直接展示登录引导
+      setLoading(false);
       openAuth("login", "/cn/watchlist");
       return;
     }
@@ -176,24 +197,6 @@ export default function WatchlistPage() {
     <main className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
       <HeaderBar market="cn" />
 
-      {error && !/401|未登录/.test(error) && (
-        <div className="glass mb-6 rounded-2xl border border-status-danger p-4 text-[13px] text-status-danger">
-          {error}
-        </div>
-      )}
-      {error && /401|未登录/.test(error) && (
-        <div className="glass mb-6 rounded-2xl border border-status-warning p-4">
-          <p className="text-[13px] text-status-warning font-semibold">请先登录后查看个人收藏</p>
-          <button
-            type="button"
-            onClick={() => openAuth("login", "/cn/watchlist")}
-            className="mt-3 inline-block rounded-lg bg-status-info px-4 py-2 text-[12px] font-semibold text-white"
-          >
-            去登录
-          </button>
-        </div>
-      )}
-
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -218,22 +221,89 @@ export default function WatchlistPage() {
         </div>
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-status-info"></div>
-            <p className="mt-4 text-[14px] text-text-secondary">加载中...</p>
+          <div className="flex flex-col items-center justify-center py-20" role="status">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-border-subtle border-t-purple-primary"></div>
+            <p className="mt-4 text-[14px] text-text-secondary">正在加载你的收藏…</p>
           </div>
         )}
 
-        {!loading && items.length === 0 && (
-          <div className="glass rounded-2xl p-12 text-center">
-            <p className="text-lg font-semibold text-text-disabled">暂无收藏股票</p>
-            <p className="mt-4 text-[16px] text-text-primary">还没有收藏任何股票</p>
-            <p className="mt-2 text-[13px] text-text-secondary">
-              在工作台点击收藏按钮添加，系统会自动追踪后续涨跌
+        {/* 未登录 */}
+        {!loading && !session && ready && (
+          <div className="glass rounded-2xl p-10 sm:p-12 text-center">
+            <p className="text-[18px] font-semibold text-text-primary">登录后查看你的收藏追踪</p>
+            <p className="mt-2 text-[13px] text-text-secondary max-w-md mx-auto leading-relaxed">
+              收藏的股票会按 T+1 / T+2 / T+3 自动记录后续涨跌，登录后可在不同设备上同步。
             </p>
-            <Link href="/cn" className="mt-6 inline-block rounded-lg bg-status-info px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:bg-status-info/70">
-              去选股
+            <button
+              type="button"
+              onClick={() => openAuth("login", "/cn/watchlist")}
+              className="mt-6 inline-block rounded-full bg-purple-primary px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:opacity-90 transition-opacity"
+            >
+              登录 / 注册
+            </button>
+          </div>
+        )}
+
+        {/* 加载失败 / 超时 */}
+        {!loading && session && error && (
+          <div className="glass rounded-2xl p-10 sm:p-12 text-center" role="alert">
+            <p className="text-[18px] font-semibold text-text-primary">
+              {error === "TIMEOUT" ? "加载超时了" : "收藏列表暂时没能加载出来"}
+            </p>
+            <p className="mt-2 text-[13px] text-text-secondary max-w-md mx-auto leading-relaxed">
+              {error === "TIMEOUT"
+                ? "服务器响应较慢，可能是网络不稳定或服务正在更新。你的收藏数据不会丢失。"
+                : /\b401\b|未登录/.test(error)
+                  ? "登录状态已失效，请重新登录。"
+                  : "可能是网络波动或服务正在更新，你的收藏数据不会丢失。"}
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              {/\b401\b|未登录/.test(error) ? (
+                <button
+                  type="button"
+                  onClick={() => openAuth("login", "/cn/watchlist")}
+                  className="rounded-full bg-purple-primary px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:opacity-90"
+                >
+                  重新登录
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={retryLoad}
+                  className="rounded-full bg-purple-primary px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:opacity-90"
+                >
+                  重新加载
+                </button>
+              )}
+              <Link href="/cn" className="text-[13px] font-medium text-text-secondary hover:text-text-primary">
+                先回工作台看看
+              </Link>
+            </div>
+            {error !== "TIMEOUT" && (
+              <details className="mt-5 text-xs text-text-tertiary">
+                <summary className="cursor-pointer select-none">查看技术详情</summary>
+                <p className="mt-1 break-all">{error}</p>
+              </details>
+            )}
+          </div>
+        )}
+
+        {/* 空状态 */}
+        {!loading && session && !error && items.length === 0 && (
+          <div className="glass rounded-2xl p-10 sm:p-12 text-center">
+            <p className="text-[18px] font-semibold text-text-primary">还没有收藏任何股票</p>
+            <p className="mt-2 text-[13px] text-text-secondary max-w-md mx-auto leading-relaxed">
+              收藏后，系统会自动记录它在随后 1 / 2 / 3 个交易日的涨跌，帮你复盘名单的参考价值。
+            </p>
+            <ol className="mt-6 mx-auto max-w-md space-y-2 text-left text-[13px] text-text-secondary">
+              <li className="flex gap-3"><span className="font-semibold text-purple-primary">1</span>在工作台的今日名单里找到感兴趣的股票</li>
+              <li className="flex gap-3"><span className="font-semibold text-purple-primary">2</span>点击股票行上的“收藏”按钮</li>
+              <li className="flex gap-3"><span className="font-semibold text-purple-primary">3</span>回到这里查看 T+1 / T+2 / T+3 的追踪结果</li>
+            </ol>
+            <Link href="/cn" className="mt-6 inline-block rounded-full bg-purple-primary px-6 py-2.5 text-[13px] font-semibold text-on-primary hover:opacity-90 transition-opacity">
+              去工作台看看今日名单
             </Link>
+            <p className="mt-5 text-xs text-text-tertiary">追踪结果仅为历史记录，不代表未来表现，不构成投资建议。</p>
           </div>
         )}
 

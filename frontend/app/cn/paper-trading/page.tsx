@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { fetchPaperTrading, fetchLiveRecommend, type PaperTradingData, type LiveRecommendResponse, type TradeLogEntry } from "@/lib/cn-api";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 
 export default function PaperTradingPage() {
   const { session, ready, openAuth } = useAuth();
@@ -173,8 +174,8 @@ export default function PaperTradingPage() {
         </section>
       )}
 
-      <footer className="mt-10 text-center text-[11px] text-text-disabled">
-        AlphaPilot 量化模拟盘仅供参考和教育用途，非投资建议。过往表现不保证未来收益。
+      <footer className="mx-auto mt-10 max-w-3xl text-center text-[11px] leading-relaxed text-text-tertiary">
+        模拟盘为虚拟资金演练，不涉及真实交易。{DISCLAIMER_FULL}
       </footer>
     </main>
   );

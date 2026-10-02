@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-/** 投资资讯已替换为板块研报 */
+/** “资讯”入口已并入“板块研报”：保留旧路由 /cn/news，统一跳转到 /cn/sectors */
 export default function NewsRedirect() {
   const router = useRouter();
   useEffect(() => {

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { HeaderBar } from "@/components/HeaderBar";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 
 type Plan = {
   id: string;
@@ -181,10 +182,8 @@ export default function BillingCN() {
         </p>
       </section>
 
-      <footer className="mt-10 text-center text-[11px] text-text-disabled">
-        AlphaPilot 提供 AI 辅助分析,仅供教育用途,非投资建议。
-        <br />
-        A 股内容仅供在美华人教育用途,非中国境内投顾服务。
+      <footer className="mx-auto mt-10 max-w-3xl text-center text-[11px] leading-relaxed text-text-tertiary">
+        {DISCLAIMER_FULL}
       </footer>
     </main>
   );

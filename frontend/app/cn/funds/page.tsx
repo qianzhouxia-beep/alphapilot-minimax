@@ -16,7 +16,7 @@ import type {
 import {
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
+  Info,
   Clock3,
   Radio,
   TrendingDown,
@@ -1673,6 +1673,44 @@ export default function SectorFlowPage() {
       && !!history.status.last_source_time
       && Date.now() / 1000 - history.status.last_source_time > 10)
 
+  // 面向用户的温和提示：不直接展示后端原始报错（原文收进“技术详情”）
+  const rawBackendMsg = history.status.last_error || history.status.backfill_error || null
+  const hasChartPoints = history.series.some((item) => item.points.length > 0)
+  const notice: { title: string; body: string; detail?: string; retry?: boolean } | null = loadError
+    ? {
+        title: '资金数据暂时无法加载',
+        body: '可能是网络波动或服务正在更新，请稍后点击“重新加载”。你仍可以使用站内其他功能。',
+        detail: loadError,
+        retry: true,
+      }
+    : activeViewError
+      ? {
+          title: '当前视图的数据暂时不可用',
+          body: '请稍后重试，或切换到其他视图查看。',
+          detail: activeViewError,
+        }
+      : history.status.backfill_error
+        ? {
+            title: '部分板块的分钟历史数据正在补齐',
+            body: '补齐完成前，曲线可能不完整；系统会自动重试，无需任何操作。不影响查看其他数据。',
+            detail: rawBackendMsg ?? undefined,
+          }
+        : history.status.last_error
+          ? {
+              title: '数据源暂时波动',
+              body: '系统正在自动恢复，恢复前展示的可能是最近一次成功采集的数据。',
+              detail: rawBackendMsg ?? undefined,
+            }
+          : isDelayed
+            ? {
+                title: '数据更新略有延迟',
+                body: '曲线可能暂时停滞，数据恢复后会自动继续绘制。',
+              }
+            : null
+  const nonTradingHint = ['closed', 'preopen', 'lunch'].includes(history.status.market_status)
+    ? '当前为非交易时段，今日资金曲线将在开盘后自动开始绘制。'
+    : '今日资金曲线暂无数据，数据补齐或开盘后将自动绘制。'
+
   return (
     <main className="mx-auto min-h-screen max-w-[1800px] px-4 py-4 sm:px-6 lg:px-8">
       <HeaderBar market="cn" />
@@ -1693,10 +1731,31 @@ export default function SectorFlowPage() {
       </header>
 
       <div className="mt-4 space-y-3">
-        {(loadError || activeViewError || isDelayed || history.status.last_error || history.status.backfill_error) && (
-          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
-            <CircleAlert className="mt-0.5 size-4 shrink-0" />
-            <span>{loadError || activeViewError || history.status.last_error || history.status.backfill_error || '数据源更新时间超过10秒，曲线可能暂时停滞。'}</span>
+        {notice && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-xl border border-purple-primary/15 bg-purple-light/60 px-4 py-3 text-[13px] text-text-secondary"
+          >
+            <Info className="mt-0.5 size-4 shrink-0 text-purple-primary" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-text-primary">{notice.title}</p>
+              <p className="mt-0.5 leading-relaxed">{notice.body}</p>
+              {notice.detail && (
+                <details className="mt-1.5 text-xs text-text-tertiary">
+                  <summary className="cursor-pointer select-none">查看技术详情</summary>
+                  <p className="mt-1 break-all">{notice.detail}</p>
+                </details>
+              )}
+            </div>
+            {notice.retry && (
+              <button
+                type="button"
+                onClick={() => { setLoading(true); void fetchHistory() }}
+                className="shrink-0 rounded-lg border border-purple-primary/30 bg-white px-3 py-1.5 text-xs font-medium text-purple-primary hover:bg-purple-light"
+              >
+                重新加载
+              </button>
+            )}
           </div>
         )}
 
@@ -1833,9 +1892,13 @@ export default function SectorFlowPage() {
                     <Radio className="mr-2 size-4 animate-pulse" />正在加载今日资金数据…
                   </div>
                 )}
-                {!loading && history.series.length === 0 && !loadError && (
-                  <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
-                    当前还没有今日快照，开盘后将自动开始绘制。
+                {!loading && !hasChartPoints && !loadError && (
+                  <div className="absolute inset-0 flex items-center justify-center px-6">
+                    <div className="max-w-sm rounded-2xl border border-border-light bg-white/90 px-6 py-5 text-center shadow-sm">
+                      <p className="text-sm font-medium text-text-primary">暂无可绘制的资金曲线</p>
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-text-secondary">{nonTradingHint}</p>
+                      <p className="mt-1.5 text-xs text-text-tertiary">也可以切换到“30日主力流向”查看近期日频数据。</p>
+                    </div>
                   </div>
                 )}
             </div>

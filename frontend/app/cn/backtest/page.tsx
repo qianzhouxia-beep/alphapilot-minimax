@@ -9,6 +9,7 @@ import {
   type ScreenerItem, type ScreenerResponse, type BacktestResponse, type BacktestItem,
   type StockSearchResult, type StockBacktestResponse,
 } from "@/lib/cn-api";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
 
 // ---------- types ----------
 type BacktestConfig = { startDate: string; endDate: string; holdingDays: number; topN: number; minScore: number };
@@ -57,6 +58,8 @@ function mapStockBacktest(resp: StockBacktestResponse): BacktestResult {
 // ---------- component ----------
 export default function BacktestPage() {
   const [data, setData] = useState<ScreenerResponse | null>(null);
+  const [poolLoading, setPoolLoading] = useState(true);
+  const [poolError, setPoolError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,7 +88,9 @@ export default function BacktestPage() {
   // 加载数据
   useEffect(() => {
     (async () => {
-      try { setData(await fetchCNScreener()); } catch { /* optional */ }
+      try { setData(await fetchCNScreener()); }
+      catch { setPoolError(true); }
+      finally { setPoolLoading(false); }
     })();
   }, []);
 
@@ -199,13 +204,13 @@ export default function BacktestPage() {
               <button onClick={() => { setMode("topn"); setRan(false); }}
                 className={`flex-1 py-2 text-[12px] font-medium transition-colors ${
                   mode === "topn"
-                    ? "bg-status-info text-on-primary"
+                    ? "bg-purple-primary text-on-primary"
                     : "bg-surface-panel text-text-disabled hover:text-text-primary"
                 }`}>Top N</button>
               <button onClick={() => { setMode("stock"); setRan(false); }}
                 className={`flex-1 py-2 text-[12px] font-medium transition-colors ${
                   mode === "stock"
-                    ? "bg-status-info text-on-primary"
+                    ? "bg-purple-primary text-on-primary"
                     : "bg-surface-panel text-text-disabled hover:text-text-primary"
                 }`}>指定股票</button>
             </div>
@@ -321,7 +326,7 @@ export default function BacktestPage() {
             {/* 执行按钮 */}
             <button onClick={handleRun}
               disabled={loading || (mode === "stock" && selectedStocks.length === 0)}
-              className="w-full rounded-xl bg-gradient-to-r from-status-info to-[#35e0a3] px-4 py-3 text-[14px] font-bold text-background hover:shadow-lg hover:shadow-[#A78BFA]/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              className="w-full rounded-xl bg-gradient-to-r from-purple-primary to-[#9061F9] px-4 py-3 text-[14px] font-bold text-white hover:shadow-lg hover:shadow-purple-primary/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? "计算中..." : "运行回测"}
             </button>
           </div>
@@ -333,14 +338,14 @@ export default function BacktestPage() {
           {ran && result && (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               <KpiCard label="平均收益" value={`${result.avgReturn > 0 ? "+" : ""}${result.avgReturn}%`}
-                accent={result.avgReturn >= 0 ? "#3EE6A8" : "#FF5D5D"} />
+                accent={result.avgReturn >= 0 ? "#FF3B30" : "#34C759"} />
               <KpiCard label="胜率" value={`${result.winRate}%`}
-                accent={result.winRate >= 50 ? "#3EE6A8" : "#F5C451"} />
-              <KpiCard label="最高收益" value={`${result.maxReturn > 0 ? "+" : ""}${result.maxReturn}%`} accent="#A78BFA" />
+                accent="#7C5CFC" />
+              <KpiCard label="最高收益" value={`${result.maxReturn > 0 ? "+" : ""}${result.maxReturn}%`} accent="#FF3B30" />
               <KpiCard label="最低收益" value={`${result.minReturn > 0 ? "+" : ""}${result.minReturn}%`}
-                accent={result.minReturn >= 0 ? "#3EE6A8" : "#FF5D5D"} />
+                accent={result.minReturn >= 0 ? "#FF3B30" : "#34C759"} />
               <KpiCard label="最大回撤" value={`${result.maxDrawdown}%`}
-                accent={result.maxDrawdown < 0 ? "#FF5D5D" : "#3EE6A8"} />
+                accent="#7C5CFC" />
             </div>
           )}
 
@@ -358,16 +363,58 @@ export default function BacktestPage() {
           <div className="glass card-lift rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[14px] font-semibold text-text-primary">
-                {ran ? "回测明细" : mode === "topn" ? "可选股票池" : "选择股票开始回测"}
+                {ran ? "回测明细" : mode === "topn" ? "今日候选股票池" : "选择股票开始回测"}
               </h3>
               {ran && result && (
                 <span className="text-[11px] text-text-disabled">共 {result.stockResults.length} 只</span>
               )}
             </div>
 
-            {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-border-subtle border-t-[#A78BFA]" />
+            {!ran && mode === "topn" && (
+              <p className="mb-4 text-[12px] leading-relaxed text-text-secondary">
+                Top N 回测会从下方“今日候选股票池”中，按你设定的最低评分和数量选出标的，回溯历史区间内的持有期表现。
+              </p>
+            )}
+
+            {loading || (!ran && mode === "topn" && poolLoading) ? (
+              <div className="flex items-center justify-center py-16" role="status" aria-label="加载中">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-border-subtle border-t-purple-primary" />
+              </div>
+            ) : !ran && mode === "stock" ? (
+              <div className="py-12 text-center">
+                <p className="text-[15px] font-semibold text-text-primary">先在左侧搜索并添加股票</p>
+                <p className="mx-auto mt-2 max-w-sm text-[12px] leading-relaxed text-text-secondary">
+                  支持代码、名称或拼音首字母（如 002979 / 茅台 / zgd）。添加后点击“运行回测”，即可查看这些股票在所选区间内的持有期表现。
+                </p>
+              </div>
+            ) : !ran && (data?.recommendations ?? []).length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-[15px] font-semibold text-text-primary">
+                  {poolError ? "候选股票池暂时没能加载出来" : "今日暂无候选股票"}
+                </p>
+                <p className="mx-auto mt-2 max-w-md text-[12px] leading-relaxed text-text-secondary">
+                  {poolError
+                    ? "可能是网络波动或服务正在更新，请稍后刷新页面重试。"
+                    : "候选池来自今日量化筛选名单。非交易日、行情偏弱或名单尚未生成时，候选池可能为空——系统会主动留空，而不是硬凑标的。"}
+                </p>
+                <p className="mx-auto mt-3 max-w-md text-[12px] leading-relaxed text-text-secondary">
+                  你仍然可以切换到左侧的「指定股票」模式，手动选择想验证的股票进行回测。
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                  <button type="button" onClick={() => { setMode("stock"); setRan(false); }}
+                    className="rounded-full bg-purple-primary px-5 py-2 text-[13px] font-semibold text-white hover:opacity-90">
+                    改用「指定股票」模式
+                  </button>
+                  {poolError && (
+                    <button type="button" onClick={() => window.location.reload()}
+                      className="text-[13px] font-medium text-text-secondary hover:text-text-primary">
+                      刷新页面
+                    </button>
+                  )}
+                </div>
+                <p className="mx-auto mt-5 max-w-md text-[11px] leading-relaxed text-text-tertiary">
+                  提示：Top N 模式使用今日评分回溯历史，存在前视偏差，结果仅供参考。
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -377,7 +424,7 @@ export default function BacktestPage() {
                       <th className="px-3 py-3 font-medium">#</th>
                       <th className="px-3 py-3 font-medium">代码</th>
                       <th className="px-3 py-3 font-medium">名称</th>
-                      {!ran && <th className="px-3 py-3 text-right font-medium">评分</th>}
+                      {!ran && <th className="px-3 py-3 text-right font-medium" title="模型原始输出，仅用于排序，不是上涨概率">原始评分</th>}
                       {ran && (
                         <>
                           <th className="px-3 py-3 text-right font-medium cursor-pointer hover:text-text-primary"
@@ -408,7 +455,7 @@ export default function BacktestPage() {
                           <>
                             <td className={`px-3 py-3 text-right text-[14px] font-semibold ${
                               item.actualReturn == null ? "text-text-secondary"
-                                : item.actualReturn >= 0 ? "text-status-success" : "text-status-danger"
+                                : item.actualReturn >= 0 ? "text-status-danger" : "text-status-success"
                             }`}>
                               {item.actualReturn == null ? "无数据" : `${item.actualReturn > 0 ? "+" : ""}${item.actualReturn}%`}
                             </td>
@@ -420,8 +467,8 @@ export default function BacktestPage() {
                             </td>
                             <td className="px-3 py-3 text-center">
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${
-                                item.win ? "bg-[rgba(62,230,168,0.12)] text-status-success"
-                                  : item.win === false ? "bg-[rgba(255,93,93,0.12)] text-status-danger"
+                                item.win ? "bg-[rgba(255,59,48,0.10)] text-status-danger"
+                                  : item.win === false ? "bg-[rgba(52,199,89,0.12)] text-status-success"
                                   : "bg-[rgba(159,176,199,0.12)] text-text-secondary"
                               }`}>
                                 {item.win ? "盈利" : item.win === false ? "亏损" : "—"}
@@ -436,11 +483,15 @@ export default function BacktestPage() {
               </div>
             )}
           </div>
+          <p className="px-1 text-[11px] leading-relaxed text-text-tertiary">
+            回测为基于历史数据的模拟，未完全计入交易成本、滑点与涨跌停无法成交等因素，且部分模式存在前视偏差。
+            历史表现不代表未来收益，结果仅供研究参考，不构成投资建议。红色表示上涨 / 盈利，绿色表示下跌 / 亏损。
+          </p>
         </section>
       </div>
 
-      <footer className="mt-10 text-center text-[11px] text-text-disabled">
-        AlphaPilot 提供 AI 辅助分析，仅供教育用途，非投资建议。
+      <footer className="mx-auto mt-10 max-w-3xl text-center text-[11px] leading-relaxed text-text-tertiary">
+        {DISCLAIMER_FULL}
       </footer>
     </main>
   );
@@ -479,7 +530,7 @@ function ResultChart({ results }: { results: { symbol: string; actualReturn: num
           return (
             <div key={i} className="relative flex flex-col items-center justify-end flex-1">
               <div className="w-full rounded-t-sm transition-all duration-300"
-                style={{ height: Math.max(h, 2), backgroundColor: r.win ? "rgba(62,230,168,0.6)" : "rgba(255,93,93,0.6)" }}
+                style={{ height: Math.max(h, 2), backgroundColor: r.win ? "rgba(255,59,48,0.6)" : "rgba(52,199,89,0.6)" }}
                 title={`${r.symbol}: ${r.actualReturn > 0 ? "+" : ""}${r.actualReturn.toFixed(1)}%`} />
             </div>
           );

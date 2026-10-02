@@ -12,6 +12,8 @@ import {
   combinedScore,
   toUnitProba,
 } from "@/lib/score-display";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
+import { LockedHint, useUnlocked } from "@/components/LoginGate";
 
 // ---------- types ----------
 type StockDetail = {
@@ -58,6 +60,7 @@ async function fetchStockDetail(symbol: string): Promise<StockDetail> {
 
 // ---------- component ----------
 export default function CNStockDetail({ params }: { params: Promise<{ symbol: string }> }) {
+  const { unlocked: priceUnlocked } = useUnlocked();
   const [symbol, setSymbol] = useState<string>("");
   const [stock, setStock] = useState<StockDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -161,9 +164,10 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
   const modelPct = Math.round(modelProba * 100);
   const heatPct = Math.round(sectorHeat * 100);
   const combinedPct = calcCombinedPct(modelProba, sectorHeat);
-  const buyPrice = stock?.buy_price ?? 0;
-  const targetPrice = stock?.target_price ?? 0;
-  const stopPrice = stock?.stop_price ?? 0;
+  // 未登录时不在页面上使用这三个具体价格（后端是否返回由接口决定，这里仅做展示隔离）
+  const buyPrice = priceUnlocked ? (stock?.buy_price ?? 0) : 0;
+  const targetPrice = priceUnlocked ? (stock?.target_price ?? 0) : 0;
+  const stopPrice = priceUnlocked ? (stock?.stop_price ?? 0) : 0;
 
   return (
     <main className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 min-h-screen">
@@ -228,6 +232,12 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
             </div>
           </div>
 
+          {!priceUnlocked ? (
+            <div className="mb-4 rounded-xl border border-border-subtle bg-surface-card p-3">
+              <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">ATR 价格目标</div>
+              <LockedHint variant="block" note="买入价、目标价、止损价等参考价格仅对登录用户展示，仅供研究参考，不构成投资建议。" />
+            </div>
+          ) : (
           <div className="mb-4 rounded-xl border border-border-subtle bg-surface-card p-3">
             <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">ATR 价格目标</div>
             <div className="space-y-1 text-[13px]">
@@ -245,6 +255,7 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
               </div>
             </div>
           </div>
+          )}
 
           {targetPrice > 0 && buyPrice > 0 && (
             <div className="mb-4 rounded-xl border border-border-subtle bg-surface-card p-3">
@@ -337,8 +348,8 @@ export default function CNStockDetail({ params }: { params: Promise<{ symbol: st
         </p>
       </section>
 
-      <footer className="mt-10 text-center text-[11px] text-text-disabled">
-        AlphaPilot 提供 AI 辅助分析，仅供教育用途，非投资建议。
+      <footer className="mx-auto mt-10 max-w-3xl text-center text-[11px] leading-relaxed text-text-tertiary">
+        {DISCLAIMER_FULL}
       </footer>
     </main>
   );

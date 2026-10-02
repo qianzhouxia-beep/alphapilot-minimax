@@ -11,6 +11,8 @@ import {
   combinedScore,
   toUnitProba,
 } from "@/lib/score-display";
+import { DISCLAIMER_FULL } from "@/lib/disclaimer";
+import { LockedHint, useUnlocked } from "@/components/LoginGate";
 
 // ---------- types ----------
 type FundBar = { date: string; main_net: number };
@@ -96,6 +98,7 @@ async function fetchStockDetail(symbol: string): Promise<StockDetail> {
 
 // ---------- component ----------
 export default function CNStockDetail() {
+  const { unlocked: priceUnlocked } = useUnlocked();
   const [symbol, setSymbol] = useState<string>("");
   const [stock, setStock] = useState<StockDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -183,7 +186,7 @@ export default function CNStockDetail() {
   const heatPct = Math.round(heat * 100);
   const combinedPct = calcCombinedPct(modelProba, heat);
   const change = stock?.live_change_pct ?? stock?.change_pct;
-  const price = stock?.live_price ?? stock?.price ?? stock?.buy_price;
+  const price = stock?.live_price ?? stock?.price ?? (priceUnlocked ? stock?.buy_price : undefined);
   const isWatched = wlSymbols.has(symbol);
 
   const toggleWatchlist = async () => {
@@ -338,6 +341,12 @@ export default function CNStockDetail() {
               />
             </div>
 
+            {!priceUnlocked ? (
+              <div className="rounded-xl border border-border-subtle bg-surface-panel p-3">
+                <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">ATR 价格目标</div>
+                <LockedHint variant="block" note="买入价、目标价、止损价等参考价格仅对登录用户展示，仅供研究参考，不构成投资建议。" />
+              </div>
+            ) : (
             <div className="rounded-xl border border-border-subtle bg-surface-panel p-3">
               <div className="mb-2 text-[10px] uppercase tracking-wider text-text-disabled">ATR 价格目标</div>
               <div className="space-y-1 text-[13px]">
@@ -355,8 +364,9 @@ export default function CNStockDetail() {
                 </div>
               </div>
             </div>
+            )}
 
-            {stock?.target_price && stock?.buy_price && stock?.stop_price
+            {priceUnlocked && stock?.target_price && stock?.buy_price && stock?.stop_price
               && stock.target_price > stock.buy_price
               && stock.buy_price > stock.stop_price && (
               <div className="mt-3 rounded-xl border border-border-subtle bg-surface-panel p-3">
@@ -576,8 +586,8 @@ export default function CNStockDetail() {
         </div>
       </div>
 
-      <footer className="mt-10 text-center text-[11px] text-text-disabled">
-        AlphaPilot 提供 AI 辅助分析，仅供教育用途，非投资建议。
+      <footer className="mx-auto mt-10 max-w-3xl text-center text-[11px] leading-relaxed text-text-tertiary">
+        {DISCLAIMER_FULL}
       </footer>
     </main>
   );
